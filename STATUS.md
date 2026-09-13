@@ -4,6 +4,8 @@ Snapshot: 2026-09-13. Canonical live delivery evidence is in [verification](ops/
 
 | Area | State | Evidence / next gate |
 | --- | --- | --- |
+| Public repository foundation | VERIFIED / PUSHED | [Verification snapshot and CI](ops/verification.md) |
+| GitHub collaboration | CONFIGURED / VERIFIED | 19 issues, 21 labels, 5 milestones; main permits direct Write contributions without review approval |
 | Product definition and initial customer target | DECISION | [Charter](PROJECT_CHARTER.md) |
 | Application implementation | NOT STARTED | No package.json, requirements.txt, pyproject.toml, or Compose manifest existed at inspection |
 | Problem evidence and interviews | TO VERIFY | [Evidence workflow](research/README.md); no interview findings imported |
