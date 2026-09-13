@@ -1,0 +1,35 @@
+# Private environment and credentials
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*service-account*.json
+credentials*.json
+token*.json
+secrets/
+private/
+.private/
+.cache/
+research/raw/
+research/interviews/raw/
+contracts/
+interviews/raw/
+*.wav
+*.mp3
+*.mp4
+*.mov
+# Local environment; do not redistribute installed third-party skills
+.agents/
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+# Existing unreviewed user work, preserved locally
+/01_problem_evidence.md
+# Generated verification caches
+.pytest_cache/
