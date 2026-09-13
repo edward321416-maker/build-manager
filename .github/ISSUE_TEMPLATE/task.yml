@@ -1,0 +1,27 @@
+name: Product / delivery task
+description: A bounded deliverable with verification evidence.
+title: "Task: "
+body:
+  - type: markdown
+    attributes:
+      value: "Search existing issues first. Keep personal data and credentials out of this public form."
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Problem and intended outcome
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and dependencies
+      description: Link canonical documents and related issues; label assumptions.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Acceptance and verification
+      description: Describe observable success and safety/privacy boundaries.
+    validations:
+      required: true

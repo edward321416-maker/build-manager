@@ -1,0 +1,111 @@
+{
+  "checked_at": "2026-09-13T14:21:03.049527+00:00",
+  "repository": "edward321416-maker/build-manager",
+  "issues": [
+    {
+      "number": 1,
+      "title": "Verify official Modu Startup 2 requirements"
+    },
+    {
+      "number": 2,
+      "title": "Build landlord problem evidence"
+    },
+    {
+      "number": 3,
+      "title": "Build tenant problem evidence"
+    },
+    {
+      "number": 4,
+      "title": "Map Korean competitors"
+    },
+    {
+      "number": 5,
+      "title": "Research international precedents"
+    },
+    {
+      "number": 6,
+      "title": "Validate technical feasibility"
+    },
+    {
+      "number": 7,
+      "title": "Review legal and safety boundaries"
+    },
+    {
+      "number": 8,
+      "title": "Design landlord interviews"
+    },
+    {
+      "number": 9,
+      "title": "Design tenant interviews"
+    },
+    {
+      "number": 10,
+      "title": "Define MVP scope"
+    },
+    {
+      "number": 11,
+      "title": "Draft 1R application"
+    },
+    {
+      "number": 12,
+      "title": "Build submission claim registry"
+    },
+    {
+      "number": 13,
+      "title": "Plan submission images"
+    },
+    {
+      "number": 14,
+      "title": "Run final submission gate"
+    },
+    {
+      "number": 15,
+      "title": "Define clickable prototype"
+    },
+    {
+      "number": 16,
+      "title": "Build AI guided intake prototype"
+    },
+    {
+      "number": 17,
+      "title": "Build triage evaluation dataset"
+    },
+    {
+      "number": 18,
+      "title": "Recruit first landlord pilot"
+    },
+    {
+      "number": 19,
+      "title": "Design pricing validation"
+    }
+  ],
+  "milestones": [
+    {
+      "number": 1,
+      "title": "M0 — Problem Validation",
+      "due_on": null
+    },
+    {
+      "number": 2,
+      "title": "M1 — Modu Startup 2 Submission",
+      "due_on": "2026-09-17T00:00:00Z"
+    },
+    {
+      "number": 3,
+      "title": "M2 — MVP Definition",
+      "due_on": null
+    },
+    {
+      "number": 4,
+      "title": "M3 — MVP Prototype",
+      "due_on": null
+    },
+    {
+      "number": 5,
+      "title": "M4 — Pilot",
+      "due_on": null
+    }
+  ],
+  "labels_total": 21,
+  "collaborator": "PENDING; no invitation attempted"
+}

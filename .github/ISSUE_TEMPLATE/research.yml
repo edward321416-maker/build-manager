@@ -1,0 +1,29 @@
+name: Research / evidence
+description: Validate an atomic claim using traceable sources and anonymized findings.
+title: "Research: "
+labels: [research]
+body:
+  - type: markdown
+    attributes:
+      value: "Public repository: do not paste identities, addresses, credentials, contracts, or raw interviews. Search open and closed issues first."
+  - type: textarea
+    id: question
+    attributes:
+      label: Question and claim IDs
+      description: State FACT / HYPOTHESIS / ASSUMPTION / DECISION / TO VERIFY and the uncertainty.
+    validations:
+      required: true
+  - type: textarea
+    id: method
+    attributes:
+      label: Method and source plan
+      description: Primary sources, exact locators, counterevidence, and limitations to check.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Acceptance criteria
+      description: Required registry updates, substantive note, privacy review, and falsification condition.
+    validations:
+      required: true

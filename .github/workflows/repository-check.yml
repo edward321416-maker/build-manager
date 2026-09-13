@@ -1,0 +1,22 @@
+name: Repository checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout reviewed tree
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify public repository
+        run: python3 scripts/verify_repository.py --history
+      - name: Verify whitespace
+        run: git diff-tree --check HEAD
