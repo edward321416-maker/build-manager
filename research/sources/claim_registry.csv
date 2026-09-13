@@ -1,0 +1,11 @@
+claim_id,claim,classification,source_ids,locator,verification_status,owner,next_action,submission_use
+CLM-001,Target landlords managing approximately 10-100 units and small or medium rental managers,DECISION,SRC-001,People and value,approved,project_owner,Validate segment through interviews,Allowed as target definition
+CLM-002,Initial MVP consists of guided intake triage manager dashboard and unit history,DECISION,SRC-001,Initial scope,approved,project_owner,Define acceptance criteria and feasibility,Allowed as proposed scope
+CLM-003,Structured intake reduces clarification burden for landlords,HYPOTHESIS,,No observations collected,unverified,unassigned,Collect recent-event evidence with landlord guide,Only labeled hypothesis
+CLM-004,Guided reporting helps tenants communicate maintenance problems,HYPOTHESIS,,No observations collected,unverified,unassigned,Observe tenant reporting tasks and counterexamples,Only labeled hypothesis
+CLM-005,Official competition eligibility deadline and required fields are confirmed,TO VERIFY,SRC-002,Official announcement pending,unverified,unassigned,Locate current official call and amendments,Blocked
+CLM-006,M1 internal target date is 2026-09-17,DECISION,SRC-001,Decision gates,approved,project_owner,Compare with verified official deadline,Allowed only as internal target
+CLM-007,Customers will pay for the service,HYPOTHESIS,,No willingness-to-pay evidence,unverified,unassigned,Design neutral pricing validation after problem interviews,Do not claim willingness to pay as fact
+CLM-008,AI can safely structure supported issue inputs,HYPOTHESIS,,No implementation or evaluation,unverified,unassigned,Build synthetic evaluation cases including urgent hazards,Only labeled feasibility hypothesis
+CLM-009,Long-context answer quality can vary with evidence position,FACT,SRC-004,Abstract,verified_literature,bootstrap_review,Check applicability on actual host and model,Internal engineering rationale only
+CLM-010,On-demand tool discovery can reduce schema context overhead,HYPOTHESIS,SRC-005,Tool Search Tool section,vendor_evidence_only,bootstrap_review,Measure our host and tool workload before claiming savings,No quantitative product claim

@@ -1,0 +1,6 @@
+source_id,title,source_type,url_or_reference,publication_date,accessed_at,locator,verification_status,reuse_notes
+SRC-001,Operator-approved project scope,operator_instruction,PROJECT_CHARTER.md,2026-09-13,2026-09-13,Purpose and initial scope,approved_decision,Public product brief only; no personal conversation copied
+SRC-002,Official Modu Startup 2 requirements,official_call_pending,,,,TO VERIFY,TO VERIFY,Locate original announcement and amendments; do not republish attachments without checking rights
+SRC-003,Legacy local problem evidence note,unreviewed_local_note,Private local file excluded from Git,2026-09-13,2026-09-13,Headings and link inventory only,TO VERIFY,Not read in full; not cleared for publication or factual use
+SRC-004,Lost in the Middle: How Language Models Use Long Contexts,research_paper,https://arxiv.org/abs/2307.03172,2023-07-06,2026-09-13,Abstract,verified_source,Link and paraphrase only; not a build-manager performance benchmark
+SRC-005,Introducing advanced tool use on the Claude Developer Platform,vendor_engineering,https://www.anthropic.com/engineering/advanced-tool-use,2025-11-24,2026-09-13,Tool Search Tool and Programmatic Tool Calling sections,verified_source,Vendor experiment; do not generalize reported savings to our runtime
