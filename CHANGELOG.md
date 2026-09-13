@@ -19,3 +19,8 @@
 
 - Documented the problem, B2B2C strategy, bounded MVP, proposed workflow, and Safety Gate.
 - Marked baseline workflows, market outcomes, implementation feasibility, and safety validation as unverified rather than observed results.
+
+## 2026-09-13 — Submission workspace
+
+- Added a substantive provisional application draft, official-requirement verification table, evidence and claim gates, and an original-image plan.
+- Separated drafts from the final release directory; official compliance and submission remain blocked pending verification and artifact approval.
