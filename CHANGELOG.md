@@ -24,3 +24,8 @@
 
 - Added a substantive provisional application draft, official-requirement verification table, evidence and claim gates, and an original-image plan.
 - Separated drafts from the final release directory; official compliance and submission remain blocked pending verification and artifact approval.
+
+## 2026-09-13 — AI operating prompts
+
+- Added English ChatGPT/Codex instructions for bounded autonomous tooling, selective context, patch-only code payloads, and durable checkpoints.
+- Codified Sheets append and Drive schema caching with pending fallback and receipt verification. Runtime enforcement, external sync, and token savings remain untested.
