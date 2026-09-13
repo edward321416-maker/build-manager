@@ -14,3 +14,8 @@
 - Added issue/PR templates and advisory public-repository checks.
 - Created 19 initial issues, 5 milestones, and 11 project labels; preserved 10 existing labels.
 - Kept squash and merge commits enabled. Collaborator invitation remains pending; no review-requirement rule was created.
+
+## 2026-09-13 — Product state
+
+- Documented the problem, B2B2C strategy, bounded MVP, proposed workflow, and Safety Gate.
+- Marked baseline workflows, market outcomes, implementation feasibility, and safety validation as unverified rather than observed results.
