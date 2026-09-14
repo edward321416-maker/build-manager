@@ -362,3 +362,45 @@ describe("address search contract", () => {
     ).toBe(false);
   });
 });
+
+describe("synthetic evidence types cover every P0 protocol requirement", () => {
+  it("accepts each public synthetic evidence type", () => {
+    const typeSchema = schema("SyntheticEvidenceTypeSchema");
+
+    for (const value of [
+      "BOILER_DISPLAY",
+      "LEAK_LOCATION",
+      "FIXTURE_VIEW",
+      "GENERAL_VIEW",
+    ]) {
+      expect(typeSchema.safeParse(value).success).toBe(true);
+    }
+  });
+
+  it("still rejects an unknown evidence type", () => {
+    expect(schema("SyntheticEvidenceTypeSchema").safeParse("RAW_UPLOAD").success).toBe(
+      false,
+    );
+  });
+
+  it("describes a shared-heating controller requirement", () => {
+    expect(
+      schema("SyntheticEvidenceRequirementDtoSchema").safeParse({
+        evidenceType: "FIXTURE_VIEW",
+        label: "DEMO 세대 조절기 화면",
+        required: true,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts submitting the newly expressible evidence types", () => {
+    for (const evidenceType of ["FIXTURE_VIEW", "GENERAL_VIEW"]) {
+      expect(
+        schema("SubmitSyntheticEvidenceRequestSchema").safeParse({
+          evidenceType,
+          fixtureId: "demo-fixture-view",
+        }).success,
+      ).toBe(true);
+    }
+  });
+});

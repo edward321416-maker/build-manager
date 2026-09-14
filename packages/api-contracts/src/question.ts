@@ -1,9 +1,18 @@
 import { z } from "zod";
 import { ProtocolSchema } from "./common";
 
+/**
+ * Public names for the synthetic evidence a P0 protocol can ask for.
+ *
+ * There is one member per evidence kind the committed HEATING and LEAK
+ * protocols require, so every requirement is expressible on the wire and the
+ * server never has to collapse two distinct requests into one public name.
+ */
 export const SyntheticEvidenceTypeSchema = z.enum([
   "BOILER_DISPLAY",
   "LEAK_LOCATION",
+  "FIXTURE_VIEW",
+  "GENERAL_VIEW",
 ]);
 export type SyntheticEvidenceType = z.infer<
   typeof SyntheticEvidenceTypeSchema

@@ -1,5 +1,6 @@
 export * from "./ports";
 export * from "./errors";
+export * from "./use-cases/ticket-assessment";
 export * from "./use-cases/create-demo-building";
 export * from "./use-cases/verify-building-context";
 export * from "./use-cases/create-ticket";
