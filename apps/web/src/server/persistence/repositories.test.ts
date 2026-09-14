@@ -8,6 +8,7 @@ import {
   type RepositoryFixture,
 } from "../testing/repository-contract";
 import { openSqliteDatabase } from "./database";
+import { createMemoryStore } from "./memory-store";
 import {
   createSqliteBuildingRepository,
   createSqliteTicketRepository,
@@ -18,6 +19,17 @@ describeRepositoryContract("in-memory", (): RepositoryFixture => {
   return {
     buildings: createInMemoryBuildingRepository(),
     tickets: createInMemoryTicketRepository(),
+    dispose() {
+      // Nothing to release.
+    },
+  };
+});
+
+describeRepositoryContract("server memory store", (): RepositoryFixture => {
+  const store = createMemoryStore([]);
+  return {
+    buildings: store.buildings,
+    tickets: store.tickets,
     dispose() {
       // Nothing to release.
     },
