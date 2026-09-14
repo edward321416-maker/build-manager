@@ -1,6 +1,7 @@
 # Private environment and credentials
 .env
 .env.*
+!web/.env.example
 *.pem
 *.key
 *.p12
@@ -27,6 +28,13 @@ interviews/raw/
 .venv/
 venv/
 node_modules/
+web/node_modules/
+web/.next/
+web/.env
+web/.env.local
+web/data/*.db
+web/test-results/
+web/playwright-report/
 __pycache__/
 *.pyc
 .DS_Store
