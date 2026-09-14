@@ -59,7 +59,7 @@ build-manager/
 ├─ packages/
 │  ├─ domain/                    # Pure business rules
 │  ├─ application/               # Use cases + ports
-│  ├─ contracts/                 # Zod API DTOs
+│  ├─ api-contracts/             # Zod API DTOs
 │  ├─ api-client/                # Typed HTTP client
 │  └─ fixtures/                  # Synthetic server/test fixtures
 │
@@ -185,7 +185,9 @@ Clock
 IdGenerator
 ```
 
-## 3.3 `packages/contracts`
+## 3.3 `packages/api-contracts`
+
+The directory name is intentionally `api-contracts`. The repository reserves an exact path segment named `contracts` for sensitive/legal contract material through `.gitignore` and `scripts/verify_repository.py`; application API schemas must not weaken that privacy boundary.
 
 Public HTTP boundary only.
 
@@ -210,7 +212,7 @@ BuildingPassportDto
 
 ## 3.4 `packages/api-client`
 
-Imports only `@build-manager/contracts`.
+Imports only `@build-manager/api-contracts`.
 
 Owns:
 
@@ -250,7 +252,7 @@ Synthetic data only.
 |---|---:|---:|---:|
 | `domain` | ❌ | ❌ | ✅ |
 | `application` | ❌ | ❌ | ✅ |
-| `contracts` | ✅ | ✅ | ✅ |
+| `api-contracts` | ✅ | ✅ | ✅ |
 | `api-client` | ✅ | ✅ | 선택 |
 | `fixtures` | ❌ | ❌ | ✅ |
 
@@ -386,7 +388,7 @@ POST /api/v1/tickets/:id/finalize
 POST /api/v1/tickets/:id/decision
 ```
 
-장기적으로 별도 API 서버가 필요하면 `domain/application/contracts`를 그대로 이동할 수 있다.
+장기적으로 별도 API 서버가 필요하면 `domain/application/api-contracts`를 그대로 이동할 수 있다.
 
 ---
 
@@ -1111,7 +1113,7 @@ packages/*
 - Roles: `LANDLORD_TENANT_ON_WEB_AND_APP`
 - Backend: `NEXT_ROUTE_HANDLERS_P0`
 - Authoritative Decisions: `SERVER_ONLY`
-- Shared Packages: `DOMAIN_APPLICATION_CONTRACTS_API_CLIENT_FIXTURES`
+- Shared Packages: `DOMAIN_APPLICATION_API_CONTRACTS_API_CLIENT_FIXTURES`
 - Shared UI: `NO`
 - Mobile Direct Domain Import: `PROHIBITED`
 - Public Demo Data: `SYNTHETIC_ONLY`

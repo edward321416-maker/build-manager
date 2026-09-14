@@ -21,7 +21,8 @@
 - P0 protocols: HEATING and LEAK only.
 - P0 buildings: two synthetic fixtures only.
 - Safety/Protocol/Evidence/Route decisions execute on the server, not client UI.
-- Web/Mobile may import `contracts`/`api-client`; Mobile must not import `domain`/`application`/`fixtures`.
+- Web/Mobile may import `api-contracts`/`api-client`; Mobile must not import `domain`/`application`/`fixtures`.
+- The public DTO package path/name is `packages/api-contracts` / `@build-manager/api-contracts`; never whitelist the reserved exact path segment `contracts`.
 - Normal auto recommendation requires `COMPLETE` evidence and no safety escalation.
 - `MISSING_REQUIRED`, `CONFLICTING`, `SAFETY_ESCALATED` => no normal recommendation.
 - LLM is not required for P0.
@@ -194,7 +195,7 @@ git commit -m "docs: approve web mobile MVP architecture"
 
 - [ ] **Step 1: Write a failing shared smoke test**
 
-`packages/contracts/src/product-meta.test.ts`:
+`packages/api-contracts/src/product-meta.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -261,7 +262,7 @@ Names:
 ```text
 @build-manager/domain
 @build-manager/application
-@build-manager/contracts
+@build-manager/api-contracts
 @build-manager/api-client
 @build-manager/fixtures
 ```
@@ -270,12 +271,12 @@ Workspace dependency graph:
 
 ```text
 application → domain
-contracts → zod
-api-client → contracts
+api-contracts → zod
+api-client → api-contracts
 fixtures → domain
-web server → domain/application/contracts/fixtures
-web UI → contracts/api-client
-mobile → contracts/api-client
+web server → domain/application/api-contracts/fixtures
+web UI → api-contracts/api-client
+mobile → api-contracts/api-client
 ```
 
 - [ ] **Step 6: Implement smoke constant**
@@ -324,7 +325,7 @@ git commit -m "chore: scaffold web mobile monorepo"
 # Task 3: Public Contracts and Architecture Guard
 
 **Files:**
-- Create: `packages/contracts/src/*.ts`
+- Create: `packages/api-contracts/src/*.ts`
 - Create: `tests/architecture/import-boundaries.test.ts`
 
 **Produces:** public DTOs and forbidden-import enforcement.
@@ -529,7 +530,7 @@ getTicket
 Requirements:
 
 - configurable baseUrl;
-- imports contracts only;
+- imports api-contracts only;
 - validates successful responses with Zod;
 - parses common error envelope;
 - no domain/application imports.
@@ -614,7 +615,7 @@ approve/override/more-info
 ```
 
 - [ ] Write Playwright RED first.
-- [ ] Implement using contracts/api-client only in browser-facing code.
+- [ ] Implement using api-contracts/api-client only in browser-facing code.
 - [ ] GREEN.
 - [ ] Commit `feat: add landlord web workflow`.
 
