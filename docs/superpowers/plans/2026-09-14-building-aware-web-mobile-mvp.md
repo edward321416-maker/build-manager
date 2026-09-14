@@ -616,6 +616,40 @@ Drizzle, `node:sqlite`, Next, React, or Expo.
 
 ---
 
+# Task 11.1: Building Read and Address Application Use Cases
+
+**Files:**
+- `packages/application/src/use-cases/list-buildings.ts`
+- `packages/application/src/use-cases/get-building.ts`
+- `packages/application/src/use-cases/search-address.ts`
+- `packages/api-contracts/src/address.ts`
+- tests
+
+**Produces:** the missing application path behind the three read/discovery
+endpoints, so route handlers never reach a repository or provider directly.
+
+```text
+listBuildings   -> BuildingRepository.list()
+getBuilding     -> BuildingRepository.findById()  (null when missing)
+searchAddress   -> AddressProvider.lookup()
+```
+
+`getBuilding` returns null like `getTicket`; the 404 mapping is the HTTP
+layer's job. These use cases orchestrate only — no business rule, no database
+access, no network, no fixture import.
+
+`GET /api/v1/address/search` had no public contract, so add the smallest one
+derived from the provider result: a single non-empty `query`, and a response
+whose `result` is null when nothing resolves. `searchAddress()` is **not**
+added to `api-client` in this task.
+
+- [ ] RED: delegation, exact id, not-found semantics, exact query.
+- [ ] Implement use cases and the address contract.
+- [ ] GREEN.
+- [ ] Commit `feat: add building read and address application use cases`.
+
+---
+
 # Task 11: Next Server Composition and Persistence
 
 **Files:**

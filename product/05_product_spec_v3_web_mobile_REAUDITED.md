@@ -173,7 +173,30 @@ requestMoreInfo
 listTickets
 getTicket
 resetDemo
+listBuildings
+getBuilding
+searchAddress
 ```
+
+### Read/discovery use cases
+
+`GET /api/v1/demo/buildings`, `GET /api/v1/buildings/:id`, `GET /api/v1/address/search`
+는 각각 Application use case를 거친다.
+
+```text
+listBuildings   → BuildingRepository.list()
+getBuilding     → BuildingRepository.findById()  (없으면 null)
+searchAddress   → AddressProvider.lookup()
+```
+
+Route Handler가 repository/provider를 직접 호출하지 않는다. 승인된 방향은
+`HTTP → Application → Port`이며 `HTTP → Repository/Provider`가 아니다.
+
+이 세 use case는 orchestration만 한다. business rule, DB 접근, network,
+fixture import를 추가하지 않는다.
+
+`getBuilding`은 `getTicket`과 같은 not-found 규약을 따라 없으면 `null`을 반환하고,
+404 매핑은 HTTP layer가 담당한다.
 
 Ports:
 
