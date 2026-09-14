@@ -49,10 +49,10 @@ PATTERNS = {
     'street_address': r'[가-힣]{2,}(?:로|길)\s+\d+(?:-\d+)?\s+(?:\d+동|\d+호)',
 }
 
-PUBLIC_SOURCE_URL_SHA256 = {
+PUBLIC_SOURCE_URL_IDENTITIES = {
     # Public KNUH notice URL verified reachable on 2026-09-14. Its numeric path
     # segment resembles a Korean resident ID, so only this exact URL is exempt.
-    '073bb0474c24b36222a6feb0b17f5c80a5576356e4cbf145156e5427e9943123',
+    '073bb0474c24b36222a6feb0b17f5c80a5576356e4cbf145156e5427e9943123': 71,
 }
 
 
@@ -60,13 +60,26 @@ def git(*args):
     return subprocess.check_output(['git', *args])
 
 
-def is_approved_public_url_match(content, match):
-    for candidate in re.finditer(r'''https?://[^\s<>"',]+''', content):
-        url = candidate.group().rstrip('.,;:!?)]}')
-        end = candidate.start() + len(url)
-        if candidate.start() <= match.start() and match.end() <= end:
+def is_approved_public_url_match(path, content, match):
+    for candidate in re.finditer(r'https?://', content):
+        if candidate.start() > match.start():
+            break
+        for approved_digest, url_length in PUBLIC_SOURCE_URL_IDENTITIES.items():
+            end = candidate.start() + url_length
+            if end > len(content) or not (
+                candidate.start() <= match.start() and match.end() <= end
+            ):
+                continue
+            url = content[candidate.start():end]
             digest = hashlib.sha256(url.encode('utf-8')).hexdigest()
-            return digest in PUBLIC_SOURCE_URL_SHA256
+            if digest != approved_digest:
+                continue
+            if end == len(content) or content[end].isspace() or content[end] in '"\'<>':
+                return True
+            if content[end] == ',' and path.endswith('.csv'):
+                return True
+            if content[end] == ')' and content[max(0, candidate.start() - 2):candidate.start()] == '](':
+                return True
     return False
 
 
@@ -118,7 +131,8 @@ def scan_content(path, data):
     if any(p in {'raw', 'private', '.private', 'secrets', 'contracts', '.agents'} for p in parts):
         findings.append('private_path')
     is_env_path = PurePosixPath(low).name.startswith('.env')
-    if (is_env_path and low != 'web/.env.example') or re.search(
+    is_public_env_example = path == 'web/.env.example'
+    if (is_env_path and not is_public_env_example) or re.search(
         r'(?:service.account|credentials|^token).*\.json$|\.(?:pem|key|p12|pfx|mp3|mp4|mov|wav|docx|pdf)$', low
     ):
         findings.append('sensitive_or_unreviewed_file')
@@ -126,14 +140,14 @@ def scan_content(path, data):
         content = data.decode('utf-8')
     except UnicodeDecodeError:
         return findings + ['unreviewed_binary']
-    if low == 'web/.env.example' and not empty_env_example(content):
+    if is_public_env_example and not empty_env_example(content):
         findings.append('sensitive_or_unreviewed_file')
     if not content.strip():
         findings.append('empty_file')
     for name, pattern in PATTERNS.items():
         matches = re.finditer(pattern, content)
         if any(
-            name != 'resident_id' or not is_approved_public_url_match(content, match)
+            name != 'resident_id' or not is_approved_public_url_match(path, content, match)
             for match in matches
         ):
             findings.append(name)

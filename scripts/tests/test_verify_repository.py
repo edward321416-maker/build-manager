@@ -62,6 +62,15 @@ class ContentScanTests(unittest.TestCase):
 
         self.assertIn("resident_id", findings)
 
+    def test_public_source_url_with_legal_suffix_is_scanned_as_a_resident_id(self):
+        for suffix in ("?", ";"):
+            with self.subTest(suffix=suffix):
+                findings = verify_repository.scan_content(
+                    "notes/source.txt", (public_source_url() + suffix).encode("utf-8")
+                )
+
+                self.assertIn("resident_id", findings)
+
     def test_identifier_outside_exact_public_source_url_is_detected(self):
         identifier = re.search(
             verify_repository.PATTERNS["resident_id"], public_source_url()
@@ -108,6 +117,13 @@ class ContentScanTests(unittest.TestCase):
     def test_other_env_example_path_remains_blocked(self):
         findings = verify_repository.scan_content(
             "api/.env.example", b"PUBLIC_API_URL=\n"
+        )
+
+        self.assertIn("sensitive_or_unreviewed_file", findings)
+
+    def test_case_variant_web_env_example_path_remains_blocked(self):
+        findings = verify_repository.scan_content(
+            "Web/.env.example", b"PUBLIC_API_URL=\n"
         )
 
         self.assertIn("sensitive_or_unreviewed_file", findings)
