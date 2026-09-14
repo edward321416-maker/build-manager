@@ -1,9 +1,11 @@
 import type { Building } from "../building/types";
+import type { IssueType } from "../ticket/types";
 import {
   heatingIndividualV1,
   heatingSharedV1,
   heatingUnknownV1,
 } from "./heating.v1";
+import { leakV1 } from "./leak.v1";
 import type { Protocol } from "./types";
 
 /**
@@ -34,4 +36,11 @@ export function selectHeatingProtocol(building: Building): Protocol {
     return heatingSharedV1;
   }
   return heatingUnknownV1;
+}
+
+export function selectProtocol(
+  building: Building,
+  issueType: IssueType,
+): Protocol {
+  return issueType === "LEAK" ? leakV1 : selectHeatingProtocol(building);
 }

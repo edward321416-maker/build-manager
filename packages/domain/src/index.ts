@@ -4,4 +4,6 @@ export * from "./ticket/types";
 export * from "./protocol/types";
 export * from "./protocol/evaluate-questions";
 export * from "./protocol/heating.v1";
+export * from "./protocol/leak.v1";
 export * from "./protocol/select-protocol";
+export * from "./evidence/evaluate-evidence";
