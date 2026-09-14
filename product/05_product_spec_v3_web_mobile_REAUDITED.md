@@ -1,0 +1,1123 @@
+# 모두의 창업 2기 — Building-Aware AI Repair Router
+## Step 05 v3 — Web + Mobile Monorepo Product Spec
+
+- 문서 상태: **RE-AUDITED v3 / APPROVED ARCHITECTURE**
+- 기준일: **2026-09-14**
+- 이전 기준본: `05_product_spec_v1_REAUDITED_v2.md`
+- 이전 기준본 상태: **SUPERSEDED — 구현 기준으로 사용 금지**
+- 제품 외부명(Working): **건물 맞춤형 AI 수리 라우터**
+- 내부 아키텍처명: **Building-Aware Maintenance Intelligence**
+- Hero Message: **주소가 수리 프로토콜이 된다**
+- P0 플랫폼: **Web + iOS/Android App**
+- P0 역할: **Web Landlord + Web Tenant + App Landlord + App Tenant**
+- PMF: `NOT_CLAIMED`
+- Customer Evidence: `MISSING`
+- WTP: `UNVALIDATED`
+
+---
+
+# 0. Executive Decision
+
+P0가 증명할 핵심은 웹과 앱을 둘 다 만들었다는 사실이 아니다.
+
+> **같은 세입자 신고라도 검증된 Building Context가 다르면 필요한 질문·증거·추천 처리경로가 달라진다.**
+
+웹과 앱은 이 핵심가설을 동일한 서버 규칙으로 제공하는 delivery surface다.
+
+차별성:
+
+```text
+Address
+→ Verified Building Context
+→ Maintenance Protocol
+→ Guided Evidence
+→ Explained Route
+→ Human Decision
+```
+
+실행 채널:
+
+```text
+Landlord Web
+Tenant Web
+Landlord App
+Tenant App
+```
+
+공모전에서 `Address → Context → Protocol`을 차별성으로, Web/App은 실행가능성과 접근성으로 설명한다.
+
+---
+
+# 1. Final Monorepo Architecture
+
+```text
+build-manager/
+├─ apps/
+│  ├─ web/                       # Next.js UI + authoritative HTTP API
+│  └─ mobile/                    # Expo Router iOS/Android
+│
+├─ packages/
+│  ├─ domain/                    # Pure business rules
+│  ├─ application/               # Use cases + ports
+│  ├─ contracts/                 # Zod API DTOs
+│  ├─ api-client/                # Typed HTTP client
+│  └─ fixtures/                  # Synthetic server/test fixtures
+│
+├─ product/
+├─ research/
+├─ submission/
+├─ ops/
+└─ governance/
+```
+
+Root package manager: **npm workspaces**.
+
+```json
+{
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"]
+}
+```
+
+P0에서는 Turborepo, Nx, pnpm workspace를 추가하지 않는다.
+
+---
+
+# 2. Authority Boundary
+
+## 2.1 Core source는 공유하지만 Core decision은 서버만 실행
+
+다음 authoritative decision을 Web/Mobile client가 직접 계산하면 안 된다.
+
+- Safety Hard Stop
+- Protocol branch selection
+- Evidence completeness
+- Route recommendation
+- Repair Packet authoritative state
+- Ticket state transition
+
+실행 구조:
+
+```text
+Landlord Web ─┐
+Tenant Web ───┤
+              ├── packages/api-client
+Landlord App ─┤
+Tenant App ───┘
+                     │
+                     ▼
+          apps/web /api/v1/*
+                     │
+                     ▼
+          packages/application
+                     │
+                     ▼
+              packages/domain
+       ┌─────────────┼─────────────┐
+       ▼             ▼             ▼
+     Safety       Protocol       Routing
+       │             │             │
+       └─────────────┼─────────────┘
+                     ▼
+                Repair Packet
+```
+
+클라이언트는 API contract를 소비하고 UI만 표현한다.
+
+---
+
+# 3. Shared Package Boundaries
+
+## 3.1 `packages/domain`
+
+Pure TypeScript only.
+
+금지 imports:
+
+- React
+- React Native
+- Next.js
+- Expo
+- Drizzle
+- fetch/HTTP
+- process.env
+
+Owns:
+
+- Building Context types
+- Ticket state
+- Safety rules
+- Heating / Leak Protocol
+- Evidence completeness
+- Routing
+- Repair Packet
+- Human review state transitions
+
+## 3.2 `packages/application`
+
+Framework-independent use cases and ports.
+
+Use cases:
+
+```text
+createDemoBuilding
+verifyBuildingContext
+createTicket
+submitTicketAnswer
+submitTicketEvidence
+finalizeTicket
+approveRecommendation
+overrideRoute
+requestMoreInfo
+listTickets
+getTicket
+```
+
+Ports:
+
+```text
+BuildingRepository
+TicketRepository
+AddressProvider
+BuildingRegistryProvider
+KaptProvider
+Clock
+IdGenerator
+```
+
+## 3.3 `packages/contracts`
+
+Public HTTP boundary only.
+
+Owns:
+
+- Zod request schemas
+- Zod response schemas
+- DTO types
+- public enums/status
+- API error envelope
+
+내부 Domain entity를 그대로 API response로 노출하지 않는다.
+
+Role-specific DTO를 분리한다.
+
+```text
+LandlordTicketDetailDto
+TenantTicketStatusDto
+TenantQuestionDto
+BuildingPassportDto
+```
+
+## 3.4 `packages/api-client`
+
+Imports only `@build-manager/contracts`.
+
+Owns:
+
+```text
+listDemoBuildings()
+getBuilding()
+verifyBuildingContext()
+createTicket()
+submitAnswer()
+submitEvidence()
+finalizeTicket()
+listTickets()
+getLandlordTicket()
+getTenantTicketStatus()
+approveRoute()
+overrideRoute()
+requestMoreInfo()
+resetDemo()
+```
+
+## 3.5 `packages/fixtures`
+
+Synthetic data only.
+
+금지:
+
+- 실제 개인 주소
+- 실제 세입자 정보
+- 실제 민원 원문
+- 실제 사진/영상
+
+---
+
+# 4. Client Import Policy
+
+| Package | Web UI | Mobile UI | Next API/Server |
+|---|---:|---:|---:|
+| `domain` | ❌ | ❌ | ✅ |
+| `application` | ❌ | ❌ | ✅ |
+| `contracts` | ✅ | ✅ | ✅ |
+| `api-client` | ✅ | ✅ | 선택 |
+| `fixtures` | ❌ | ❌ | ✅ |
+
+Architecture test로 이 경계를 강제한다.
+
+---
+
+# 5. Platform Versions
+
+## Runtime
+
+- Node.js: **24 LTS**
+- 2026-09-14 확인 기준 Node 24.21.0 LTS가 제공됨.
+
+Official:
+- https://nodejs.org/en/blog/release
+
+## Web
+
+- Next.js: **16.3.4**
+- React: **19.2.3**
+- App Router
+- TypeScript strict
+- Zod
+- Playwright
+- Vitest
+
+2026-09-14 확인 기준 npm `next` latest는 16.3.4.
+
+Official/reference:
+- https://www.npmjs.com/package/next
+- https://nextjs.org/docs
+
+## Mobile
+
+- Expo SDK: **57 stable**
+- Expo patch: `57.0.17` 이상 SDK 57 compatible patch 권장
+- React Native: **0.86.x**
+- React: **19.2.3**
+- Expo Router
+- `jest-expo`
+- `@testing-library/react-native`
+
+Expo SDK 57 공식 mapping:
+
+```text
+React Native 0.86
+React 19.2.3
+Minimum Node 22.13.x
+```
+
+Official:
+- https://expo.dev/changelog/sdk-57
+- https://docs.expo.dev/versions/latest/
+- https://docs.expo.dev/develop/unit-testing/
+- https://docs.expo.dev/router/reference/testing/
+
+---
+
+# 6. Dependency Deduplication
+
+Expo는 monorepo에서 중복 React/React Native/native module을 주의하라고 안내한다.
+
+Root npm workspace에서 React를 단일 버전으로 맞춘다.
+
+권장:
+
+```json
+{
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  }
+}
+```
+
+React Native는 Expo SDK 57이 지원하는 버전에서 임의 override하지 않는다.
+
+Release gate:
+
+```bash
+npm ls react
+npm ls react-dom
+npm ls react-native
+npm ls expo
+```
+
+Official:
+- https://docs.expo.dev/guides/monorepos/
+
+---
+
+# 7. Shared Package Transpilation
+
+P0 shared package는 source TypeScript를 사용한다.
+
+각 package마다 별도 `dist/` build pipeline을 만들지 않는다.
+
+Next는 `transpilePackages`로 workspace package를 처리한다.
+
+Expo SDK 52+ Metro는 공식 monorepo 설정에서 workspace를 자동 감지한다.
+
+Official:
+- https://nextjs.org/docs/architecture/nextjs-compiler
+- https://docs.expo.dev/guides/monorepos/
+
+---
+
+# 8. Backend
+
+P0 backend는 별도 `apps/api`를 만들지 않는다.
+
+Next Route Handlers 사용:
+
+```text
+apps/web/src/app/api/v1/
+```
+
+Endpoint family:
+
+```text
+GET  /api/v1/demo/buildings
+POST /api/v1/demo/reset
+GET  /api/v1/address/search
+GET  /api/v1/buildings/:id
+PATCH /api/v1/buildings/:id/context
+GET  /api/v1/tickets
+POST /api/v1/tickets
+GET  /api/v1/tickets/:id
+POST /api/v1/tickets/:id/answers
+POST /api/v1/tickets/:id/evidence
+POST /api/v1/tickets/:id/finalize
+POST /api/v1/tickets/:id/decision
+```
+
+장기적으로 별도 API 서버가 필요하면 `domain/application/contracts`를 그대로 이동할 수 있다.
+
+---
+
+# 9. Mobile API Configuration
+
+Mobile은 non-secret base URL만 사용한다.
+
+```text
+EXPO_PUBLIC_API_URL
+```
+
+절대 넣지 않음:
+
+- Juso service key
+- OpenAI/API secret
+- DB credential
+- auth secret
+
+개발 예시:
+
+```text
+Android emulator: http://10.0.2.2:3000
+iOS simulator:     http://127.0.0.1:3000
+Physical device:   http://<developer-LAN-IP>:3000
+```
+
+실제 개발 URL은 환경에서 설정한다.
+
+---
+
+# 10. Persistence
+
+Mobile은 SQLite를 직접 읽지 않는다.
+
+```text
+Mobile/Web UI
+→ HTTP API
+→ Application
+→ Repository Port
+→ Server Persistence Adapter
+```
+
+P0 local server:
+
+- Repository interfaces: `packages/application`
+- Local adapter: `apps/web/src/server/persistence/`
+- Node `node:sqlite` + Drizzle 가능
+- Tests: in-memory repository
+
+로컬 SQLite를 serverless cloud durable DB로 간주하지 않는다.
+
+Production DB/hosting migration은 P1.
+
+---
+
+# 11. P0 Roles
+
+사용자 승인:
+
+> **P0 Web = 임대인 + 세입자**
+>
+> **P0 App = 임대인 + 세입자**
+
+이는 Capability parity이며 pixel/screen parity가 아니다.
+
+---
+
+# 12. Capability Matrix
+
+| Capability | Web Landlord | Web Tenant | App Landlord | App Tenant |
+|---|---:|---:|---:|---:|
+| DEMO role entry | ✅ | ✅ | ✅ | ✅ |
+| Demo building select | ✅ | — | ✅ | — |
+| Building Passport | ✅ | 최소 | ✅ | 최소 |
+| Owner context verify | ✅ | — | ✅ | — |
+| Issue create | — | ✅ | — | ✅ |
+| Guided questions | — | ✅ | — | ✅ |
+| Synthetic evidence | — | ✅ | — | ✅ |
+| Safety interruption | 상태 | ✅ | 상태 | ✅ |
+| Ticket list | ✅ | own status | ✅ | own status |
+| Repair Packet | ✅ | simplified | ✅ | simplified |
+| Route approve | ✅ | — | ✅ | — |
+| Route override | ✅ | — | ✅ | — |
+| Request more info | ✅ | respond | ✅ | respond |
+| DEMO role switch | ✅ | ✅ | ✅ | ✅ |
+
+---
+
+# 13. Platform UX
+
+## Web Landlord
+
+Desktop-first.
+
+```text
+Building
+→ Ticket Dashboard
+→ Repair Packet
+→ Routing Basis
+→ Approve / Override / More Info
+```
+
+## App Landlord
+
+Quick-action first.
+
+```text
+Ticket List
+→ Compact Repair Packet
+→ Why
+→ Approve / Override / More Info
+```
+
+Desktop dashboard UI를 앱에 복제하지 않는다.
+
+## Web Tenant
+
+Mobile-responsive no-install fallback.
+
+```text
+URL
+→ Issue
+→ One question at a time
+→ Synthetic evidence
+→ Submitted/status
+```
+
+## App Tenant
+
+Native navigation.
+
+```text
+DEMO role
+→ Issue
+→ One question at a time
+→ Synthetic evidence
+→ Submitted/status
+```
+
+실제 Camera는 P0 제외.
+
+---
+
+# 14. Hero Demo
+
+## Primary
+
+**Tenant App → Landlord Web**
+
+```text
+App Tenant
+“난방이 안 돼요”
+↓
+Building-aware questions
+↓
+Evidence
+↓
+Repair Packet
+↓
+Web Landlord
+↓
+Why
+↓
+Approve
+```
+
+## Secondary
+
+**Tenant Web → Landlord App**
+
+```text
+No-install Web report
+↓
+App Landlord Ticket
+↓
+Repair Packet
+↓
+Decision
+```
+
+공모전에서는 모든 화면을 대칭적으로 시연하지 않는다.
+
+---
+
+# 15. Demo Building A
+
+```yaml
+id: demo-building-a
+display_name: DEMO 해솔빌라
+demo: true
+primary_use: 다가구주택
+approval_year: "2011"
+management_mode: OWNER_DIRECT
+heating_type: INDIVIDUAL
+owner_supplied_boiler: true
+```
+
+Routing eligible:
+
+- management_mode
+- heating_type
+- owner_supplied_boiler
+
+Informational only:
+
+- approval_year
+- floors
+- structure
+- parking
+
+---
+
+# 16. Demo Building B
+
+```yaml
+id: demo-building-b
+display_name: DEMO 라온하우징
+demo: true
+primary_use: 공동주택
+approval_year: "2018"
+management_mode: MANAGEMENT_OFFICE
+heating_type: CENTRAL_SHARED
+```
+
+No real address.
+
+---
+
+# 17. Protocol Scope
+
+P0 only:
+
+```text
+HEATING_V1
+LEAK_V1
+```
+
+No third protocol until P0 acceptance gates pass.
+
+---
+
+# 18. Decision Precedence
+
+```text
+1. SAFETY HARD STOP
+2. VERIFIED ROUTING-ELIGIBLE CONTEXT
+3. DETERMINISTIC PROTOCOL
+4. OPTIONAL LANGUAGE NORMALIZATION
+5. HUMAN DECISION
+```
+
+P0 Safety flags:
+
+```text
+GAS_SMELL
+SMOKE_OR_FIRE
+ELECTRICAL_WATER_RISK
+```
+
+Safety escalation:
+
+```text
+recommendation = null
+normal approve = unavailable
+ordinary troubleshooting = suspended
+```
+
+---
+
+# 19. Evidence Recommendation Gate
+
+```text
+COMPLETE
+→ normal automatic RouteRecommendation allowed
+
+MISSING_REQUIRED
+→ recommendation = null
+
+CONFLICTING
+→ recommendation = null
+
+SAFETY_ESCALATED
+→ recommendation = null
+```
+
+사람이 manual route를 선택할 수는 있지만 시스템 추천으로 표시하지 않는다.
+
+---
+
+# 20. More-info State Machine
+
+```text
+READY_FOR_REVIEW / PARTIAL
+→ REQUEST_MORE_INFO
+→ NEEDS_MORE_INFO
+→ tenant adds data
+→ IN_PROGRESS
+→ finalize
+→ READY_FOR_REVIEW
+```
+
+Repair Packet regeneration 시 revision +1.
+
+---
+
+# 21. LLM Policy
+
+P0 Core는 LLM 없이 작동해야 한다.
+
+Optional language layer가 향후 할 수 있는 것:
+
+- free-text category parsing
+- deterministic question wording
+- answer normalization
+- summary wording
+
+할 수 없는 것:
+
+- Safety override
+- Protocol condition 변경
+- Evidence Gate 변경
+- Routing Rule 변경
+- 법적 책임 판정
+- Human Decision 대체
+
+P0 acceptance를 위해 LLM SDK를 설치할 필요 없음.
+
+---
+
+# 22. Evidence / Media
+
+Public P0는 synthetic evidence만 사용.
+
+예:
+
+```text
+DEMO 보일러 표시창 이미지
+DEMO 누수 위치 이미지
+```
+
+실제 Camera/Gallery는 P0.5/P1.
+
+이유:
+
+- 권한
+- 저장소
+- PII/EXIF
+- consent
+- 핵심가설과 무관
+
+---
+
+# 23. Push / Auth
+
+Push notifications: **P1**.
+
+Production authentication: **P1**.
+
+P0에는 명확한:
+
+```text
+DEMO MODE
+[임대인으로 보기]
+[세입자로 보기]
+```
+
+만 제공한다.
+
+실제 권한체계가 구현됐다고 주장하지 않는다.
+
+---
+
+# 24. Tenant/Landlord Data Separation
+
+Tenant response는 다음을 노출하지 않는다.
+
+- landlord internal notes
+- internal-only route alternatives
+- 비용
+- 다른 호실
+- hidden contact data
+
+Contracts:
+
+```text
+LandlordTicketDetailDto
+TenantTicketStatusDto
+```
+
+를 분리한다.
+
+---
+
+# 25. API Error Contract
+
+모든 request/response boundary는 Zod 검증.
+
+```ts
+type ApiError = {
+  error: {
+    code: string;
+    message: string;
+    requestId?: string;
+  };
+};
+```
+
+Raw stack/exception을 client에 노출하지 않는다.
+
+---
+
+# 26. Architecture Import Guard
+
+Automated test는 `apps/mobile/**`에서 다음 import를 금지한다.
+
+```text
+@build-manager/domain
+@build-manager/application
+@build-manager/fixtures
+```
+
+Browser-facing Web components/hooks에서도 server-only package import를 금지한다.
+
+Allowed server areas:
+
+```text
+apps/web/src/server/**
+apps/web/src/app/api/**
+```
+
+---
+
+# 27. Testing Strategy
+
+## Shared
+
+Vitest:
+
+- Safety
+- Heating Protocol
+- Leak Protocol
+- Evidence Gate
+- Routing
+- Repair Packet
+- Ticket State
+- Application Use Cases
+- Contract parsing
+- Architecture guard
+
+## Web
+
+Playwright:
+
+- Building A Heating
+- Building B Heating
+- Safety escalation
+- More-info/refinalize
+- Route override
+- Web Tenant flow
+- Web Landlord flow
+
+## Mobile
+
+Official Expo testing stack:
+
+- jest-expo
+- React Native Testing Library
+- Expo Router testing utilities
+
+Required:
+
+- DEMO role entry
+- Landlord Building Passport
+- App Tenant question flow
+- App Tenant Safety interruption
+- App Landlord Repair Packet
+- approve/override/more-info action
+- forbidden-import check
+
+---
+
+# 28. Mobile P0 Build/Health Gate
+
+Mandatory P0:
+
+```text
+Mobile Jest/RNTL
+Expo Doctor
+Android export/bundle smoke
+ iOS export/bundle smoke
+```
+
+P0에서 EAS account 연결은 요구하지 않는다.
+
+EAS + Maestro E2E는 P1.
+
+Expo 공식문서는 EAS Workflow Maestro job을 현재 alpha로 안내한다.
+
+Official:
+- https://docs.expo.dev/eas/workflows/examples/e2e-tests/
+
+---
+
+# 29. Root Verification Scripts
+
+Semantic scripts:
+
+```text
+test
+test:shared
+test:web
+test:mobile
+lint
+typecheck
+build:web
+check:deps
+test:e2e:web
+verify
+```
+
+`verify`는 외부 유료계정 없이 deterministic local gates만 사용한다.
+
+`|| true`로 실패를 숨기지 않는다.
+
+---
+
+# 30. Dependency Gate
+
+```bash
+npm ls react
+npm ls react-dom
+npm ls react-native
+npm ls expo
+```
+
+Expected:
+
+- React consistently 19.2.3
+- Expo SDK 57
+- RN in Expo-supported 0.86.x
+- incompatible duplicate native-module tree 없음
+
+---
+
+# 31. P0 Non-goals
+
+```text
+OCR
+QR
+Camera/Gallery
+Push
+Vendor scheduling
+Marketplace
+Payment
+Rent/accounting
+Contract
+Tax
+Legal AI
+Insurance
+Weather
+Preventive maintenance
+Warranty
+IoT
+3D scan
+Production auth
+Production deployment migration
+Cloud DB migration
+Autonomous vendor dispatch
+```
+
+---
+
+# 32. Core Acceptance
+
+## CORE-01
+
+Same HEATING text + Building A/B => different server Protocol branch.
+
+## CORE-02
+
+Complete evidence => A/B different route recommendation.
+
+## CORE-03
+
+Changing approval year does not change routing.
+
+## CORE-04
+
+Safety escalation => recommendation null.
+
+## CORE-05
+
+Missing/conflicting evidence => recommendation null.
+
+## CORE-06
+
+More-info => packet revision increments after refinalize.
+
+---
+
+# 33. Web Acceptance
+
+- Web landlord selects demo buildings.
+- Building Passport and owner verification work.
+- Web tenant completes HEATING and LEAK.
+- Web landlord reviews packet/provenance.
+- Approve/override/more-info work.
+- Playwright Hero A/B passes.
+
+---
+
+# 34. App Acceptance
+
+- App clearly marks DEMO mode and role choices.
+- App landlord selects building and sees Building Passport.
+- App tenant completes HEATING/LEAK through API contract.
+- App landlord sees Repair Packet/Why/provenance.
+- App landlord submits approve/override/more-info via shared API client.
+- Mobile source has no direct domain/application/fixtures import.
+- Expo health/export gates pass.
+
+---
+
+# 35. Cross-platform Contract Parity
+
+같은 `LandlordTicketDetailDto`가:
+
+- Web Landlord
+- App Landlord
+
+에서 같은 의미를 표현해야 한다.
+
+같은 `TenantQuestionDto`가:
+
+- Web Tenant
+- App Tenant
+
+에서 같은 질문/선택지를 표현해야 한다.
+
+Parity는 pixel identical가 아니다.
+
+---
+
+# 36. Contest Claim Rules
+
+구현 검증 후 허용:
+
+> 웹과 앱에서 임대인과 세입자가 동일한 유지관리 workflow를 사용할 수 있도록 공통 API와 규칙엔진으로 구현했다.
+
+검증 없이 금지:
+
+- 고객이 사용했다
+- 수리시간 단축
+- 분쟁감소
+- 비용절감
+- PMF
+- WTP
+- 국내 최초
+- App Store/Play Store 출시
+
+---
+
+# 37. Final Architecture Audit
+
+| Check | Decision |
+|---|---|
+| Next.js Web | GO |
+| Expo App | GO |
+| Both roles on both | GO |
+| npm workspaces | GO |
+| shared UI library | NO |
+| shared pure domain | GO |
+| client authoritative routing | NO |
+| Next API authoritative | GO P0 |
+| separate API service | NOT P0 |
+| React version alignment | REQUIRED |
+| Next 16.3.4 | GO |
+| Expo SDK 57 | GO |
+| Node 24 LTS | GO |
+| Real camera | P1 |
+| Push | P1 |
+| Production Auth | P1 |
+| Web Playwright | REQUIRED |
+| Mobile Jest/RNTL | REQUIRED |
+| EAS/Maestro | P1 |
+| Local server SQLite | GO P0 |
+| Cloud SQLite assumption | PROHIBITED |
+
+---
+
+# 38. Supersession Rule
+
+이 v3는 Web-only v2 architecture를 폐기한다.
+
+다음 구조로 구현하는 이전 계획은 사용 금지:
+
+```text
+web/
+```
+
+현재 구조:
+
+```text
+apps/web/
+apps/mobile/
+packages/*
+```
+
+---
+
+# Document Control
+
+- Step: `05`
+- Version: `V3_WEB_MOBILE_MONOREPO`
+- Status: `APPROVED_ARCHITECTURE`
+- Supersedes: `05_product_spec_v1_REAUDITED_v2.md`
+- Monorepo: `NPM_WORKSPACES`
+- Web: `NEXT_16_3_4`
+- Mobile: `EXPO_SDK_57_RN_0_86`
+- React: `19_2_3_ALIGNED`
+- Node: `24_LTS`
+- Roles: `LANDLORD_TENANT_ON_WEB_AND_APP`
+- Backend: `NEXT_ROUTE_HANDLERS_P0`
+- Authoritative Decisions: `SERVER_ONLY`
+- Shared Packages: `DOMAIN_APPLICATION_CONTRACTS_API_CLIENT_FIXTURES`
+- Shared UI: `NO`
+- Mobile Direct Domain Import: `PROHIBITED`
+- Public Demo Data: `SYNTHETIC_ONLY`
+- Camera: `P1`
+- Push: `P1`
+- Production Auth: `P1`
+- Customer Evidence: `MISSING`
+- PMF: `NOT_CLAIMED`
+- Next: `06_V3_CAPABILITY_FIRST_IMPLEMENTATION_PLAN`
