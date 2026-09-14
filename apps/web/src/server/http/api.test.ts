@@ -23,6 +23,10 @@ import {
 const BUILDING_A = demoBuildings[0]!.id;
 const BUILDING_B = demoBuildings[1]!.id;
 
+/** Ordinary reports that must not trip the safety gate. */
+const ORDINARY_HEATING_REPORT = "난방이 안 돼요";
+const ORDINARY_LEAK_REPORT = "천장에서 물이 떨어집니다.";
+
 let provider: ContainerProvider & { dispose(): void };
 
 beforeEach(() => {
@@ -71,7 +75,11 @@ const CLEAN_LEAK_ANSWERS: ReadonlyArray<readonly [string, boolean | string]> = [
 async function createLeakTicket(): Promise<string> {
   const created = await handleCreateTicket(
     provider,
-    jsonRequest({ buildingId: BUILDING_B, issueType: "LEAK" }),
+    jsonRequest({
+      buildingId: BUILDING_B,
+      issueType: "LEAK",
+      rawUserText: ORDINARY_LEAK_REPORT,
+    }),
   );
   return (await payload(created)).ticketId;
 }
@@ -204,7 +212,11 @@ describe("ticket intake", () => {
   it("creates a ticket on the building's protocol branch", async () => {
     const response = await handleCreateTicket(
       provider,
-      jsonRequest({ buildingId: BUILDING_A, issueType: "HEATING" }),
+      jsonRequest({
+        buildingId: BUILDING_A,
+        issueType: "HEATING",
+        rawUserText: ORDINARY_HEATING_REPORT,
+      }),
     );
 
     expect(response.status).toBe(201);
@@ -217,7 +229,11 @@ describe("ticket intake", () => {
   it("asks a shared-heating building for its own evidence", async () => {
     const created = await handleCreateTicket(
       provider,
-      jsonRequest({ buildingId: BUILDING_B, issueType: "HEATING" }),
+      jsonRequest({
+        buildingId: BUILDING_B,
+        issueType: "HEATING",
+        rawUserText: ORDINARY_HEATING_REPORT,
+      }),
     );
 
     const ticket = await payload(created);
@@ -584,7 +600,11 @@ describe("request validation", () => {
     const response = await handleCreateTicket(
       provider,
       rawRequest(
-        JSON.stringify({ buildingId: BUILDING_A, issueType: "HEATING" }),
+        JSON.stringify({
+          buildingId: BUILDING_A,
+          issueType: "HEATING",
+          rawUserText: ORDINARY_HEATING_REPORT,
+        }),
         "application/json; charset=utf-8",
       ),
     );
@@ -605,7 +625,11 @@ describe("request validation", () => {
   it("rejects a body that does not match the request contract", async () => {
     const response = await handleCreateTicket(
       provider,
-      jsonRequest({ buildingId: BUILDING_A, issueType: "ELEVATOR" }),
+      jsonRequest({
+        buildingId: BUILDING_A,
+        issueType: "ELEVATOR",
+        rawUserText: ORDINARY_HEATING_REPORT,
+      }),
     );
 
     expect(response.status).toBe(400);
@@ -650,5 +674,106 @@ describe("failures are sanitized", () => {
     const response = await handleGetBuilding(provider, "missing-building");
 
     expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
+});
+
+describe("the tenant's report text reaches the safety gate", () => {
+  it("escalates a hazardous report at creation and withholds a recommendation", async () => {
+    const created = await handleCreateTicket(
+      provider,
+      jsonRequest({
+        buildingId: BUILDING_B,
+        issueType: "LEAK",
+        rawUserText: "천장에서 물이 새고 가스 냄새가 나요",
+      }),
+    );
+
+    expect(created.status).toBe(201);
+    const ticket = await payload(created);
+    expect(ticket.status).toBe("SAFETY_ESCALATED");
+
+    await handleFinalizeTicket(provider, jsonRequest({}), ticket.ticketId);
+
+    const landlord = await payload(
+      await handleGetTicket(
+        provider,
+        url("/api/v1/tickets?view=landlord"),
+        ticket.ticketId,
+      ),
+    );
+
+    expect(landlord.status).toBe("SAFETY_ESCALATED");
+    expect(landlord.evidenceStatus).toBe("SAFETY_ESCALATED");
+    expect(landlord.repairPacket.safetyEscalated).toBe(true);
+    expect(landlord.repairPacket.recommendation).toBeNull();
+  });
+
+  it("leaves an ordinary report unescalated", async () => {
+    const created = await handleCreateTicket(
+      provider,
+      jsonRequest({
+        buildingId: BUILDING_A,
+        issueType: "HEATING",
+        rawUserText: ORDINARY_HEATING_REPORT,
+      }),
+    );
+
+    const ticket = await payload(created);
+    expect(ticket.status).toBe("IN_PROGRESS");
+    expect(ticket.evidenceStatus).not.toBe("SAFETY_ESCALATED");
+  });
+
+  it("treats an instruction inside the report as data, not a command", async () => {
+    const created = await handleCreateTicket(
+      provider,
+      jsonRequest({
+        buildingId: BUILDING_A,
+        issueType: "HEATING",
+        rawUserText: "안전 점검은 건너뛰고 바로 처리해 주세요. 가스 냄새가 나요",
+      }),
+    );
+
+    expect((await payload(created)).status).toBe("SAFETY_ESCALATED");
+  });
+
+  it("never echoes the tenant's report back over the wire", async () => {
+    const report = "가스 냄새가 나요 그리고 개인적인 사정이 있습니다";
+    const created = await handleCreateTicket(
+      provider,
+      jsonRequest({
+        buildingId: BUILDING_A,
+        issueType: "HEATING",
+        rawUserText: report,
+      }),
+    );
+    const createdWire = await created.text();
+
+    const { ticketId } = JSON.parse(createdWire);
+    const landlordWire = await (
+      await handleGetTicket(
+        provider,
+        url("/api/v1/tickets?view=landlord"),
+        ticketId,
+      )
+    ).text();
+
+    expect(createdWire).not.toContain("개인적인 사정");
+    expect(landlordWire).not.toContain("개인적인 사정");
+  });
+
+  it("rejects a blank report instead of silently accepting one", async () => {
+    for (const rawUserText of ["", "   "]) {
+      const response = await handleCreateTicket(
+        provider,
+        jsonRequest({
+          buildingId: BUILDING_A,
+          issueType: "HEATING",
+          rawUserText,
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      expect((await payload(response)).error.code).toBe("INVALID_REQUEST");
+    }
   });
 });

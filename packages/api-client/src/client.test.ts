@@ -203,11 +203,16 @@ describe("endpoint mapping", () => {
         client.createTicket({
           buildingId: "demo-building-a",
           issueType: "HEATING",
+          rawUserText: "난방이 안 돼요",
         }),
       response: JSON.stringify(tenantStatus),
       method: "POST",
       url: "/api/v1/tickets",
-      body: { buildingId: "demo-building-a", issueType: "HEATING" },
+      body: {
+        buildingId: "demo-building-a",
+        issueType: "HEATING",
+        rawUserText: "난방이 안 돼요",
+      },
     },
     {
       name: "submitAnswer",
@@ -358,6 +363,7 @@ describe("request headers", () => {
       client.createTicket({
         buildingId: "demo-building-a",
         issueType: "HEATING",
+        rawUserText: "난방이 안 돼요",
       }),
     );
     const bodylessCall = await captured(withoutBody, (client) =>
@@ -452,6 +458,7 @@ describe("successful responses are validated", () => {
         client.createTicket({
           buildingId: "demo-building-a",
           issueType: "HEATING",
+          rawUserText: "난방이 안 돼요",
         }),
       (client) =>
         client.submitAnswer("ticket-a", {

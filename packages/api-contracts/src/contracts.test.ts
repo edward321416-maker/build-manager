@@ -103,6 +103,7 @@ describe("public API contracts", () => {
       schema("CreateTicketRequestSchema").safeParse({
         buildingId: "demo-building-a",
         issueType: "HEATING",
+        rawUserText: "난방이 안 돼요",
       }).success,
     ).toBe(true);
     expect(
@@ -402,5 +403,79 @@ describe("synthetic evidence types cover every P0 protocol requirement", () => {
         }).success,
       ).toBe(true);
     }
+  });
+});
+
+describe("tenant report text is part of the create contract", () => {
+  it("requires the tenant's own report text", () => {
+    const createSchema = schema("CreateTicketRequestSchema");
+
+    expect(
+      createSchema.safeParse({
+        buildingId: "demo-building-a",
+        issueType: "HEATING",
+        rawUserText: "난방이 안 돼요",
+      }).success,
+    ).toBe(true);
+    expect(
+      createSchema.safeParse({
+        buildingId: "demo-building-a",
+        issueType: "HEATING",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a blank report rather than accepting an empty one", () => {
+    const createSchema = schema("CreateTicketRequestSchema");
+
+    for (const rawUserText of ["", "   ", "　 "]) {
+      expect(
+        createSchema.safeParse({
+          buildingId: "demo-building-a",
+          issueType: "HEATING",
+          rawUserText,
+        }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("accepts an untrusted report without imposing a length ceiling of its own", () => {
+    const createSchema = schema("CreateTicketRequestSchema");
+
+    expect(
+      createSchema.safeParse({
+        buildingId: "demo-building-a",
+        issueType: "HEATING",
+        rawUserText: "가스 냄새가 나요",
+      }).success,
+    ).toBe(true);
+    expect(
+      createSchema.safeParse({
+        buildingId: "demo-building-a",
+        issueType: "HEATING",
+        rawUserText: "난방".repeat(500),
+      }).success,
+    ).toBe(true);
+  });
+
+  it("still refuses a client-supplied unit or decision", () => {
+    const createSchema = schema("CreateTicketRequestSchema");
+
+    expect(
+      createSchema.safeParse({
+        buildingId: "demo-building-a",
+        issueType: "HEATING",
+        rawUserText: "난방이 안 돼요",
+        unitId: "203호",
+      }).success,
+    ).toBe(false);
+    expect(
+      createSchema.safeParse({
+        buildingId: "demo-building-a",
+        issueType: "HEATING",
+        rawUserText: "난방이 안 돼요",
+        status: "SAFETY_ESCALATED",
+      }).success,
+    ).toBe(false);
   });
 });

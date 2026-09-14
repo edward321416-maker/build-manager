@@ -105,7 +105,9 @@ export function handleCreateTicket(
         buildingId: body.buildingId,
         unitId: demoUnitId(body.buildingId),
         issueType: body.issueType,
-        rawUserText: "",
+        // Untrusted tenant text, passed through unchanged so the deterministic
+        // safety gate can evaluate it. It is never logged and never echoed.
+        rawUserText: body.rawUserText,
       });
       return tenantStatus(container, ticket);
     });

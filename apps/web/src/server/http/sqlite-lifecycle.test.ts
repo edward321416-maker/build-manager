@@ -45,7 +45,11 @@ describe("request-scoped sqlite lifecycle", () => {
     await withTemporaryApi(async (provider) => {
       const created = await handleCreateTicket(
         provider,
-        jsonRequest({ buildingId: demoBuildings[1]!.id, issueType: "LEAK" }),
+        jsonRequest({
+          buildingId: demoBuildings[1]!.id,
+          issueType: "LEAK",
+          rawUserText: "천장에서 물이 떨어집니다.",
+        }),
       );
       expect(created.status).toBe(201);
       const { ticketId } = await created.json();
