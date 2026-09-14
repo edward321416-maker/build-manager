@@ -101,6 +101,12 @@ const SERVER_DRIVER_MODULES = ["node:sqlite"];
 
 const SERVER_PERSISTENCE_PATH = /(^|\/)server\/persistence(\/|$)/;
 
+/**
+ * Any reach into the web server tree from browser-facing code, whether through
+ * the `@/` alias or a relative path.
+ */
+const SERVER_TREE_SPECIFIER = /(^|\/)server\/|^@\/server($|\/)/;
+
 const SERVER_TREE_PREFIX = "apps/web/src/server/";
 
 /** Runtime `dependencies` each package is allowed to declare. */
@@ -276,6 +282,17 @@ function usesServerDriver(specifier: string): boolean {
   return SERVER_PERSISTENCE_PATH.test(specifier);
 }
 
+/**
+ * Any reach into the web server tree. Applied to browser-facing code only:
+ * route handlers legitimately use the server HTTP helpers.
+ */
+function reachesServerTree(specifier: string): boolean {
+  return (
+    (specifier.startsWith("@/") || specifier.startsWith(".")) &&
+    SERVER_TREE_SPECIFIER.test(specifier)
+  );
+}
+
 function isApiClientFile(file: string): boolean {
   return file.startsWith("packages/api-client/");
 }
@@ -355,6 +372,10 @@ export async function scanImportBoundaries(
         continue;
       }
       if (!serverTree && usesServerDriver(specifier)) {
+        findings.push({ file, specifier, rule: "server-driver-isolation" });
+        continue;
+      }
+      if (client && reachesServerTree(specifier)) {
         findings.push({ file, specifier, rule: "server-driver-isolation" });
       }
     }

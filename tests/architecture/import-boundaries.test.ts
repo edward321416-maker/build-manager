@@ -479,3 +479,73 @@ describe("api routes stay out of persistence", () => {
     expect(await scanImportBoundaries(root)).toEqual([]);
   });
 });
+
+describe("browser UI stays out of the server tree", () => {
+  it("rejects browser-facing web code importing the server tree", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "apps/web/src/components/landlord/views.tsx",
+      'import { createSqliteServerContainer } from "@/server/container";',
+    );
+    await source(
+      root,
+      "apps/web/src/app/demo/landlord/page.tsx",
+      'import { resolveDemoDatabasePath } from "../../../server/runtime/demo-database-path";',
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual([
+      {
+        file: "apps/web/src/app/demo/landlord/page.tsx",
+        specifier: "../../../server/runtime/demo-database-path",
+        rule: "server-driver-isolation",
+      },
+      {
+        file: "apps/web/src/components/landlord/views.tsx",
+        specifier: "@/server/container",
+        rule: "server-driver-isolation",
+      },
+    ]);
+  });
+
+  it("rejects browser-facing web code importing the core packages", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "apps/web/src/components/landlord/views.tsx",
+      [
+        'import { selectProtocol } from "@build-manager/domain";',
+        'import { demoBuildings } from "@build-manager/fixtures";',
+      ].join("\n"),
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual([
+      {
+        file: "apps/web/src/components/landlord/views.tsx",
+        specifier: "@build-manager/domain",
+        rule: "client-server-core",
+      },
+      {
+        file: "apps/web/src/components/landlord/views.tsx",
+        specifier: "@build-manager/fixtures",
+        rule: "client-server-core",
+      },
+    ]);
+  });
+
+  it("allows browser UI to use the public client and contracts", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "apps/web/src/components/landlord/views.tsx",
+      [
+        'import { createApiClient } from "@build-manager/api-client";',
+        'import type { BuildingPassportDto } from "@build-manager/api-contracts";',
+        'import Link from "next/link";',
+        'import { contextRows } from "./logic";',
+      ].join("\n"),
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual([]);
+  });
+});
