@@ -17,7 +17,8 @@
     "test:mobile": "npm --workspace @build-manager/mobile run test -- --runInBand",
     "test:e2e:web": "npm --workspace @build-manager/web run test:e2e",
     "lint": "npm --workspace @build-manager/web run lint && npm --workspace @build-manager/mobile run lint",
-    "typecheck": "tsc -p tsconfig.packages.json --noEmit && npm --workspace @build-manager/web run typecheck && npm --workspace @build-manager/mobile run typecheck",
+    "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
+    "typecheck": "tsc -p tsconfig.packages.json --noEmit && npm run typecheck:tests && npm --workspace @build-manager/web run typecheck && npm --workspace @build-manager/mobile run typecheck",
     "build:web": "npm --workspace @build-manager/web run build",
     "check:deps": "npm ls react && npm ls react-dom && npm ls react-native && npm ls expo",
     "verify": "npm run test:shared && npm run lint && npm run typecheck && npm run build:web && npm run check:deps"
