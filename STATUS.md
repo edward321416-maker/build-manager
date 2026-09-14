@@ -7,7 +7,7 @@ Snapshot: 2026-09-13. Canonical live delivery evidence is in [verification](ops/
 | Public repository foundation | VERIFIED / PUSHED | [Verification snapshot and CI](ops/verification.md) |
 | GitHub collaboration | CONFIGURED / VERIFIED | 19 issues, 21 labels, 5 milestones; main permits direct Write contributions without review approval |
 | Product definition and initial customer target | DECISION | [Charter](PROJECT_CHARTER.md) |
-| Application implementation | NOT STARTED | No package.json, requirements.txt, pyproject.toml, or Compose manifest existed at inspection |
+| Application implementation | SPEC APPROVED / IMPLEMENTATION STARTING | [Product Spec v1](product/05_product_spec_v1_REAUDITED_v2.md); contest P0 is two synthetic buildings × HEATING/LEAK |
 | Problem evidence and interviews | TO VERIFY | [Evidence workflow](research/README.md); no interview findings imported |
 | Market, competitors, pricing, willingness to pay | TO VERIFY | Do not promote legacy local notes to verified claims |
 | Submission | DRAFT / BLOCKED FOR FINAL | [Submission workspace](submission/2026-modu-startup-2/README.md); official rules pending |

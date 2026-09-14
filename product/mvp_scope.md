@@ -1,22 +1,13 @@
 # MVP Scope
 
-Status: four modules are **[DECISION]**; acceptance criteria below are proposed requirements, not implemented or tested behavior. Stack, model, deployment, cost, and media feasibility remain **[TO VERIFY]**.
+Status: **[DECISION] Contest P0 scope narrowed on 2026-09-14.**
 
-| Module | Required outcome | Proposed acceptance evidence |
-| --- | --- | --- |
-| AI Guided Issue Intake | Convert conversation and optional permissioned photos/video into a tenant-confirmed structured report | Synthetic incomplete, ambiguous, conflicting, and media-failure cases; never fabricate missing facts |
-| AI Triage | Classify the report, express uncertainty, prioritize safety, and suggest a next action | Human-labeled cases for every Safety Gate signal, ordinary cases, and abstentions; no invented accuracy threshold or result |
-| Landlord / Manager Dashboard | Let an authorized manager inspect, assign, update, and close tasks | Demonstrate receipt, assignment, waiting state, resolution, reopen, and tenant-visible status with synthetic data |
-| Property / Unit Maintenance History | Preserve dated issue and handling events associated with a unit | Show a chronology with actor/source provenance, corrections as new events, and access isolation |
+Canonical behavior and acceptance criteria: [Product Spec v1](05_product_spec_v1_REAUDITED_v2.md).
 
-## Proposed task record
+The contest MVP proves one hypothesis: the same tenant issue produces different questions, evidence requirements, and human-reviewed routing when verified building context differs.
 
-Use opaque property/unit and issue identifiers; tenant-confirmed description; observed symptoms; reported onset and affected area; permissioned evidence references; missing information; category; urgency; uncertainty/reason; next action; human assignee; status; timestamped handling events; resolution outcome. Do not store identities or raw media in the public repository. Optional media and missing answers must not block an urgent escalation.
+P0 contains two synthetic buildings and two protocols only: HEATING and LEAK. Safety hard stops precede ordinary troubleshooting. Normal automatic route recommendations require COMPLETE evidence and are always subject to human approval.
 
-## Exclusions
+Out of scope: rent/accounting, contracts, marketplace, payment, legal liability allocation, autonomous vendor dispatch, native apps, IoT, real customer data, and production integrations.
 
-No definitive liability allocation, universal fault diagnosis, electrical/gas/structural certification, dangerous DIY, autonomous contractor dispatch/payment, or production integrations are included. Price, market size, customer counts, and effectiveness are unverified. No promise of continuous emergency monitoring is made.
-
-## Release criteria to define before implementation
-
-The MVP-definition issue must settle supported issue categories, required versus optional fields, actor permissions, status transitions, evaluation methods/thresholds, access isolation, human handoff responsibility, retention, and failure/offline behavior. [AI Safety Boundary](ai_safety_boundary.md) applies across all four modules. A prototype uses synthetic data until a separately authorized privacy/safety-ready pilot.
+The existing [AI Safety Boundary](ai_safety_boundary.md) remains authoritative.
