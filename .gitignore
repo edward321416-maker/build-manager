@@ -35,6 +35,13 @@ web/.env.local
 web/data/*.db
 web/test-results/
 web/playwright-report/
+/web/
+apps/*/.expo/
+apps/*/.next/
+apps/*/dist/
+apps/*/coverage/
+apps/*/test-results/
+apps/*/playwright-report/
 __pycache__/
 *.pyc
 .DS_Store

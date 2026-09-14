@@ -1,0 +1,12 @@
+{
+  "name": "@build-manager/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@build-manager/api-contracts": "0.0.0"
+  }
+}

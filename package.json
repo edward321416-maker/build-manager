@@ -1,0 +1,33 @@
+{
+  "name": "building-aware-repair-router",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "test": "npm run test:shared",
+    "test:shared": "vitest run --config vitest.shared.config.ts",
+    "test:web": "npm --workspace @build-manager/web run test",
+    "test:mobile": "npm --workspace @build-manager/mobile run test -- --runInBand",
+    "test:e2e:web": "npm --workspace @build-manager/web run test:e2e",
+    "lint": "npm --workspace @build-manager/web run lint && npm --workspace @build-manager/mobile run lint",
+    "typecheck": "tsc -p tsconfig.packages.json --noEmit && npm --workspace @build-manager/web run typecheck && npm --workspace @build-manager/mobile run typecheck",
+    "build:web": "npm --workspace @build-manager/web run build",
+    "check:deps": "npm ls react && npm ls react-dom && npm ls react-native && npm ls expo",
+    "verify": "npm run test:shared && npm run lint && npm run typecheck && npm run build:web && npm run check:deps"
+  },
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vitest": "5.0.0"
+  }
+}

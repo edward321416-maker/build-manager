@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "건물 맞춤형 AI 수리 라우터",
+    "slug": "build-manager-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "build-manager",
+    "userInterfaceStyle": "automatic",
+    "ios": {},
+    "android": {
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
