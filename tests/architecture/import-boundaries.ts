@@ -43,6 +43,8 @@ const SERVER_CORE_PATH = /(^|\/)packages\/(application|domain|fixtures)(\/|$)/;
  * framework, a native runtime, transport, the ambient environment, or storage.
  */
 const IMPURE_CORE_MODULES = [
+  // Synthetic demo data is a server-adapter concern, never a core rule input.
+  "@build-manager/fixtures",
   "next",
   "react",
   "react-dom",

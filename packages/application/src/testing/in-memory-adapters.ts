@@ -5,6 +5,7 @@ import type {
   BuildingRegistryProvider,
   BuildingRepository,
   Clock,
+  DemoStateResetter,
   IdGenerator,
   KaptProvider,
   ProviderContextRecord,
@@ -31,7 +32,23 @@ export type InMemoryOptions = {
   kaptContext?: ProviderFact[];
   startedAt?: string;
   stepMs?: number;
+  demoState?: DemoStateResetter;
 };
+
+/**
+ * Stands in for the server reset adapter. It reseeds nothing of its own — the
+ * real reset semantics belong to the server layer, which is the only place
+ * allowed to know the canonical fixtures.
+ */
+export function createStubDemoStateResetter(
+  buildings: Building[] = [],
+): DemoStateResetter {
+  return {
+    async reset() {
+      return buildings.map((entry) => structuredClone(entry));
+    },
+  };
+}
 
 export function createInMemoryBuildingRepository(): BuildingRepository {
   const stored = new Map<string, Building>();
@@ -173,6 +190,7 @@ export function createInMemoryDependencies(
   return {
     buildings: createInMemoryBuildingRepository(),
     tickets: createInMemoryTicketRepository(),
+    demoState: options.demoState ?? createStubDemoStateResetter(),
     addresses: createRecordingAddressProvider(),
     buildingRegistry: createStaticRegistryProvider(
       options.registryContext ?? [],

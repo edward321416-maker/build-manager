@@ -10,3 +10,4 @@ export * from "./use-cases/override-route";
 export * from "./use-cases/request-more-info";
 export * from "./use-cases/list-tickets";
 export * from "./use-cases/get-ticket";
+export * from "./use-cases/reset-demo";

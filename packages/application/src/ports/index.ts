@@ -58,9 +58,21 @@ export type KaptProvider = {
   fetchContext(buildingId: string): Promise<ProviderContextRecord | null>;
 };
 
+/**
+ * Resets synthetic demo state and returns the reseeded buildings.
+ *
+ * Implemented by a server adapter, which is the only layer that may know about
+ * the fixture package. This acts on demo state only — it is not a production
+ * destructive operation.
+ */
+export type DemoStateResetter = {
+  reset(): Promise<Building[]>;
+};
+
 export type ApplicationDependencies = {
   buildings: BuildingRepository;
   tickets: TicketRepository;
+  demoState: DemoStateResetter;
   addresses: AddressProvider;
   buildingRegistry: BuildingRegistryProvider;
   kapt: KaptProvider;

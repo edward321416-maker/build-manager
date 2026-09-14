@@ -143,6 +143,33 @@ describe("architecture import boundaries", () => {
     ]);
   });
 
+  it("forbids the server core from importing the synthetic fixtures package", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "packages/application/src/use-cases/seed.ts",
+      'import { demoBuildings } from "@build-manager/fixtures";',
+    );
+    await source(
+      root,
+      "packages/domain/src/building/seed.ts",
+      'export { demoBuildings } from "@build-manager/fixtures";',
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual([
+      {
+        file: "packages/application/src/use-cases/seed.ts",
+        specifier: "@build-manager/fixtures",
+        rule: "server-core-purity",
+      },
+      {
+        file: "packages/domain/src/building/seed.ts",
+        specifier: "@build-manager/fixtures",
+        rule: "server-core-purity",
+      },
+    ]);
+  });
+
   it("accepts the current repository import graph", async () => {
     expect(await scanImportBoundaries(process.cwd())).toEqual([]);
   });
