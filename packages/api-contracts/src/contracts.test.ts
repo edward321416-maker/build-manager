@@ -311,3 +311,54 @@ describe("role-safe list responses", () => {
     ).toBe(false);
   });
 });
+
+describe("address search contract", () => {
+  it("requires a single non-empty query", () => {
+    const querySchema = schema("AddressSearchQuerySchema");
+
+    expect(querySchema.safeParse({ query: "DEMO 해솔빌라" }).success).toBe(true);
+    expect(querySchema.safeParse({ query: "" }).success).toBe(false);
+    expect(querySchema.safeParse({ query: "   " }).success).toBe(false);
+    expect(querySchema.safeParse({}).success).toBe(false);
+    expect(
+      querySchema.safeParse({ query: ["one", "two"] }).success,
+    ).toBe(false);
+  });
+
+  it("rejects extra query parameters instead of ignoring them", () => {
+    expect(
+      schema("AddressSearchQuerySchema").safeParse({
+        query: "DEMO 해솔빌라",
+        view: "landlord",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts a resolved synthetic address and an unresolved search", () => {
+    const responseSchema = schema("AddressSearchResponseSchema");
+
+    expect(
+      responseSchema.safeParse({
+        result: { normalizedAddress: "DEMO 합성 주소", jusoBdMgtSn: "demo-juso-1" },
+      }).success,
+    ).toBe(true);
+    expect(
+      responseSchema.safeParse({
+        result: { normalizedAddress: null, jusoBdMgtSn: null },
+      }).success,
+    ).toBe(true);
+    expect(responseSchema.safeParse({ result: null }).success).toBe(true);
+  });
+
+  it("rejects an address result carrying fields the provider never returns", () => {
+    expect(
+      schema("AddressSearchResponseSchema").safeParse({
+        result: {
+          normalizedAddress: "DEMO 합성 주소",
+          jusoBdMgtSn: "demo-juso-1",
+          residentName: "홍길동",
+        },
+      }).success,
+    ).toBe(false);
+  });
+});
