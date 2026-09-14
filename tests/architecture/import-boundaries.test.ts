@@ -2,7 +2,10 @@ import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { scanImportBoundaries } from "./import-boundaries";
+import {
+  scanImportBoundaries,
+  scanPackageDependencies,
+} from "./import-boundaries";
 
 const temporaryRoots: string[] = [];
 
@@ -142,5 +145,132 @@ describe("architecture import boundaries", () => {
 
   it("accepts the current repository import graph", async () => {
     expect(await scanImportBoundaries(process.cwd())).toEqual([]);
+  });
+});
+
+describe("api-client source purity", () => {
+  it("finds server-core and platform imports in api-client source", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "packages/api-client/src/client.ts",
+      [
+        'import { Ticket } from "@build-manager/domain";',
+        'import { createTicket } from "@build-manager/application";',
+        'import { demoBuildings } from "@build-manager/fixtures";',
+        'import React from "react";',
+        'import { Platform } from "react-native";',
+        'import { NextRequest } from "next/server";',
+        'import { Stack } from "expo-router";',
+        'import { sql } from "drizzle-orm";',
+      ].join("\n"),
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual(
+      [
+        "@build-manager/application",
+        "@build-manager/domain",
+        "@build-manager/fixtures",
+        "drizzle-orm",
+        "expo-router",
+        "next/server",
+        "react",
+        "react-native",
+      ].map((specifier) => ({
+        file: "packages/api-client/src/client.ts",
+        specifier,
+        rule: "api-client-purity",
+      })),
+    );
+  });
+
+  it("finds a relative bypass into the server core from api-client source", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "packages/api-client/src/client.ts",
+      'import type { Ticket } from "../../../packages/domain/src";',
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual([
+      {
+        file: "packages/api-client/src/client.ts",
+        specifier: "../../../packages/domain/src",
+        rule: "api-client-purity",
+      },
+    ]);
+  });
+
+  it("allows api-client to import the public contracts package", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "packages/api-client/src/client.ts",
+      [
+        'import { BuildingPassportDtoSchema } from "@build-manager/api-contracts";',
+        'import { buildUrl } from "./http";',
+      ].join("\n"),
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual([]);
+  });
+});
+
+describe("package runtime dependency allowlist", () => {
+  async function manifest(
+    root: string,
+    path: string,
+    contents: unknown,
+  ): Promise<void> {
+    await source(root, path, JSON.stringify(contents, null, 2));
+  }
+
+  it("flags every runtime dependency outside the allowlist", async () => {
+    const root = await fixtureRoot();
+    await manifest(root, "packages/api-client/package.json", {
+      name: "@build-manager/api-client",
+      dependencies: {
+        "@build-manager/api-contracts": "0.0.0",
+        "@build-manager/domain": "0.0.0",
+        zod: "4.6.5",
+      },
+    });
+
+    expect(await scanPackageDependencies(root)).toEqual([
+      {
+        package: "packages/api-client",
+        dependency: "@build-manager/domain",
+        rule: "dependency-allowlist",
+      },
+      {
+        package: "packages/api-client",
+        dependency: "zod",
+        rule: "dependency-allowlist",
+      },
+    ]);
+  });
+
+  it("accepts the approved runtime dependency alone", async () => {
+    const root = await fixtureRoot();
+    await manifest(root, "packages/api-client/package.json", {
+      name: "@build-manager/api-client",
+      dependencies: { "@build-manager/api-contracts": "0.0.0" },
+    });
+
+    expect(await scanPackageDependencies(root)).toEqual([]);
+  });
+
+  it("ignores dev dependencies and a manifest with no dependencies", async () => {
+    const root = await fixtureRoot();
+    await manifest(root, "packages/api-client/package.json", {
+      name: "@build-manager/api-client",
+      devDependencies: { vitest: "5.0.0", typescript: "6.0.3" },
+    });
+
+    expect(await scanPackageDependencies(root)).toEqual([]);
+  });
+
+  it("accepts the current repository manifests", async () => {
+    expect(await scanPackageDependencies(process.cwd())).toEqual([]);
   });
 });

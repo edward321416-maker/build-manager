@@ -4,7 +4,13 @@ import { join, relative, sep } from "node:path";
 export type ImportBoundaryFinding = {
   file: string;
   specifier: string;
-  rule: "client-server-core" | "server-core-purity";
+  rule: "client-server-core" | "server-core-purity" | "api-client-purity";
+};
+
+export type DependencyFinding = {
+  package: string;
+  dependency: string;
+  rule: "dependency-allowlist";
 };
 
 const SCANNED_ROOTS = ["apps", "packages"];
@@ -61,6 +67,24 @@ const IMPURE_CORE_MODULES = [
   "node:fs",
   "node:sqlite",
 ];
+
+/**
+ * The typed HTTP client ships to both browsers and React Native, so it may not
+ * reach the server core and may not bind itself to any platform framework.
+ */
+const API_CLIENT_FORBIDDEN_MODULES = [
+  "react",
+  "react-dom",
+  "react-native",
+  "next",
+  "expo",
+  "drizzle-orm",
+];
+
+/** Runtime `dependencies` each package is allowed to declare. */
+const RUNTIME_DEPENDENCY_ALLOWLIST: Record<string, readonly string[]> = {
+  "packages/api-client": ["@build-manager/api-contracts"],
+};
 
 const SPECIFIER_PATTERNS = [
   /\bfrom\s*["']([^"'\n]+)["']/g,
@@ -203,6 +227,23 @@ function breaksCorePurity(specifier: string): boolean {
   );
 }
 
+function isApiClientFile(file: string): boolean {
+  return file.startsWith("packages/api-client/");
+}
+
+/** Also matches sibling packages such as `expo-router` and `next-auth`. */
+function breaksApiClientPurity(specifier: string): boolean {
+  if (reachesServerCore(specifier)) {
+    return true;
+  }
+  return API_CLIENT_FORBIDDEN_MODULES.some(
+    (module) =>
+      specifier === module ||
+      specifier.startsWith(`${module}/`) ||
+      specifier.startsWith(`${module}-`),
+  );
+}
+
 function compareFindings(
   left: ImportBoundaryFinding,
   right: ImportBoundaryFinding,
@@ -229,7 +270,8 @@ export async function scanImportBoundaries(
   for (const file of files) {
     const client = isClientFile(file);
     const serverCore = isServerCoreFile(file);
-    if (!client && !serverCore) {
+    const apiClient = isApiClientFile(file);
+    if (!client && !serverCore && !apiClient) {
       continue;
     }
 
@@ -247,9 +289,73 @@ export async function scanImportBoundaries(
       }
       if (serverCore && breaksCorePurity(specifier)) {
         findings.push({ file, specifier, rule: "server-core-purity" });
+        continue;
+      }
+      if (apiClient && breaksApiClientPurity(specifier)) {
+        findings.push({ file, specifier, rule: "api-client-purity" });
       }
     }
   }
 
   return findings.sort(compareFindings);
+}
+
+function compareDependencyFindings(
+  left: DependencyFinding,
+  right: DependencyFinding,
+): number {
+  if (left.package !== right.package) {
+    return left.package < right.package ? -1 : 1;
+  }
+  if (left.dependency !== right.dependency) {
+    return left.dependency < right.dependency ? -1 : 1;
+  }
+  return 0;
+}
+
+/**
+ * Guards the runtime dependency surface of published packages. Source imports
+ * alone are not enough: a manifest can pull a forbidden package into every
+ * consumer's install even when no source file imports it yet.
+ *
+ * Only `dependencies` are checked; dev and test tooling follows the workspace
+ * convention.
+ */
+export async function scanPackageDependencies(
+  repositoryRoot: string,
+): Promise<DependencyFinding[]> {
+  const findings: DependencyFinding[] = [];
+
+  for (const [packagePath, allowed] of Object.entries(
+    RUNTIME_DEPENDENCY_ALLOWLIST,
+  )) {
+    const manifestPath = join(
+      repositoryRoot,
+      ...packagePath.split("/"),
+      "package.json",
+    );
+
+    let raw: string;
+    try {
+      raw = await readFile(manifestPath, "utf8");
+    } catch {
+      continue;
+    }
+
+    const manifest = JSON.parse(raw) as {
+      dependencies?: Record<string, string>;
+    };
+
+    for (const dependency of Object.keys(manifest.dependencies ?? {})) {
+      if (!allowed.includes(dependency)) {
+        findings.push({
+          package: packagePath,
+          dependency,
+          rule: "dependency-allowlist",
+        });
+      }
+    }
+  }
+
+  return findings.sort(compareDependencyFindings);
 }

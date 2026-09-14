@@ -34,6 +34,9 @@ export const BuildingPassportDtoSchema = z
   .strict();
 export type BuildingPassportDto = z.infer<typeof BuildingPassportDtoSchema>;
 
+export const BuildingPassportListSchema = z.array(BuildingPassportDtoSchema);
+export type BuildingPassportList = z.infer<typeof BuildingPassportListSchema>;
+
 export const OwnerVerificationRequestSchema = z
   .object({
     managementMode: ManagementModeSchema,

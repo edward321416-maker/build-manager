@@ -249,3 +249,65 @@ describe("public API contracts", () => {
     ).toBe(false);
   });
 });
+
+describe("role-safe list responses", () => {
+  const landlordDetail = {
+    ticketId: "ticket-a",
+    building: passport,
+    issueType: "HEATING",
+    protocol: "HEATING_V1",
+    status: "READY_FOR_REVIEW",
+    evidenceStatus: "COMPLETE",
+    activeQuestion: null,
+    repairPacket: null,
+    decision: null,
+  };
+
+  const tenantStatus = {
+    ticketId: "ticket-a",
+    buildingId: passport.buildingId,
+    issueType: "HEATING",
+    protocol: "HEATING_V1",
+    status: "READY_FOR_REVIEW",
+    evidenceStatus: "COMPLETE",
+    activeQuestion: null,
+    evidenceRequirements: [],
+    submittedEvidence: [],
+    packet: null,
+  };
+
+  it("accepts a list of building passports and rejects a bare object", () => {
+    const listSchema = schema("BuildingPassportListSchema");
+
+    expect(listSchema.safeParse([passport]).success).toBe(true);
+    expect(listSchema.safeParse([]).success).toBe(true);
+    expect(listSchema.safeParse(passport).success).toBe(false);
+  });
+
+  it("accepts a landlord ticket list", () => {
+    const listSchema = schema("LandlordTicketListSchema");
+
+    expect(listSchema.safeParse([landlordDetail]).success).toBe(true);
+    expect(listSchema.safeParse([{ ...landlordDetail, ticketId: "" }]).success).toBe(
+      false,
+    );
+  });
+
+  it("accepts a tenant ticket list", () => {
+    const listSchema = schema("TenantTicketListSchema");
+
+    expect(listSchema.safeParse([tenantStatus]).success).toBe(true);
+    expect(listSchema.safeParse([]).success).toBe(true);
+  });
+
+  it("keeps landlord-only entries out of a tenant ticket list", () => {
+    expect(
+      schema("TenantTicketListSchema").safeParse([landlordDetail]).success,
+    ).toBe(false);
+    expect(
+      schema("TenantTicketListSchema").safeParse([
+        { ...tenantStatus, internalNotes: ["DEMO landlord note"] },
+      ]).success,
+    ).toBe(false);
+  });
+});

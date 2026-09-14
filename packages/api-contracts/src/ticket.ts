@@ -64,6 +64,9 @@ export type LandlordTicketDetailDto = z.infer<
   typeof LandlordTicketDetailDtoSchema
 >;
 
+export const LandlordTicketListSchema = z.array(LandlordTicketDetailDtoSchema);
+export type LandlordTicketList = z.infer<typeof LandlordTicketListSchema>;
+
 const SubmittedSyntheticEvidenceDtoSchema = z
   .object({
     evidenceId: z.string().trim().min(1),
@@ -97,3 +100,6 @@ export const TenantTicketStatusDtoSchema = z
 export type TenantTicketStatusDto = z.infer<
   typeof TenantTicketStatusDtoSchema
 >;
+
+export const TenantTicketListSchema = z.array(TenantTicketStatusDtoSchema);
+export type TenantTicketList = z.infer<typeof TenantTicketListSchema>;
