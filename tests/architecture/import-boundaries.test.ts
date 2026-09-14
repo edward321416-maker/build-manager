@@ -301,3 +301,78 @@ describe("package runtime dependency allowlist", () => {
     expect(await scanPackageDependencies(process.cwd())).toEqual([]);
   });
 });
+
+describe("server persistence driver isolation", () => {
+  it("finds the sqlite driver anywhere outside the web server tree", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "packages/api-contracts/src/building.ts",
+      'import { DatabaseSync } from "node:sqlite";',
+    );
+    await source(
+      root,
+      "packages/api-client/src/client.ts",
+      'import { DatabaseSync } from "node:sqlite";',
+    );
+    await source(
+      root,
+      "apps/mobile/src/app/index.tsx",
+      'import { DatabaseSync } from "node:sqlite";',
+    );
+    await source(
+      root,
+      "apps/web/src/components/ticket-card.tsx",
+      'import { DatabaseSync } from "node:sqlite";',
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual(
+      [
+        "apps/mobile/src/app/index.tsx",
+        "apps/web/src/components/ticket-card.tsx",
+        "packages/api-client/src/client.ts",
+        "packages/api-contracts/src/building.ts",
+      ].map((file) => ({
+        file,
+        specifier: "node:sqlite",
+        rule: "server-driver-isolation",
+      })),
+    );
+  });
+
+  it("finds a browser-facing reach into the server persistence tree", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "apps/web/src/components/ticket-card.tsx",
+      'import { openSqliteDatabase } from "../server/persistence/database";',
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual([
+      {
+        file: "apps/web/src/components/ticket-card.tsx",
+        specifier: "../server/persistence/database",
+        rule: "server-driver-isolation",
+      },
+    ]);
+  });
+
+  it("allows the sqlite driver inside the web server tree", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "apps/web/src/server/persistence/database.ts",
+      'import { DatabaseSync } from "node:sqlite";',
+    );
+    await source(
+      root,
+      "apps/web/src/server/container.ts",
+      [
+        'import { openSqliteDatabase } from "./persistence/database";',
+        'import { demoBuildings } from "@build-manager/fixtures";',
+      ].join("\n"),
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual([]);
+  });
+});

@@ -4,7 +4,11 @@ import { join, relative, sep } from "node:path";
 export type ImportBoundaryFinding = {
   file: string;
   specifier: string;
-  rule: "client-server-core" | "server-core-purity" | "api-client-purity";
+  rule:
+    | "client-server-core"
+    | "server-core-purity"
+    | "api-client-purity"
+    | "server-driver-isolation";
 };
 
 export type DependencyFinding = {
@@ -82,6 +86,17 @@ const API_CLIENT_FORBIDDEN_MODULES = [
   "expo",
   "drizzle-orm",
 ];
+
+/**
+ * The local persistence driver belongs to the web server tree alone. Every
+ * other scanned location — clients, published packages, the server core — must
+ * not reach it, directly or through the persistence directory.
+ */
+const SERVER_DRIVER_MODULES = ["node:sqlite"];
+
+const SERVER_PERSISTENCE_PATH = /(^|\/)server\/persistence(\/|$)/;
+
+const SERVER_TREE_PREFIX = "apps/web/src/server/";
 
 /** Runtime `dependencies` each package is allowed to declare. */
 const RUNTIME_DEPENDENCY_ALLOWLIST: Record<string, readonly string[]> = {
@@ -229,6 +244,25 @@ function breaksCorePurity(specifier: string): boolean {
   );
 }
 
+function isServerTreeFile(file: string): boolean {
+  return file.startsWith(SERVER_TREE_PREFIX);
+}
+
+function isPublishedContractFile(file: string): boolean {
+  return file.startsWith("packages/api-contracts/");
+}
+
+function usesServerDriver(specifier: string): boolean {
+  if (
+    SERVER_DRIVER_MODULES.some(
+      (module) => specifier === module || specifier.startsWith(`${module}/`),
+    )
+  ) {
+    return true;
+  }
+  return SERVER_PERSISTENCE_PATH.test(specifier);
+}
+
 function isApiClientFile(file: string): boolean {
   return file.startsWith("packages/api-client/");
 }
@@ -273,7 +307,15 @@ export async function scanImportBoundaries(
     const client = isClientFile(file);
     const serverCore = isServerCoreFile(file);
     const apiClient = isApiClientFile(file);
-    if (!client && !serverCore && !apiClient) {
+    const serverTree = isServerTreeFile(file);
+    const publishedContract = isPublishedContractFile(file);
+    if (
+      !client &&
+      !serverCore &&
+      !apiClient &&
+      !serverTree &&
+      !publishedContract
+    ) {
       continue;
     }
 
@@ -295,6 +337,10 @@ export async function scanImportBoundaries(
       }
       if (apiClient && breaksApiClientPurity(specifier)) {
         findings.push({ file, specifier, rule: "api-client-purity" });
+        continue;
+      }
+      if (!serverTree && usesServerDriver(specifier)) {
+        findings.push({ file, specifier, rule: "server-driver-isolation" });
       }
     }
   }
