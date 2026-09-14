@@ -245,6 +245,36 @@ Public HTTP boundary only.
 
 Owns:
 
+### `CreateTicketRequest`
+
+```text
+buildingId
+issueType
+rawUserText
+```
+
+`rawUserText`는 세입자가 직접 쓴 신고 원문이며 **required**다. 이것이 없으면
+report-text 기반 Safety 처리가 HTTP 경로에서 아예 도달 불가능해진다.
+
+`rawUserText`는 **untrusted tenant input**이다.
+
+```text
+기존 deterministic Safety Gate가 report text를 평가할 수 있다
+Safety 판단은 Domain에서만 수행한다
+HTTP/client는 Safety 로직을 재구현하지 않는다
+```
+
+Client와 Route Handler는 `rawUserText`를 **로그로 남기지 않는다**. 공개 error
+body에 넣지 않고, HTML로 렌더링하지 않으며, LLM에 보내지 않는다. 응답으로 다시
+돌려주지도 않는다.
+
+별도의 max length는 두지 않는다. 현재 canonical 문서가 정의한 길이 상한이 없기
+때문이다.
+
+`unitId`는 public contract에 포함하지 않는다. P0는 demo building마다 synthetic
+unit context 하나를 가정하고, 서버가 그 unit identity를 파생한다. Unit 관리나
+인증으로 확장하지 않는다.
+
 - Zod request schemas
 - Zod response schemas
 - DTO types

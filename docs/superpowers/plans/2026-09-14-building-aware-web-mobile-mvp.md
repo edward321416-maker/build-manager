@@ -736,6 +736,40 @@ POST /api/v1/tickets/:id/decision
 
 ---
 
+# Task 12.1: Restore Tenant Report Text
+
+**Files:**
+- `packages/api-contracts/src/commands.ts`
+- `packages/api-client` tests
+- `apps/web/src/server/http/handlers/tickets.ts`
+- API integration tests
+
+**Produces:** report-text safety handling reachable through HTTP.
+
+`CreateTicketRequest` carried only `buildingId` and `issueType`, so the route
+handler had to pass an empty report string to the application. That made
+text-derived safety escalation unreachable over the API — escalation worked
+only through the safety questions.
+
+Add `rawUserText`: required, trimmed, non-empty, no length ceiling since the
+canonical documents define none. It is untrusted tenant input, evaluated by the
+existing deterministic safety gate and never logged, echoed, HTML-rendered, or
+sent to a model.
+
+`unitId` stays out of the public contract. P0 assumes one synthetic unit
+context per demo building and the server derives that identity.
+
+- [ ] RED contract tests for required and blank report text.
+- [ ] Thread it through api-contracts, api-client, and the create route.
+- [ ] Delete the `rawUserText = ""` fallback.
+- [ ] RED HTTP safety proof: a committed hazard phrase escalates at creation and
+      leaves the recommendation null; an ordinary report does not escalate. The
+      proof must fail if the text is replaced by `""`.
+- [ ] GREEN.
+- [ ] Commit `fix: pass tenant report text through ticket API`.
+
+---
+
 # Task 13: Web Landlord Capability
 
 **Produces:** desktop-focused landlord surface.
