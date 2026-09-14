@@ -6,7 +6,7 @@
 
 **Architecture:** An npm-workspaces monorepo contains `apps/web`, `apps/mobile`, and five focused shared packages. Domain/application logic runs authoritatively on the Next.js server; clients consume versioned Zod contracts through a shared API client. Web and Mobile have capability parity but independent platform-native UI. Public P0 uses only synthetic fixtures and does not require external API accounts, LLMs, real media, production auth, EAS, or cloud database services.
 
-**Tech Stack:** Node 24 LTS; Next.js 16.3.4; React 19.2.3; Expo SDK 57 / React Native 0.86.x; npm workspaces; TypeScript strict; Zod; Drizzle + Node `node:sqlite` local server adapter; Vitest; Playwright; jest-expo; React Native Testing Library.
+**Tech Stack:** Node 24 LTS; Next.js 16.3.4; React 19.2.3; Expo SDK 57 / React Native 0.86.x; npm workspaces; TypeScript strict; Zod; direct Node `node:sqlite` local server adapter (no ORM in P0); Vitest; Playwright; jest-expo; React Native Testing Library.
 
 **Spec:** `product/05_product_spec_v3_web_mobile_REAUDITED.md`
 
@@ -627,14 +627,45 @@ Drizzle, `node:sqlite`, Next, React, or Expo.
 P0 adapters:
 
 - in-memory for tests;
-- Node `node:sqlite` + Drizzle local server adapter;
-- fixture building/address providers.
+- **direct Node `node:sqlite` local server adapter — no ORM in P0**;
+- fixture building/address providers;
+- `DemoStateResetter` server adapter.
+
+Production persistence is **not selected**. The repository ports keep the
+Application boundary intact, so a future adapter swap changes only the port
+implementation.
+
+Local runtime facts to record in the receipt, not to soften:
+
+```text
+Node v24.14.0
+node:sqlite Stability 1.1 / Active development
+ExperimentalWarning observed
+local contest/demo P0 only
+```
+
+`node:sqlite` reaches Release Candidate in Node v24.15.0. Do not call the
+current v24.14 adapter a Release Candidate, do not call it production-stable,
+and do not upgrade Node for this task. `DatabaseSync` is synchronous; that is
+accepted for the local demo and implies nothing about production throughput.
+
+Two independent versions:
+
+```text
+SQLITE_DATABASE_SCHEMA_VERSION = 1   -> PRAGMA user_version
+PERSISTED_AGGREGATE_VERSION   = 1   -> per-row aggregate_version column
+```
+
+Schema bootstrap is **fail-closed**: an unversioned DB that already holds a
+target table, an unsupported `user_version`, or a malformed v1 table shape is
+rejected rather than blessed or migrated. No migration tooling.
 
 - [ ] RED repository contract against memory.
 - [ ] RED temporary SQLite integration.
 - [ ] Implement.
-- [ ] Assert domain/application do not import Drizzle.
-- [ ] GREEN.
+- [ ] Assert domain/application/api-contracts/api-client/mobile import no
+      `node:sqlite` or `DatabaseSync`.
+- [ ] GREEN, including `npm run test:web`.
 - [ ] Commit `feat: add local server persistence adapters`.
 
 ---

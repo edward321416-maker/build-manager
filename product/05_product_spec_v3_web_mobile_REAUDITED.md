@@ -138,7 +138,8 @@ Pure TypeScript only.
 - React Native
 - Next.js
 - Expo
-- Drizzle
+- Drizzle 및 모든 ORM
+- `node:sqlite` / server persistence driver
 - fetch/HTTP
 - process.env
 
@@ -489,12 +490,63 @@ P0 local server:
 
 - Repository interfaces: `packages/application`
 - Local adapter: `apps/web/src/server/persistence/`
-- Node `node:sqlite` + Drizzle 가능
+- **P0 local persistence = 직접 Node `node:sqlite` server adapter**
+- **P0에 ORM 없음** (Drizzle 포함 어떤 ORM도 P0에 사용하지 않는다)
 - Tests: in-memory repository
 
-로컬 SQLite를 serverless cloud durable DB로 간주하지 않는다.
+**Production persistence는 아직 선택되지 않았다.** 로컬 SQLite를 serverless cloud
+durable DB로 간주하지 않는다. Repository port가 Application 경계를 유지하므로
+향후 adapter 교체는 port 구현만 바꾸면 된다.
 
 Production DB/hosting migration은 P1.
+
+## 11.1 Local runtime stability
+
+현재 로컬 런타임 기준:
+
+```text
+Node v24.14.0
+node:sqlite Stability 1.1 / Active development
+ExperimentalWarning observed
+```
+
+`node:sqlite`는 Node v24.15.0에서 Release Candidate가 된다. 현재 v24.14 어댑터를
+Release Candidate라고 부르지 않는다. Production-stable이라고도 부르지 않는다.
+Task 11만을 위해 Node를 올리지 않는다.
+
+`DatabaseSync`는 동기 API다. 이는 로컬 contest/demo P0에서만 허용되며, 이로부터
+production 동시성/처리량 특성을 주장하지 않는다.
+
+이 store는 **synthetic demo 전용**이다. 실제 세입자 기록, 실제 주소, production
+data를 담지 않는다.
+
+## 11.2 Version terminology
+
+두 가지 버전을 분리한다.
+
+```text
+SQLite database schema:
+  SQLITE_DATABASE_SCHEMA_VERSION = 1
+  PRAGMA user_version 에 저장
+
+Persisted aggregate JSON:
+  PERSISTED_AGGREGATE_VERSION = 1
+  각 row 의 aggregate_version 컬럼에 저장
+```
+
+이전에 제안되었던 row 컬럼명 `schema_version`은 `aggregate_version`으로 대체한다.
+DB schema 버전과 row aggregate 버전은 서로 다른 축이므로 같은 이름을 쓰지 않는다.
+
+## 11.3 Task 12 runtime constraint
+
+이 로컬 SQLite server container를 import하는 Next Route Handler는 반드시 다음을
+명시해야 한다.
+
+```ts
+export const runtime = "nodejs";
+```
+
+이 adapter에 Edge runtime을 사용하지 않는다.
 
 ---
 
