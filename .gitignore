@@ -51,3 +51,5 @@ Thumbs.db
 /01_problem_evidence.md
 # Generated verification caches
 .pytest_cache/
+# Local demo database created on demand by the Web API
+.build-manager-local/

@@ -3,11 +3,14 @@ import {
   createDemoBuilding,
   createTicket,
   finalizeTicket,
+  getBuilding,
   getTicket,
+  listBuildings,
   listTickets,
   overrideRoute,
   requestMoreInfo,
   resetDemo,
+  searchAddress,
   submitTicketAnswer,
   submitTicketEvidence,
   verifyBuildingContext,
@@ -32,7 +35,7 @@ import {
   createFixtureBuildingRegistryProvider,
   createFixtureKaptProvider,
 } from "./providers/fixture-providers";
-import { createRandomIdGenerator, createSystemClock } from "./runtime";
+import { createRandomIdGenerator, createSystemClock } from "./runtime/system";
 
 /**
  * The wired use cases, bound to this container's dependencies. Route handlers
@@ -72,6 +75,13 @@ export type ServerUseCases = {
   getTicket: (
     input: Parameters<typeof getTicket>[1],
   ) => ReturnType<typeof getTicket>;
+  listBuildings: () => ReturnType<typeof listBuildings>;
+  getBuilding: (
+    input: Parameters<typeof getBuilding>[1],
+  ) => ReturnType<typeof getBuilding>;
+  searchAddress: (
+    input: Parameters<typeof searchAddress>[1],
+  ) => ReturnType<typeof searchAddress>;
   resetDemo: () => ReturnType<typeof resetDemo>;
 };
 
@@ -108,6 +118,9 @@ function bindUseCases(dependencies: ApplicationDependencies): ServerUseCases {
     requestMoreInfo: (input) => requestMoreInfo(dependencies, input),
     listTickets: (filter) => listTickets(dependencies, filter),
     getTicket: (input) => getTicket(dependencies, input),
+    listBuildings: () => listBuildings(dependencies),
+    getBuilding: (input) => getBuilding(dependencies, input),
+    searchAddress: (input) => searchAddress(dependencies, input),
     resetDemo: () => resetDemo(dependencies),
   };
 }
