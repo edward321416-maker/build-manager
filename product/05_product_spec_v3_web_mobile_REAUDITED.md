@@ -224,7 +224,7 @@ createTicket()
 submitAnswer()
 submitEvidence()
 finalizeTicket()
-listTickets()
+listTickets({ view })
 getLandlordTicket()
 getTenantTicketStatus()
 approveRoute()
@@ -387,6 +387,32 @@ POST /api/v1/tickets/:id/evidence
 POST /api/v1/tickets/:id/finalize
 POST /api/v1/tickets/:id/decision
 ```
+
+## 8.1 P0 Ticket Role Projection
+
+Ticket read endpoint는 `view` query parameter로 role projection을 고른다.
+
+```text
+GET /api/v1/tickets?view=landlord
+GET /api/v1/tickets?view=tenant
+
+GET /api/v1/tickets/:id?view=landlord
+GET /api/v1/tickets/:id?view=tenant
+```
+
+`view`의 의미를 과장하지 않는다.
+
+```text
+view = P0/demo response projection selector
+view != authentication
+view != authorization
+```
+
+`view`는 어떤 신원도 증명하지 않는다. P0는 synthetic data만 사용하므로 demo projection으로 충분하다.
+
+Tenant projection은 landlord-only field를 전송하지 않는다. 숨기는 것이 아니라 응답에 넣지 않는다. 자세한 목록은 24절을 따른다.
+
+Production authentication이 생기면 authenticated role이 projection을 결정해야 하며, client가 보낸 `view`가 결정해서는 안 된다.
 
 장기적으로 별도 API 서버가 필요하면 `domain/application/api-contracts`를 그대로 이동할 수 있다.
 
@@ -779,6 +805,49 @@ TenantTicketStatusDto
 ```
 
 를 분리한다.
+
+## 24.1 Role-explicit client reads
+
+Client read API는 role을 암묵적 기본값으로 두지 않는다.
+
+```text
+listTickets({ view: "landlord" })  -> LandlordTicketDetailDto[]
+listTickets({ view: "tenant" })    -> TenantTicketStatusDto[]
+
+getLandlordTicket(id)       -> LandlordTicketDetailDto
+getTenantTicketStatus(id)   -> TenantTicketStatusDto
+```
+
+Literal `view`에 따라 return type이 좁아져야 한다. 두 role의 union을 호출자가 직접 좁히도록 미루지 않는다.
+
+별도 list-item DTO는 기존 데이터가 실제로 요구하지 않는 한 추가하지 않는다.
+
+## 24.2 `DecisionRequest`: transport vs domain
+
+`DecisionRequest`는 **HTTP review-action request union**이다. Domain `RouteDecision`과 같은 것이 아니다.
+
+Transport discriminant와 Domain action 이름은 서로 다르며, 둘 다 이미 commit된 이름이므로 rename하지 않는다.
+
+```text
+transport DecisionRequest.type = "APPROVE"
+→ application approveRecommendation()
+→ Domain RouteDecision.action = "APPROVE_RECOMMENDATION"
+
+transport DecisionRequest.type = "OVERRIDE"
+→ application overrideRoute()
+→ Domain RouteDecision.action = "OVERRIDE_ROUTE"
+
+transport DecisionRequest.type = "REQUEST_MORE_INFO"
+→ application requestMoreInfo()
+→ Domain RouteDecision 생성하지 않음
+→ ticket.routeDecision 은 null 로 유지
+```
+
+Transport `routeCode`는 열린 문자열이고 Domain `RouteType`은 닫힌 union이다. 둘 사이의 매핑은 Task 12 route handler가 담당한다.
+
+세 request가 `/api/v1/tickets/:id/decision` transport family를 공유하는 것과, 그 중 둘만 route decision을 만든다는 것은 서로 다른 층위의 사실이다.
+
+`REQUEST_MORE_INFO`는 review-state 변경이지 route decision이 아니다. 이미 공개된 contract 이름을 미관상 이유로 rename하지 않는다.
 
 ---
 

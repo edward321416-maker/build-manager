@@ -525,18 +525,47 @@ getTicket
 
 **Files:**
 - `packages/api-client/src/client.ts`
+- `packages/api-client/src/index.ts` (real package entrypoint)
+- `packages/api-client/package.json` (add `@build-manager/api-contracts`)
 - tests
 
 Requirements:
 
-- configurable baseUrl;
-- imports api-contracts only;
+- configurable `baseUrl` and injectable `fetchImpl`; no global singleton;
+- no `process.env`, `EXPO_PUBLIC_API_URL`, or `window.location` read inside the package;
+- imports api-contracts only; no direct `zod` dependency (use the schemas api-contracts exports);
 - validates successful responses with Zod;
-- parses common error envelope;
-- no domain/application imports.
+- parses the common error envelope;
+- no domain/application/fixtures imports.
 
-- [ ] RED fetch-adapter tests.
+Role projection (see Spec 8.1 and 24.1):
+
+```text
+listTickets({ view: "landlord" }) -> LandlordTicketDetailDto[]
+listTickets({ view: "tenant" })   -> TenantTicketStatusDto[]
+```
+
+`view` is `"landlord" | "tenant"` — a demo projection selector, never authentication.
+Literal `view` must narrow the return type at compile time.
+
+Sanitized errors only. Stable codes:
+
+```text
+NETWORK_ERROR
+HTTP_ERROR
+INVALID_RESPONSE
+```
+
+`ApiClientError` never retains a raw response body, raw `ZodError`, raw validation
+input, tenant answer/evidence payload, or an arbitrary fetch `cause`.
+
+Out of scope here: retry, backoff, timeout framework, offline cache, request queue,
+telemetry, payload logging, `searchAddress()`.
+
+- [ ] RED fetch-adapter tests with an injected fake fetch.
 - [ ] Implement.
+- [ ] Extend the architecture suite: api-client source import boundary **and** a
+      runtime dependency allowlist check on `packages/api-client/package.json`.
 - [ ] GREEN.
 - [ ] Commit `feat: add shared maintenance API client`.
 
