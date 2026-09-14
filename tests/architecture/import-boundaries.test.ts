@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   scanImportBoundaries,
   scanPackageDependencies,
+  scanRouteRuntimes,
 } from "./import-boundaries";
 
 const temporaryRoots: string[] = [];
@@ -370,6 +371,108 @@ describe("server persistence driver isolation", () => {
       [
         'import { openSqliteDatabase } from "./persistence/database";',
         'import { demoBuildings } from "@build-manager/fixtures";',
+      ].join("\n"),
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual([]);
+  });
+});
+
+describe("api route runtime configuration", () => {
+  it("rejects an Edge runtime API route", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "apps/web/src/app/api/v1/tickets/route.ts",
+      [
+        'export const runtime = "edge";',
+        'export const dynamic = "force-dynamic";',
+        "export function GET() { return new Response(); }",
+      ].join("\n"),
+    );
+
+    expect(await scanRouteRuntimes(root)).toEqual([
+      {
+        file: "apps/web/src/app/api/v1/tickets/route.ts",
+        rule: "edge-runtime-forbidden",
+      },
+    ]);
+  });
+
+  it("requires an explicit node runtime and dynamic rendering", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "apps/web/src/app/api/v1/tickets/route.ts",
+      "export function GET() { return new Response(); }",
+    );
+
+    expect(await scanRouteRuntimes(root)).toEqual([
+      {
+        file: "apps/web/src/app/api/v1/tickets/route.ts",
+        rule: "missing-dynamic",
+      },
+      {
+        file: "apps/web/src/app/api/v1/tickets/route.ts",
+        rule: "missing-node-runtime",
+      },
+    ]);
+  });
+
+  it("accepts a correctly configured API route", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "apps/web/src/app/api/v1/tickets/route.ts",
+      [
+        'export const runtime = "nodejs";',
+        'export const dynamic = "force-dynamic";',
+        "export function GET() { return new Response(); }",
+      ].join("\n"),
+    );
+
+    expect(await scanRouteRuntimes(root)).toEqual([]);
+  });
+
+  it("accepts every API route in the current repository", async () => {
+    expect(await scanRouteRuntimes(process.cwd())).toEqual([]);
+  });
+});
+
+describe("api routes stay out of persistence", () => {
+  it("rejects a route that reaches for the sqlite driver or a repository", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "apps/web/src/app/api/v1/tickets/route.ts",
+      [
+        'import { DatabaseSync } from "node:sqlite";',
+        'import { createSqliteTicketRepository } from "@/server/persistence/repositories";',
+      ].join("\n"),
+    );
+
+    expect(await scanImportBoundaries(root)).toEqual([
+      {
+        file: "apps/web/src/app/api/v1/tickets/route.ts",
+        specifier: "@/server/persistence/repositories",
+        rule: "server-driver-isolation",
+      },
+      {
+        file: "apps/web/src/app/api/v1/tickets/route.ts",
+        specifier: "node:sqlite",
+        rule: "server-driver-isolation",
+      },
+    ]);
+  });
+
+  it("allows a route to use the server http helpers", async () => {
+    const root = await fixtureRoot();
+    await source(
+      root,
+      "apps/web/src/app/api/v1/tickets/route.ts",
+      [
+        'import { handleListTickets } from "@/server/http/handlers/tickets";',
+        'import { withRequestContainer } from "@/server/http/request-container";',
       ].join("\n"),
     );
 

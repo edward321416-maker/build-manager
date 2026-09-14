@@ -11,6 +11,11 @@ export type ImportBoundaryFinding = {
     | "server-driver-isolation";
 };
 
+export type RouteRuntimeFinding = {
+  file: string;
+  rule: "edge-runtime-forbidden" | "missing-node-runtime" | "missing-dynamic";
+};
+
 export type DependencyFinding = {
   package: string;
   dependency: string;
@@ -252,6 +257,14 @@ function isPublishedContractFile(file: string): boolean {
   return file.startsWith("packages/api-contracts/");
 }
 
+/**
+ * Route handlers may use the application layer, but must reach persistence
+ * only through the server HTTP helpers and the request container.
+ */
+function isApiRouteFile(file: string): boolean {
+  return file.startsWith("apps/web/src/app/api/");
+}
+
 function usesServerDriver(specifier: string): boolean {
   if (
     SERVER_DRIVER_MODULES.some(
@@ -309,12 +322,14 @@ export async function scanImportBoundaries(
     const apiClient = isApiClientFile(file);
     const serverTree = isServerTreeFile(file);
     const publishedContract = isPublishedContractFile(file);
+    const apiRoute = isApiRouteFile(file);
     if (
       !client &&
       !serverCore &&
       !apiClient &&
       !serverTree &&
-      !publishedContract
+      !publishedContract &&
+      !apiRoute
     ) {
       continue;
     }
@@ -406,4 +421,69 @@ export async function scanPackageDependencies(
   }
 
   return findings.sort(compareDependencyFindings);
+}
+
+const API_ROUTE_PREFIX = "apps/web/src/app/api/";
+
+const NODE_RUNTIME = /export\s+const\s+runtime\s*=\s*["']nodejs["']/;
+const EDGE_RUNTIME = /export\s+const\s+runtime\s*=\s*["'][^"']*edge[^"']*["']/i;
+const FORCE_DYNAMIC = /export\s+const\s+dynamic\s*=\s*["']force-dynamic["']/;
+
+/**
+ * Guards the runtime configuration of every `/api` route handler.
+ *
+ * The local persistence adapter is a native Node addon, so an Edge route could
+ * not open it at all, and the API serves mutable demo state, so caching it
+ * would be wrong. Both are declared explicitly rather than left to framework
+ * defaults that could change.
+ */
+export async function scanRouteRuntimes(
+  repositoryRoot: string,
+): Promise<RouteRuntimeFinding[]> {
+  const files: string[] = [];
+  await collectSourceFiles(
+    repositoryRoot,
+    join(repositoryRoot, ...API_ROUTE_PREFIX.split("/").filter(Boolean)),
+    files,
+  );
+
+  const findings: RouteRuntimeFinding[] = [];
+
+  for (const file of files) {
+    if (!file.endsWith("/route.ts") && !file.endsWith("/route.tsx")) {
+      continue;
+    }
+
+    let source: string;
+    try {
+      source = await readFile(join(repositoryRoot, ...file.split("/")), "utf8");
+    } catch {
+      continue;
+    }
+
+    const code = withoutComments(source);
+
+    if (EDGE_RUNTIME.test(code)) {
+      findings.push({ file, rule: "edge-runtime-forbidden" });
+      continue;
+    }
+    if (!NODE_RUNTIME.test(code)) {
+      findings.push({ file, rule: "missing-node-runtime" });
+    }
+    if (!FORCE_DYNAMIC.test(code)) {
+      findings.push({ file, rule: "missing-dynamic" });
+    }
+  }
+
+  return findings.sort((left, right) =>
+    left.file === right.file
+      ? left.rule < right.rule
+        ? -1
+        : left.rule > right.rule
+          ? 1
+          : 0
+      : left.file < right.file
+        ? -1
+        : 1,
+  );
 }
