@@ -171,6 +171,7 @@ overrideRoute
 requestMoreInfo
 listTickets
 getTicket
+resetDemo
 ```
 
 Ports:
@@ -183,7 +184,34 @@ BuildingRegistryProvider
 KaptProvider
 Clock
 IdGenerator
+DemoStateResetter
 ```
+
+### `resetDemo`
+
+Demo reset은 HTTP가 repository나 fixture를 직접 건드리는 경로가 아니다.
+
+```text
+HTTP
+→ Application resetDemo()
+→ DemoStateResetter port
+→ server adapter
+```
+
+Semantics:
+
+```text
+현재 demo ticket 전부 삭제
+owner/user가 변경한 demo building 상태 폐기
+canonical synthetic demo building 재시드
+재시드된 demo building 목록 반환
+```
+
+이것은 **production destructive endpoint가 아니다**. Synthetic demo state에만 작용한다. 실제 사용자 데이터, 실제 건물, 실제 티켓을 지우는 기능이 아니며 그렇게 표현해서도 안 된다.
+
+Reset은 idempotent해야 하고 부분 상태를 남기지 않는다. Reset 이후에는 owner-verified mutation도 baseline으로 돌아간다.
+
+Container 생성 자체는 reset이 아니다. Baseline seed는 store가 비어 있을 때만 허용하고, destructive reseed는 명시적 reset 경로에서만 일어난다.
 
 ## 3.3 `packages/api-contracts`
 

@@ -514,6 +514,9 @@ listTickets
 getTicket
 ```
 
+`resetDemo` is the twelfth use case and lands in Task 10.1, once the API client
+has established that the demo reset endpoint exists.
+
 - [ ] RED using in-memory repositories.
 - [ ] Implement ports/use cases.
 - [ ] GREEN.
@@ -568,6 +571,48 @@ telemetry, payload logging, `searchAddress()`.
       runtime dependency allowlist check on `packages/api-client/package.json`.
 - [ ] GREEN.
 - [ ] Commit `feat: add shared maintenance API client`.
+
+---
+
+# Task 10.1: Demo Reset Application Path
+
+**Files:**
+- `packages/application/src/ports/**` (add `DemoStateResetter`)
+- `packages/application/src/use-cases/reset-demo.ts`
+- tests
+
+**Produces:** the missing application path behind the client's `resetDemo()`.
+
+The API client exposes `resetDemo()` but no use case backs it. Without this,
+the Task 12 route handler would have to reach into a repository or the fixture
+package directly, bypassing the application layer.
+
+Approved path:
+
+```text
+HTTP
+→ Application resetDemo()
+→ DemoStateResetter port
+→ Task 11 server adapter
+```
+
+Port concept — follow the existing Task 9 async port convention:
+
+```ts
+type DemoStateResetter = {
+  reset(): Promise<Building[]>;
+};
+```
+
+The use case calls the port and returns the buildings it yields. It performs no
+reset logic of its own. `packages/application` must still import no fixtures,
+Drizzle, `node:sqlite`, Next, React, or Expo.
+
+- [ ] RED against a fake resetter: called exactly once, buildings returned
+      unchanged, resetter error propagates.
+- [ ] Implement port and use case.
+- [ ] GREEN.
+- [ ] Commit `feat: add demo reset application use case`.
 
 ---
 
