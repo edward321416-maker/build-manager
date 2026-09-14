@@ -49,9 +49,65 @@ PATTERNS = {
     'street_address': r'[가-힣]{2,}(?:로|길)\s+\d+(?:-\d+)?\s+(?:\d+동|\d+호)',
 }
 
+PUBLIC_SOURCE_URL_SHA256 = {
+    # Public KNUH notice URL verified reachable on 2026-09-14. Its numeric path
+    # segment resembles a Korean resident ID, so only this exact URL is exempt.
+    '073bb0474c24b36222a6feb0b17f5c80a5576356e4cbf145156e5427e9943123',
+}
+
 
 def git(*args):
     return subprocess.check_output(['git', *args])
+
+
+def is_approved_public_url_match(content, match):
+    for candidate in re.finditer(r'''https?://[^\s<>"',]+''', content):
+        url = candidate.group().rstrip('.,;:!?)]}')
+        end = candidate.start() + len(url)
+        if candidate.start() <= match.start() and match.end() <= end:
+            digest = hashlib.sha256(url.encode('utf-8')).hexdigest()
+            return digest in PUBLIC_SOURCE_URL_SHA256
+    return False
+
+
+def empty_env_example(content):
+    assignment = re.compile(
+        r'''^\s*[A-Za-z_][A-Za-z0-9_]*\s*=\s*(?:""|'')?\s*(?:#.*)?$'''
+    )
+    return all(
+        not line.strip() or line.lstrip().startswith('#') or assignment.fullmatch(line)
+        for line in content.splitlines()
+    )
+
+
+def markdown_without_fenced_code(content):
+    visible = []
+    fence_character = None
+    fence_length = 0
+    for line in content.splitlines(keepends=True):
+        if fence_character:
+            closing = re.match(
+                r'^ {0,3}(' + re.escape(fence_character) + r'{' + str(fence_length) + r',})\s*$',
+                line.rstrip('\r\n'),
+            )
+            if closing:
+                fence_character = None
+                fence_length = 0
+            visible.append('\n' if line.endswith(('\n', '\r')) else '')
+            continue
+        opening = re.match(r'^ {0,3}(`{3,}|~{3,})', line)
+        if opening:
+            fence_character = opening.group(1)[0]
+            fence_length = len(opening.group(1))
+            visible.append('\n' if line.endswith(('\n', '\r')) else '')
+            continue
+        visible.append(line)
+    return ''.join(visible)
+
+
+def markdown_link_targets(content):
+    visible = markdown_without_fenced_code(content)
+    return re.findall(r'(?<!!)\[[^\]\n]+\]\(([^)]+)\)', visible)
 
 
 def scan_content(path, data):
@@ -61,7 +117,8 @@ def scan_content(path, data):
     parts = PurePosixPath(low).parts
     if any(p in {'raw', 'private', '.private', 'secrets', 'contracts', '.agents'} for p in parts):
         findings.append('private_path')
-    if PurePosixPath(low).name.startswith('.env') or re.search(
+    is_env_path = PurePosixPath(low).name.startswith('.env')
+    if (is_env_path and low != 'web/.env.example') or re.search(
         r'(?:service.account|credentials|^token).*\.json$|\.(?:pem|key|p12|pfx|mp3|mp4|mov|wav|docx|pdf)$', low
     ):
         findings.append('sensitive_or_unreviewed_file')
@@ -69,10 +126,16 @@ def scan_content(path, data):
         content = data.decode('utf-8')
     except UnicodeDecodeError:
         return findings + ['unreviewed_binary']
+    if low == 'web/.env.example' and not empty_env_example(content):
+        findings.append('sensitive_or_unreviewed_file')
     if not content.strip():
         findings.append('empty_file')
     for name, pattern in PATTERNS.items():
-        if re.search(pattern, content):
+        matches = re.finditer(pattern, content)
+        if any(
+            name != 'resident_id' or not is_approved_public_url_match(content, match)
+            for match in matches
+        ):
             findings.append(name)
     if low.endswith('.md'):
         body = [s for s in content.splitlines() if s.strip() and not s.startswith('#')]
@@ -102,7 +165,7 @@ def main():
             if digest in hashes:
                 errors.append(path + ':duplicate_document:' + hashes[digest])
             hashes[digest] = path
-            for target in re.findall(r'(?<!!)\[[^\]\n]+\]\(([^)]+)\)', content):
+            for target in markdown_link_targets(content):
                 target = unquote(target.strip('<>').split('#')[0])
                 if not target or re.match(r'[a-z]+:', target):
                     continue

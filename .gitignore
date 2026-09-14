@@ -22,6 +22,8 @@ interviews/raw/
 *.mov
 # Local environment; do not redistribute installed third-party skills
 .agents/
+/.superpowers/
+/.worktrees/
 .venv/
 venv/
 node_modules/
