@@ -44,7 +44,12 @@ PATTERNS = {
     'credential_assignment': r'''(?im)^\s*["']?(?:password|api_key|access_token|client_secret|private_key)["']?\s*[:=]\s*["']?[^\s"'<>]{8,}''',
     'email': r'\b[A-Za-z0-9._%+-]+@(?!users\.noreply\.github\.com)[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b',
     'korean_phone': r'(?<!\d)01[016789][- .]?\d{3,4}[- .]?\d{4}(?!\d)',
-    'resident_id': r'(?<!\d)\d{6}[- ]?[1-8]\d{6}(?!\d)',
+    'resident_id': (
+        r'(?<!\d)'
+        r'\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])'
+        r'[- ]?[1-8]\d{6}'
+        r'(?!\d)'
+    ),
     'credential_url': r'https?://[^\s/:@]+:[^\s/@]+@',
     'street_address': r'[가-힣]{2,}(?:로|길)\s+\d+(?:-\d+)?\s+(?:\d+동|\d+호)',
 }

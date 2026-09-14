@@ -25,7 +25,8 @@ def public_source_url():
     matches = [
         candidate
         for candidate in candidates
-        if re.search(verify_repository.PATTERNS["resident_id"], candidate)
+        if hashlib.sha256(candidate.encode("utf-8")).hexdigest()
+        == PUBLIC_SOURCE_URL_SHA256
     ]
     if len(matches) != 1:
         raise AssertionError("expected one public source URL fixture")
@@ -50,31 +51,27 @@ class ContentScanTests(unittest.TestCase):
 
         self.assertNotIn("resident_id", findings)
 
-    def test_changed_public_source_url_is_scanned_as_a_resident_id(self):
+    def test_changed_public_source_url_with_invalid_date_is_not_a_resident_id(self):
         url = public_source_url()
-        match = re.search(verify_repository.PATTERNS["resident_id"], url)
-        replacement = match.group()[:-1] + ("0" if match.group()[-1] != "0" else "1")
-        changed_url = url[: match.start()] + replacement + url[match.end() :]
+        changed_url = url.replace("1788418418979", "1788418418970")
 
         findings = verify_repository.scan_content(
             "notes/source.txt", changed_url.encode("utf-8")
         )
 
-        self.assertIn("resident_id", findings)
+        self.assertNotIn("resident_id", findings)
 
-    def test_public_source_url_with_legal_suffix_is_scanned_as_a_resident_id(self):
+    def test_public_source_url_with_legal_suffix_is_not_a_resident_id(self):
         for suffix in ("?", ";"):
             with self.subTest(suffix=suffix):
                 findings = verify_repository.scan_content(
                     "notes/source.txt", (public_source_url() + suffix).encode("utf-8")
                 )
 
-                self.assertIn("resident_id", findings)
+                self.assertNotIn("resident_id", findings)
 
     def test_identifier_outside_exact_public_source_url_is_detected(self):
-        identifier = re.search(
-            verify_repository.PATTERNS["resident_id"], public_source_url()
-        ).group()
+        identifier = "900101" + "-1234567"
 
         findings = verify_repository.scan_content(
             "notes/source.txt", identifier.encode("utf-8")
