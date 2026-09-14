@@ -51,3 +51,232 @@ h1 {
   color: #426057;
   font-size: clamp(1rem, 2vw, 1.25rem);
 }
+
+/* Landlord demo — Building context → Ticket → Repair Packet → Why → Decision */
+
+.landlord-page {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+}
+
+.demo-banner {
+  border: 2px solid #7b4c2f;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  background: #fdf6ec;
+  color: #5c3620;
+}
+
+.demo-banner strong {
+  display: inline-block;
+  letter-spacing: 0.16em;
+}
+
+.demo-banner p {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.landlord-header h1 {
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+}
+
+.tagline {
+  margin: 0.75rem 0 0;
+  color: #17322b;
+  font-weight: 700;
+}
+
+.tagline-sub {
+  margin: 0.25rem 0 1.5rem;
+  color: #426057;
+}
+
+.landlord-page h2 {
+  margin: 2rem 0 0.75rem;
+  font-size: 1.25rem;
+}
+
+.landlord-page h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+  color: #17322b;
+}
+
+.building-list,
+.ticket-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.building-list li,
+.ticket-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: baseline;
+  border: 1px solid #d8d2c4;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #fffdf8;
+}
+
+.building-use,
+.ticket-building {
+  color: #6b7f78;
+  font-size: 0.875rem;
+}
+
+.ticket-status {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid #426057;
+  color: #17322b;
+}
+
+/* Status is never conveyed by colour alone: each carries its own label. */
+.ticket-status[data-status="SAFETY_ESCALATED"],
+.packet-status[data-status="SAFETY_ESCALATED"],
+.packet-evidence[data-evidence="SAFETY_ESCALATED"] {
+  border-color: #8c2f1e;
+  color: #8c2f1e;
+  font-weight: 700;
+}
+
+.empty-state {
+  border: 1px dashed #b9b2a2;
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  color: #6b7f78;
+}
+
+.context-rows > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #ece7db;
+}
+
+.context-rows dt {
+  min-width: 10rem;
+  font-weight: 700;
+  color: #17322b;
+}
+
+.context-rows dd {
+  margin: 0;
+}
+
+.provenance {
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+  color: #6b7f78;
+  border: 1px solid #d8d2c4;
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+}
+
+.passport-note,
+.action-note {
+  margin: 0.25rem 0 0.75rem;
+  color: #6b7f78;
+  font-size: 0.875rem;
+}
+
+.recommendation {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #17322b;
+}
+
+.no-recommendation {
+  border-left: 4px solid #8c2f1e;
+  padding-left: 0.75rem;
+  color: #5c3620;
+}
+
+.decision-panel,
+.verify-context {
+  margin-top: 2rem;
+  border-top: 2px solid #ece7db;
+  padding-top: 1rem;
+}
+
+.decision-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  max-width: 24rem;
+}
+
+.field-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+button,
+select,
+input[type="text"] {
+  font: inherit;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.375rem;
+  border: 1px solid #426057;
+  background: #fffdf8;
+  color: #17322b;
+}
+
+button {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+:focus-visible {
+  outline: 3px solid #7b4c2f;
+  outline-offset: 2px;
+}
+
+.state-error {
+  border-left: 4px solid #8c2f1e;
+  padding: 0.5rem 0.75rem;
+  color: #8c2f1e;
+}
+
+.save-ok {
+  color: #17322b;
+  font-weight: 700;
+}
+
+@media (max-width: 30rem) {
+  .context-rows dt {
+    min-width: 100%;
+  }
+
+  .ticket-status {
+    margin-left: 0;
+  }
+}
