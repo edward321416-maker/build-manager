@@ -11,6 +11,7 @@ import {
   type Ticket,
   type TicketStatus,
 } from "@build-manager/domain";
+import { notFound, stateConflict } from "../errors";
 import type { ApplicationDependencies } from "../ports";
 
 /** Adapter between a protocol's safety check flags and the safety gate input. */
@@ -36,7 +37,7 @@ export async function loadBuilding(
 ): Promise<Building> {
   const building = await deps.buildings.findById(buildingId);
   if (!building) {
-    throw new Error(`Building ${buildingId} not found`);
+    throw notFound(`Building ${buildingId} not found`);
   }
   return building;
 }
@@ -47,7 +48,7 @@ export async function loadTicket(
 ): Promise<Ticket> {
   const ticket = await deps.tickets.findById(ticketId);
   if (!ticket) {
-    throw new Error(`Ticket ${ticketId} not found`);
+    throw notFound(`Ticket ${ticketId} not found`);
   }
   return ticket;
 }
@@ -96,7 +97,7 @@ const DECIDED_STATUSES: readonly TicketStatus[] = ["APPROVED", "OVERRIDDEN"];
 /** Intake stops once a landlord decision is on the record. */
 export function assertIntakeAllowed(ticket: Ticket): void {
   if (DECIDED_STATUSES.includes(ticket.status)) {
-    throw new Error(
+    throw stateConflict(
       `Cannot add tenant data to ticket ${ticket.id}: a landlord decision is already recorded`,
     );
   }

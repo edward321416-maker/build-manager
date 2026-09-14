@@ -3,6 +3,7 @@ import {
   type EvidenceType,
   type Ticket,
 } from "@build-manager/domain";
+import { asStateTransition } from "../errors";
 import type { ApplicationDependencies } from "../ports";
 import { loadTicket } from "./ticket-assessment";
 
@@ -23,14 +24,16 @@ export async function requestMoreInfo(
 ): Promise<Ticket> {
   const ticket = await loadTicket(deps, input.ticketId);
 
-  const returned = applyMoreInfoRequest(ticket, {
-    action: "REQUEST_MORE_INFO",
-    reason: input.reason,
-    requestedQuestionIds: input.requestedQuestionIds,
-    requestedEvidenceTypes: input.requestedEvidenceTypes,
-    actor: "LANDLORD",
-    requestedAt: deps.clock.now(),
-  });
+  const returned = asStateTransition(() =>
+    applyMoreInfoRequest(ticket, {
+      action: "REQUEST_MORE_INFO",
+      reason: input.reason,
+      requestedQuestionIds: input.requestedQuestionIds,
+      requestedEvidenceTypes: input.requestedEvidenceTypes,
+      actor: "LANDLORD",
+      requestedAt: deps.clock.now(),
+    }),
+  );
 
   await deps.tickets.save(returned);
   return returned;

@@ -3,6 +3,7 @@ import {
   type RouteType,
   type Ticket,
 } from "@build-manager/domain";
+import { asStateTransition } from "../errors";
 import type { ApplicationDependencies } from "../ports";
 import { loadTicket } from "./ticket-assessment";
 
@@ -22,14 +23,16 @@ export async function approveRecommendation(
 ): Promise<Ticket> {
   const ticket = await loadTicket(deps, input.ticketId);
 
-  const approved = applyRouteDecision(ticket, {
-    action: "APPROVE_RECOMMENDATION",
-    recommendedRoute:
-      ticket.repairPacket?.recommendation?.primary ?? input.selectedRoute,
-    selectedRoute: input.selectedRoute,
-    actor: "LANDLORD",
-    decidedAt: deps.clock.now(),
-  });
+  const approved = asStateTransition(() =>
+    applyRouteDecision(ticket, {
+      action: "APPROVE_RECOMMENDATION",
+      recommendedRoute:
+        ticket.repairPacket?.recommendation?.primary ?? input.selectedRoute,
+      selectedRoute: input.selectedRoute,
+      actor: "LANDLORD",
+      decidedAt: deps.clock.now(),
+    }),
+  );
 
   await deps.tickets.save(approved);
   return approved;

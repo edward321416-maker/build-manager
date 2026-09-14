@@ -3,6 +3,7 @@ import {
   type RouteType,
   type Ticket,
 } from "@build-manager/domain";
+import { asStateTransition } from "../errors";
 import type { ApplicationDependencies } from "../ports";
 import { loadTicket } from "./ticket-assessment";
 
@@ -22,14 +23,16 @@ export async function overrideRoute(
 ): Promise<Ticket> {
   const ticket = await loadTicket(deps, input.ticketId);
 
-  const overridden = applyRouteDecision(ticket, {
-    action: "OVERRIDE_ROUTE",
-    recommendedRoute: ticket.repairPacket?.recommendation?.primary ?? null,
-    selectedRoute: input.selectedRoute,
-    reason: input.reason ?? null,
-    actor: "LANDLORD",
-    decidedAt: deps.clock.now(),
-  });
+  const overridden = asStateTransition(() =>
+    applyRouteDecision(ticket, {
+      action: "OVERRIDE_ROUTE",
+      recommendedRoute: ticket.repairPacket?.recommendation?.primary ?? null,
+      selectedRoute: input.selectedRoute,
+      reason: input.reason ?? null,
+      actor: "LANDLORD",
+      decidedAt: deps.clock.now(),
+    }),
+  );
 
   await deps.tickets.save(overridden);
   return overridden;

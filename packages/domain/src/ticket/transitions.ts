@@ -1,3 +1,4 @@
+import { TicketStateError } from "./errors";
 import type {
   MoreInfoRequest,
   RouteDecision,
@@ -20,7 +21,7 @@ export function requestMoreInfo(
   request: MoreInfoRequest,
 ): Ticket {
   if (!MORE_INFO_ALLOWED_FROM.includes(ticket.status)) {
-    throw new Error(
+    throw new TicketStateError(
       `Cannot request more info from status ${ticket.status}; expected one of ${MORE_INFO_ALLOWED_FROM.join(", ")}`,
     );
   }
@@ -45,7 +46,7 @@ export function applyRouteDecision(
   if (decision.action === "APPROVE_RECOMMENDATION") {
     const recommendation = ticket.repairPacket?.recommendation ?? null;
     if (recommendation === null) {
-      throw new Error(
+      throw new TicketStateError(
         "Cannot approve: the current repair packet carries no recommendation",
       );
     }
@@ -53,7 +54,7 @@ export function applyRouteDecision(
       decision.recommendedRoute !== recommendation.primary ||
       decision.selectedRoute !== recommendation.primary
     ) {
-      throw new Error(
+      throw new TicketStateError(
         `Cannot approve: selected route does not match the recommended route ${recommendation.primary}`,
       );
     }

@@ -1,6 +1,7 @@
 export * from "./building/types";
 export * from "./safety/evaluate-safety";
 export * from "./ticket/types";
+export * from "./ticket/errors";
 export * from "./ticket/transitions";
 export * from "./protocol/types";
 export * from "./protocol/evaluate-questions";
