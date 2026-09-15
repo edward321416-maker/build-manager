@@ -220,7 +220,11 @@ test.describe("landlord demo", () => {
 
     await page.goto(`/demo/landlord/tickets/${ticketId}`);
 
-    await page.getByLabel("추가로 확인할 내용").fill("누수 위치를 다시 확인해 주세요");
+    await page
+      .getByLabel("추가 정보를 요청하는 이유")
+      .fill("누수 위치를 다시 확인해 주세요");
+    // A request must name at least one question or piece of evidence.
+    await page.getByLabel("물이 어디에서 보이나요?").check();
     await page.getByTestId("request-more-info").click();
 
     await expect(page.getByText("상태: 추가 정보 요청됨")).toBeVisible();

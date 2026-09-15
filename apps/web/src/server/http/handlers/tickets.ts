@@ -256,7 +256,12 @@ export function handleTicketDecision(
         ticket = await container.useCases.requestMoreInfo({
           ticketId,
           reason: decision.reason,
-          requestedQuestionIds: decision.requestedItems,
+          requestedQuestionIds: decision.requestedQuestionIds,
+          // Evidence keeps its own identity: it is mapped through the
+          // public->domain evidence vocabulary, never folded into question ids.
+          requestedEvidenceTypes: decision.requestedEvidenceTypes?.map(
+            toDomainEvidenceType,
+          ),
         });
       }
 

@@ -49,6 +49,19 @@ const LandlordRepairPacketDtoSchema = z
   })
   .strict();
 
+/**
+ * The protocol questions and synthetic evidence a landlord may ask the tenant
+ * for. Derived by the server from the selected protocol, so the review form
+ * never has to guess what is askable.
+ */
+export const FollowUpOptionsDtoSchema = z
+  .object({
+    questions: z.array(TenantQuestionDtoSchema),
+    evidence: z.array(SyntheticEvidenceRequirementDtoSchema),
+  })
+  .strict();
+export type FollowUpOptionsDto = z.infer<typeof FollowUpOptionsDtoSchema>;
+
 export const LandlordTicketDetailDtoSchema = z
   .object({
     ticketId: z.string().trim().min(1),
@@ -60,6 +73,7 @@ export const LandlordTicketDetailDtoSchema = z
     activeQuestion: TenantQuestionDtoSchema.nullable(),
     repairPacket: LandlordRepairPacketDtoSchema.nullable(),
     decision: DecisionRequestSchema.nullable(),
+    followUpOptions: FollowUpOptionsDtoSchema,
   })
   .strict();
 export type LandlordTicketDetailDto = z.infer<
@@ -85,6 +99,24 @@ const TenantRepairPacketDtoSchema = z
   })
   .strict();
 
+/**
+ * The tenant's current actionable follow-up request — not a history.
+ *
+ * It carries only what the tenant needs in order to respond: the reason, the
+ * questions still outstanding, and the evidence still outstanding. No actor, no
+ * timestamps, and nothing landlord-internal.
+ */
+export const TenantMoreInfoRequestDtoSchema = z
+  .object({
+    reason: z.string().trim().min(1),
+    requestedQuestions: z.array(TenantQuestionDtoSchema),
+    requestedEvidence: z.array(SyntheticEvidenceRequirementDtoSchema),
+  })
+  .strict();
+export type TenantMoreInfoRequestDto = z.infer<
+  typeof TenantMoreInfoRequestDtoSchema
+>;
+
 export const TenantTicketStatusDtoSchema = z
   .object({
     ticketId: z.string().trim().min(1),
@@ -97,6 +129,7 @@ export const TenantTicketStatusDtoSchema = z
     evidenceRequirements: z.array(SyntheticEvidenceRequirementDtoSchema),
     submittedEvidence: z.array(SubmittedSyntheticEvidenceDtoSchema),
     packet: TenantRepairPacketDtoSchema.nullable(),
+    moreInfoRequest: TenantMoreInfoRequestDtoSchema.nullable(),
   })
   .strict();
 export type TenantTicketStatusDto = z.infer<

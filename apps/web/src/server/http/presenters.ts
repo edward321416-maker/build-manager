@@ -48,6 +48,17 @@ const DOMAIN_EVIDENCE_TYPE: Record<SyntheticEvidenceType, EvidenceType> = {
   GENERAL_VIEW: "GENERAL_PHOTO",
 };
 
+/**
+ * Opaque synthetic demo identifiers. Not file paths, not handles to real media.
+ * The tenant submits one of these back through `submitEvidence`.
+ */
+const EVIDENCE_FIXTURE_IDS: Record<SyntheticEvidenceType, string> = {
+  BOILER_DISPLAY: "demo-boiler-display",
+  LEAK_LOCATION: "demo-leak-location",
+  FIXTURE_VIEW: "demo-fixture-view",
+  GENERAL_VIEW: "demo-general-view",
+};
+
 const EVIDENCE_LABELS: Record<SyntheticEvidenceType, string> = {
   BOILER_DISPLAY: "DEMO 보일러 표시창 이미지",
   LEAK_LOCATION: "DEMO 누수 위치 이미지",
@@ -110,6 +121,7 @@ function evidenceRequirement(
     evidenceType: publicType,
     label: EVIDENCE_LABELS[publicType],
     required,
+    demoFixtureId: EVIDENCE_FIXTURE_IDS[publicType],
   };
 }
 
@@ -147,6 +159,8 @@ type TicketView = {
   activeQuestion: TenantQuestionDto | null;
   evidenceRequirements: SyntheticEvidenceRequirementDto[];
   evidenceStatus: ReturnType<typeof assessTicket>["evidenceState"];
+  followUpQuestions: TenantQuestionDto[];
+  questionById: Map<string, TenantQuestionDto>;
 };
 
 /**
@@ -167,6 +181,12 @@ function describeTicket(ticket: Ticket, building: Building): TicketView {
     evidenceRequirement(requirement.type, requirement.required),
   );
 
+  const followUpQuestions = assessment.protocol.questions
+    .map((question) =>
+      presentQuestion(question, ticket.issueType, evidenceRequirements),
+    )
+    .filter((question): question is TenantQuestionDto => question !== null);
+
   return {
     activeQuestion:
       nextQuestion === null
@@ -174,7 +194,56 @@ function describeTicket(ticket: Ticket, building: Building): TicketView {
         : presentQuestion(nextQuestion, ticket.issueType, evidenceRequirements),
     evidenceRequirements,
     evidenceStatus: assessment.evidenceState,
+    followUpQuestions,
+    questionById: new Map(
+      followUpQuestions.map((question) => [question.questionId, question]),
+    ),
   };
+}
+
+/**
+ * The tenant's still-outstanding follow-up items.
+ *
+ * An item is outstanding until the tenant supplies it *after* the request was
+ * made — an older answer or photo does not satisfy a fresh request. History is
+ * never deleted; only this view narrows.
+ */
+function presentTenantMoreInfo(
+  ticket: Ticket,
+  view: TicketView,
+): {
+  reason: string;
+  requestedQuestions: TenantQuestionDto[];
+  requestedEvidence: SyntheticEvidenceRequirementDto[];
+} | null {
+  const request = ticket.moreInfoRequest ?? null;
+  if (request === null) {
+    return null;
+  }
+
+  const requestedAt = Date.parse(request.requestedAt);
+
+  const answeredSince = new Set(
+    ticket.answers
+      .filter((answer) => Date.parse(answer.createdAt) >= requestedAt)
+      .map((answer) => answer.questionId),
+  );
+  const suppliedSince = new Set(
+    ticket.evidence
+      .filter((item) => Date.parse(item.createdAt) >= requestedAt)
+      .map((item) => item.type),
+  );
+
+  const requestedQuestions = (request.requestedQuestionIds ?? [])
+    .filter((questionId) => !answeredSince.has(questionId))
+    .map((questionId) => view.questionById.get(questionId))
+    .filter((question): question is TenantQuestionDto => question !== undefined);
+
+  const requestedEvidence = (request.requestedEvidenceTypes ?? [])
+    .filter((evidenceType) => !suppliedSince.has(evidenceType))
+    .map((evidenceType) => evidenceRequirement(evidenceType, true));
+
+  return { reason: request.reason, requestedQuestions, requestedEvidence };
 }
 
 export function presentLandlordTicket(
@@ -222,6 +291,10 @@ export function presentLandlordTicket(
             affectedUnits: [],
             hiddenContacts: [],
           },
+    followUpOptions: {
+      questions: view.followUpQuestions,
+      evidence: view.evidenceRequirements,
+    },
     decision:
       decision === null
         ? null
@@ -274,5 +347,6 @@ export function presentTenantTicket(
             summary: packet.generatedSummary.text,
             safetyEscalated: packet.safety.escalated,
           },
+    moreInfoRequest: presentTenantMoreInfo(ticket, view),
   });
 }

@@ -36,6 +36,7 @@ const tenantStatus = {
   evidenceRequirements: [],
   submittedEvidence: [],
   packet: null,
+  moreInfoRequest: null,
 };
 
 const landlordDetail = {
@@ -48,6 +49,7 @@ const landlordDetail = {
   activeQuestion: null,
   repairPacket: null,
   decision: null,
+  followUpOptions: { questions: [], evidence: [] },
 };
 
 type RecordedCall = { url: string; init: RequestInitLike | undefined };
@@ -310,7 +312,7 @@ describe("endpoint mapping", () => {
       invoke: (client: ApiClient) =>
         client.requestMoreInfo("ticket-a", {
           reason: "누수 위치 확인 필요",
-          requestedItems: ["누수 위치를 다시 확인해 주세요"],
+          requestedQuestionIds: ["leak.location"],
         }),
       response: JSON.stringify(landlordDetail),
       method: "POST",
@@ -318,7 +320,7 @@ describe("endpoint mapping", () => {
       body: {
         type: "REQUEST_MORE_INFO",
         reason: "누수 위치 확인 필요",
-        requestedItems: ["누수 위치를 다시 확인해 주세요"],
+        requestedQuestionIds: ["leak.location"],
       },
     },
   ] as const;
@@ -484,7 +486,7 @@ describe("successful responses are validated", () => {
       (client) =>
         client.requestMoreInfo("ticket-a", {
           reason: "확인 필요",
-          requestedItems: ["다시 확인해 주세요"],
+          requestedQuestionIds: ["leak.location"],
         }),
     ];
 

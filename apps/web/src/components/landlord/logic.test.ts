@@ -55,6 +55,7 @@ function ticket(
       hiddenContacts: [],
     },
     decision: null,
+    followUpOptions: { questions: [], evidence: [] },
     ...overrides,
   };
 }

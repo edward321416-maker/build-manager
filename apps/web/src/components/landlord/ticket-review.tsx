@@ -3,6 +3,7 @@
 import type {
   LandlordTicketDetailDto,
   RouteCode,
+  SyntheticEvidenceType,
 } from "@build-manager/api-contracts";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -31,6 +32,15 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
   const [selectedRoute, setSelectedRoute] = useState<RouteCode | "">("");
   const [overrideReason, setOverrideReason] = useState("");
   const [moreInfoReason, setMoreInfoReason] = useState("");
+  const [requestedQuestionIds, setRequestedQuestionIds] = useState<string[]>([]);
+  const [requestedEvidenceTypes, setRequestedEvidenceTypes] = useState<
+    SyntheticEvidenceType[]
+  >([]);
+
+  const toggle = <T,>(values: T[], value: T): T[] =>
+    values.includes(value)
+      ? values.filter((entry) => entry !== value)
+      : [...values, value];
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
@@ -186,18 +196,25 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
             )}
 
             <form
-              className="decision-action"
+              className="decision-action decision-more-info"
               onSubmit={(event) => {
                 event.preventDefault();
                 void runAction((client) =>
                   client.requestMoreInfo(ticketId, {
                     reason: moreInfoReason,
-                    requestedItems: [moreInfoReason],
+                    requestedQuestionIds:
+                      requestedQuestionIds.length > 0
+                        ? requestedQuestionIds
+                        : undefined,
+                    requestedEvidenceTypes:
+                      requestedEvidenceTypes.length > 0
+                        ? requestedEvidenceTypes
+                        : undefined,
                   }),
                 );
               }}
             >
-              <label htmlFor="moreInfoReason">추가로 확인할 내용</label>
+              <label htmlFor="moreInfoReason">추가 정보를 요청하는 이유</label>
               <input
                 id="moreInfoReason"
                 name="moreInfoReason"
@@ -205,13 +222,60 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
                 value={moreInfoReason}
                 onChange={(event) => setMoreInfoReason(event.target.value)}
               />
+
+              <fieldset className="follow-up-options">
+                <legend>다시 확인할 질문</legend>
+                {state.ticket.followUpOptions.questions.map((question) => (
+                  <div className="field-check" key={question.questionId}>
+                    <input
+                      id={`q-${question.questionId}`}
+                      type="checkbox"
+                      checked={requestedQuestionIds.includes(question.questionId)}
+                      onChange={() =>
+                        setRequestedQuestionIds((current) =>
+                          toggle(current, question.questionId),
+                        )
+                      }
+                    />
+                    <label htmlFor={`q-${question.questionId}`}>
+                      {question.prompt}
+                    </label>
+                  </div>
+                ))}
+              </fieldset>
+
+              <fieldset className="follow-up-options">
+                <legend>다시 제출받을 DEMO 증빙</legend>
+                {state.ticket.followUpOptions.evidence.map((requirement) => (
+                  <div className="field-check" key={requirement.evidenceType}>
+                    <input
+                      id={`e-${requirement.evidenceType}`}
+                      type="checkbox"
+                      checked={requestedEvidenceTypes.includes(
+                        requirement.evidenceType,
+                      )}
+                      onChange={() =>
+                        setRequestedEvidenceTypes((current) =>
+                          toggle(current, requirement.evidenceType),
+                        )
+                      }
+                    />
+                    <label htmlFor={`e-${requirement.evidenceType}`}>
+                      {requirement.label}
+                    </label>
+                  </div>
+                ))}
+              </fieldset>
+
               <button
                 type="submit"
                 data-testid="request-more-info"
                 disabled={
                   busy ||
                   !canRequestMoreInfo(state.ticket) ||
-                  moreInfoReason.trim().length === 0
+                  moreInfoReason.trim().length === 0 ||
+                  requestedQuestionIds.length + requestedEvidenceTypes.length ===
+                    0
                 }
               >
                 추가 정보 요청
@@ -221,6 +285,12 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
                   현재 상태에서는 추가 정보를 요청할 수 없습니다.
                 </p>
               )}
+              {requestedQuestionIds.length + requestedEvidenceTypes.length ===
+              0 ? (
+                <p className="action-note">
+                  다시 확인할 질문이나 증빙을 하나 이상 선택해 주세요.
+                </p>
+              ) : null}
             </form>
           </section>
         </>

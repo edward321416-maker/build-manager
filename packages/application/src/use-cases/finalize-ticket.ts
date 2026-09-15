@@ -56,6 +56,9 @@ export async function finalizeTicket(
     status: STATUS_BY_EVIDENCE_STATE[assessment.evidenceState],
     safetyFlags: assessment.safety.flags,
     repairPacket,
+    // Refinalizing answers the outstanding request, so it is no longer current.
+    // The answers and evidence the tenant added in response are untouched.
+    moreInfoRequest: null,
     updatedAt: finalizedAt,
   };
 

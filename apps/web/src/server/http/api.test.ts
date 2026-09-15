@@ -416,6 +416,7 @@ describe("role projection", () => {
       "evidenceRequirements",
       "evidenceStatus",
       "issueType",
+      "moreInfoRequest",
       "packet",
       "protocol",
       "status",
@@ -528,7 +529,7 @@ describe("landlord decisions", () => {
       jsonRequest({
         type: "REQUEST_MORE_INFO",
         reason: "누수 위치를 다시 확인해 주세요",
-        requestedItems: ["leak.location"],
+        requestedQuestionIds: ["leak.location"],
       }),
       ticketId,
     );
@@ -775,5 +776,262 @@ describe("the tenant's report text reaches the safety gate", () => {
       expect(response.status).toBe(400);
       expect((await payload(response)).error.code).toBe("INVALID_REQUEST");
     }
+  });
+});
+
+describe("structured more-info over HTTP", () => {
+  async function landlordView(ticketId: string) {
+    return payload(
+      await handleGetTicket(
+        provider,
+        url("/api/v1/tickets?view=landlord"),
+        ticketId,
+      ),
+    );
+  }
+
+  async function tenantView(ticketId: string) {
+    return payload(
+      await handleGetTicket(
+        provider,
+        url("/api/v1/tickets?view=tenant"),
+        ticketId,
+      ),
+    );
+  }
+
+  it("offers the landlord the protocol's questions and evidence to ask for", async () => {
+    const ticketId = await reviewableTicket();
+
+    const detail = await landlordView(ticketId);
+
+    expect(detail.followUpOptions.questions.length).toBeGreaterThan(0);
+    expect(
+      detail.followUpOptions.questions.map((q: any) => q.questionId),
+    ).toContain("leak.location");
+    expect(
+      detail.followUpOptions.evidence.map((e: any) => e.evidenceType),
+    ).toContain("LEAK_LOCATION");
+  });
+
+  it("gives every evidence requirement a server-provided demo fixture id", async () => {
+    const ticketId = await reviewableTicket();
+    const tenant = await tenantView(ticketId);
+
+    for (const requirement of tenant.evidenceRequirements) {
+      expect(typeof requirement.demoFixtureId).toBe("string");
+      expect(requirement.demoFixtureId.length).toBeGreaterThan(0);
+      expect(requirement.demoFixtureId).not.toContain("/");
+      expect(requirement.demoFixtureId).not.toContain("\\");
+    }
+  });
+
+  it("carries a requested question through to the tenant", async () => {
+    const ticketId = await reviewableTicket();
+
+    await handleTicketDecision(
+      provider,
+      jsonRequest({
+        type: "REQUEST_MORE_INFO",
+        reason: "누수 위치를 다시 확인해 주세요",
+        requestedQuestionIds: ["leak.location"],
+      }),
+      ticketId,
+    );
+
+    const tenant = await tenantView(ticketId);
+    expect(tenant.status).toBe("NEEDS_MORE_INFO");
+    expect(tenant.moreInfoRequest.reason).toBe("누수 위치를 다시 확인해 주세요");
+    expect(
+      tenant.moreInfoRequest.requestedQuestions.map((q: any) => q.questionId),
+    ).toEqual(["leak.location"]);
+    expect(tenant.moreInfoRequest.requestedEvidence).toEqual([]);
+  });
+
+  it("carries a requested evidence type through to the tenant", async () => {
+    const ticketId = await reviewableTicket();
+
+    await handleTicketDecision(
+      provider,
+      jsonRequest({
+        type: "REQUEST_MORE_INFO",
+        reason: "누수 사진을 다시 올려 주세요",
+        requestedEvidenceTypes: ["LEAK_LOCATION"],
+      }),
+      ticketId,
+    );
+
+    const tenant = await tenantView(ticketId);
+    expect(tenant.moreInfoRequest.requestedQuestions).toEqual([]);
+    expect(
+      tenant.moreInfoRequest.requestedEvidence.map((e: any) => e.evidenceType),
+    ).toEqual(["LEAK_LOCATION"]);
+    expect(
+      tenant.moreInfoRequest.requestedEvidence[0].demoFixtureId.length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("does not collapse an evidence request into a question request", async () => {
+    const ticketId = await reviewableTicket();
+
+    await handleTicketDecision(
+      provider,
+      jsonRequest({
+        type: "REQUEST_MORE_INFO",
+        reason: "둘 다 확인해 주세요",
+        requestedQuestionIds: ["leak.active"],
+        requestedEvidenceTypes: ["LEAK_LOCATION"],
+      }),
+      ticketId,
+    );
+
+    const tenant = await tenantView(ticketId);
+    expect(
+      tenant.moreInfoRequest.requestedQuestions.map((q: any) => q.questionId),
+    ).toEqual(["leak.active"]);
+    expect(
+      tenant.moreInfoRequest.requestedEvidence.map((e: any) => e.evidenceType),
+    ).toEqual(["LEAK_LOCATION"]);
+  });
+
+  it("keeps a more-info request out of the route decision", async () => {
+    const ticketId = await reviewableTicket();
+
+    const response = await handleTicketDecision(
+      provider,
+      jsonRequest({
+        type: "REQUEST_MORE_INFO",
+        reason: "확인 필요",
+        requestedQuestionIds: ["leak.active"],
+      }),
+      ticketId,
+    );
+
+    expect((await payload(response)).decision).toBeNull();
+  });
+
+  it("refuses a more-info request that asks for nothing", async () => {
+    const ticketId = await reviewableTicket();
+
+    const response = await handleTicketDecision(
+      provider,
+      jsonRequest({ type: "REQUEST_MORE_INFO", reason: "확인 필요" }),
+      ticketId,
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("drops an outstanding question once the tenant answers it", async () => {
+    const ticketId = await reviewableTicket();
+    await handleTicketDecision(
+      provider,
+      jsonRequest({
+        type: "REQUEST_MORE_INFO",
+        reason: "누수 시점을 다시 확인해 주세요",
+        requestedQuestionIds: ["leak.firstObservedAt"],
+      }),
+      ticketId,
+    );
+
+    expect(
+      (await tenantView(ticketId)).moreInfoRequest.requestedQuestions,
+    ).toHaveLength(1);
+
+    await handleSubmitAnswer(
+      provider,
+      jsonRequest({
+        questionId: "leak.firstObservedAt",
+        answer: "2026-09-15 아침",
+      }),
+      ticketId,
+    );
+
+    const after = await tenantView(ticketId);
+    expect(after.moreInfoRequest.requestedQuestions).toEqual([]);
+    expect(after.moreInfoRequest.reason).toBe("누수 시점을 다시 확인해 주세요");
+  });
+
+  it("drops outstanding evidence once the tenant submits it", async () => {
+    const ticketId = await reviewableTicket();
+    await handleTicketDecision(
+      provider,
+      jsonRequest({
+        type: "REQUEST_MORE_INFO",
+        reason: "누수 사진을 다시 올려 주세요",
+        requestedEvidenceTypes: ["LEAK_LOCATION"],
+      }),
+      ticketId,
+    );
+
+    expect(
+      (await tenantView(ticketId)).moreInfoRequest.requestedEvidence,
+    ).toHaveLength(1);
+
+    await handleSubmitEvidence(
+      provider,
+      jsonRequest({
+        evidenceType: "LEAK_LOCATION",
+        fixtureId: "demo-leak-location",
+      }),
+      ticketId,
+    );
+
+    const after = await tenantView(ticketId);
+    expect(after.moreInfoRequest.requestedEvidence).toEqual([]);
+    expect(after.moreInfoRequest.requestedQuestions).toEqual([]);
+  });
+
+  it("clears the request entirely once the ticket is refinalized", async () => {
+    const ticketId = await reviewableTicket();
+    await handleTicketDecision(
+      provider,
+      jsonRequest({
+        type: "REQUEST_MORE_INFO",
+        reason: "누수 시점을 다시 확인해 주세요",
+        requestedQuestionIds: ["leak.firstObservedAt"],
+      }),
+      ticketId,
+    );
+    await handleSubmitAnswer(
+      provider,
+      jsonRequest({
+        questionId: "leak.firstObservedAt",
+        answer: "2026-09-14 아침",
+      }),
+      ticketId,
+    );
+
+    const finalized = await payload(
+      await handleFinalizeTicket(provider, jsonRequest({}), ticketId),
+    );
+
+    expect(finalized.moreInfoRequest).toBeNull();
+    expect(finalized.status).toBe("READY_FOR_REVIEW");
+  });
+
+  it("keeps landlord-only data out of the tenant more-info payload", async () => {
+    const ticketId = await reviewableTicket();
+    await handleTicketDecision(
+      provider,
+      jsonRequest({
+        type: "REQUEST_MORE_INFO",
+        reason: "확인 필요",
+        requestedQuestionIds: ["leak.active"],
+      }),
+      ticketId,
+    );
+
+    const wire = await (
+      await handleGetTicket(
+        provider,
+        url("/api/v1/tickets?view=tenant"),
+        ticketId,
+      )
+    ).text();
+
+    expect(wire).not.toContain("LANDLORD");
+    expect(wire).not.toContain("requestedAt");
+    expect(wire).not.toContain("followUpOptions");
   });
 });

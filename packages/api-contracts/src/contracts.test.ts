@@ -39,6 +39,7 @@ const activeQuestion = {
       evidenceType: "BOILER_DISPLAY",
       label: "DEMO 보일러 표시창 이미지",
       required: true,
+      demoFixtureId: "demo-boiler-display",
     },
   ],
 };
@@ -148,6 +149,7 @@ describe("public API contracts", () => {
         hiddenContacts: ["DEMO vendor desk"],
       },
       decision: null,
+      followUpOptions: { questions: [], evidence: [] },
     };
 
     expect(
@@ -169,6 +171,7 @@ describe("public API contracts", () => {
         summary: landlordDetail.repairPacket.summary,
         safetyEscalated: false,
       },
+      moreInfoRequest: null,
     };
 
     expect(schema("TenantTicketStatusDtoSchema").safeParse(tenantStatus).success).toBe(
@@ -201,7 +204,7 @@ describe("public API contracts", () => {
       decisionSchema.safeParse({
         type: "REQUEST_MORE_INFO",
         reason: "누수 위치 확인 필요",
-        requestedItems: ["누수 위치를 다시 확인해 주세요"],
+        requestedQuestionIds: ["leak.location"],
       }).success,
     ).toBe(true);
   });
@@ -215,7 +218,7 @@ describe("public API contracts", () => {
     expect(
       decisionSchema.safeParse({
         type: "REQUEST_MORE_INFO",
-        requestedItems: ["reason missing"],
+        requestedQuestionIds: ["leak.location"],
       }).success,
     ).toBe(false);
     expect(
@@ -262,6 +265,7 @@ describe("role-safe list responses", () => {
     activeQuestion: null,
     repairPacket: null,
     decision: null,
+    followUpOptions: { questions: [], evidence: [] },
   };
 
   const tenantStatus = {
@@ -275,6 +279,7 @@ describe("role-safe list responses", () => {
     evidenceRequirements: [],
     submittedEvidence: [],
     packet: null,
+    moreInfoRequest: null,
   };
 
   it("accepts a list of building passports and rejects a bare object", () => {
@@ -390,6 +395,7 @@ describe("synthetic evidence types cover every P0 protocol requirement", () => {
         evidenceType: "FIXTURE_VIEW",
         label: "DEMO 세대 조절기 화면",
         required: true,
+        demoFixtureId: "demo-fixture-view",
       }).success,
     ).toBe(true);
   });
@@ -550,6 +556,7 @@ describe("route code is a closed public vocabulary", () => {
       evidenceStatus: "COMPLETE",
       activeQuestion: null,
       decision: null,
+      followUpOptions: { questions: [], evidence: [] },
     };
     const packet = {
       revision: 1,
@@ -578,5 +585,229 @@ describe("route code is a closed public vocabulary", () => {
         },
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("structured more-info request", () => {
+  const base = { type: "REQUEST_MORE_INFO", reason: "누수 위치를 다시 확인해 주세요" };
+
+  it("accepts requested question ids alone", () => {
+    expect(
+      schema("DecisionRequestSchema").safeParse({
+        ...base,
+        requestedQuestionIds: ["leak.location"],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts requested evidence types alone", () => {
+    expect(
+      schema("DecisionRequestSchema").safeParse({
+        ...base,
+        requestedEvidenceTypes: ["LEAK_LOCATION"],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts both together", () => {
+    expect(
+      schema("DecisionRequestSchema").safeParse({
+        ...base,
+        requestedQuestionIds: ["leak.location"],
+        requestedEvidenceTypes: ["LEAK_LOCATION"],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a request that asks for nothing at all", () => {
+    const decisionSchema = schema("DecisionRequestSchema");
+
+    expect(decisionSchema.safeParse(base).success).toBe(false);
+    expect(
+      decisionSchema.safeParse({
+        ...base,
+        requestedQuestionIds: [],
+        requestedEvidenceTypes: [],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an unknown evidence type", () => {
+    expect(
+      schema("DecisionRequestSchema").safeParse({
+        ...base,
+        requestedEvidenceTypes: ["RAW_UPLOAD"],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("no longer accepts the generic requested items field", () => {
+    expect(
+      schema("DecisionRequestSchema").safeParse({
+        ...base,
+        requestedItems: ["leak.location"],
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("synthetic evidence carries a server-provided demo fixture", () => {
+  it("requires a demo fixture id on an evidence requirement", () => {
+    const requirementSchema = schema("SyntheticEvidenceRequirementDtoSchema");
+
+    expect(
+      requirementSchema.safeParse({
+        evidenceType: "LEAK_LOCATION",
+        label: "DEMO 누수 위치 이미지",
+        required: true,
+        demoFixtureId: "demo-leak-location",
+      }).success,
+    ).toBe(true);
+    expect(
+      requirementSchema.safeParse({
+        evidenceType: "LEAK_LOCATION",
+        label: "DEMO 누수 위치 이미지",
+        required: true,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects anything that looks like a file path", () => {
+    const requirementSchema = schema("SyntheticEvidenceRequirementDtoSchema");
+
+    for (const demoFixtureId of ["", "   "]) {
+      expect(
+        requirementSchema.safeParse({
+          evidenceType: "LEAK_LOCATION",
+          label: "DEMO 누수 위치 이미지",
+          required: true,
+          demoFixtureId,
+        }).success,
+      ).toBe(false);
+    }
+  });
+});
+
+describe("tenant sees its own actionable more-info request", () => {
+  const requirement = {
+    evidenceType: "LEAK_LOCATION",
+    label: "DEMO 누수 위치 이미지",
+    required: true,
+    demoFixtureId: "demo-leak-location",
+  };
+  const question = {
+    questionId: "leak.location",
+    protocol: "LEAK_V1",
+    prompt: "물이 어디에서 보이나요?",
+    responseType: "SINGLE_SELECT",
+    required: true,
+    evidenceRequirements: [requirement],
+    options: [
+      { value: "CEILING_WALL", label: "천장 또는 벽" },
+      { value: "APPLIANCE", label: "특정 기기" },
+    ],
+  };
+  const tenantStatus = {
+    ticketId: "ticket-a",
+    buildingId: "demo-building-a",
+    issueType: "LEAK",
+    protocol: "LEAK_V1",
+    status: "NEEDS_MORE_INFO",
+    evidenceStatus: "COMPLETE",
+    activeQuestion: null,
+    evidenceRequirements: [requirement],
+    submittedEvidence: [],
+    packet: null,
+  };
+
+  it("accepts a tenant status carrying a current more-info request", () => {
+    expect(
+      schema("TenantTicketStatusDtoSchema").safeParse({
+        ...tenantStatus,
+        moreInfoRequest: {
+          reason: "누수 위치를 다시 확인해 주세요",
+          requestedQuestions: [question],
+          requestedEvidence: [requirement],
+        },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts a tenant status with no outstanding request", () => {
+    expect(
+      schema("TenantTicketStatusDtoSchema").safeParse({
+        ...tenantStatus,
+        moreInfoRequest: null,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts a fulfilled request that still shows its reason", () => {
+    expect(
+      schema("TenantTicketStatusDtoSchema").safeParse({
+        ...tenantStatus,
+        moreInfoRequest: {
+          reason: "누수 위치를 다시 확인해 주세요",
+          requestedQuestions: [],
+          requestedEvidence: [],
+        },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("keeps landlord-only fields out of the tenant more-info request", () => {
+    expect(
+      schema("TenantTicketStatusDtoSchema").safeParse({
+        ...tenantStatus,
+        moreInfoRequest: {
+          reason: "누수 위치를 다시 확인해 주세요",
+          requestedQuestions: [],
+          requestedEvidence: [],
+          actor: "LANDLORD",
+          requestedAt: "2026-09-15T00:00:00.000Z",
+        },
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("landlord follow-up options", () => {
+  it("exposes the protocol's questions and evidence to the landlord form", () => {
+    const optionsSchema = schema("FollowUpOptionsDtoSchema");
+
+    expect(
+      optionsSchema.safeParse({
+        questions: [],
+        evidence: [],
+      }).success,
+    ).toBe(true);
+    expect(
+      optionsSchema.safeParse({
+        questions: [
+          {
+            questionId: "leak.active",
+            protocol: "LEAK_V1",
+            prompt: "현재도 계속 새고 있나요?",
+            responseType: "YES_NO",
+            required: true,
+            evidenceRequirements: [],
+          },
+        ],
+        evidence: [
+          {
+            evidenceType: "LEAK_LOCATION",
+            label: "DEMO 누수 위치 이미지",
+            required: true,
+            demoFixtureId: "demo-leak-location",
+          },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects follow-up options that omit either list", () => {
+    expect(schema("FollowUpOptionsDtoSchema").safeParse({ questions: [] }).success).toBe(
+      false,
+    );
   });
 });

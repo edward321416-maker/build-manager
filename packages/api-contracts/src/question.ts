@@ -18,11 +18,18 @@ export type SyntheticEvidenceType = z.infer<
   typeof SyntheticEvidenceTypeSchema
 >;
 
+/**
+ * `demoFixtureId` identifies a synthetic P0 fixture the tenant can submit back
+ * through `submitEvidence`. It is server-provided so browser code never invents
+ * one, and it is an opaque demo identifier — never a file path, and never a
+ * handle to real media.
+ */
 export const SyntheticEvidenceRequirementDtoSchema = z
   .object({
     evidenceType: SyntheticEvidenceTypeSchema,
     label: z.string().trim().min(1),
     required: z.boolean(),
+    demoFixtureId: z.string().trim().min(1),
   })
   .strict();
 export type SyntheticEvidenceRequirementDto = z.infer<

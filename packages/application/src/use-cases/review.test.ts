@@ -312,3 +312,48 @@ describe("listTickets and getTicket", () => {
     expect(await getTicket(deps, { ticketId: "missing" })).toBeNull();
   });
 });
+
+describe("finalize clears a fulfilled more-info request", () => {
+  it("drops the current request once the ticket is refinalized", async () => {
+    const reviewable = await reviewableTicket();
+    const returned = await requestMoreInfo(deps, {
+      ticketId: reviewable.id,
+      reason: "누수 시점을 다시 확인해 주세요",
+      requestedQuestionIds: ["leak.firstObservedAt"],
+    });
+
+    expect(returned.moreInfoRequest).not.toBeNull();
+
+    const refinalized = await finalizeTicket(deps, {
+      ticketId: reviewable.id,
+    });
+
+    expect(refinalized.moreInfoRequest).toBeNull();
+    expect(refinalized.status).toBe("READY_FOR_REVIEW");
+  });
+
+  it("keeps the answer history the tenant added in response", async () => {
+    const reviewable = await reviewableTicket();
+    await requestMoreInfo(deps, {
+      ticketId: reviewable.id,
+      reason: "누수 시점을 다시 확인해 주세요",
+      requestedQuestionIds: ["leak.firstObservedAt"],
+    });
+    await submitTicketAnswer(deps, {
+      ticketId: reviewable.id,
+      questionId: "leak.firstObservedAt",
+      value: "2026-09-15 아침",
+    });
+
+    const refinalized = await finalizeTicket(deps, {
+      ticketId: reviewable.id,
+    });
+
+    expect(refinalized.moreInfoRequest).toBeNull();
+    expect(
+      refinalized.answers.filter(
+        (answer) => answer.questionId === "leak.firstObservedAt",
+      ),
+    ).toHaveLength(2);
+  });
+});
