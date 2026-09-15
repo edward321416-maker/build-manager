@@ -134,12 +134,12 @@ describe("public API contracts", () => {
         summary: "보일러는 작동하지만 세대 난방이 되지 않습니다.",
         safetyEscalated: false,
         recommendation: {
-          routeCode: "OWNER_BOILER_TECHNICIAN",
-          label: "임대인 지정 보일러 기사",
+          routeCode: "MANUFACTURER_AS",
+          label: "제조사 A/S",
           reasons: ["임대인 공급 개별 보일러"],
         },
         routeAlternatives: [
-          { routeCode: "GENERAL_REPAIR", label: "일반 수리" },
+          { routeCode: "GENERAL_VENDOR", label: "일반 수리업체" },
         ],
         provenance: ["managementMode", "heatingType", "ownerSuppliedBoiler"],
         internalNotes: ["DEMO landlord note"],
@@ -193,7 +193,7 @@ describe("public API contracts", () => {
     expect(
       decisionSchema.safeParse({
         type: "OVERRIDE",
-        routeCode: "GENERAL_REPAIR",
+        routeCode: "GENERAL_VENDOR",
         reason: "현장 확인 결과 일반 수리가 적합함",
       }).success,
     ).toBe(true);
@@ -477,5 +477,106 @@ describe("tenant report text is part of the create contract", () => {
         status: "SAFETY_ESCALATED",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("route code is a closed public vocabulary", () => {
+  const ROUTE_CODES = [
+    "LANDLORD_REVIEW",
+    "MANAGEMENT_OFFICE",
+    "THIRD_PARTY_MANAGER",
+    "MANUFACTURER_AS",
+    "GENERAL_VENDOR",
+  ];
+
+  it("accepts every approved route code", () => {
+    const routeSchema = schema("RouteCodeSchema");
+
+    for (const routeCode of ROUTE_CODES) {
+      expect(routeSchema.safeParse(routeCode).success).toBe(true);
+    }
+  });
+
+  it("rejects an arbitrary route string", () => {
+    const routeSchema = schema("RouteCodeSchema");
+
+    for (const routeCode of ["", "GENERAL_REPAIR", "SEND_TO_MARS", "landlord_review"]) {
+      expect(routeSchema.safeParse(routeCode).success).toBe(false);
+    }
+  });
+
+  it("refuses an override request carrying an unknown route code", () => {
+    const decisionSchema = schema("DecisionRequestSchema");
+
+    expect(
+      decisionSchema.safeParse({
+        type: "OVERRIDE",
+        routeCode: "GENERAL_VENDOR",
+        reason: "현장 확인 결과",
+      }).success,
+    ).toBe(true);
+    expect(
+      decisionSchema.safeParse({
+        type: "OVERRIDE",
+        routeCode: "SEND_TO_MARS",
+        reason: "현장 확인 결과",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("refuses a route option carrying an unknown route code", () => {
+    const optionSchema = schema("RouteOptionDtoSchema");
+
+    expect(
+      optionSchema.safeParse({
+        routeCode: "MANAGEMENT_OFFICE",
+        label: "관리사무소",
+      }).success,
+    ).toBe(true);
+    expect(
+      optionSchema.safeParse({ routeCode: "GENERAL_REPAIR", label: "일반 수리" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("refuses an unknown route code inside a landlord packet", () => {
+    const landlordSchema = schema("LandlordTicketDetailDtoSchema");
+    const base = {
+      ticketId: "ticket-a",
+      building: passport,
+      issueType: "HEATING",
+      protocol: "HEATING_V1",
+      status: "READY_FOR_REVIEW",
+      evidenceStatus: "COMPLETE",
+      activeQuestion: null,
+      decision: null,
+    };
+    const packet = {
+      revision: 1,
+      summary: "요약",
+      safetyEscalated: false,
+      recommendation: null,
+      routeAlternatives: [{ routeCode: "GENERAL_REPAIR", label: "일반 수리" }],
+      provenance: [],
+      internalNotes: [],
+      estimatedCost: null,
+      affectedUnits: [],
+      hiddenContacts: [],
+    };
+
+    expect(
+      landlordSchema.safeParse({ ...base, repairPacket: packet }).success,
+    ).toBe(false);
+    expect(
+      landlordSchema.safeParse({
+        ...base,
+        repairPacket: {
+          ...packet,
+          routeAlternatives: [
+            { routeCode: "GENERAL_VENDOR", label: "일반 수리업체" },
+          ],
+        },
+      }).success,
+    ).toBe(true);
   });
 });

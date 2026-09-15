@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RouteCodeSchema } from "./common";
 
 const ApproveDecisionRequestSchema = z
   .object({
@@ -9,7 +10,7 @@ const ApproveDecisionRequestSchema = z
 const OverrideDecisionRequestSchema = z
   .object({
     type: z.literal("OVERRIDE"),
-    routeCode: z.string().trim().min(1),
+    routeCode: RouteCodeSchema,
     reason: z.string().trim().min(1),
   })
   .strict();

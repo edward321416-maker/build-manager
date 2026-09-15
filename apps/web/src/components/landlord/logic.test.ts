@@ -4,11 +4,14 @@ import type {
 } from "@build-manager/api-contracts";
 import { describe, expect, it } from "vitest";
 import {
+  ALL_ROUTE_CODES,
   canApprove,
   canRequestMoreInfo,
   contextRows,
+  manualRouteMode,
   overrideOptions,
   recommendationState,
+  routeLabel,
 } from "./logic";
 
 const passport: BuildingPassportDto = {
@@ -112,33 +115,20 @@ describe("more-info availability", () => {
   });
 });
 
-describe("override options are a closed, server-supplied set", () => {
-  it("offers the recommended route and its alternatives, without duplicates", () => {
-    expect(overrideOptions(ticket())).toEqual([
-      { routeCode: "MANAGEMENT_OFFICE", label: "관리사무소" },
-      { routeCode: "LANDLORD_REVIEW", label: "임대인 검토" },
-    ]);
-  });
-
-  it("does not repeat a route that is both recommended and listed", () => {
-    const repeated = ticket({
-      repairPacket: {
-        ...ticket().repairPacket!,
-        routeAlternatives: [
-          { routeCode: "MANAGEMENT_OFFICE", label: "관리사무소" },
-          { routeCode: "GENERAL_VENDOR", label: "일반 수리 업체" },
-        ],
-      },
-    });
-
-    expect(overrideOptions(repeated).map((option) => option.routeCode)).toEqual([
-      "MANAGEMENT_OFFICE",
+describe("manual override vocabulary", () => {
+  it("offers every valid route except the one already recommended", () => {
+    expect(overrideOptions(ticket()).map((option) => option.routeCode)).toEqual([
+      "LANDLORD_REVIEW",
+      "THIRD_PARTY_MANAGER",
+      "MANUFACTURER_AS",
       "GENERAL_VENDOR",
     ]);
   });
 
-  it("offers nothing when the server supplied no route vocabulary", () => {
-    const escalated = ticket({
+  it("offers the full closed vocabulary when nothing was recommended", () => {
+    const partial = ticket({
+      status: "PARTIAL",
+      evidenceStatus: "MISSING_REQUIRED",
       repairPacket: {
         ...ticket().repairPacket!,
         recommendation: null,
@@ -146,8 +136,71 @@ describe("override options are a closed, server-supplied set", () => {
       },
     });
 
+    expect(overrideOptions(partial).map((option) => option.routeCode)).toEqual([
+      ...ALL_ROUTE_CODES,
+    ]);
+  });
+
+  it("offers the full vocabulary before a packet exists", () => {
+    expect(
+      overrideOptions(ticket({ status: "IN_PROGRESS", repairPacket: null }))
+        .length,
+    ).toBe(ALL_ROUTE_CODES.length);
+  });
+
+  it("offers no override control at all for a safety-escalated ticket", () => {
+    const escalated = ticket({
+      status: "SAFETY_ESCALATED",
+      evidenceStatus: "SAFETY_ESCALATED",
+      repairPacket: {
+        ...ticket().repairPacket!,
+        safetyEscalated: true,
+        recommendation: null,
+        routeAlternatives: [],
+      },
+    });
+
     expect(overrideOptions(escalated)).toEqual([]);
-    expect(overrideOptions(ticket({ repairPacket: null }))).toEqual([]);
+    expect(manualRouteMode(escalated)).toBe("NONE");
+  });
+
+  it("labels every route it offers", () => {
+    for (const option of overrideOptions(ticket())) {
+      expect(option.label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("distinguishes an alternative choice from a purely manual one", () => {
+    expect(manualRouteMode(ticket())).toBe("ALTERNATIVE");
+    expect(
+      manualRouteMode(
+        ticket({
+          status: "PARTIAL",
+          evidenceStatus: "MISSING_REQUIRED",
+          repairPacket: {
+            ...ticket().repairPacket!,
+            recommendation: null,
+            routeAlternatives: [],
+          },
+        }),
+      ),
+    ).toBe("MANUAL_ONLY");
+  });
+});
+
+describe("route labels", () => {
+  it("covers every code in the closed vocabulary", () => {
+    for (const routeCode of ALL_ROUTE_CODES) {
+      expect(routeLabel(routeCode).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("uses the approved Korean labels", () => {
+    expect(routeLabel("LANDLORD_REVIEW")).toBe("임대인 검토");
+    expect(routeLabel("MANAGEMENT_OFFICE")).toBe("관리사무소");
+    expect(routeLabel("THIRD_PARTY_MANAGER")).toBe("위탁관리");
+    expect(routeLabel("MANUFACTURER_AS")).toBe("제조사 A/S");
+    expect(routeLabel("GENERAL_VENDOR")).toBe("일반 수리업체");
   });
 });
 

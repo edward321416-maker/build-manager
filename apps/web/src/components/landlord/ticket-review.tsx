@@ -1,13 +1,22 @@
 "use client";
 
-import type { LandlordTicketDetailDto } from "@build-manager/api-contracts";
+import type {
+  LandlordTicketDetailDto,
+  RouteCode,
+} from "@build-manager/api-contracts";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
   createBrowserApiClient,
   describeApiError,
 } from "@/lib/browser-api-client";
-import { canApprove, canRequestMoreInfo, overrideOptions } from "./logic";
+import {
+  ALL_ROUTE_CODES,
+  canApprove,
+  canRequestMoreInfo,
+  manualRouteMode,
+  overrideOptions,
+} from "./logic";
 import { DemoBanner, RepairPacketPanel, StateMessage } from "./views";
 
 type LoadState =
@@ -19,7 +28,7 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [selectedRoute, setSelectedRoute] = useState("");
+  const [selectedRoute, setSelectedRoute] = useState<RouteCode | "">("");
   const [overrideReason, setOverrideReason] = useState("");
   const [moreInfoReason, setMoreInfoReason] = useState("");
 
@@ -105,59 +114,76 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
               )}
             </div>
 
-            <form
-              className="decision-action"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void runAction((client) =>
-                  client.overrideRoute(ticketId, {
-                    routeCode: selectedRoute,
-                    reason: overrideReason,
-                  }),
-                );
-              }}
-            >
-              <label htmlFor="overrideRoute">직접 지정할 경로</label>
-              <select
-                id="overrideRoute"
-                name="overrideRoute"
-                value={selectedRoute}
-                disabled={busy || overrideOptions(state.ticket).length === 0}
-                onChange={(event) => setSelectedRoute(event.target.value)}
+            {manualRouteMode(state.ticket) === "NONE" ? (
+              <p className="action-note" data-testid="override-unavailable">
+                안전 확인이 필요한 요청이므로 일반 경로 지정을 제공하지 않습니다.
+                사람이 직접 상황을 확인해야 합니다.
+              </p>
+            ) : (
+              <form
+                className="decision-action"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (selectedRoute === "") {
+                    return;
+                  }
+                  void runAction((client) =>
+                    client.overrideRoute(ticketId, {
+                      routeCode: selectedRoute,
+                      reason: overrideReason,
+                    }),
+                  );
+                }}
               >
-                {overrideOptions(state.ticket).map((option) => (
-                  <option key={option.routeCode} value={option.routeCode}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                {manualRouteMode(state.ticket) === "MANUAL_ONLY" ? (
+                  <p className="action-note" data-testid="manual-route-note">
+                    시스템 자동 추천 없음 · 임대인이 직접 처리경로 선택
+                  </p>
+                ) : null}
 
-              <label htmlFor="overrideReason">지정 사유</label>
-              <input
-                id="overrideReason"
-                name="overrideReason"
-                type="text"
-                value={overrideReason}
-                onChange={(event) => setOverrideReason(event.target.value)}
-              />
+                <label htmlFor="overrideRoute">직접 지정할 경로</label>
+                <select
+                  id="overrideRoute"
+                  name="overrideRoute"
+                  value={selectedRoute}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setSelectedRoute(
+                      ALL_ROUTE_CODES.find(
+                        (routeCode) => routeCode === event.target.value,
+                      ) ?? "",
+                    )
+                  }
+                >
+                  {overrideOptions(state.ticket).map((option) => (
+                    <option key={option.routeCode} value={option.routeCode}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
 
-              <button
-                type="submit"
-                data-testid="override"
-                disabled={
-                  busy ||
-                  selectedRoute === "" ||
-                  overrideReason.trim().length === 0
-                }
-              >
-                경로 직접 지정
-              </button>
-              {overrideOptions(state.ticket).length === 0 ? (
-                <p className="action-note">
-                  서버가 제시한 경로 후보가 없어 직접 지정할 수 없습니다.
-                </p>
-              ) : null}
-            </form>
+                <label htmlFor="overrideReason">지정 사유</label>
+                <input
+                  id="overrideReason"
+                  name="overrideReason"
+                  type="text"
+                  value={overrideReason}
+                  onChange={(event) => setOverrideReason(event.target.value)}
+                />
+
+                <button
+                  type="submit"
+                  data-testid="override"
+                  disabled={
+                    busy ||
+                    selectedRoute === "" ||
+                    overrideReason.trim().length === 0
+                  }
+                >
+                  경로 직접 지정
+                </button>
+              </form>
+            )}
 
             <form
               className="decision-action"

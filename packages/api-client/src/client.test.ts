@@ -293,7 +293,7 @@ describe("endpoint mapping", () => {
       name: "overrideRoute",
       invoke: (client: ApiClient) =>
         client.overrideRoute("ticket-a", {
-          routeCode: "GENERAL_REPAIR",
+          routeCode: "GENERAL_VENDOR",
           reason: "현장 확인 결과 일반 수리가 적합함",
         }),
       response: JSON.stringify(landlordDetail),
@@ -301,7 +301,7 @@ describe("endpoint mapping", () => {
       url: "/api/v1/tickets/ticket-a/decision",
       body: {
         type: "OVERRIDE",
-        routeCode: "GENERAL_REPAIR",
+        routeCode: "GENERAL_VENDOR",
         reason: "현장 확인 결과 일반 수리가 적합함",
       },
     },
@@ -478,7 +478,7 @@ describe("successful responses are validated", () => {
       (client) => client.approveRoute("ticket-a"),
       (client) =>
         client.overrideRoute("ticket-a", {
-          routeCode: "GENERAL_REPAIR",
+          routeCode: "GENERAL_VENDOR",
           reason: "현장 확인",
         }),
       (client) =>

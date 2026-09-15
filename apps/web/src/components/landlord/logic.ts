@@ -1,6 +1,8 @@
-import type {
-  BuildingPassportDto,
-  LandlordTicketDetailDto,
+import {
+  RouteCodeSchema,
+  type BuildingPassportDto,
+  type LandlordTicketDetailDto,
+  type RouteCode,
 } from "@build-manager/api-contracts";
 
 /**
@@ -10,7 +12,51 @@ import type {
  * from the API. This only decides what the screen may offer, so the UI never
  * presents an action the server would refuse.
  */
-export type RouteOption = { routeCode: string; label: string };
+export type RouteOption = { routeCode: RouteCode; label: string };
+
+/** Derived from the contract, so the UI cannot drift from the wire vocabulary. */
+export const ALL_ROUTE_CODES: readonly RouteCode[] = RouteCodeSchema.options;
+
+/**
+ * Presentation only. Typed as a total record, so adding a route code to the
+ * contract without a Korean label stops the build.
+ */
+const ROUTE_LABELS: Record<RouteCode, string> = {
+  LANDLORD_REVIEW: "임대인 검토",
+  MANAGEMENT_OFFICE: "관리사무소",
+  THIRD_PARTY_MANAGER: "위탁관리",
+  MANUFACTURER_AS: "제조사 A/S",
+  GENERAL_VENDOR: "일반 수리업체",
+};
+
+export function routeLabel(routeCode: RouteCode): string {
+  return ROUTE_LABELS[routeCode];
+}
+
+/**
+ * Whether the landlord is choosing an alternative to a recommendation, or
+ * recording a purely manual route because the server recommended none.
+ */
+export type ManualRouteMode = "NONE" | "ALTERNATIVE" | "MANUAL_ONLY";
+
+export function manualRouteMode(
+  ticket: LandlordTicketDetailDto,
+): ManualRouteMode {
+  if (isSafetyEscalated(ticket)) {
+    return "NONE";
+  }
+  return ticket.repairPacket?.recommendation == null
+    ? "MANUAL_ONLY"
+    : "ALTERNATIVE";
+}
+
+function isSafetyEscalated(ticket: LandlordTicketDetailDto): boolean {
+  return (
+    ticket.status === "SAFETY_ESCALATED" ||
+    ticket.evidenceStatus === "SAFETY_ESCALATED" ||
+    ticket.repairPacket?.safetyEscalated === true
+  );
+}
 
 export type RecommendationState =
   | "RECOMMENDED"
@@ -37,38 +83,26 @@ export function canRequestMoreInfo(ticket: LandlordTicketDetailDto): boolean {
 }
 
 /**
- * The override choices are exactly the routes the server named for this
- * ticket. The browser never invents a route code, so an arbitrary string can
- * never be offered or submitted.
+ * The manual override choices.
+ *
+ * The domain already lets a landlord record a route when nothing was
+ * recommended, so the UI offers the whole closed vocabulary in that case rather
+ * than only the server's alternatives. Where a recommendation does exist, it is
+ * excluded — approving it is the separate, clearer action.
+ *
+ * A safety-escalated ticket offers none: that is a Web operational safeguard,
+ * not a domain rule.
  */
 export function overrideOptions(ticket: LandlordTicketDetailDto): RouteOption[] {
-  const packet = ticket.repairPacket;
-  if (packet === null) {
+  if (isSafetyEscalated(ticket)) {
     return [];
   }
 
-  const options: RouteOption[] = [];
-  const seen = new Set<string>();
+  const recommended = ticket.repairPacket?.recommendation?.routeCode ?? null;
 
-  for (const option of [
-    ...(packet.recommendation === null
-      ? []
-      : [
-          {
-            routeCode: packet.recommendation.routeCode,
-            label: packet.recommendation.label,
-          },
-        ]),
-    ...packet.routeAlternatives,
-  ]) {
-    if (seen.has(option.routeCode)) {
-      continue;
-    }
-    seen.add(option.routeCode);
-    options.push({ routeCode: option.routeCode, label: option.label });
-  }
-
-  return options;
+  return ALL_ROUTE_CODES.filter((routeCode) => routeCode !== recommended).map(
+    (routeCode) => ({ routeCode, label: routeLabel(routeCode) }),
+  );
 }
 
 /**

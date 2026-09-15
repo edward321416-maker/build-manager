@@ -4,6 +4,7 @@ import {
   EvidenceStatusSchema,
   IssueTypeSchema,
   ProtocolSchema,
+  RouteCodeSchema,
   TicketStatusSchema,
 } from "./common";
 import { DecisionRequestSchema } from "./decision";
@@ -13,12 +14,13 @@ import {
   TenantQuestionDtoSchema,
 } from "./question";
 
-const RouteOptionDtoSchema = z
+export const RouteOptionDtoSchema = z
   .object({
-    routeCode: z.string().trim().min(1),
+    routeCode: RouteCodeSchema,
     label: z.string().trim().min(1),
   })
   .strict();
+export type RouteOptionDto = z.infer<typeof RouteOptionDtoSchema>;
 
 const RouteRecommendationDtoSchema = RouteOptionDtoSchema.extend({
   reasons: z.array(z.string().trim().min(1)).min(1),
