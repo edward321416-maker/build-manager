@@ -976,6 +976,39 @@ transport DecisionRequest.type = "REQUEST_MORE_INFO"
 → ticket.routeDecision 은 null 로 유지
 ```
 
+## 24.4 Actionable tenant follow-up
+
+`REQUEST_MORE_INFO`는 무엇을 해야 하는지 지정한다.
+
+```text
+requestedQuestionIds?   : 다시 답할 protocol 질문
+requestedEvidenceTypes? : 다시 제출할 synthetic evidence
+```
+
+둘 중 최소 하나는 필수다. 아무것도 요구하지 않는 요청은 tenant가 행동할 수 없다.
+Evidence는 질문 ID로 접히지 않고 자체 vocabulary를 유지한다.
+
+`REQUEST_MORE_INFO`는 여전히 RouteDecision을 만들지 않는다.
+
+Landlord 상세에는 `followUpOptions`가 포함되어, 선택된 protocol에서 물어볼 수 있는
+질문/증빙을 서버가 제공한다.
+
+Tenant 상세에는 **현재 처리해야 할 요청**만 `moreInfoRequest`로 노출한다. 이력이
+아니며 landlord 내부 필드를 포함하지 않는다.
+
+미처리 판정은 `requestedAt` 기준이다.
+
+```text
+요청 시점 이후에 answer 가 없으면      -> 해당 질문은 미처리
+요청 시점 이후에 evidence 가 없으면    -> 해당 증빙은 미처리
+```
+
+answer/evidence 이력은 지우지 않는다. 모두 처리되면 `reason`은 그대로 보이고
+요청 목록만 비어 있다. refinalize 시 `moreInfoRequest`는 `null`이 된다.
+
+Synthetic evidence 요구사항은 서버가 제공하는 `demoFixtureId`를 포함한다. Browser는
+fixture ID를 만들어내지 않으며, 이는 파일 경로가 아니라 DEMO 식별자다.
+
 ## 24.3 Route vocabulary is a closed public contract
 
 P0 route vocabulary는 **닫힌 public contract**다.
