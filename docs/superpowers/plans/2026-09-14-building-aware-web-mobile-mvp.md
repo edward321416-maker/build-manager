@@ -794,6 +794,42 @@ approve/override/more-info
 
 ---
 
+# Task 13.1: Closed Manual Route Vocabulary
+
+**Files:**
+- `packages/api-contracts/src/common.ts` (`RouteCodeSchema`)
+- `packages/api-contracts/src/decision.ts`, `ticket.ts`
+- `apps/web/src/components/landlord/logic.ts`, `ticket-review.tsx`
+- `apps/web/src/server/http/route-code.test.ts` (parity)
+- tests
+
+**Produces:** the landlord can record a manual route when the system
+recommended none, using a closed public vocabulary.
+
+The domain already allowed a manual override with no recommendation, but the
+Web UI derived its choices from `recommendation + routeAlternatives`, so that
+capability was unreachable whenever the server recommended nothing.
+
+```text
+P0 route vocabulary is a closed public contract.
+A landlord may record a valid manual route when automatic recommendation is null.
+A manual route is not a system recommendation.
+Normal override UI remains unavailable for SAFETY_ESCALATED.
+```
+
+Public `routeCode` is no longer an arbitrary string. One server-side parity
+test keeps the public and domain vocabularies compatible without any cast.
+
+- [ ] RED contract tests for the closed vocabulary.
+- [ ] RED parity test at a boundary that may import both packages.
+- [ ] RED Web tests for manual choices with and without a recommendation.
+- [ ] RED Playwright flow: finalize a non-safety ticket with no recommendation,
+      record a manual route, confirm the refreshed human override.
+- [ ] Keep the safety-escalated override absence.
+- [ ] Commit `fix: expose closed landlord override routes`.
+
+---
+
 # Task 14: Web Tenant Capability
 
 Capabilities:

@@ -976,7 +976,31 @@ transport DecisionRequest.type = "REQUEST_MORE_INFO"
 → ticket.routeDecision 은 null 로 유지
 ```
 
-Transport `routeCode`는 열린 문자열이고 Domain `RouteType`은 닫힌 union이다. 둘 사이의 매핑은 Task 12 route handler가 담당한다.
+## 24.3 Route vocabulary is a closed public contract
+
+P0 route vocabulary는 **닫힌 public contract**다.
+
+```text
+LANDLORD_REVIEW
+MANAGEMENT_OFFICE
+THIRD_PARTY_MANAGER
+MANUFACTURER_AS
+GENERAL_VENDOR
+```
+
+`routeCode`는 임의 문자열이 아니다. `OverrideDecisionRequest.routeCode`와
+`RouteOptionDto.routeCode` 모두 이 닫힌 vocabulary를 사용한다. 공개 contract는
+Domain을 import하지 않으며, 두 vocabulary가 어긋나지 않는다는 것은 server-side
+parity test가 보장한다.
+
+자동 추천이 `null`일 때에도 임대인은 **유효한 manual route를 기록할 수 있다.**
+이는 이미 Domain이 지원하는 동작이다.
+
+Manual route는 **system recommendation이 아니다.** UI는 수동 선택지를 시스템이
+추천한 것처럼 표시하지 않는다.
+
+`SAFETY_ESCALATED`에서는 일반 override UI를 제공하지 않는다. 이는 Web
+operational safeguard이며 Domain state machine을 바꾸지 않는다.
 
 세 request가 `/api/v1/tickets/:id/decision` transport family를 공유하는 것과, 그 중 둘만 route decision을 만든다는 것은 서로 다른 층위의 사실이다.
 
