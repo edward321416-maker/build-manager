@@ -12,6 +12,7 @@ import {
 } from "@build-manager/api-contracts";
 import { assessTicket } from "@build-manager/application";
 import {
+  evaluateRuleExpression,
   getActiveQuestions,
   getBuildingContext,
   routingEligibleContextKeys,
@@ -177,9 +178,18 @@ function describeTicket(ticket: Ticket, building: Building): TicketView {
       (question) => question.required && !answered.has(question.id),
     ) ?? null;
 
-  const evidenceRequirements = assessment.protocol.evidence.map((requirement) =>
-    evidenceRequirement(requirement.type, requirement.required),
-  );
+  // Only evidence whose condition currently holds, matching the domain gate.
+  // Showing a conditional requirement unconditionally would ask the tenant for
+  // something the server never requires, and the intake could never complete.
+  const evidenceRequirements = assessment.protocol.evidence
+    .filter(
+      (requirement) =>
+        requirement.showWhen === undefined ||
+        evaluateRuleExpression(requirement.showWhen, values),
+    )
+    .map((requirement) =>
+      evidenceRequirement(requirement.type, requirement.required),
+    );
 
   const followUpQuestions = assessment.protocol.questions
     .map((question) =>

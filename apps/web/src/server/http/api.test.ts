@@ -1035,3 +1035,54 @@ describe("structured more-info over HTTP", () => {
     expect(wire).not.toContain("followUpOptions");
   });
 });
+
+describe("conditional evidence is only required when its condition holds", () => {
+  it("does not ask a ceiling leak for appliance evidence", async () => {
+    const ticketId = await createLeakTicket();
+    for (const [questionId, answer] of CLEAN_LEAK_ANSWERS) {
+      await handleSubmitAnswer(
+        provider,
+        jsonRequest({ questionId, answer }),
+        ticketId,
+      );
+    }
+
+    const tenant = await payload(
+      await handleGetTicket(
+        provider,
+        url("/api/v1/tickets?view=tenant"),
+        ticketId,
+      ),
+    );
+
+    expect(
+      tenant.evidenceRequirements.map((item: any) => item.evidenceType),
+    ).toEqual(["LEAK_LOCATION"]);
+  });
+
+  it("asks an appliance leak for the fixture evidence as well", async () => {
+    const ticketId = await createLeakTicket();
+    for (const [questionId, answer] of CLEAN_LEAK_ANSWERS) {
+      await handleSubmitAnswer(
+        provider,
+        jsonRequest({
+          questionId,
+          answer: questionId === "leak.location" ? "APPLIANCE" : answer,
+        }),
+        ticketId,
+      );
+    }
+
+    const tenant = await payload(
+      await handleGetTicket(
+        provider,
+        url("/api/v1/tickets?view=tenant"),
+        ticketId,
+      ),
+    );
+
+    expect(
+      tenant.evidenceRequirements.map((item: any) => item.evidenceType).sort(),
+    ).toEqual(["FIXTURE_VIEW", "LEAK_LOCATION"]);
+  });
+});
