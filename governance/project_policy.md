@@ -13,12 +13,13 @@ Authority: the operator's 2026-09-13 implementation instruction and supplied age
 | Claims and source provenance | `research/sources/` |
 | Submission draft / final gate | `submission/2026-modu-startup-2/` |
 | AI execution / external sync | `ops/` |
+| Instruction and artifact preflight | [AI delivery rules](ai_delivery_rules.md) |
 
 Avoid duplicate canonical documents. Link to an owner instead of copying evolving definitions. Drafts may restate approved product definitions but must not invent evidence.
 
 ## Collaboration decision
 
-Repository name: `build-manager`; visibility: Public; default branch: `main`. Enable squash and merge commits; rebase is optional. Required approving reviews: 0; mandatory CODEOWNER review: off; PR before merge: off. Prefer no branch restrictions during bootstrap. Do not remove unrelated existing protections without reviewing their impact. A Write collaborator may merge without additional review approval; the general public does not receive Write access. Invitation remains PENDING until a username is supplied.
+Repository name: `build-manager`; visibility: Public; default branch: `main`. Enable squash and merge commits; rebase is optional. Required approving reviews: 0. Mandatory CODEOWNER review: off; PR before merge: off. Prefer no branch restrictions during bootstrap. Do not remove unrelated existing protections without reviewing their impact. A Write collaborator may merge without additional review approval; the general public does not receive Write access. Invitation remains PENDING until a username is supplied.
 
 ## Public release gate
 
