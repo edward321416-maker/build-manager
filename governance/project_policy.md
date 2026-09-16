@@ -19,7 +19,7 @@ Avoid duplicate canonical documents. Link to an owner instead of copying evolvin
 
 ## Collaboration decision
 
-Repository name: `build-manager`; visibility: Public; default branch: `main`. Enable squash and merge commits; rebase is optional. Required approving reviews: 0. Mandatory CODEOWNER review: off; PR before merge: off. Prefer no branch restrictions during bootstrap. Do not remove unrelated existing protections without reviewing their impact. A Write collaborator may merge without additional review approval; the general public does not receive Write access. Invitation remains PENDING until a username is supplied.
+Repository name: `build-manager`; visibility: Public; default branch: `main`. Enable squash and merge commits; rebase is optional. Required approving reviews: 0; mandatory CODEOWNER review: off; PR before merge: off. Prefer no branch restrictions during bootstrap. Do not remove unrelated existing protections without reviewing their impact. A Write collaborator may merge without additional review approval; the general public does not receive Write access. Invitation remains PENDING until a username is supplied.
 
 ## Public release gate
 
