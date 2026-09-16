@@ -23,8 +23,8 @@ type LoadState =
 export function LandlordHome() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
 
-  const load = useCallback(async () => {
-    setState({ kind: "loading" });
+  /** Reads the next state rather than setting it, so callers own the timing. */
+  const fetchHome = useCallback(async (): Promise<LoadState> => {
     const client = createBrowserApiClient();
 
     try {
@@ -32,15 +32,31 @@ export function LandlordHome() {
         client.listDemoBuildings(),
         client.listTickets({ view: "landlord" }),
       ]);
-      setState({ kind: "ready", buildings, tickets });
+      return { kind: "ready", buildings, tickets };
     } catch (error) {
-      setState({ kind: "error", message: describeApiError(error) });
+      return { kind: "error", message: describeApiError(error) };
     }
   }, []);
 
+  /** Mount already renders the loading state, so it is not set again here. */
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    void (async () => {
+      const next = await fetchHome();
+      if (!cancelled) {
+        setState(next);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchHome]);
+
+  /** A retry is a user action, so it visibly returns to the loading state. */
+  const reload = useCallback(() => {
+    setState({ kind: "loading" });
+    void fetchHome().then(setState);
+  }, [fetchHome]);
 
   return (
     <main className="landlord-page">
@@ -60,7 +76,7 @@ export function LandlordHome() {
         <StateMessage
           kind="error"
           message={state.message}
-          onRetry={() => void load()}
+          onRetry={reload}
         />
       ) : null}
 

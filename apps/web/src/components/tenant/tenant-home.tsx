@@ -28,19 +28,35 @@ export function TenantHome() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setState({ kind: "loading" });
+  /** Reads the next state rather than setting it, so callers own the timing. */
+  const fetchBuildings = useCallback(async (): Promise<LoadState> => {
     try {
       const buildings = await createBrowserApiClient().listDemoBuildings();
-      setState({ kind: "ready", buildings });
+      return { kind: "ready", buildings };
     } catch (error) {
-      setState({ kind: "error", message: describeApiError(error) });
+      return { kind: "error", message: describeApiError(error) };
     }
   }, []);
 
+  /** Mount already renders the loading state, so it is not set again here. */
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    void (async () => {
+      const next = await fetchBuildings();
+      if (!cancelled) {
+        setState(next);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchBuildings]);
+
+  /** A retry is a user action, so it visibly returns to the loading state. */
+  const reload = useCallback(() => {
+    setState({ kind: "loading" });
+    void fetchBuildings().then(setState);
+  }, [fetchBuildings]);
 
   /** The report text goes to the server untouched; nothing here inspects it. */
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -84,7 +100,7 @@ export function TenantHome() {
         <StateMessage
           kind="error"
           message={state.message}
-          onRetry={() => void load()}
+          onRetry={reload}
         />
       ) : null}
 

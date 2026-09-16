@@ -16,7 +16,6 @@ import {
   getActiveQuestions,
   getBuildingContext,
   routingEligibleContextKeys,
-  selectProtocol,
   type Building,
   type EvidenceType,
   type IssueType,

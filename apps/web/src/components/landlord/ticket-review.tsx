@@ -42,20 +42,43 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
       ? values.filter((entry) => entry !== value)
       : [...values, value];
 
-  const load = useCallback(async () => {
-    setState({ kind: "loading" });
+  /** Reads the next state rather than setting it, so callers own the timing. */
+  const fetchTicket = useCallback(async (): Promise<LoadState> => {
     try {
       const ticket = await createBrowserApiClient().getLandlordTicket(ticketId);
-      setState({ kind: "ready", ticket });
-      setSelectedRoute(overrideOptions(ticket)[0]?.routeCode ?? "");
+      return { kind: "ready", ticket };
     } catch (error) {
-      setState({ kind: "error", message: describeApiError(error) });
+      return { kind: "error", message: describeApiError(error) };
     }
   }, [ticketId]);
 
+  /** Applies a settled result, including the route the selector defaults to. */
+  const apply = useCallback((next: LoadState) => {
+    setState(next);
+    if (next.kind === "ready") {
+      setSelectedRoute(overrideOptions(next.ticket)[0]?.routeCode ?? "");
+    }
+  }, []);
+
+  /** Mount already renders the loading state, so it is not set again here. */
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    void (async () => {
+      const next = await fetchTicket();
+      if (!cancelled) {
+        apply(next);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [apply, fetchTicket]);
+
+  /** A retry is a user action, so it visibly returns to the loading state. */
+  const reload = useCallback(() => {
+    setState({ kind: "loading" });
+    void fetchTicket().then(apply);
+  }, [apply, fetchTicket]);
 
   /** Every action re-reads the validated server state; nothing is faked here. */
   const runAction = async (
@@ -89,7 +112,7 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
         <StateMessage
           kind="error"
           message={state.message}
-          onRetry={() => void load()}
+          onRetry={reload}
         />
       ) : null}
 

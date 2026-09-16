@@ -39,22 +39,45 @@ export function BuildingDetail({ buildingId }: { buildingId: string }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const load = useCallback(async () => {
-    setState({ kind: "loading" });
+  /** Reads the next state rather than setting it, so callers own the timing. */
+  const fetchPassport = useCallback(async (): Promise<LoadState> => {
     try {
       const passport = await createBrowserApiClient().getBuilding(buildingId);
-      setState({ kind: "ready", passport });
-      setManagementMode(passport.managementMode);
-      setHeatingType(passport.heatingType);
-      setOwnerSuppliedBoiler(passport.ownerSuppliedBoiler ?? false);
+      return { kind: "ready", passport };
     } catch (error) {
-      setState({ kind: "error", message: describeApiError(error) });
+      return { kind: "error", message: describeApiError(error) };
     }
   }, [buildingId]);
 
+  /** Applies a settled result, including the form fields derived from it. */
+  const apply = useCallback((next: LoadState) => {
+    setState(next);
+    if (next.kind === "ready") {
+      setManagementMode(next.passport.managementMode);
+      setHeatingType(next.passport.heatingType);
+      setOwnerSuppliedBoiler(next.passport.ownerSuppliedBoiler ?? false);
+    }
+  }, []);
+
+  /** Mount already renders the loading state, so it is not set again here. */
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    void (async () => {
+      const next = await fetchPassport();
+      if (!cancelled) {
+        apply(next);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [apply, fetchPassport]);
+
+  /** A retry is a user action, so it visibly returns to the loading state. */
+  const reload = useCallback(() => {
+    setState({ kind: "loading" });
+    void fetchPassport().then(apply);
+  }, [apply, fetchPassport]);
 
   /** Renders the validated server response, never an optimistic local guess. */
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -90,7 +113,7 @@ export function BuildingDetail({ buildingId }: { buildingId: string }) {
         <StateMessage
           kind="error"
           message={state.message}
-          onRetry={() => void load()}
+          onRetry={reload}
         />
       ) : null}
 

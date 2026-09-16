@@ -1,3 +1,13 @@
+import {
+  AddressSearchResponseSchema,
+  ApiErrorSchema,
+  BuildingPassportDtoSchema,
+  BuildingPassportListSchema,
+  LandlordTicketDetailDtoSchema,
+  LandlordTicketListSchema,
+  TenantTicketListSchema,
+  TenantTicketStatusDtoSchema,
+} from "@build-manager/api-contracts";
 import { demoBuildings } from "@build-manager/fixtures";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { handleSearchAddress } from "./handlers/address";
@@ -57,8 +67,31 @@ function url(path: string): URL {
   return new URL(`https://demo.test${path}`);
 }
 
-async function payload(response: Response): Promise<any> {
-  return response.json();
+type ResponseSchema<T> = { parse(value: unknown): T };
+
+/**
+ * Reads a success body back through the same public contract the handler
+ * promised, so the shape a test indexes into comes from the contract instead of
+ * from assumption.
+ */
+async function payload<T>(
+  schema: ResponseSchema<T>,
+  response: Response,
+): Promise<T> {
+  return schema.parse(await response.json());
+}
+
+/** Reads the public error envelope, which is deliberately not a DTO. */
+async function errorPayload(response: Response) {
+  return ApiErrorSchema.parse(await response.json());
+}
+
+/** Fails loudly instead of casting when a nullable field must be present. */
+function present<T>(value: T | null | undefined): T {
+  if (value === null || value === undefined) {
+    throw new Error("expected a value, got none");
+  }
+  return value;
 }
 
 const CLEAN_LEAK_ANSWERS: ReadonlyArray<readonly [string, boolean | string]> = [
@@ -81,7 +114,7 @@ async function createLeakTicket(): Promise<string> {
       rawUserText: ORDINARY_LEAK_REPORT,
     }),
   );
-  return (await payload(created)).ticketId;
+  return (await payload(TenantTicketStatusDtoSchema, created)).ticketId;
 }
 
 async function completeLeakIntake(ticketId: string): Promise<void> {
@@ -114,11 +147,11 @@ describe("demo endpoints", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(response.headers.get("Content-Type")).toContain("application/json");
 
-    const buildings = await payload(response);
-    expect(buildings.map((entry: any) => entry.buildingId).sort()).toEqual(
+    const buildings = await payload(BuildingPassportListSchema, response);
+    expect(buildings.map((entry) => entry.buildingId).sort()).toEqual(
       [BUILDING_A, BUILDING_B].sort(),
     );
-    expect(buildings.every((entry: any) => entry.demo === true)).toBe(true);
+    expect(buildings.every((entry) => entry.demo === true)).toBe(true);
   });
 
   it("resets demo state and returns the reseeded buildings", async () => {
@@ -128,13 +161,13 @@ describe("demo endpoints", () => {
     const response = await handleResetDemo(provider);
 
     expect(response.status).toBe(200);
-    expect((await payload(response)).length).toBe(demoBuildings.length);
+    expect((await payload(BuildingPassportListSchema, response)).length).toBe(demoBuildings.length);
 
     const tickets = await handleListTickets(
       provider,
       url("/api/v1/tickets?view=landlord"),
     );
-    expect(await payload(tickets)).toEqual([]);
+    expect(await payload(LandlordTicketListSchema, tickets)).toEqual([]);
   });
 
   it("searches the offline address fixture", async () => {
@@ -144,7 +177,7 @@ describe("demo endpoints", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await payload(response)).toEqual({ result: null });
+    expect(await payload(AddressSearchResponseSchema, response)).toEqual({ result: null });
   });
 
   it("rejects a missing, blank, or repeated address query", async () => {
@@ -155,7 +188,7 @@ describe("demo endpoints", () => {
     ]) {
       const response = await handleSearchAddress(provider, url(path));
       expect(response.status).toBe(400);
-      expect((await payload(response)).error.code).toBe("INVALID_REQUEST");
+      expect((await errorPayload(response)).error.code).toBe("INVALID_REQUEST");
     }
   });
 });
@@ -165,7 +198,7 @@ describe("building endpoints", () => {
     const response = await handleGetBuilding(provider, BUILDING_A);
 
     expect(response.status).toBe(200);
-    const passport = await payload(response);
+    const passport = await payload(BuildingPassportDtoSchema, response);
     expect(passport.buildingId).toBe(BUILDING_A);
     expect(passport.contextVerified).toBe(true);
     expect(passport.routingEligibleFields).toContain("heatingType");
@@ -175,7 +208,7 @@ describe("building endpoints", () => {
     const response = await handleGetBuilding(provider, "missing-building");
 
     expect(response.status).toBe(404);
-    expect((await payload(response)).error.code).toBe("NOT_FOUND");
+    expect((await errorPayload(response)).error.code).toBe("NOT_FOUND");
   });
 
   it("records an owner verification and returns the updated passport", async () => {
@@ -192,7 +225,7 @@ describe("building endpoints", () => {
     );
 
     expect(response.status).toBe(200);
-    const passport = await payload(response);
+    const passport = await payload(BuildingPassportDtoSchema, response);
     expect(passport.managementMode).toBe("MANAGEMENT_OFFICE");
     expect(passport.heatingType).toBe("CENTRAL_SHARED");
   });
@@ -220,7 +253,7 @@ describe("ticket intake", () => {
     );
 
     expect(response.status).toBe(201);
-    const ticket = await payload(response);
+    const ticket = await payload(TenantTicketStatusDtoSchema, response);
     expect(ticket.protocol).toBe("HEATING_V1");
     expect(ticket.status).toBe("IN_PROGRESS");
     expect(ticket.activeQuestion?.questionId).toBe("safety.gasSmell");
@@ -236,9 +269,9 @@ describe("ticket intake", () => {
       }),
     );
 
-    const ticket = await payload(created);
+    const ticket = await payload(TenantTicketStatusDtoSchema, created);
     expect(
-      ticket.evidenceRequirements.map((item: any) => item.evidenceType),
+      ticket.evidenceRequirements.map((item) => item.evidenceType),
     ).toEqual(["FIXTURE_VIEW"]);
   });
 
@@ -255,7 +288,7 @@ describe("ticket intake", () => {
     );
 
     expect(response.status).toBe(200);
-    const ticket = await payload(response);
+    const ticket = await payload(TenantTicketStatusDtoSchema, response);
     expect(ticket.activeQuestion?.questionId).toBe("safety.otherUrgentHazard");
   });
 
@@ -272,7 +305,7 @@ describe("ticket intake", () => {
     );
 
     expect(response.status).toBe(200);
-    expect((await payload(response)).submittedEvidence).toEqual([
+    expect((await payload(TenantTicketStatusDtoSchema, response)).submittedEvidence).toEqual([
       {
         evidenceId: expect.any(String),
         evidenceType: "LEAK_LOCATION",
@@ -301,11 +334,11 @@ describe("finalize", () => {
       url("/api/v1/tickets?view=landlord"),
       ticketId,
     );
-    const detail = await payload(response);
+    const detail = await payload(LandlordTicketDetailDtoSchema, response);
 
     expect(detail.status).toBe("READY_FOR_REVIEW");
     expect(detail.evidenceStatus).toBe("COMPLETE");
-    expect(detail.repairPacket.recommendation.routeCode).toBe(
+    expect(present(present(detail.repairPacket).recommendation).routeCode).toBe(
       "MANAGEMENT_OFFICE",
     );
   });
@@ -318,11 +351,11 @@ describe("finalize", () => {
       jsonRequest({}),
       ticketId,
     );
-    const ticket = await payload(response);
+    const ticket = await payload(TenantTicketStatusDtoSchema, response);
 
     expect(ticket.status).toBe("PARTIAL");
     expect(ticket.evidenceStatus).toBe("MISSING_REQUIRED");
-    expect(ticket.packet.safetyEscalated).toBe(false);
+    expect(present(ticket.packet).safetyEscalated).toBe(false);
   });
 
   it("withholds a recommendation when safety escalates", async () => {
@@ -338,20 +371,21 @@ describe("finalize", () => {
       jsonRequest({}),
       ticketId,
     );
-    const ticket = await payload(response);
+    const ticket = await payload(TenantTicketStatusDtoSchema, response);
 
     expect(ticket.status).toBe("SAFETY_ESCALATED");
     expect(ticket.evidenceStatus).toBe("SAFETY_ESCALATED");
-    expect(ticket.packet.safetyEscalated).toBe(true);
+    expect(present(ticket.packet).safetyEscalated).toBe(true);
 
     const landlord = await payload(
+      LandlordTicketDetailDtoSchema,
       await handleGetTicket(
         provider,
         url("/api/v1/tickets?view=landlord"),
         ticketId,
       ),
     );
-    expect(landlord.repairPacket.recommendation).toBeNull();
+    expect(present(landlord.repairPacket).recommendation).toBeNull();
   });
 
   it("increments the packet revision on refinalize", async () => {
@@ -363,7 +397,9 @@ describe("finalize", () => {
       ticketId,
     );
 
-    expect((await payload(again)).packet.revision).toBe(2);
+    expect(
+      present((await payload(TenantTicketStatusDtoSchema, again)).packet).revision,
+    ).toBe(2);
   });
 });
 
@@ -372,6 +408,7 @@ describe("role projection", () => {
     const ticketId = await reviewableTicket();
 
     const detail = await payload(
+      LandlordTicketDetailDtoSchema,
       await handleGetTicket(
         provider,
         url("/api/v1/tickets?view=landlord"),
@@ -380,7 +417,7 @@ describe("role projection", () => {
     );
 
     expect(detail.building.buildingId).toBe(BUILDING_B);
-    expect(detail.repairPacket.provenance).toContain("managementMode");
+    expect(present(detail.repairPacket).provenance).toContain("managementMode");
   });
 
   it("never sends landlord-only fields to a tenant", async () => {
@@ -429,9 +466,11 @@ describe("role projection", () => {
     await reviewableTicket();
 
     const landlord = await payload(
+      LandlordTicketListSchema,
       await handleListTickets(provider, url("/api/v1/tickets?view=landlord")),
     );
     const tenant = await payload(
+      TenantTicketListSchema,
       await handleListTickets(provider, url("/api/v1/tickets?view=tenant")),
     );
 
@@ -450,7 +489,7 @@ describe("role projection", () => {
     ]) {
       const response = await handleListTickets(provider, url(path));
       expect(response.status).toBe(400);
-      expect((await payload(response)).error.code).toBe("INVALID_REQUEST");
+      expect((await errorPayload(response)).error.code).toBe("INVALID_REQUEST");
     }
   });
 });
@@ -466,7 +505,7 @@ describe("landlord decisions", () => {
     );
 
     expect(response.status).toBe(200);
-    const detail = await payload(response);
+    const detail = await payload(LandlordTicketDetailDtoSchema, response);
     expect(detail.status).toBe("APPROVED");
     expect(detail.decision).toEqual({ type: "APPROVE" });
   });
@@ -482,7 +521,7 @@ describe("landlord decisions", () => {
     );
 
     expect(response.status).toBe(409);
-    expect((await payload(response)).error.code).toBe("STATE_CONFLICT");
+    expect((await errorPayload(response)).error.code).toBe("STATE_CONFLICT");
   });
 
   it("records an override to a known route", async () => {
@@ -499,9 +538,13 @@ describe("landlord decisions", () => {
     );
 
     expect(response.status).toBe(200);
-    const detail = await payload(response);
+    const detail = await payload(LandlordTicketDetailDtoSchema, response);
     expect(detail.status).toBe("OVERRIDDEN");
-    expect(detail.decision.routeCode).toBe("GENERAL_VENDOR");
+    expect(detail.decision).toEqual({
+      type: "OVERRIDE",
+      routeCode: "GENERAL_VENDOR",
+      reason: "현장 확인 결과 일반 업체가 적합함",
+    });
   });
 
   it("rejects an unknown route code instead of guessing", async () => {
@@ -518,7 +561,7 @@ describe("landlord decisions", () => {
     );
 
     expect(response.status).toBe(400);
-    expect((await payload(response)).error.code).toBe("INVALID_REQUEST");
+    expect((await errorPayload(response)).error.code).toBe("INVALID_REQUEST");
   });
 
   it("requests more info without recording a route decision", async () => {
@@ -535,7 +578,7 @@ describe("landlord decisions", () => {
     );
 
     expect(response.status).toBe(200);
-    const detail = await payload(response);
+    const detail = await payload(LandlordTicketDetailDtoSchema, response);
     expect(detail.status).toBe("NEEDS_MORE_INFO");
     expect(detail.decision).toBeNull();
   });
@@ -562,7 +605,7 @@ describe("landlord decisions", () => {
     );
 
     expect(response.status).toBe(200);
-    expect((await payload(response)).status).toBe("IN_PROGRESS");
+    expect((await payload(TenantTicketStatusDtoSchema, response)).status).toBe("IN_PROGRESS");
   });
 
   it("refuses further intake once a decision is recorded", async () => {
@@ -576,7 +619,7 @@ describe("landlord decisions", () => {
     );
 
     expect(response.status).toBe(409);
-    expect((await payload(response)).error.code).toBe("STATE_CONFLICT");
+    expect((await errorPayload(response)).error.code).toBe("STATE_CONFLICT");
   });
 });
 
@@ -588,7 +631,7 @@ describe("request validation", () => {
     );
 
     expect(response.status).toBe(415);
-    expect((await payload(response)).error.code).toBe("UNSUPPORTED_MEDIA_TYPE");
+    expect((await errorPayload(response)).error.code).toBe("UNSUPPORTED_MEDIA_TYPE");
   });
 
   it("rejects a missing content type with 415", async () => {
@@ -620,7 +663,7 @@ describe("request validation", () => {
     );
 
     expect(response.status).toBe(400);
-    expect((await payload(response)).error.code).toBe("INVALID_REQUEST");
+    expect((await errorPayload(response)).error.code).toBe("INVALID_REQUEST");
   });
 
   it("rejects a body that does not match the request contract", async () => {
@@ -690,12 +733,13 @@ describe("the tenant's report text reaches the safety gate", () => {
     );
 
     expect(created.status).toBe(201);
-    const ticket = await payload(created);
+    const ticket = await payload(TenantTicketStatusDtoSchema, created);
     expect(ticket.status).toBe("SAFETY_ESCALATED");
 
     await handleFinalizeTicket(provider, jsonRequest({}), ticket.ticketId);
 
     const landlord = await payload(
+      LandlordTicketDetailDtoSchema,
       await handleGetTicket(
         provider,
         url("/api/v1/tickets?view=landlord"),
@@ -705,8 +749,8 @@ describe("the tenant's report text reaches the safety gate", () => {
 
     expect(landlord.status).toBe("SAFETY_ESCALATED");
     expect(landlord.evidenceStatus).toBe("SAFETY_ESCALATED");
-    expect(landlord.repairPacket.safetyEscalated).toBe(true);
-    expect(landlord.repairPacket.recommendation).toBeNull();
+    expect(present(landlord.repairPacket).safetyEscalated).toBe(true);
+    expect(present(landlord.repairPacket).recommendation).toBeNull();
   });
 
   it("leaves an ordinary report unescalated", async () => {
@@ -719,7 +763,7 @@ describe("the tenant's report text reaches the safety gate", () => {
       }),
     );
 
-    const ticket = await payload(created);
+    const ticket = await payload(TenantTicketStatusDtoSchema, created);
     expect(ticket.status).toBe("IN_PROGRESS");
     expect(ticket.evidenceStatus).not.toBe("SAFETY_ESCALATED");
   });
@@ -734,7 +778,7 @@ describe("the tenant's report text reaches the safety gate", () => {
       }),
     );
 
-    expect((await payload(created)).status).toBe("SAFETY_ESCALATED");
+    expect((await payload(TenantTicketStatusDtoSchema, created)).status).toBe("SAFETY_ESCALATED");
   });
 
   it("never echoes the tenant's report back over the wire", async () => {
@@ -774,7 +818,7 @@ describe("the tenant's report text reaches the safety gate", () => {
       );
 
       expect(response.status).toBe(400);
-      expect((await payload(response)).error.code).toBe("INVALID_REQUEST");
+      expect((await errorPayload(response)).error.code).toBe("INVALID_REQUEST");
     }
   });
 });
@@ -782,6 +826,7 @@ describe("the tenant's report text reaches the safety gate", () => {
 describe("structured more-info over HTTP", () => {
   async function landlordView(ticketId: string) {
     return payload(
+      LandlordTicketDetailDtoSchema,
       await handleGetTicket(
         provider,
         url("/api/v1/tickets?view=landlord"),
@@ -792,6 +837,7 @@ describe("structured more-info over HTTP", () => {
 
   async function tenantView(ticketId: string) {
     return payload(
+      TenantTicketStatusDtoSchema,
       await handleGetTicket(
         provider,
         url("/api/v1/tickets?view=tenant"),
@@ -807,10 +853,10 @@ describe("structured more-info over HTTP", () => {
 
     expect(detail.followUpOptions.questions.length).toBeGreaterThan(0);
     expect(
-      detail.followUpOptions.questions.map((q: any) => q.questionId),
+      detail.followUpOptions.questions.map((q) => q.questionId),
     ).toContain("leak.location");
     expect(
-      detail.followUpOptions.evidence.map((e: any) => e.evidenceType),
+      detail.followUpOptions.evidence.map((e) => e.evidenceType),
     ).toContain("LEAK_LOCATION");
   });
 
@@ -841,11 +887,11 @@ describe("structured more-info over HTTP", () => {
 
     const tenant = await tenantView(ticketId);
     expect(tenant.status).toBe("NEEDS_MORE_INFO");
-    expect(tenant.moreInfoRequest.reason).toBe("누수 위치를 다시 확인해 주세요");
+    expect(present(tenant.moreInfoRequest).reason).toBe("누수 위치를 다시 확인해 주세요");
     expect(
-      tenant.moreInfoRequest.requestedQuestions.map((q: any) => q.questionId),
+      present(tenant.moreInfoRequest).requestedQuestions.map((q) => q.questionId),
     ).toEqual(["leak.location"]);
-    expect(tenant.moreInfoRequest.requestedEvidence).toEqual([]);
+    expect(present(tenant.moreInfoRequest).requestedEvidence).toEqual([]);
   });
 
   it("carries a requested evidence type through to the tenant", async () => {
@@ -862,12 +908,12 @@ describe("structured more-info over HTTP", () => {
     );
 
     const tenant = await tenantView(ticketId);
-    expect(tenant.moreInfoRequest.requestedQuestions).toEqual([]);
+    expect(present(tenant.moreInfoRequest).requestedQuestions).toEqual([]);
     expect(
-      tenant.moreInfoRequest.requestedEvidence.map((e: any) => e.evidenceType),
+      present(tenant.moreInfoRequest).requestedEvidence.map((e) => e.evidenceType),
     ).toEqual(["LEAK_LOCATION"]);
     expect(
-      tenant.moreInfoRequest.requestedEvidence[0].demoFixtureId.length,
+      present(tenant.moreInfoRequest).requestedEvidence[0].demoFixtureId.length,
     ).toBeGreaterThan(0);
   });
 
@@ -887,10 +933,10 @@ describe("structured more-info over HTTP", () => {
 
     const tenant = await tenantView(ticketId);
     expect(
-      tenant.moreInfoRequest.requestedQuestions.map((q: any) => q.questionId),
+      present(tenant.moreInfoRequest).requestedQuestions.map((q) => q.questionId),
     ).toEqual(["leak.active"]);
     expect(
-      tenant.moreInfoRequest.requestedEvidence.map((e: any) => e.evidenceType),
+      present(tenant.moreInfoRequest).requestedEvidence.map((e) => e.evidenceType),
     ).toEqual(["LEAK_LOCATION"]);
   });
 
@@ -907,7 +953,7 @@ describe("structured more-info over HTTP", () => {
       ticketId,
     );
 
-    expect((await payload(response)).decision).toBeNull();
+    expect((await payload(LandlordTicketDetailDtoSchema, response)).decision).toBeNull();
   });
 
   it("refuses a more-info request that asks for nothing", async () => {
@@ -935,7 +981,7 @@ describe("structured more-info over HTTP", () => {
     );
 
     expect(
-      (await tenantView(ticketId)).moreInfoRequest.requestedQuestions,
+      present((await tenantView(ticketId)).moreInfoRequest).requestedQuestions,
     ).toHaveLength(1);
 
     await handleSubmitAnswer(
@@ -948,8 +994,8 @@ describe("structured more-info over HTTP", () => {
     );
 
     const after = await tenantView(ticketId);
-    expect(after.moreInfoRequest.requestedQuestions).toEqual([]);
-    expect(after.moreInfoRequest.reason).toBe("누수 시점을 다시 확인해 주세요");
+    expect(present(after.moreInfoRequest).requestedQuestions).toEqual([]);
+    expect(present(after.moreInfoRequest).reason).toBe("누수 시점을 다시 확인해 주세요");
   });
 
   it("drops outstanding evidence once the tenant submits it", async () => {
@@ -965,7 +1011,7 @@ describe("structured more-info over HTTP", () => {
     );
 
     expect(
-      (await tenantView(ticketId)).moreInfoRequest.requestedEvidence,
+      present((await tenantView(ticketId)).moreInfoRequest).requestedEvidence,
     ).toHaveLength(1);
 
     await handleSubmitEvidence(
@@ -978,8 +1024,8 @@ describe("structured more-info over HTTP", () => {
     );
 
     const after = await tenantView(ticketId);
-    expect(after.moreInfoRequest.requestedEvidence).toEqual([]);
-    expect(after.moreInfoRequest.requestedQuestions).toEqual([]);
+    expect(present(after.moreInfoRequest).requestedEvidence).toEqual([]);
+    expect(present(after.moreInfoRequest).requestedQuestions).toEqual([]);
   });
 
   it("clears the request entirely once the ticket is refinalized", async () => {
@@ -1003,6 +1049,7 @@ describe("structured more-info over HTTP", () => {
     );
 
     const finalized = await payload(
+      TenantTicketStatusDtoSchema,
       await handleFinalizeTicket(provider, jsonRequest({}), ticketId),
     );
 
@@ -1048,6 +1095,7 @@ describe("conditional evidence is only required when its condition holds", () =>
     }
 
     const tenant = await payload(
+      TenantTicketStatusDtoSchema,
       await handleGetTicket(
         provider,
         url("/api/v1/tickets?view=tenant"),
@@ -1056,7 +1104,7 @@ describe("conditional evidence is only required when its condition holds", () =>
     );
 
     expect(
-      tenant.evidenceRequirements.map((item: any) => item.evidenceType),
+      tenant.evidenceRequirements.map((item) => item.evidenceType),
     ).toEqual(["LEAK_LOCATION"]);
   });
 
@@ -1074,6 +1122,7 @@ describe("conditional evidence is only required when its condition holds", () =>
     }
 
     const tenant = await payload(
+      TenantTicketStatusDtoSchema,
       await handleGetTicket(
         provider,
         url("/api/v1/tickets?view=tenant"),
@@ -1082,7 +1131,7 @@ describe("conditional evidence is only required when its condition holds", () =>
     );
 
     expect(
-      tenant.evidenceRequirements.map((item: any) => item.evidenceType).sort(),
+      tenant.evidenceRequirements.map((item) => item.evidenceType).sort(),
     ).toEqual(["FIXTURE_VIEW", "LEAK_LOCATION"]);
   });
 });

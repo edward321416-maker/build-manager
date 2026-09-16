@@ -53,20 +53,36 @@ export function TicketIntake({ ticketId }: { ticketId: string }) {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setState({ kind: "loading" });
+  /** Reads the next state rather than setting it, so callers own the timing. */
+  const fetchTicket = useCallback(async (): Promise<LoadState> => {
     try {
       const ticket =
         await createBrowserApiClient().getTenantTicketStatus(ticketId);
-      setState({ kind: "ready", ticket });
+      return { kind: "ready", ticket };
     } catch (error) {
-      setState({ kind: "error", message: describeApiError(error) });
+      return { kind: "error", message: describeApiError(error) };
     }
   }, [ticketId]);
 
+  /** Mount already renders the loading state, so it is not set again here. */
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    void (async () => {
+      const next = await fetchTicket();
+      if (!cancelled) {
+        setState(next);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchTicket]);
+
+  /** Retry and refresh are user actions, so they visibly reload. */
+  const reload = useCallback(() => {
+    setState({ kind: "loading" });
+    void fetchTicket().then(setState);
+  }, [fetchTicket]);
 
   /** Every step renders the DTO the server returned; nothing is assumed here. */
   const runAction = async (
@@ -140,7 +156,7 @@ export function TicketIntake({ ticketId }: { ticketId: string }) {
         <StateMessage
           kind="error"
           message={state.message}
-          onRetry={() => void load()}
+          onRetry={reload}
         />
       ) : null}
 
@@ -249,7 +265,7 @@ export function TicketIntake({ ticketId }: { ticketId: string }) {
             type="button"
             data-testid="refresh"
             disabled={busy}
-            onClick={() => void load()}
+            onClick={reload}
           >
             상태 새로고침
           </button>
