@@ -968,6 +968,75 @@ describe("structured more-info over HTTP", () => {
     expect(response.status).toBe(400);
   });
 
+  it("refuses a question the selected protocol never asks", async () => {
+    const ticketId = await reviewableTicket();
+
+    // Structurally valid, so this reaches the application's semantic guard
+    // rather than being turned away by the transport contract.
+    const response = await handleTicketDecision(
+      provider,
+      jsonRequest({
+        type: "REQUEST_MORE_INFO",
+        reason: "확인 필요",
+        requestedQuestionIds: ["does.not.exist"],
+      }),
+      ticketId,
+    );
+
+    expect(response.status).toBe(409);
+    expect((await errorPayload(response)).error).toEqual({
+      code: "STATE_CONFLICT",
+      message: "현재 상태에서는 처리할 수 없는 요청입니다.",
+    });
+  });
+
+  it("refuses an evidence type the selected protocol never collects", async () => {
+    const ticketId = await reviewableTicket();
+
+    const response = await handleTicketDecision(
+      provider,
+      jsonRequest({
+        type: "REQUEST_MORE_INFO",
+        reason: "확인 필요",
+        requestedEvidenceTypes: ["BOILER_DISPLAY"],
+      }),
+      ticketId,
+    );
+
+    expect(response.status).toBe(409);
+    expect((await errorPayload(response)).error.code).toBe("STATE_CONFLICT");
+  });
+
+  it("refuses a finalize while the landlord's request is outstanding", async () => {
+    const ticketId = await reviewableTicket();
+    await handleTicketDecision(
+      provider,
+      jsonRequest({
+        type: "REQUEST_MORE_INFO",
+        reason: "누수 시점을 다시 확인해 주세요",
+        requestedQuestionIds: ["leak.firstObservedAt"],
+      }),
+      ticketId,
+    );
+
+    const response = await handleFinalizeTicket(
+      provider,
+      jsonRequest({}),
+      ticketId,
+    );
+
+    expect(response.status).toBe(409);
+    expect((await errorPayload(response)).error).toEqual({
+      code: "STATE_CONFLICT",
+      message: "현재 상태에서는 처리할 수 없는 요청입니다.",
+    });
+
+    // The refusal must not have consumed the request.
+    expect(
+      present((await tenantView(ticketId)).moreInfoRequest).requestedQuestions,
+    ).toHaveLength(1);
+  });
+
   it("drops an outstanding question once the tenant answers it", async () => {
     const ticketId = await reviewableTicket();
     await handleTicketDecision(

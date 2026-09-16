@@ -10,7 +10,7 @@ import {
   type TenantQuestionDto,
   type TenantTicketStatusDto,
 } from "@build-manager/api-contracts";
-import { assessTicket } from "@build-manager/application";
+import { assessTicket, getOutstandingMoreInfo } from "@build-manager/application";
 import {
   evaluateRuleExpression,
   getActiveQuestions,
@@ -230,27 +230,17 @@ function presentTenantMoreInfo(
     return null;
   }
 
-  const requestedAt = Date.parse(request.requestedAt);
+  // The same helper the finalize invariant uses, so what the tenant is shown
+  // as outstanding is exactly what the server will hold a resubmission on.
+  const outstanding = getOutstandingMoreInfo(ticket);
 
-  const answeredSince = new Set(
-    ticket.answers
-      .filter((answer) => Date.parse(answer.createdAt) >= requestedAt)
-      .map((answer) => answer.questionId),
-  );
-  const suppliedSince = new Set(
-    ticket.evidence
-      .filter((item) => Date.parse(item.createdAt) >= requestedAt)
-      .map((item) => item.type),
-  );
-
-  const requestedQuestions = (request.requestedQuestionIds ?? [])
-    .filter((questionId) => !answeredSince.has(questionId))
+  const requestedQuestions = outstanding.requestedQuestionIds
     .map((questionId) => view.questionById.get(questionId))
     .filter((question): question is TenantQuestionDto => question !== undefined);
 
-  const requestedEvidence = (request.requestedEvidenceTypes ?? [])
-    .filter((evidenceType) => !suppliedSince.has(evidenceType))
-    .map((evidenceType) => evidenceRequirement(evidenceType, true));
+  const requestedEvidence = outstanding.requestedEvidenceTypes.map(
+    (evidenceType) => evidenceRequirement(evidenceType, true),
+  );
 
   return { reason: request.reason, requestedQuestions, requestedEvidence };
 }

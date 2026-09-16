@@ -5,8 +5,15 @@ import {
   type Ticket,
   type TicketStatus,
 } from "@build-manager/domain";
+import { stateConflict } from "../errors";
 import type { ApplicationDependencies } from "../ports";
-import { assessTicket, loadBuilding, loadTicket } from "./ticket-assessment";
+import { hasOutstandingMoreInfo } from "./more-info";
+import {
+  assertIntakeAllowed,
+  assessTicket,
+  loadBuilding,
+  loadTicket,
+} from "./ticket-assessment";
 
 export type FinalizeTicketInput = {
   ticketId: string;
@@ -20,6 +27,21 @@ const STATUS_BY_EVIDENCE_STATE: Record<EvidenceState, TicketStatus> = {
 };
 
 /**
+ * An outstanding request blocks resubmission whatever the status says.
+ *
+ * Supplying one requested item already moves the ticket from NEEDS_MORE_INFO to
+ * IN_PROGRESS, so keying this guard off status would let a partially answered
+ * request through.
+ */
+function assertRequestSatisfied(ticket: Ticket): void {
+  if (ticket.moreInfoRequest && hasOutstandingMoreInfo(ticket)) {
+    throw stateConflict(
+      `Cannot finalize ticket ${ticket.id}: the landlord's request for more information is still outstanding`,
+    );
+  }
+}
+
+/**
  * Produces the authoritative review packet. Every decision here comes from the
  * domain: the evidence gate governs whether a route may be recommended at all,
  * and each rebuild is a new packet revision.
@@ -29,6 +51,9 @@ export async function finalizeTicket(
   input: FinalizeTicketInput,
 ): Promise<Ticket> {
   const ticket = await loadTicket(deps, input.ticketId);
+  assertIntakeAllowed(ticket);
+  assertRequestSatisfied(ticket);
+
   const building = await loadBuilding(deps, ticket.buildingId);
   const assessment = assessTicket(ticket, building);
 
