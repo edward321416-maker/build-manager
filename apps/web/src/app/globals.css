@@ -18,7 +18,9 @@ body {
 .page-shell {
   min-height: 100vh;
   display: grid;
-  place-items: center;
+  place-content: center;
+  justify-items: center;
+  gap: 1.5rem;
   padding: 2rem;
 }
 
@@ -50,6 +52,52 @@ h1 {
   margin: 1.5rem 0 0;
   color: #426057;
   font-size: clamp(1rem, 2vw, 1.25rem);
+}
+
+/* Role entry — the only way into either demo from the product root. */
+
+.role-entry {
+  width: min(44rem, 100%);
+  border: 1px solid #c9c1ad;
+  border-radius: 1.5rem;
+  background: #fffdf7;
+  padding: clamp(1.5rem, 5vw, 2.5rem);
+}
+
+.role-entry h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.role-entry-note {
+  margin: 0.75rem 0 1.25rem;
+  color: #6b7f78;
+  font-size: 0.875rem;
+}
+
+.role-entry-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-entry-links a {
+  display: inline-block;
+  border: 1px solid #c9c1ad;
+  border-radius: 0.75rem;
+  padding: 0.6rem 1.1rem;
+  color: #17322b;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.role-entry-links a:hover,
+.role-entry-links a:focus-visible {
+  border-color: #7b4c2f;
+  color: #7b4c2f;
 }
 
 /* Landlord demo — Building context → Ticket → Repair Packet → Why → Decision */
