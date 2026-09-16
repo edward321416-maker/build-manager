@@ -216,6 +216,7 @@ describe("requestMoreInfo", () => {
     const returned = await requestMoreInfo(deps, {
       ticketId: reviewable.id,
       reason: "누수 위치를 다시 확인해 주세요.",
+      requestedQuestionIds: ["leak.location"],
     });
 
     expect(returned.routeDecision).toBeNull();
@@ -232,8 +233,11 @@ describe("requestMoreInfo", () => {
 
     await expect(
       requestMoreInfo(deps, {
+        // A real, answerable item, so the refusal has to come from the
+        // ticket's state rather than from an empty request.
         ticketId: ticket.id,
         reason: "정보가 더 필요합니다.",
+        requestedQuestionIds: ["leak.firstObservedAt"],
       }),
     ).rejects.toThrowError(/cannot request more info/i);
   });
@@ -243,6 +247,7 @@ describe("requestMoreInfo", () => {
     await requestMoreInfo(deps, {
       ticketId: reviewable.id,
       reason: "누수 시점을 다시 확인해 주세요.",
+      requestedQuestionIds: ["leak.firstObservedAt"],
     });
 
     const resumed = await submitTicketAnswer(deps, {
@@ -258,12 +263,13 @@ describe("requestMoreInfo", () => {
     const reviewable = await reviewableTicket();
     await requestMoreInfo(deps, {
       ticketId: reviewable.id,
-      reason: "누수 시점을 다시 확인해 주세요.",
+      reason: "누수 사진을 다시 올려 주세요.",
+      requestedEvidenceTypes: ["LEAK_AREA_PHOTO"],
     });
     await submitTicketEvidence(deps, {
       ticketId: reviewable.id,
-      evidenceType: "GENERAL_PHOTO",
-      fixtureId: "synthetic:general",
+      evidenceType: "LEAK_AREA_PHOTO",
+      fixtureId: "synthetic:leak-area-again",
     });
 
     const refinalized = await finalizeTicket(deps, {
@@ -323,6 +329,14 @@ describe("finalize clears a fulfilled more-info request", () => {
     });
 
     expect(returned.moreInfoRequest).not.toBeNull();
+
+    // The request has to be answered before it can be cleared; refinalizing
+    // with it still outstanding is refused.
+    await submitTicketAnswer(deps, {
+      ticketId: reviewable.id,
+      questionId: "leak.firstObservedAt",
+      value: "2026-09-14 아침",
+    });
 
     const refinalized = await finalizeTicket(deps, {
       ticketId: reviewable.id,
