@@ -26,4 +26,8 @@ Task 16 Landlord Mobile was accepted from remote Git evidence plus executor-repo
 
 ## 2026-09-17 Task 17 integration design preflight
 
-Task 17 Mobile Health and cross-platform Hero B design preflight was recorded after reading the architectural brainstorming skills, current main policies, accepted feature baseline, v3 integration plan, product acceptance rules, and current Expo configuration. The feature branch was not modified. New execution-log rows remain `pending` for any operator-designated external spreadsheet. No Google Sheet/Drive synchronization, account connection, OAuth approval, or permission change is claimed.
+Task 17 Mobile Health and cross-platform Hero B design preflight was recorded after reading the architectural brainstorming skills, current main policies, accepted feature baseline, v3 integration plan, product acceptance rules, and current Expo configuration. The feature branch was not modified during preflight. New execution-log rows remain `pending` for any operator-designated external spreadsheet. No Google Sheet/Drive synchronization, account connection, OAuth approval, or permission change is claimed.
+
+## 2026-09-17 Task 17 design draft
+
+The reviewed Task 17 Mobile Health + cross-platform Hero B design draft was committed to the feature branch and self-reviewed. The only feature-branch delta from the accepted Task 16 baseline is the new design document; product code remains frozen. The draft records a composite Web/API/Mobile Hero B proof, fresh Expo Doctor + Android/iOS export gates, and the scoped export-ignore correction. No Task 17 implementation or runtime verification has begun. New execution-log rows remain `pending` for any operator-designated external spreadsheet, and no Google Sheet/Drive synchronization is claimed.
