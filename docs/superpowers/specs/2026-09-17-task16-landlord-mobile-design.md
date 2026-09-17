@@ -1,6 +1,6 @@
 # Task 16 Landlord Mobile — Design
 
-Status: **REVIEWED DRAFT — approach A approved; full written design pending operator approval; implementation not started**
+Status: **APPROVED DESIGN — operator approved full written design; implementation not started**
 Date: 2026-09-17
 
 ## Authority and baselines
@@ -457,11 +457,13 @@ The following are not Task 16 completion requirements:
 
 ## Decision and approval record
 
-The operator selected **A. Mobile-native parity** on 2026-09-17. The rejected alternatives were:
+The operator selected **A. Mobile-native parity** on 2026-09-17 and, after the full design audit and corrections, explicitly approved this written design in the following turn with `오케이`.
+
+The rejected alternatives were:
 
 - extracting frozen Web landlord presentation logic into shared code, which would unnecessarily reopen Web/refactor boundaries;
 - implementing only a compact ticket-review screen, which would omit the already-approved Building Passport and owner-context confirmation capability.
 
-Approach approval is not the same as approval of every detail in the subsequently written design. After this audit, this document remains a **reviewed draft** until the operator explicitly approves the written design. No implementation plan or implementation execution should start before that approval.
+This approval authorizes transition to the implementation-planning stage only. Product-code implementation still requires following the written plan and existing project delivery rules.
 
 This design therefore keeps the shared API contract as the cross-platform boundary while allowing independent Web and Mobile presentation implementations.
