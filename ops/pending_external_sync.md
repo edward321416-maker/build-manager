@@ -23,3 +23,7 @@ The final Task 16 Codex/Claude execution instruction was committed to `main`, au
 ## 2026-09-17 Task 16 acceptance
 
 Task 16 Landlord Mobile was accepted from remote Git evidence plus executor-reported runtime gates. The acceptance reviewer independently verified the remote feature HEAD, final tree, five-commit ancestry, thirteen-file authorized scope, frozen-path preservation, and key Landlord code boundaries. Mobile/shared tests, lint, typecheck, Android export, and history-scan counts remain attributed to the executor because the acceptance environment did not provide the repository's required Node 24 runtime. The executor's local pending execution-log source was not independently imported. The acceptance and its AI execution-log row remain `pending` for any operator-designated external spreadsheet; no Google Sheet/Drive synchronization is claimed.
+
+## 2026-09-17 Task 17 integration design preflight
+
+Task 17 Mobile Health and cross-platform Hero B design preflight was recorded after reading the architectural brainstorming skills, current main policies, accepted feature baseline, v3 integration plan, product acceptance rules, and current Expo configuration. The feature branch was not modified. New execution-log rows remain `pending` for any operator-designated external spreadsheet. No Google Sheet/Drive synchronization, account connection, OAuth approval, or permission change is claimed.
