@@ -45,27 +45,6 @@ describe("role selection home", () => {
   });
 });
 
-describe("landlord placeholder", () => {
-  it("says the landlord app arrives later and calls no api", async () => {
-    await renderApp("/landlord");
-
-    expect(
-      await screen.findByText("임대인 앱 데모는 다음 단계에서 연결됩니다."),
-    ).toBeTruthy();
-    // Nothing on this screen loads, so there is no loading or error state.
-    expect(screen.queryByTestId("loading")).toBeNull();
-    expect(screen.queryByTestId("error")).toBeNull();
-  });
-
-  it("offers a way back to role selection", async () => {
-    const { router } = await renderApp("/landlord");
-
-    await fireEvent.press(await screen.findByTestId("back-to-roles"));
-
-    expect(router.getPathname()).toBe("/");
-  });
-});
-
 describe("missing demo server configuration", () => {
   // EXPO_PUBLIC_API_URL is not set in this environment, so every screen that
   // needs the client must say so rather than fail while the module loads.
@@ -82,5 +61,17 @@ describe("missing demo server configuration", () => {
     await renderApp("/tenant/tickets/ticket-demo-1");
 
     expect(await screen.findByTestId("config-error")).toBeTruthy();
+  });
+
+  it("renders configuration guidance instead of the old landlord placeholder", async () => {
+    await renderApp("/landlord");
+
+    expect(await screen.findByTestId("config-error")).toBeTruthy();
+    expect(
+      screen.getByText(/EXPO_PUBLIC_API_URL을 설정한 뒤 앱을 다시 실행해 주세요/),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText("임대인 앱 데모는 다음 단계에서 연결됩니다."),
+    ).toBeNull();
   });
 });
