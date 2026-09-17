@@ -49,6 +49,7 @@ At the beginning:
 4. Use `superpowers:test-driven-development` for every behavior change.
 5. If any test failure or unexpected behavior appears, use `superpowers:systematic-debugging` before proposing or applying a fix.
 6. Before any completion/FROZEN claim, use `superpowers:verification-before-completion`.
+7. If the selected execution workflow reaches `superpowers:finishing-a-development-branch`, the operator has already selected the **Keep as-is** outcome. Do not merge to `main`, create/merge a PR, delete the feature branch, or remove an externally managed workspace. The Task 16 plan's verified fast-forward push to the existing feature branch happens before this generic finish step.
 
 Do not start implementation on `main`.
 
@@ -75,9 +76,26 @@ local execution HEAD == TARGET_REF
 origin/feat/building-aware-mvp == TARGET_REF
 ```
 
+A named execution branch, if present, must be `feat/building-aware-mvp`. A platform-native isolated workspace may instead use a detached HEAD; that is acceptable only when its HEAD equals `TARGET_REF`. Do not create or publish an alternate feature branch merely because the harness uses detached HEAD.
+
 If the remote feature ref is no longer `TARGET_REF`, or the execution workspace contains unexplained/user-owned changes, **STOP_AND_REPORT**. Do not merge, rebase, reset, amend, stash user work, or force the repository into the expected state.
 
-Read package manifests for stack metadata before running scripts. Do not add dependencies. If the environment cannot run the existing repository because installed dependencies are absent or corrupted, report the setup problem rather than changing package manifests or versions.
+Read package manifests for stack metadata before running scripts. Do not add dependencies or change manifest/lockfile versions.
+
+If a newly created isolated worktree lacks installed dependencies, use the existing lockfile rather than changing dependency metadata:
+
+```bash
+npm ci
+```
+
+Immediately after setup, run:
+
+```bash
+git status --short
+git diff -- package.json package-lock.json apps/mobile/package.json
+```
+
+Expected: no tracked dependency metadata change. If setup changes the lockfile/manifests or cannot complete with the committed lockfile, restore nothing destructively; **STOP_AND_REPORT** with the exact setup failure.
 
 Before Task 1, establish the executable baseline from repository root:
 
@@ -246,7 +264,23 @@ Public Git remains synthetic-data-only.
 
 During implementation, create local commits only.
 
-A **single normal fast-forward push** of `feat/building-aware-mvp` is authorized only after every Task 16 freeze gate in the approved plan has passed locally and the repository/history scan is clean. The invocation of this instruction by the operator is the authorization for that final normal push.
+When the operator explicitly invokes this instruction in the coding environment, that invocation authorizes **one final normal fast-forward update** of `refs/heads/feat/building-aware-mvp` only after every Task 16 freeze gate in the approved plan has passed locally and the repository/history scan is clean.
+
+Immediately before that update, fetch the remote feature ref again and prove it is still the execution's starting remote ref. If the remote moved, **STOP_AND_REPORT**.
+
+If the execution workspace is on the named feature branch, the normal push is:
+
+```bash
+git push origin feat/building-aware-mvp
+```
+
+If a platform-native isolated workspace is intentionally detached, use the existing feature ref as the destination without creating another branch:
+
+```bash
+git push origin HEAD:refs/heads/feat/building-aware-mvp
+```
+
+Both cases must be non-force fast-forwards.
 
 Not authorized:
 
@@ -256,14 +290,14 @@ history rewrite
 amend of published commits
 interactive rebase
 merge to main
-PR merge
+PR creation or merge
 branch deletion
 repository deletion
 IAM/settings changes
 new account/OAuth/paid-service connection
 ```
 
-If the final push would not be a normal fast-forward because the remote moved, **STOP_AND_REPORT** rather than reconciling history automatically.
+After the push, read back the exact remote feature ref and final tree before reporting FROZEN.
 
 ## 11. Final Task 16 freeze gate
 
@@ -309,13 +343,13 @@ These remain later Mobile Health/integrated P0 gates.
 
 Follow the canonical logging rule without merging main into the product branch.
 
-If the environment can safely append the canonical `main/ops/AI_Execution_Log.csv` in a separate authorized workspace without disturbing product work, append sanitized rows and verify the write. Otherwise queue sanitized execution events locally and report:
+If the environment already has a separate authorized main workspace and can append the canonical `main/ops/AI_Execution_Log.csv` without disturbing product work, append sanitized rows and verify the write. Otherwise queue sanitized execution events locally and report:
 
 ```text
 EXECUTION LOG SYNC: PENDING
 ```
 
-Do not claim Google Sheet/Drive synchronization without an actual authorized transport and verified response.
+Do not create or switch to a main worktree solely to satisfy execution logging. Do not claim Google Sheet/Drive synchronization without an actual authorized transport and verified response.
 
 Do not copy secrets, raw tenant content, raw logs, or private identifiers into execution logs.
 
@@ -324,7 +358,9 @@ Do not copy secrets, raw tenant content, raw logs, or private identifiers into e
 Return `STOP_AND_REPORT` rather than guessing if any of these occurs:
 
 - start HEAD or remote feature ref does not equal `TARGET_REF`;
+- a named execution branch is not `feat/building-aware-mvp`;
 - unexplained/user-owned dirty work would be overwritten or mixed into Task 16;
+- committed-lockfile dependency setup cannot complete without tracked metadata changes;
 - baseline Mobile/shared regression fails before Task 16 edits;
 - a required Task 16 test, lint, typecheck, dependency, Android export, or repository/history gate cannot be made green without widening frozen scope;
 - an existing shared API/DTO contract prevents the approved flow;
