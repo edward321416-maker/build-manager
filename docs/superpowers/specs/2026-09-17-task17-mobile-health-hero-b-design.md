@@ -259,7 +259,7 @@ Before Task 17 may be accepted, fresh evidence should include at minimum:
 
 ```text
 new Web Hero B Playwright test
-ew Mobile Hero B RNTL test
+new Mobile Hero B RNTL test
 full Web E2E suite
 full Mobile Jest suite
 shared/architecture tests
