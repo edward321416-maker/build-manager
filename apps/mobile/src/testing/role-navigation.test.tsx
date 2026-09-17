@@ -74,4 +74,16 @@ describe("missing demo server configuration", () => {
       screen.queryByText("임대인 앱 데모는 다음 단계에서 연결됩니다."),
     ).toBeNull();
   });
+
+  it.each([
+    "/landlord/buildings/server-building-id",
+    "/landlord/tickets/server-ticket-id",
+  ])("shows configuration guidance on %s", async (initialUrl) => {
+    await renderApp(initialUrl);
+
+    expect(await screen.findByTestId("config-error")).toBeTruthy();
+    expect(
+      screen.getByText(/EXPO_PUBLIC_API_URL을 설정한 뒤 앱을 다시 실행해 주세요/),
+    ).toBeTruthy();
+  });
 });
