@@ -19,3 +19,7 @@ Task 15 acceptance records and Task 16 design/preflight/audit events were commit
 ## 2026-09-17 Task 16 execution handoff
 
 The final Task 16 Codex/Claude execution instruction was committed to `main`, audited, corrected for detached-worktree handling, lockfile-safe dependency setup, and generic branch-finish behavior, then read back. Its execution-log rows remain `pending` for any operator-designated external spreadsheet. No Task 16 product implementation or runtime verification was performed while authoring the handoff. No Google Sheet append, Drive upload, account connection, OAuth approval, credential access, or permission change is claimed.
+
+## 2026-09-17 Task 16 acceptance
+
+Task 16 Landlord Mobile was accepted from remote Git evidence plus executor-reported runtime gates. The acceptance reviewer independently verified the remote feature HEAD, final tree, five-commit ancestry, thirteen-file authorized scope, frozen-path preservation, and key Landlord code boundaries. Mobile/shared tests, lint, typecheck, Android export, and history-scan counts remain attributed to the executor because the acceptance environment did not provide the repository's required Node 24 runtime. The executor's local pending execution-log source was not independently imported. The acceptance and its AI execution-log row remain `pending` for any operator-designated external spreadsheet; no Google Sheet/Drive synchronization is claimed.
