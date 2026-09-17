@@ -45,7 +45,7 @@ Expo Router
 
 Allowed Mobile imports are `@build-manager/api-contracts` and `@build-manager/api-client`. Mobile continues to forbid direct imports from `@build-manager/domain`, `@build-manager/application`, and `@build-manager/fixtures`.
 
-The implementation may add pure **presentation guards** under `apps/mobile/src/features/landlord/` when needed to decide what controls are visible or enabled. Such guards may inspect returned DTO state, but may not recompute business outcomes. Examples: whether an approve button may be offered from a returned `READY_FOR_REVIEW` ticket, whether safety escalation hides manual override, or which already-enumerated route alternatives are shown.
+The implementation may add pure **presentation guards** under `apps/mobile/src/features/landlord/` when needed to decide what controls are visible or enabled. Such guards may inspect returned DTO state, but may not recompute business outcomes. Examples: whether an approve button may be offered from a returned `READY_FOR_REVIEW` ticket, whether safety escalation hides manual override, or which already-enumerated route codes are offered as manual choices.
 
 ## Route and screen model
 
@@ -126,17 +126,18 @@ Initial read:
 client.getLandlordTicket(ticketId)
 ```
 
-The screen renders from `LandlordTicketDetailDto`:
+The compact screen renders from `LandlordTicketDetailDto`:
 
 - ticket/building identity needed for the demo;
 - issue type, protocol, ticket status, evidence status;
-- compact Repair Packet summary;
+- Repair Packet revision and summary when present;
 - safety-escalated state;
 - recommendation and recommendation reasons when present;
-- route alternatives already returned by the server;
 - provenance strings;
 - follow-up questions/evidence options returned by the server;
 - existing decision state when present.
+
+For parity with the frozen Web compact Repair Packet, Task 16 does not surface `internalNotes`, `estimatedCost`, `affectedUnits`, or `hiddenContacts`. The DTO may carry those fields; their presence does not expand this screen's approved presentation scope.
 
 The Mobile UI does **not** calculate a recommendation, reconstruct protocol logic, create evidence requirements, or infer provenance.
 
@@ -169,8 +170,9 @@ Presentation behavior:
 
 - Safety escalation suppresses ordinary manual-route controls.
 - When a recommendation exists, the recommended route is not offered as an override choice because approval is the explicit path for that route.
-- When no recommendation exists and the ticket is not safety-escalated, Mobile may offer the closed `RouteCode` vocabulary as a manual route choice, matching the approved Web behavior.
-- A non-empty reason is required before submission.
+- When no recommendation exists and the ticket is not safety-escalated, Mobile offers the closed public `RouteCode` vocabulary as manual choices.
+- This follows the frozen Web presentation policy. `repairPacket.routeAlternatives` is not used as a narrower authorization list for the Mobile override selector.
+- The UI enables submission only when `reason.trim().length > 0`, but sends the user's entered reason string unchanged. Server validation owns trimming/normalization.
 - Route labels are presentation copy; route codes come from the public contract vocabulary, never an app-invented string.
 
 On success: replace screen state with the returned `LandlordTicketDetailDto`.
@@ -190,7 +192,7 @@ client.requestMoreInfo(ticketId, {
 Presentation behavior:
 
 - Offer only for returned review states already allowed by the approved behavior (`READY_FOR_REVIEW` or `PARTIAL`).
-- A non-empty reason is required.
+- The UI enables submission only when `reason.trim().length > 0`, but sends the user's entered reason string unchanged. Server validation owns trimming/normalization.
 - At least one question ID or evidence type is required.
 - Question IDs and evidence types are selectable only from `ticket.followUpOptions`; Mobile does not invent follow-up items.
 - Empty arrays are omitted/undefined in the request shape where appropriate, preserving the current API-client contract.
@@ -343,12 +345,13 @@ Must cover at minimum:
 
 - fetches exact route `ticketId` through `getLandlordTicket()`;
 - renders Repair Packet recommendation reasons/provenance from DTO;
+- does not surface compact-packet-excluded fields (`internalNotes`, `estimatedCost`, `affectedUnits`, `hiddenContacts`);
 - approve calls `approveRoute()` only when offered;
-- override sends exact route code and trimmed/non-empty user reason according to current input policy;
+- override sends the exact selected route code and exact entered reason string; whitespace-only reason is blocked before the API call;
 - safety escalation does not call override;
 - more-info options come from `followUpOptions` only;
-- more-info cannot submit with no selected item;
-- exact selected question IDs/evidence types are sent;
+- more-info cannot submit with no selected item or whitespace-only reason;
+- exact entered more-info reason plus selected question IDs/evidence types are sent;
 - each successful decision renders the returned landlord DTO rather than local optimistic state;
 - sanitized action error behavior.
 
