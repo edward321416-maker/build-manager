@@ -15,3 +15,7 @@ GitHub rule and entry-point writes were acknowledged and read back through the c
 ## 2026-09-17 Task 15 acceptance and Task 16 design/planning
 
 Task 15 acceptance records and Task 16 design/preflight/audit events were committed to GitHub and read back. The operator subsequently approved the audited Task 16 design, and the Task 16 implementation plan plus self-review were also committed and read back. Their `AI_Execution_Log.csv` rows remain `pending` for the operator-designated external spreadsheet. No product-code implementation was performed during design or planning. No Google Sheet append, Drive upload, account connection, OAuth approval, credential access, or permission change is claimed. Private destination identifiers remain outside this public repository.
+
+## 2026-09-17 Task 16 execution handoff
+
+The final Task 16 Codex/Claude execution instruction was committed to `main`, audited, corrected for detached-worktree handling, lockfile-safe dependency setup, and generic branch-finish behavior, then read back. Its execution-log rows remain `pending` for any operator-designated external spreadsheet. No Task 16 product implementation or runtime verification was performed while authoring the handoff. No Google Sheet append, Drive upload, account connection, OAuth approval, credential access, or permission change is claimed.
