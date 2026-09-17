@@ -11,3 +11,7 @@ When access exists: reconcile event_id before retrying uncertain appends, append
 ## 2026-09-16 AI delivery-rule publication
 
 GitHub rule and entry-point writes were acknowledged and read back through the connected GitHub API. Google Drive/Sheets plugin discovery returned the Drive plugin as not installed; no authorized browser write transport was exposed. New execution-log events remain `pending`. Private destination configuration was supplied by the operator and was not copied here. A sanitized local schema-summary cache is queued for the private Drive destination; no Drive upload or Sheet append is claimed. No new account, OAuth approval, or permission change was attempted.
+
+## 2026-09-17 Task 15 acceptance and Task 16 design audit
+
+Task 15 acceptance records and Task 16 design/preflight/audit events were committed to GitHub and read back. Their `AI_Execution_Log.csv` rows remain `pending` for the operator-designated external spreadsheet. The Task 16 design audit also produced a reviewed design document on the feature branch; no product-code implementation was performed as part of that audit. No Google Sheet append, Drive upload, account connection, OAuth approval, credential access, or permission change is claimed. Private destination identifiers remain outside this public repository.
