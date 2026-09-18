@@ -1,15 +1,17 @@
 # Task 17 Mobile Health + Cross-platform Hero B — Design
 
-Status: **REVIEWED DRAFT — Task 17 scope confirmed; full written design pending operator approval; implementation not started**
+Status: **APPROVAL-READY — final audit complete; operator approval pending; implementation not started**
 Date: 2026-09-17
 
 ## Authority and baselines
 
 - Repository: `edward321416-maker/build-manager`
-- Current policy ref: `main@9e1a9ba1320bc45c62a704decf415688286fdc0b`
+- Design-draft policy ref: `main@9e1a9ba1320bc45c62a704decf415688286fdc0b`
+- Final-audit policy ref: `main@1c87ebd4b4fa5178504ce519e562d822fde82f14`; canonical policy file contents were revalidated unchanged from the draft ref.
 - Product/code TARGET_REF: `feat/building-aware-mvp@9aa80fbee3f05a9191f1daad6e4e4e051d3beb1d`
 - Task 16 status: `ACCEPTED_WITH_EXECUTOR_RUNTIME_EVIDENCE / TASK 16 PRODUCT FROZEN`
 - Canonical product behavior: `product/05_product_spec_v3_web_mobile_REAUDITED.md`
+- Safety-specific authority: `product/ai_safety_boundary.md`. When safety wording or hazard coverage differs from older product prose, the safety boundary and accepted server-returned contract govern Task 17 verification; Task 17 does not rewrite frozen safety behavior without newly reproduced BLOCKER/HIGH evidence.
 - Canonical historical implementation plan: `docs/superpowers/plans/2026-09-14-building-aware-web-mobile-mvp.md`
 - Task 17 re-sequences the old plan's `Task 18: Cross-platform Contract Parity and Hero Scenarios` plus `Task 19: Mobile Health / Bundle Gates Without EAS` into one current milestone.
 
@@ -43,6 +45,7 @@ This is a verification milestone, not a feature milestone.
 5. **Health diagnostics do not auto-upgrade dependencies.** Expo Doctor findings are evidence. Do not run `expo install --fix`, change versions, or add dependencies merely to make the gate green without a separately justified fix.
 6. **Bundle export is not native app-store build evidence.** `expo export` proves production JS/assets bundling for the selected platform. It does not prove Xcode/Gradle native compilation, signing, simulator/device execution, EAS, App Store, or Play Store readiness.
 7. **No external account requirement.** EAS, Apple developer account, Google Play account, OAuth, and paid services remain outside this task.
+8. **Safety question count is not a cross-platform contract.** The accepted server currently exposes four HEATING safety questions, including an aggregated urgent-hazard question, while the v3 product prose lists three named P0 flags. Task 17 follows every server-returned safety question and the safety-specific authority above; it must not hardcode a fixed safety-question count as product truth.
 
 ## Canonical Hero B scenario
 
@@ -77,14 +80,15 @@ Required proof:
 - choose Building B using the existing building control;
 - choose HEATING;
 - submit an ordinary non-safety report such as `난방이 안 돼요`;
-- answer all four safety questions `no`;
+- answer each safety question returned by the server `no` until the first shared-heating question appears; do not encode a fixed safety-question count in the cross-platform test;
 - complete the returned shared-heating questions without inventing question IDs in product code;
 - submit the server-returned `FIXTURE_VIEW` synthetic evidence through the existing UI control;
 - finalize through the existing tenant UI;
 - assert tenant state is `READY_FOR_REVIEW` and evidence state is `COMPLETE`;
 - obtain the `ticketId` from the resulting tenant URL;
 - read `/api/v1/tickets/{ticketId}?view=landlord` through Playwright's request context;
-- assert the landlord projection parses/behaves as the public landlord contract and contains:
+- require HTTP 200 and runtime-validate the JSON with `LandlordTicketDetailDtoSchema.parse(...)` before semantic assertions;
+- assert the landlord projection contains:
   - Building B identity;
   - `issueType = HEATING`;
   - `status = READY_FOR_REVIEW`;
@@ -93,7 +97,7 @@ Required proof:
   - `safetyEscalated = false`;
   - recommendation `routeCode = MANAGEMENT_OFFICE`;
   - non-empty recommendation reasons;
-  - provenance reflecting server-returned routing context.
+  - provenance containing the routing context used by the accepted rule, including `heatingType` and `managementMode`.
 
 The test must not open Web Landlord to stand in for App Landlord; the next proof layer belongs to Mobile.
 
@@ -103,7 +107,7 @@ A new Mobile RNTL integration test targets the existing `TicketReview` component
 
 Required proof:
 
-- `getLandlordTicket(heroBTicketId)` returns a contract-valid Building B HEATING landlord DTO with `READY_FOR_REVIEW`, `COMPLETE`, and recommendation `MANAGEMENT_OFFICE`;
+- the Hero B fixture is runtime-validated with `LandlordTicketDetailDtoSchema.parse(...)` (a TypeScript cast alone is not sufficient), then `getLandlordTicket(heroBTicketId)` returns that Building B HEATING DTO with `READY_FOR_REVIEW`, `COMPLETE`, and recommendation `MANAGEMENT_OFFICE`;
 - the App Landlord screen renders the management-office recommendation, reasons, provenance, and review-ready state;
 - the recommended `MANAGEMENT_OFFICE` route is not presented as a manual override choice;
 - pressing approve calls `approveRoute(heroBTicketId)` exactly once;
@@ -127,7 +131,18 @@ Task 17 may not claim:
 
 ## Mobile Health design
 
-The health gate runs against the same Task 17 candidate tree after Hero B tests are green.
+The health gate runs against the same Task 17 candidate tree after Hero B verification is complete.
+
+### Runtime and install preflight
+
+Task 17 verification commands are valid only under the repository's declared runtime:
+
+- `.nvmrc` = `24`;
+- root `package.json` engine = `>=24 <25`.
+
+Before any fresh runtime gate, record `node --version`, `npm --version`, `git rev-parse HEAD`, and `git status --short --untracked-files=all`. If Node is not 24.x, return `STOP_AND_REPORT`; do not reuse results produced under an unsupported Node version.
+
+From repository root, run a fresh `npm ci` before the test/health gates. Re-read the lockfile/manifest status afterward. `npm ci` must not be treated as permission to change `package.json`, `package-lock.json`, or dependency versions. A tooling/network failure that prevents the clean install is an environment blocker, not permission to modify frozen product code.
 
 ### Dependency tree
 
@@ -149,7 +164,7 @@ Expected contract remains:
 
 ### Expo Doctor
 
-Run from `apps/mobile` using the current official Expo Doctor command selected in the implementation plan. The plan must record the exact command and resolved tool/version evidence.
+Run from `apps/mobile` using an **exact pinned `expo-doctor` version** selected and revalidated in the implementation plan. Do not use the historical plan's unpinned `@latest` form. Record the exact command and `expo-doctor --version` output. If the tool must be acquired through `npx`, use the pinned package version from the official Expo package and treat acquisition/network failure separately from a project-health failure.
 
 Acceptance semantics:
 
@@ -176,11 +191,12 @@ Current official Expo CLI documentation states `expo export` bundles application
 
 Required evidence for each platform:
 
+- record the exact candidate `HEAD` immediately before the export and verify `HEAD` is unchanged afterward;
 - command exit code;
 - output directory created and non-empty;
-- generated bundle/assets correspond to the Task 17 tree;
-- output is not staged or committed;
-- output directory is removed after evidence capture if the executor does not need to retain it locally.
+- generated bundle/assets were produced with no intervening tracked source change;
+- output is ignored, not staged, and not committed;
+- after evidence capture/cleanup, `git status --short --untracked-files=all` contains no export artifact outside the approved ignored directories.
 
 No Xcode signing, native `.app`, APK/AAB, simulator, device, or EAS conclusion may be inferred from export success.
 
@@ -239,17 +255,17 @@ No new dependency is expected or approved.
 
 ## Test and verification strategy
 
-Task 17 implementation follows TDD for new verification behavior.
+Task 17 is primarily a verification milestone, so it must **not manufacture RED against frozen product behavior**. Hero B tests use an existing-pass verification exception: the first valid run is evidence and may already pass. A first valid run that fails because accepted product behavior is broken triggers `STOP_AND_REPORT`; a failure caused by an error in the new test may be corrected in test-only scope. The `.gitignore` export-artifact correction is different: verify a genuine RED→GREEN transition with `git check-ignore` before and after the scoped ignore rule.
 
 ### Hero B Web test
 
-The new Playwright scenario should first fail because the dedicated Hero B proof does not exist, not because production code is intentionally broken. Existing helpers may be copied or factored only inside the Web E2E test area.
+The new Playwright scenario may pass on its first valid run because it is verifying already-accepted behavior. Record that first valid outcome instead of sabotaging setup or production code to create RED. If it fails because the accepted Web Tenant/API behavior is broken, return `STOP_AND_REPORT`. Existing helpers may be copied or factored only inside the Web E2E test area.
 
 The test must use real Web Tenant controls and real HTTP API state. It must not create the final reviewable ticket solely through direct API setup and then claim Web Tenant proof.
 
 ### Hero B Mobile test
 
-The new Mobile test uses the existing `TicketReview` implementation and a stubbed typed `ApiClient`. It proves App Landlord semantics at the public-client boundary, not server routing itself.
+The new Mobile test uses the existing `TicketReview` implementation and a stubbed typed `ApiClient`. It proves App Landlord semantics at the public-client boundary, not server routing itself. Its first valid run may pass; do not invent a failing condition. Runtime-validate the fixture through the public schema before rendering it.
 
 The test must not duplicate routing logic. The fixture states the server result; Mobile only renders and submits the human decision.
 
@@ -284,6 +300,7 @@ Return `STOP_AND_REPORT` instead of widening scope when:
 - the authoritative API does not produce the expected Building B HEATING `MANAGEMENT_OFFICE` recommendation;
 - the App Landlord existing component cannot render/approve the contract-valid Hero B DTO without product changes;
 - Expo Doctor reports a failed check that cannot be resolved without dependency/config/product changes outside approved Task 17 scope;
+- the required Node 24 environment, clean `npm ci`, pinned Expo Doctor acquisition, or required network access cannot be established; classify this as an environment/tooling blocker rather than modifying product code;
 - Android or iOS export fails for a Task 17 candidate tree;
 - health remediation would require automatic SDK/dependency upgrade;
 - repository/history scan finds public-data/secret issues;
@@ -351,4 +368,4 @@ The selected design is the composite approach:
 - minimal export-ignore correction;
 - frozen product behavior otherwise remains untouched.
 
-This written design remains a **reviewed draft** until the operator explicitly approves the full spec. No Task 17 implementation plan or implementation execution should start before that approval.
+This written design is **approval-ready** after final audit but is not operator-approved yet. No Task 17 implementation plan or implementation execution should start until the operator explicitly approves the full spec.
