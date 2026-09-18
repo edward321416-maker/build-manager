@@ -35,3 +35,7 @@ The reviewed Task 17 Mobile Health + cross-platform Hero B design draft was comm
 ## 2026-09-18 Task 17 final design audit
 
 The Task 17 Mobile Health + cross-platform Hero B design received a final pre-approval audit against current repository policies, Task 16 acceptance, the v3 plan/spec, accepted implementation contracts, and current official Expo documentation. Documentation-only corrections were committed on the feature branch; Task 15/16 product code remains frozen and Task 17 implementation has not started. The design is approval-ready but still requires explicit operator approval before implementation planning. The corresponding execution-log row remains `pending`; no Google Sheet/Drive synchronization, account connection, OAuth approval, or permission change is claimed.
+
+## 2026-09-18 Task 17 design approval, plan, and execution handoff
+
+The operator explicitly approved the final-audited Task 17 design. The approved design status, audited implementation plan, and final execution handoff were committed and read back. Product implementation has not started; the remote feature execution baseline remains the plan HEAD and Task 15/16 product code remains frozen. The new execution-log rows remain `pending` for the operator-designated external spreadsheet. No Google Sheet/Drive synchronization, account connection, OAuth approval, permission change, or browser-credential access is claimed.
