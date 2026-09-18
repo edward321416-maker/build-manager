@@ -1,6 +1,6 @@
 # Task 17 Mobile Health + Cross-platform Hero B — Design
 
-Status: **APPROVAL-READY — final audit complete; operator approval pending; implementation not started**
+Status: **APPROVED DESIGN — operator approved 2026-09-18; implementation not started**
 Date: 2026-09-17
 
 ## Authority and baselines
@@ -368,4 +368,4 @@ The selected design is the composite approach:
 - minimal export-ignore correction;
 - frozen product behavior otherwise remains untouched.
 
-This written design is **approval-ready** after final audit but is not operator-approved yet. No Task 17 implementation plan or implementation execution should start until the operator explicitly approves the full spec.
+The operator explicitly approved this full design on 2026-09-18. Task 17 implementation planning is now authorized; product implementation still must not start until an audited implementation plan and execution handoff are prepared.
