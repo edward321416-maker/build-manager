@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-17-task17-mobile-health-hero-b-design.md`
 
+**Plan Status:** **AUDITED — ready for execution handoff; implementation not started**
+
 **Approved-design baseline:** `feat/building-aware-mvp@728f4862345115e8dc84d3b316986c1830bc87c3`
 
 **Frozen product baseline:** `feat/building-aware-mvp@9aa80fbee3f05a9191f1daad6e4e4e051d3beb1d`
@@ -127,11 +129,17 @@ async function answerNoAndWait(page: Page): Promise<void> {
   await expect
     .poll(async () => {
       if (await page.getByTestId(FIXTURE_EVIDENCE).isVisible().catch(() => false)) {
-        return "__EVIDENCE__";
+        return "evidence";
       }
-      return (await questionHeading(page).textContent()) ?? "__NO_QUESTION__";
+
+      const next = await questionHeading(page).textContent().catch(() => null);
+      if (next !== null && next !== before) {
+        return "question";
+      }
+
+      return "waiting";
     })
-    .not.toBe(before ?? "");
+    .not.toBe("waiting");
 }
 
 async function answerUntilFixtureEvidence(page: Page): Promise<void> {
@@ -645,7 +653,7 @@ Let `TARGET_REF` be the exact execution handoff ref.
 ```bash
 git diff --name-only "$TARGET_REF"..HEAD
 git diff --name-only 9aa80fbee3f05a9191f1daad6e4e4e051d3beb1d..HEAD
-git diff -- "$TARGET_REF"..HEAD -- \
+git diff "$TARGET_REF"..HEAD -- \
   package.json package-lock.json apps/mobile/package.json apps/mobile/app.json
 ```
 
