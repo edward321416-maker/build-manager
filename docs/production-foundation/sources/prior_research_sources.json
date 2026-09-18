@@ -1,0 +1,343 @@
+{
+  "title": "build-manager production research source registry",
+  "version": "0.1",
+  "research_date": "2026-09-18",
+  "scope": "6 products; 7 selected research papers; official engineering/security/platform sources; pinned repository inspection",
+  "exhaustive_systematic_review": false,
+  "authenticated_product_trials_performed": false,
+  "production_implementation_started": false,
+  "policy_ref": "b087d881a41f047604e8e3f6efb03058e08b1f66",
+  "target_ref": "b8e3f283caaa414794917ef93030fe28a56944b2",
+  "sources": [
+    {
+      "source_id": "P01",
+      "title": "홈버튼 — 서비스 이용 안내",
+      "url": "https://www.homebutton.co.kr/service_use",
+      "source_type": "vendor_official",
+      "review_level": "public_feature_page",
+      "locator": "공지 및 민원; 건물·계약·수납 관련 기능",
+      "application_limit": "제공사 기능 설명이며 실제 이용 효과·모든 요금제 제공 여부를 독립 검증하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "P02",
+      "title": "자리톡 — 임대인·세입자 역할별 서비스",
+      "url": "https://zaritalk.com/",
+      "source_type": "vendor_official",
+      "review_level": "public_service_page",
+      "locator": "역할 선택; 로그인·청구·수납 관련 안내",
+      "application_limit": "민원 상세 처리 기능의 부재를 주장하는 자료로 사용하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "P03",
+      "title": "Buildium — Resident Center",
+      "url": "https://www.buildium.com/features/resident-center/",
+      "source_type": "vendor_official",
+      "review_level": "public_feature_page",
+      "locator": "maintenance requests; communication; work assignments",
+      "application_limit": "한국 시장의 수요나 고객효과를 입증하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "P03a",
+      "title": "Buildium — Resident Site Help Center",
+      "url": "https://www.buildium.com/resident-site-help-center/resident-site-help-center/",
+      "source_type": "vendor_official",
+      "review_level": "public_help_page",
+      "locator": "요청 내용·사진·방문 가능 시간·부재중 출입 허용",
+      "application_limit": "미국 서비스의 계약·출입 규정을 한국에 그대로 적용하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "P04",
+      "title": "Fixflo — Reactive repair reporting",
+      "url": "https://www.fixflo.com/features/reactive-repair-reporting",
+      "source_type": "vendor_official",
+      "review_level": "public_feature_page",
+      "locator": "pictorial reporting; repair request information collection",
+      "application_limit": "영국 긴급연락처·DIY 안내·책임 기준은 가져오지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "P04a",
+      "title": "Fixflo — How does an occupier report an issue?",
+      "url": "https://help.fixflo.com/support/solutions/articles/61000256290-how-does-an-occupier-report-an-issue-",
+      "source_type": "vendor_official",
+      "review_level": "public_help_page",
+      "locator": "occupier issue reporting workflow",
+      "application_limit": "로그인한 유료 제품의 실사용 테스트가 아님",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "P04b",
+      "title": "Fixflo 실제 공개 접수 진입점 — Anthea Lettings",
+      "url": "https://anthea-lettings.fixflo.com/ko/Auth/HomeIssueCreate",
+      "source_type": "deployed_public_interface",
+      "review_level": "read_only_public_interface",
+      "locator": "문제·미디어·주소·연락·확인 접수 단계",
+      "application_limit": "접수 제출·타인 데이터 열람·계정 생성은 수행하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "P05",
+      "title": "AppFolio — Maintenance",
+      "url": "https://www.appfolio.com/property-manager/maintenance",
+      "source_type": "vendor_official",
+      "review_level": "public_feature_page",
+      "locator": "maintenance requests; work orders; inspections; unit turns",
+      "application_limit": "대형 제품의 모든 기능을 초기 출시 범위로 가져오지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "P06",
+      "title": "DoorLoop — AI Assistant in the tenant portal",
+      "url": "https://support.doorloop.com/en/articles/12109510-doorloop-ai-assistant-how-the-tenant-uses-the-ai-assistant-in-the-tenant-portal",
+      "source_type": "vendor_official",
+      "review_level": "public_help_page",
+      "locator": "AI assisted maintenance requests; manual option controlled by setting",
+      "application_limit": "자동 처리율·절감률 같은 마케팅 수치를 검증된 효과로 사용하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "P06a",
+      "title": "DoorLoop — Tenant request email and push notifications",
+      "url": "https://support.doorloop.com/en/articles/7143051-enable-email-and-push-notifications-for-tenant-requests-maintenance-requests-received",
+      "source_type": "vendor_official",
+      "review_level": "public_help_page",
+      "locator": "요청 알림 설정",
+      "application_limit": "발송·배달·열람·처리를 동일한 상태로 간주하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "R01",
+      "title": "Parnas (1972), On the Criteria To Be Used in Decomposing Systems into Modules",
+      "url": "https://doi.org/10.1145/361598.361623",
+      "source_type": "research_paper",
+      "review_level": "publisher_record_and_university_reprint",
+      "locator": "information hiding; change-oriented decomposition",
+      "application_limit": "분해 원칙 논문이지 특정 SaaS 스택의 우월성을 실증한 연구가 아님",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "R02",
+      "title": "Sandhu et al. (1996), Role-Based Access Control Models",
+      "url": "https://csrc.nist.gov/CSRC/media/Projects/Role-Based-Access-Control/documents/sandhu96.pdf",
+      "source_type": "research_paper",
+      "review_level": "original_pdf_selected_sections_and_figure",
+      "locator": "RBAC0/1/2/3; users, roles, permissions, sessions and constraints",
+      "application_limit": "역할 모델만으로 입주기간·건물 소속·조직 간 격리가 완성되지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "R03",
+      "title": "Pang et al. (2019), Zanzibar: Google’s Consistent, Global Authorization System",
+      "url": "https://www.usenix.org/system/files/atc19-pang.pdf",
+      "source_type": "research_paper",
+      "review_level": "original_pdf_selected_sections_and_figures",
+      "locator": "relation tuples; usersets; consistency and access revocation",
+      "application_limit": "전역 분산 권한 서비스를 소규모 제품에 그대로 구현할 근거가 아님",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "R04",
+      "title": "Yuan et al. (2014), Simple Testing Can Prevent Most Critical Failures",
+      "url": "https://www.usenix.org/system/files/conference/osdi14/osdi14-paper-yuan.pdf",
+      "source_type": "research_paper",
+      "review_level": "original_pdf_introduction_error_handling_discussion",
+      "locator": "198 failure study; section 4 error handling and limitations",
+      "application_limit": "대규모 데이터 시스템 표본이며 논문 비율을 임대관리 앱의 장애율로 전이할 수 없음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "R05",
+      "title": "Amershi et al. (2019), Guidelines for Human-AI Interaction",
+      "url": "https://www.microsoft.com/en-us/research/wp-content/uploads/2019/01/Guidelines-for-Human-AI-Interaction-camera-ready.pdf",
+      "source_type": "research_paper",
+      "review_level": "original_pdf_guidelines_table_method_sections",
+      "locator": "18 guidelines; capability, correction, dismissal, uncertainty; practitioner evaluation",
+      "application_limit": "상호작용 설계 근거이며 수리 진단·안전 인증의 근거가 아님",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "R06",
+      "title": "Sculley et al. (2015), Hidden Technical Debt in Machine Learning Systems",
+      "url": "https://papers.nips.cc/paper_files/paper/2015/file/86df7dcfd896fcaf2674f757a2463eba-Paper.pdf",
+      "source_type": "research_paper",
+      "review_level": "original_pdf_selected_sections_and_figures",
+      "locator": "data dependencies; hidden consumers; configuration; monitoring",
+      "application_limit": "정확한 LLM 성능이나 사업효과를 예측하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "R07",
+      "title": "Brundage et al. (2020), Technical Language Processing: Unlocking Maintenance Knowledge",
+      "url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=931138",
+      "source_type": "research_paper",
+      "review_level": "original_pdf_text_sections_1_to_4",
+      "locator": "technical text pitfalls; domain entities/dictionaries; human-in-the-loop resources",
+      "application_limit": "제조·설비 유지관리 중심; 한국 임차인의 언어에 대한 별도 검증이 필요. PDF 그림 렌더링은 일부 실패하여 그림 자체를 증거로 삼지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "R07a",
+      "title": "NIST publication record — Technical Language Processing",
+      "url": "https://www.nist.gov/publications/technical-language-processing-unlocking-maintenance-knowledge",
+      "source_type": "author_institution",
+      "review_level": "official_abstract_and_metadata",
+      "locator": "Manufacturing Letters; DOI 10.1016/j.mfglet.2020.11.001",
+      "application_limit": "원문 적용범위 확인용; 제품 수요 근거가 아님",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "T01",
+      "title": "Shopify Engineering — Deconstructing the Monolith",
+      "url": "https://shopify.engineering/deconstructing-monolith-designing-software-maximizes-developer-productivity",
+      "source_type": "engineering_case",
+      "review_level": "first_party_article",
+      "locator": "2019 modular-monolith engineering account",
+      "application_limit": "공개된 당시 경험을 활용하며 Shopify의 현재 모든 내부 시스템을 설명한다고 주장하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "T02",
+      "title": "AWS Prescriptive Guidance — Transactional outbox pattern",
+      "url": "https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html",
+      "source_type": "official_technical_documentation",
+      "review_level": "pattern_documentation",
+      "locator": "transactional recording; relay; duplicate delivery and idempotency",
+      "application_limit": "외부 알림의 end-to-end exactly-once를 보장하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "T03",
+      "title": "OWASP — Authorization Cheat Sheet",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+      "source_type": "security_guidance",
+      "review_level": "official_cheat_sheet",
+      "locator": "deny by default; per-request permission checks; relationships",
+      "application_limit": "보안 인증 통과를 의미하지 않으며 실제 통합검증 필요",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "T04",
+      "title": "PostgreSQL — Row Security Policies",
+      "url": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+      "source_type": "official_technical_documentation",
+      "review_level": "current_documentation",
+      "locator": "row security; owners and BYPASSRLS caveats",
+      "application_limit": "RLS만으로 모든 경로가 보호된다고 가정하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "T05",
+      "title": "OWASP — File Upload Cheat Sheet",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html",
+      "source_type": "security_guidance",
+      "review_level": "official_cheat_sheet",
+      "locator": "allowlist validation; size/type checks; private storage; scanning",
+      "application_limit": "확장자나 클라이언트 MIME 하나만으로 안전을 판정하지 않음",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "T06",
+      "title": "Supabase — Architecture",
+      "url": "https://supabase.com/docs/guides/getting-started/architecture",
+      "source_type": "official_technical_documentation",
+      "review_level": "official_architecture_documentation",
+      "locator": "Postgres/Auth/Storage can be used as composable infrastructure",
+      "application_limit": "사업자의 실제 요금·리전·계약·운영 적합성은 미선정",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "T07",
+      "title": "개인정보 보호법 제29조 — 안전조치의무",
+      "url": "https://www.law.go.kr/LSW/lsSideInfoP.do?docCls=jo&joBrNo=00&joNo=0029&lsiSeq=270351&urlMode=lsScJoRltInfoR",
+      "source_type": "official_law",
+      "review_level": "article_text",
+      "locator": "시행 2025-10-02; 기술적·관리적·물리적 보호조치",
+      "application_limit": "이 조문만으로 전체 개인정보 법률 검토를 완료한 것은 아님",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "T08",
+      "title": "Apple — App Review Guidelines",
+      "url": "https://developer.apple.com/app-store/review/guidelines/",
+      "source_type": "official_platform_policy",
+      "review_level": "relevant_privacy_account_deletion_sections",
+      "locator": "5.1.1 account deletion; 5.1.2 third-party AI data sharing",
+      "application_limit": "제출 직전 최신 정책과 실제 데이터 흐름을 다시 대조해야 함",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "T09",
+      "title": "Google Play — Developer Programme Policy",
+      "url": "https://support.google.com/googleplay/android-developer/answer/16549787",
+      "source_type": "official_platform_policy",
+      "review_level": "official_search_excerpt",
+      "locator": "Account deletion requirement: in-app and external request paths",
+      "application_limit": "개별 13327111 원문 열람은 rate-limit/redirect로 실패; 공식 통합 정책 검색본문 범위만 확인",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "G01",
+      "title": "build-manager live feature ref",
+      "url": "https://api.github.com/repos/edward321416-maker/build-manager/git/ref/heads/feat/building-aware-mvp",
+      "source_type": "connected_repository",
+      "review_level": "GitHub_readback",
+      "locator": "b8e3f283caaa414794917ef93030fe28a56944b2",
+      "application_limit": "원격 커밋 확인은 로컬 런타임 시험 재실행 증거가 아님",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "G02",
+      "title": "build-manager — packages/api-contracts/src/commands.ts",
+      "url": "https://github.com/edward321416-maker/build-manager/blob/b8e3f283caaa414794917ef93030fe28a56944b2/packages/api-contracts/src/commands.ts",
+      "source_type": "connected_repository",
+      "review_level": "GitHub_pinned_file_read",
+      "locator": "필요 구간 및 선언/계약 조회",
+      "application_limit": "스택 metadata/코드 검토이며 스크립트 실행·운영 준비 인증이 아님",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "G03",
+      "title": "build-manager — packages/api-contracts/src/common.ts",
+      "url": "https://github.com/edward321416-maker/build-manager/blob/b8e3f283caaa414794917ef93030fe28a56944b2/packages/api-contracts/src/common.ts",
+      "source_type": "connected_repository",
+      "review_level": "GitHub_pinned_file_read",
+      "locator": "필요 구간 및 선언/계약 조회",
+      "application_limit": "스택 metadata/코드 검토이며 스크립트 실행·운영 준비 인증이 아님",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "G04",
+      "title": "build-manager — apps/web/src/server/http/request-container.ts",
+      "url": "https://github.com/edward321416-maker/build-manager/blob/b8e3f283caaa414794917ef93030fe28a56944b2/apps/web/src/server/http/request-container.ts",
+      "source_type": "connected_repository",
+      "review_level": "GitHub_pinned_file_read",
+      "locator": "필요 구간 및 선언/계약 조회",
+      "application_limit": "스택 metadata/코드 검토이며 스크립트 실행·운영 준비 인증이 아님",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "G05",
+      "title": "build-manager — package.json",
+      "url": "https://github.com/edward321416-maker/build-manager/blob/b8e3f283caaa414794917ef93030fe28a56944b2/package.json",
+      "source_type": "connected_repository",
+      "review_level": "GitHub_pinned_file_read",
+      "locator": "필요 구간 및 선언/계약 조회",
+      "application_limit": "스택 metadata/코드 검토이며 스크립트 실행·운영 준비 인증이 아님",
+      "checked_date": "2026-09-18"
+    },
+    {
+      "source_id": "G06",
+      "title": "build-manager — PROJECT_CHARTER.md",
+      "url": "https://github.com/edward321416-maker/build-manager/blob/b8e3f283caaa414794917ef93030fe28a56944b2/PROJECT_CHARTER.md",
+      "source_type": "connected_repository",
+      "review_level": "GitHub_pinned_file_read",
+      "locator": "필요 구간 및 선언/계약 조회",
+      "application_limit": "스택 metadata/코드 검토이며 스크립트 실행·운영 준비 인증이 아님",
+      "checked_date": "2026-09-18"
+    }
+  ]
+}

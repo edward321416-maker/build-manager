@@ -1,0 +1,136 @@
+# 기획 전수점검 기록
+
+날짜: 2026-09-18
+대상: 같은 디렉터리의 전체 기획, PF00, PF01 v0.2, 예정 검증표, 이번 출처 목록.
+검토자: 이번 응답 작성자. 별도 독립 에이전트/사람의 코드 리뷰를 수행했다고 주장하지 않는다.
+판정: **REVIEWED_FOR_APPROVAL**. 범위 내 확인한 문서상 충돌·모호성을 수정했다. 실제 앱/DB/CI 회귀 시험은 수행하지 않았고 출시 적합성 판정도 아니다.
+
+## 1. 실제 수행한 일
+
+- GitHub 연결을 통한 main ref·고정 커밋의 정책, CI, package metadata, CreateTicketRequest, test tsconfig 확인.
+- 이전 PF01 0.1 전문과 blueprint 구조 확인; 공개제품·논문 33개를 이번에 전부 다시 읽었다고 주장하지 않음.
+- Jest/npm/GitHub Actions/OWASP/PostgreSQL/RFC/AWS 관련 공식 문서의 필요한 절 확인.
+- 문서와 예정 검증표의 정합성 점검; 파일/링크/참조/순서/상태에 대한 local 구조 검증.
+- 앱 구현, Node dependency 설치, 실제 DB, 실제 사용자 초대, 제품 테스트, 원격 commit/push는 없음.
+
+## 2. 발견한 기획상 문제와 수정
+
+아래는 **설계상의 위험/누락**이지 현재 코드에 동일한 보안 취약점이 재현됐다는 판정이 아니다. 모두 문서 수준에서 반영했으며 실제 효과는 예정 시험을 통과해야 한다.
+
+| ID | 분류 | 기존 모호성/누락 | 반영 내용 | 위치 |
+|---|---|---|---|---|
+| A01 | 단계 충돌 | 기존 FROZEN 규칙만 적용하면 실제 사용자/권한 도입도 영구 금지될 수 있었음 | historical freeze와 승인된 production evolution을 분리; exact 파일/계약은 후속 plan | 00 §4 |
+| A02 | 검증 누락 | 현재 초록불을 전체 테스트 성공으로 오해할 여지가 있었음 | Linux/Windows cold Mobile·Web 단위/E2E·scanner 회귀를 명시 | PF00 §6 |
+| A03 | 원인 단정 | cold transform 비용을 직접 재현한 원인으로 취급할 위험 | 실행자 보고와 가설로 분리; paired cold/warm·최초 렌더 진단 후 최소 수정 | PF00 §5 |
+| A04 | 증거 혼동 | --no-cache/캐시 삭제/기존 결과물 재사용을 cold fresh 증거로 혼동 | 새 임시 cacheDirectory와 run별 출력, 기존 cache 삭제 없음 | PF00 §5–7 |
+| A05 | 권한 모델 | Occupancy 하나에 사람과 기간이 함께 묶이면 공동거주/부분 퇴거가 모호 | Occupancy + OccupancyMember 분리; 유효시간까지 검사 | PF01 §2–4 |
+| A06 | 과거자료 노출 | 같은 호실이면 이전 신고나 동거인 메시지를 볼 수 있다고 해석 가능 | 첫 버전은 resident 본인 신고만; 이전 occupancy 내역 API 제공 유예 | PF01 §5/8 |
+| A07 | 초대 경합 | 철회와 수락 중 어느 순서가 유효한지 미확정 | commit/lock 순서와 issuer 퇴사 이후 기존 관계 유지 규칙 명시 | PF01 §7–8 |
+| A08 | 철회 경합 | 권한 확인과 실제 쓰기 사이에 철회되는 race 누락 | DB transaction/권한 row 잠금/재검사; in-flight 읽기 회수 한계 구분 | PF01 §8 |
+| A09 | 재전송 권한 | idempotency 영수증을 auth보다 먼저 반환하면 퇴거 후 데이터 노출 | 현재 auth/scope 확인이 replay 선행; 생성 request ID 고유성과 stale version | PF01 §9 |
+| A10 | 격리 실효성 | RLS owner/서비스 계정이나 pool에 남은 org 문맥으로 시험이 우연히 통과 가능 | 비특권 runtime role, 복합 FK, WITH CHECK, SET LOCAL·rollback pool 재사용 시험 | PF01 §10 |
+| A11 | demo 유출 | reset만 막으면 비인증 v1 조회·쓰기가 운영 DB에 남을 수 있음 | 운영 v1 업무·fixture/test identity 전부 차단; DB 오류시 fallback 없음 | PF01 §11 |
+| A12 | 입력 보호 | v1 rawUserText 무상한을 새 서비스에도 가져갈 위험 | v2 입력 2,000 codepoints/body64KiB/page50 제안과 경계 시험; silent truncation 금지 | PF01 §9 |
+| A13 | 복원·개인정보 | 백업 복원으로 퇴거·삭제된 접근권한이 부활할 수 있음 | 복원 격리·최신 삭제/철회 조정·세션 무효화 후 공개; 기간은 법적 운영결정 전 보류 | PF01 §12 |
+| A14 | 작업 선행순서 | DB major/driver 선택 gate를 auth 연결 직전으로 두면 schema 작업이 먼저 진행될 수 있었음 | D02a를 PF02-A 전에, D01은 PF02-B 전에, 호스팅/실데이터는 파일럿 전에 분리 | 00 §3; PF01 §14 |
+| A15 | 증거 수준 | RNTL mock DTO만으로 실제 Web/App 인증/DB 흐름이 검증됐다고 과장 가능 | F40은 실제 Web+Mobile 개발빌드의 같은 ticketId/API/DB; 서명 release QA는 별도 | PF01 §13 |
+| A16 | 승인·CI 강제 | 설계검토/CI 집계와 실행승인/merge 강제를 동일하게 취급할 위험 | REVIEWED_FOR_APPROVAL·NOT_RUN 유지; branch rules/infra/실데이터는 별도 승인 | 00 §1/8; PF00 §6 |
+
+## 3. 아직 결정해야 하는 것
+
+| 결정 | 해결 시점 | 미결정인 동안 가능한 작업 | 금지되는 진행 |
+|---|---|---|---|
+| D06 exact Node/npm/runner/action 및 cold-test 변경범위 | PF00 실행계획 | 현재 기획 검토 | unpinned 실행을 검증기준으로 확정 |
+| D02a PostgreSQL major/driver/local test | PF02-A 전 | PF00 + 데이터/권한 설계 | 실제 schema 구현 착수 |
+| D01 실제 인증 공급자·flow | PF02-B 전 | 승인된 DB/순수 관계 시험 | 외부 인증계정/키 없이 실제 auth라고 주장 |
+| D02b/D03/D04/D05 호스팅·리전·backup·관리권 확인·개인정보·운영/예산 | 실제 데이터 파일럿 전 | 합성 검증 환경 | 실제 입주자 자료 수집·유료 가입·일반 공개 |
+
+호스팅·인증 선택과 데이터 보유기간을 모르는 상태에서 무조건 `BLOCKER 0 / 출시 가능`이라고 판정하지 않는다. 기획 수준의 승인 검토가 가능하다는 뜻과 실행 수준의 미결정을 구분한다.
+
+## 4. 기획 점검 항목
+
+| ID | 점검 | 근거 | 방식 |
+|---|---|---|---|
+| Q01 | 현재 main 및 정책 기준 | 6d0eaab 확인; 고정 ref로 policy/workflow/manifest/계약 읽음 | DOCUMENT_EVIDENCE |
+| Q02 | 사용자 선택 보존 | Modular Monolith와 실제 출시 목표 유지; 재선택 요구 안 함 | MANUAL_REVIEW |
+| Q03 | 범위/승인 경계 | 기획과 구현을 분리, 과거 인수 기록을 수정하지 않음 | MANUAL_REVIEW |
+| Q04 | 시험의 실제 대상 | cold·DB race·RLS·실제 client/서버를 분리 | MANUAL_REVIEW |
+| Q05 | 회귀 가림 방지 | skip/retry/forceExit/검출기 완화 금지; 가짜 RED 요구 없음 | MANUAL_REVIEW |
+| Q06 | 불변조건 연결 | I01~I12 각각 F 시나리오에 연결 | STRUCTURAL_CHECK |
+| Q07 | 후속 단계 선행성 | PF00/PF01 병행, DB major/driver before PF02-A | STRUCTURAL_AND_MANUAL |
+| Q08 | 실데이터/법률 한계 | 공급자·보유/삭제·실관리권 확인·운영시간 결정 전 파일럿 보류 | MANUAL_REVIEW |
+| Q09 | 최종 파일 무결성 | UTF-8/필수문서/로컬링크/식별자/중복/해시 검사 | STRUCTURAL_CHECK |
+| Q10 | 실행 사실 분리 | C01~C12/F01~F44 전부 NOT_RUN; 앱테스트 수행 주장 없음 | STRUCTURAL_CHECK |
+| Q11 | 공개/원격 권한 | GitHub/DB/IAM/계정연결 쓰기 없음; local artifact만 | OBSERVED_ACTIONS |
+| Q12 | 출처/동기화 | 새 primary 출처와 이전 연구 provenance 구분; Sheets/Drive PENDING | MANUAL_REVIEW |
+
+## 5. 예정 검증 시나리오
+
+**총 56개: PF00 12개 + PF02 관계/권한 44개. 전부 NOT_RUN이다.** 아래 행은 만들어야 할 시험/증거 계약이며 실제 테스트 코드가 이미 있거나 통과했다는 뜻이 아니다. source-of-truth는 acceptance_cases.json이다.
+
+| ID | 단계 | 요구조건 | 사전 상태·행동 | 기대 결과 |
+|---|---|---|---|---|
+| C01 | PF00-A | install | 동일 SHA의 새 Linux/Windows 작업환경 → npm ci + Web build + dependency 검사 | 양쪽 성공, 추가 tracked diff 0, 실제 OS/runtime/lock hash 기록 |
+| C02 | PF00-A | toolchain | Node24 계열/지정 npm/runtime image → 실행계획의 exact pin과 실제 설치 비교 | Node/npm/action/ref가 계획과 일치, 이동 alias만으로 동일 주장 금지 |
+| C03 | PF00-B | cold-diagnosis | 새 Jest cacheDirectory의 전체 Mobile → cold 실행과 같은 cache warm 실행 대조 | 최초 실패 원인과 suite/시간 보존, warm 성공으로 cold 실패를 삭제하지 않음 |
+| C04 | PF00-B | cold-acceptance | 고정 수정 후보와 독립 새 cache 3개/OS → Linux/Windows 전체 Mobile 각각 3회 | 모든 예정 run 첫 실행 성공, 필수 skip/todo 없음; 무결함 통계 주장은 하지 않음 |
+| C05 | PF00-C | scanner-regression | 두 scanner unittest 위치 → tests와 scripts/tests의 test ID 발견 및 실행 | 0-test 성공 불가; 양쪽 scanner regression 실제 실행 |
+| C06 | PF00-C | coverage | 일반 PR와 merged main 후보 → Web 단위/Mobile/Shared/E2E/lint/type/build/dependency job 실행 | 필수 job 누락/skipped/cancelled는 gate 실패 |
+| C07 | PF00-C | ci-security | untrusted PR 입력 → 권한과 checkout/action source 검사 | production secret 없음; reviewed full SHA; 검증 없던 artifact 실행 안 함 |
+| C08 | PF00-C | doctor | same candidate의 health 환경 → Doctor pin/version과 실제 결과 기록 | exit0/failed0; 원격 metadata 변동을 구분, exclude 우회 없음 |
+| C09 | PF00-C | bundle | 동일 SHA와 새 export 출력경로 → Android/iOS JS export | 새 비어있는 경로 생성물과 SHA 연결; native/device 주장 금지 |
+| C10 | PF00-D | public-gate | 공개될 후보 index와 reachable history → repository/tree/history/whitespace 검사 | 0 findings, actual checked 범위를 명시; scanner 종합보안 인증 아님 |
+| C11 | PF00-D | evidence | docs와 current workflows → STATUS/검사 진입점/영수증 대조 | 실행한 검사와 누락/OPEN RISK를 분리하고 raw log 비밀 제거 |
+| C12 | PF00-D | publication | 최종 publication 직전/직후 → exact ref와 scope/diff 확인 | 기존 frozen history 보존, 비승인 경로 없음, 실제 checked tree와 원격 대응 |
+| F01 | PF02-A | I02 | 활성 ORG_ADMIN과 자기 조직 → 건물·호실 생성 후 다른 조직에서 조회 | 자기 조직만 생성/조회, 다른 조직 응답에 없음 |
+| F02 | PF02-B | I01 | 일반 입주자 세션 → role/view/actorUserId 주입 | 권한 상승·actor 변경 없음; strict schema 또는 현재 서버 정책으로 거부 |
+| F03 | PF02-D | I02 | 다른 조직의 실재 ticketId를 앎 → 상세 API 호출 | 404 비노출, 본문/관계 정보/DB변경 없음 |
+| F04 | PF02-D | I02 | 조직A 세션 → 목록의 orgId/page/filter를 B로 치환 | B 데이터 없음; 페이지 개수/오류로 B 존재를 공개하지 않음 |
+| F05 | PF02-D | I03 | staff는 건물A만 배정 → 건물B 티켓 읽기/답변 | 거부, 변경 없음 |
+| F06 | PF02-C | I05 | 미수락 초대가 만료 또는 철회 → 정상 로그인 사용자 수락 | 새 관계 없음, 비노출 오류 |
+| F07 | PF02-C | I05 | 같은 토큰으로 두 동시 요청 → 두 DB connection의 수락 경합 | OccupancyMember 하나; 현재 유효한 동일 사용자 재요청만 기존 결과 |
+| F08 | PF02-C | I06 | 발급자 권한철회와 초대 수락 동시 → 두 commit 순서를 각각 barrier로 재현 | 철회 먼저면 거부; 수락 먼저면 유효관계 유지, 발급자 퇴사로 자동퇴거 안 됨 |
+| F09 | PF02-D | I04 | 유효 입주자와 자기 occupancy → 텍스트 신고 | 서버가 자기 unit/member/actor를 확정하고 FK 관계 일치 |
+| F10 | PF02-D | I03 | 유효 입주자 → 다른 unit/occupancy ID 신고 | 거부, 다른 호실 요청 생성 없음 |
+| F11 | PF02-D | I07 | DB commit 뒤 응답만 유실 → 같은 clientRequestId와 내용으로 재시도 | 원래 티켓 하나와 같은 결과; 중복 티켓 없음 |
+| F12 | PF02-D | I03 | 첫 구현에서 대리접수는 유예 → resident가 onBehalfOf/creator 값으로 다른 사람 위장 | 서버 소유 필드 거부; 본인 신고자 변조 없음 |
+| F13 | PF02-C | I06 | 입주기간 종료 commit 완료 → 이전 세션으로 읽기/쓰기 | 현재 호실의 새 요청 거부; User의 다른 활성 관계는 유지 |
+| F14 | PF02-D | I08 | 같은 Unit에 새 Occupancy → 새 입주자가 과거 티켓 ID/이력 조회 | 과거 개인대화/주소세부/파일 메타데이터 없음; 옛 티켓 FK 재연결 없음 |
+| F15 | PF02-B | I06 | 직원 담당범위 철회 또는 membership 종료 → 이전 로그인 토큰으로 티켓 읽기/답변 | 새 요청 거부; 단순 JWT role로 이전 허용 유지하지 않음 |
+| F16 | PF02-A | I09 | 관계 생성 중 DB 실패 injection → 초대소비/관계생성 중간단계 오류 | 전체 rollback, 소비된 초대만 남거나 거짓 성공하지 않음 |
+| F17 | PF02-E | I10 | production mode의 synthetic DB만 사용 → v1 read/write/reset/test identity 경로를 시도 | 업무 데이터 접근 불가; reset이 실제 DB에 연결되지 않음 |
+| F18 | PF02-A | I02 | poolSize=1의 app runtime role → A→rollback→B→missing context 요청 순서 | A row가 B/missing context에 보이지 않음; transaction context 누수 없음 |
+| F19 | PF02-A | I10 | migration owner와 app runtime role 분리 → 같은 격리 시험을 비특권 app role로 실행 | owner/superuser/BYPASSRLS 사용 안 함; tenant context 없는 일반 업무 거부 |
+| F20 | PF02-E | I12 | Web/Mobile 세션과 invitation return → 앱 재시작·재로그인·다른 계정 deep link | 정확한 현재 User에만 연결; 다른 계정에 자동 부여 없음 |
+| F21 | PF02-B | I01 | 같은 User는 조직A admin·조직B resident → 두 context 교대 및 섞인 요청 | 각 관계 권한만 적용; A admin이 B admin으로 전이되지 않음 |
+| F22 | PF02-D | I08 | 같은 Occupancy에 여러 구성원 → 주민A가 주민B의 티켓 조회 | 기본 거부; 공동거주가 개인대화 자동열람으로 이어지지 않음 |
+| F23 | PF02-A | I04 | 같은 Unit에 두 startOccupancy 동시 → 별도 transaction으로 ACTIVE 추가 | active 기간 하나; 승자 외는 명시적 충돌 |
+| F24 | PF02-C | I04 | 두 구성원 중 한 구성원만 종료 → 각 세션으로 자기 신고와 context 확인 | 종료자 차단, 다른 구성원과 그 티켓은 유지 |
+| F25 | PF02-B | I06 | User/Organization 정지 또는 Property/Unit 비활성화 → 새 읽기/쓰기 명령 | 해당 일반업무 접근 차단; 보안 정지가 last-admin guard로 막히지 않음; 본인 개인정보 요청은 별도 경로 유지 |
+| F26 | PF02-B | I10 | Organization PENDING 또는 mode 미승인 → 실데이터 업무 API 활성화 시도 | 업무 거부; 운영 확인 없이 self-signup을 실권한 증명으로 취급 안 함 |
+| F27 | PF02-C | I05 | 초대 수신대상과 다른 verified identity → 전달받은 초대 링크 수락 | 관계 생성 없음, 원 수신대상/건물 상세 비노출 |
+| F28 | PF02-C | I05 | 토큰이 유효했으나 잠금 대기 중 만료 → 잠금 해제 후 수락 | 대기 후 DB 시간으로 만료 판정; 관계 생성 없음 |
+| F29 | PF02-D | I06 | 권한검사·쓰기와 입주 종료 경합 → 두 connection barrier로 commit 순서를 교대 | 쓰기 먼저면 당시 유효; 종료 먼저면 재검증 거부; 종료 후 새 쓰기 없음 |
+| F30 | PF02-D | I07 | 한때 성공한 요청과 이후 퇴거 → 기존 idempotency key로 replay | 권한 확인 후 거부; 과거 receipt가 body를 유출/관계를 재활성화하지 않음 |
+| F31 | PF02-D | I07 | 같은 org/actor/operation/request key → payload만 바꿔 재제출 | 409, 원래 리소스 유지; 다른 org/actor receipt는 별도 scope |
+| F32 | PF02-D | I09 | 서로 다른 client가 같은 version을 읽음 → If-Match로 동시 수정 | 하나 성공, stale은412; last-write-wins로 덮어쓰지 않음 |
+| F33 | PF02-D | I08 | internal과 resident-visible 메시지 혼재 → resident 응답/페이지/쓰기 검사 | INTERNAL 원문이 payload에 없음; resident INTERNAL 생성 거부 |
+| F34 | PF02-E | I11 | 초대/입주/세션 철회 뒤 이전 backup 복원 → 격리된 복원환경에서 조정 후 접근시도 | 최신 철회/삭제 조정·세션무효화 전 공개금지; 복원으로 접근 부활 안 됨 |
+| F35 | PF02-B | I01 | identity provider/JWKS 검증 오류 → 보호된 API 호출 | fail closed, mock identity/demo fallback 없음, 재시도 오류도 비밀 미노출 |
+| F36 | PF02-E | I10 | 실패 경로·입력 공격·초대 요청 → 로그/오류/감사/아티팩트 조사 | 원문/토큰/파일URL/실연락처 미복제; 내부 식별자도 접근통제 |
+| F37 | PF02-D | I10 | UTF-8/한글/emoji 및 본문 경계 → 2,000 codepoints/64KiB/page50 위아래 시험 | 동일 계약의 경계 처리, 초과 무음 절삭·거짓접수 없음 |
+| F38 | PF02-E | I10 | production에서 DB/mode 설정 누락 → 서비스 조립/연결실패 | 시작/요청 실패; fixture seed와 SQLite fallback 없음 |
+| F39 | PF02-B | I03 | 마지막 admin 두 개의 권한제거 요청 경합 → 자발적 탈퇴/강등 명령 동시 | org lock으로 0 active admin 방지; 보안 계정정지는 별도로 허용하고 org 업무 잠금 |
+| F40 | PF02-E | I12 | 실제 Web 로그인과 Mobile 개발빌드, 같은 staging API → Web/앱 교대 신고·답변·조회 및 퇴거 | 같은 ticketId·DB결과와 권한을 사용; mock DTO만으로 대체 안 됨, emulator/수동 여부 기록 |
+| F41 | PF02-A | I02 | orgA의 unit/occupancy/member와 orgB 부모 조합 → runtime DB role에서 교차조직·불일치 FK insert/update 시도 | application guard와 복합 FK/쓰기 정책이 모두 거부; 부모 관계 불일치가 저장되지 않음 |
+| F42 | PF02-C | I04 | 상태 ACTIVE지만 시작 전 또는 종료시각 경과 → UTC 시간 경계에서 신규 권한검사 | status만으로 허용하지 않고 시간조건까지 검사; 이전 판단을 cache로 재사용하지 않음 |
+| F43 | PF02-A | I02 | 두 조직이 같은 공공주소를 입력 → 각각 건물을 등록하고 검색 | org-scoped 개별 자원; 타 조직 데이터/입주자 자동 합병·노출 없음 |
+| F44 | PF02-B | I03 | 일반 플랫폼 지원 계정 → 조직 티켓 API 직접 접근 | 기본 거부; global superadmin 화면 우회 없음; 별도 break-glass 승인/구현 전 데이터 열람 불가 |
+
+## 6. 실행·판정 경계
+
+문서 승인 이후에만 PF00-A/B의 실제 implementation plan을 만든다. rootcause 조사부터 수행하며, 문제를 숨기는 timeout/skip 변경을 허용하지 않는다. PF01 세부모델 승인과 D02a/D01 결정은 별개다.
+
+현재 main은 historical baseline으로 보존한다. PF02에서 신규 production 요구를 구현할 때에는 범위가 정해진 새 변경 승인을 사용한다. '기존 FROZEN이므로 영구히 새 데이터모델 금지' 또는 '실제 출시 목표이므로 모두 수정 가능' 어느 쪽으로도 해석하지 않는다.
+
+검증 결과는 audit/validation_receipt.json에 기록한다. 거기에 있는 structural PASS는 문서 정합성 검사 결과다. 앱/DB의 NOT_RUN을 PASS로 바꾸지 않는다.

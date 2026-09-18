@@ -1,0 +1,56 @@
+{
+  "revision": "0.3",
+  "generated_for": "docs/production-foundation registration",
+  "baseline": "main@6d0eaab3356b901e5ec8627c3a49e8730dd75a79",
+  "note": "Distinct revision from the original package manifest. The original 16 checksums are not reused as evidence for this registered set.",
+  "files": {
+    "00_foundation_blueprint.md": {
+      "sha256": "ee47013f395d34d9435d7cfb201dc403dff4d89eb9a55d5d77a46c7ff76af999",
+      "bytes": 10703
+    },
+    "AUDIT_REPORT.md": {
+      "sha256": "846ea68d7b5250b9b916cb58d671ec6947a8106493f529aafbccdb1d5a906453",
+      "bytes": 19308
+    },
+    "D06_runtime_decision.md": {
+      "sha256": "9940d4272c1cc01debc30d9d737256e8f497cc92fbb09837d00c2f9ee1e861a0",
+      "bytes": 5327
+    },
+    "PF00-A-B_implementation_plan.md": {
+      "sha256": "21ca68ce9a3af4bf31444438baef16e1e415f6bae53eeb6d4cf256ae7f203b92",
+      "bytes": 8089
+    },
+    "PF00_verification_foundation.md": {
+      "sha256": "dc983fc81755b1818c6f787cc082e0d6f6ec35106deecc05c21091635ac00b69",
+      "bytes": 12861
+    },
+    "PF01_data_authorization.md": {
+      "sha256": "441fad0d55d64754942b62285731be0b250716e9b3fd77c2100d6248e46176c8",
+      "bytes": 26785
+    },
+    "README.md": {
+      "sha256": "037931e85ee47923dc66b2382f9f7f6c575275b5c1160287495208d7c406d110",
+      "bytes": 4207
+    },
+    "acceptance_cases.json": {
+      "sha256": "5dd78db32b883707622b71e59ca0719b7d9699608dba781f52ffd30b56d44253",
+      "bytes": 24269
+    },
+    "phase_dependencies.json": {
+      "sha256": "92a78c98a1c252d5277e310cd4bac37f8e9f63e12e44ab7638dc4345798f0276",
+      "bytes": 429
+    },
+    "sources/README.md": {
+      "sha256": "da8dc58f695a4b86d63b52d5fe843efa96730b72d9a25fac8d8ad4de27757c8d",
+      "bytes": 5668
+    },
+    "sources/prior_research_sources.json": {
+      "sha256": "462a87f84258b7dacf5327b6d20dbbc43e8b857b0a01aa7bb7e67cd47d806c9d",
+      "bytes": 18026
+    },
+    "sources/source_registry.json": {
+      "sha256": "61e146099598b6e7f96d3acd2fb8cd2068c138f2be68485bc901231d95edc9df",
+      "bytes": 6961
+    }
+  }
+}

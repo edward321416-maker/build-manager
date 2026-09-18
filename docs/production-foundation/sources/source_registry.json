@@ -1,0 +1,182 @@
+[
+  {
+    "id": "G01",
+    "kind": "repo",
+    "title": "현재 main ref",
+    "url": "https://api.github.com/repos/edward321416-maker/build-manager/git/ref/heads/main",
+    "support": "6d0eaab3356b901e5ec8627c3a49e8730dd75a79 확인",
+    "read_status": "DIRECT_READ",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "G02",
+    "kind": "repo",
+    "title": "현재 App checks",
+    "url": "https://github.com/edward321416-maker/build-manager/blob/6d0eaab3356b901e5ec8627c3a49e8730dd75a79/.github/workflows/app-check.yml",
+    "support": "Shared/lint/typecheck/build/check:deps만; Mobile/Web 단위/E2E 없음",
+    "read_status": "DIRECT_READ",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "G03",
+    "kind": "repo",
+    "title": "현재 Repository checks",
+    "url": "https://github.com/edward321416-maker/build-manager/blob/6d0eaab3356b901e5ec8627c3a49e8730dd75a79/.github/workflows/repository-check.yml",
+    "support": "history scan/whitespace; scanner unittest 없음",
+    "read_status": "DIRECT_READ",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "G04",
+    "kind": "repo",
+    "title": "루트 scripts/Node 선언",
+    "url": "https://github.com/edward321416-maker/build-manager/blob/6d0eaab3356b901e5ec8627c3a49e8730dd75a79/package.json",
+    "support": "Node >=24 <25; npm workspaces; verify는 전체 시험 아님",
+    "read_status": "DIRECT_READ",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "G05",
+    "kind": "repo",
+    "title": "Mobile Jest 설정",
+    "url": "https://github.com/edward321416-maker/build-manager/blob/6d0eaab3356b901e5ec8627c3a49e8730dd75a79/apps/mobile/package.json",
+    "support": "jest-expo preset와 testMatch; 전역 testTimeout 미설정",
+    "read_status": "DIRECT_READ",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "G06",
+    "kind": "repo",
+    "title": "현재 접수 계약",
+    "url": "https://github.com/edward321416-maker/build-manager/blob/6d0eaab3356b901e5ec8627c3a49e8730dd75a79/packages/api-contracts/src/commands.ts",
+    "support": "unit 의도적 제외; rawUserText 상한 없음; production 계약 신규 설계 필요",
+    "read_status": "DIRECT_READ",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "G07",
+    "kind": "repo",
+    "title": "전달 규칙",
+    "url": "https://github.com/edward321416-maker/build-manager/blob/6d0eaab3356b901e5ec8627c3a49e8730dd75a79/governance/ai_delivery_rules.md",
+    "support": "R01~R07 이번 조회; 나머지 같은 고정 blob 이전 턴 열람; remote 쓰기 없음",
+    "read_status": "DIRECT_READ_PLUS_PRIOR_FIXED_REF",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "G08",
+    "kind": "repo",
+    "title": "AGENTS/Project policy",
+    "url": "https://github.com/edward321416-maker/build-manager/blob/6d0eaab3356b901e5ec8627c3a49e8730dd75a79/governance/project_policy.md",
+    "support": "기존 권한과 공개 안전 조건 유지",
+    "read_status": "DIRECT_READ",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S01",
+    "kind": "primary",
+    "title": "Jest 29.7 CLI",
+    "url": "https://jestjs.io/docs/29.7/cli",
+    "support": "--showConfig, cache, runInBand, CLI config, json/outputFile, timeout 의미",
+    "read_status": "REVIEWED_RELEVANT_SECTIONS",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S02",
+    "kind": "primary",
+    "title": "Jest 29.7 configuration",
+    "url": "https://jestjs.io/docs/29.7/configuration",
+    "support": "cacheDirectory/testTimeout 설정, 초기 로딩 진단 구분",
+    "read_status": "REVIEWED_RELEVANT_SECTIONS",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S03",
+    "kind": "primary",
+    "title": "npm 11 npm-ci",
+    "url": "https://docs.npmjs.com/cli/v11/commands/npm-ci/",
+    "support": "locked install, 기존 node_modules 제거, manifest/lock 무변경 의미",
+    "read_status": "REVIEWED_RELEVANT_SECTIONS",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S04",
+    "kind": "primary",
+    "title": "GitHub Actions secure use",
+    "url": "https://docs.github.com/en/actions/reference/security/secure-use",
+    "support": "full SHA pin, untrusted PR와 비밀 분리",
+    "read_status": "REVIEWED_RELEVANT_SECTIONS",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S05",
+    "kind": "primary",
+    "title": "OWASP Authorization Cheat Sheet",
+    "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+    "support": "default deny, every request, object authorization",
+    "read_status": "REVIEWED_RELEVANT_SECTIONS",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S06",
+    "kind": "primary",
+    "title": "PostgreSQL Row Security",
+    "url": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+    "support": "owner/superuser/BYPASSRLS 및 정책과 제약조건의 한계",
+    "read_status": "REVIEWED_RELEVANT_SECTIONS",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S07",
+    "kind": "primary",
+    "title": "PostgreSQL Explicit Locking",
+    "url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+    "support": "FOR SHARE/UPDATE 상충 및 고정 잠금 순서; KEY SHARE의 한계",
+    "read_status": "REVIEWED_RELEVANT_SECTIONS",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S08",
+    "kind": "primary",
+    "title": "PostgreSQL SET",
+    "url": "https://www.postgresql.org/docs/current/sql-set.html",
+    "support": "SET LOCAL은 transaction 종료 시 사라짐; pooled context 경계",
+    "read_status": "REVIEWED_RELEVANT_SECTIONS",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S09",
+    "kind": "primary",
+    "title": "RFC 9700 OAuth Security BCP",
+    "url": "https://www.rfc-editor.org/rfc/rfc9700.html",
+    "support": "PKCE S256, public client refresh rotation/sender constraint",
+    "read_status": "REVIEWED_RELEVANT_SECTIONS",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S10",
+    "kind": "primary",
+    "title": "AWS Transactional Outbox",
+    "url": "https://docs.aws.amazon.com/en_en/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html",
+    "support": "DB/write-outbox 원자성, 중복 소비와 멱등성; AWS 채택 의미 아님",
+    "read_status": "REVIEWED_RELEVANT_SECTIONS",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S11",
+    "kind": "legal_locator",
+    "title": "개인정보 보호법 제21조",
+    "url": "https://www.law.go.kr/법령/개인정보보호법/제21조",
+    "support": "이번 도구에서 본문 파싱 실패; 준수 검증 근거로 사용하지 않음",
+    "read_status": "BODY_NOT_VERIFIED_THIS_TURN",
+    "checked_date": "2026-09-18"
+  },
+  {
+    "id": "S12",
+    "kind": "legal_locator",
+    "title": "개인정보 보호법 제29조",
+    "url": "https://www.law.go.kr/법령/개인정보보호법/제29조",
+    "support": "이번 도구에서 본문 파싱 실패; 준수 검증 근거로 사용하지 않음",
+    "read_status": "BODY_NOT_VERIFIED_THIS_TURN",
+    "checked_date": "2026-09-18"
+  }
+]
