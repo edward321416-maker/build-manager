@@ -44,14 +44,88 @@ PATTERNS = {
     'credential_assignment': r'''(?im)^\s*["']?(?:password|api_key|access_token|client_secret|private_key)["']?\s*[:=]\s*["']?[^\s"'<>]{8,}''',
     'email': r'\b[A-Za-z0-9._%+-]+@(?!users\.noreply\.github\.com)[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b',
     'korean_phone': r'(?<!\d)01[016789][- .]?\d{3,4}[- .]?\d{4}(?!\d)',
-    'resident_id': r'(?<!\d)\d{6}[- ]?[1-8]\d{6}(?!\d)',
+    'resident_id': (
+        r'(?<!\d)'
+        r'\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])'
+        r'[- ]?[1-8]\d{6}'
+        r'(?!\d)'
+    ),
     'credential_url': r'https?://[^\s/:@]+:[^\s/@]+@',
     'street_address': r'[가-힣]{2,}(?:로|길)\s+\d+(?:-\d+)?\s+(?:\d+동|\d+호)',
+}
+
+PUBLIC_SOURCE_URL_IDENTITIES = {
+    # Public KNUH notice URL verified reachable on 2026-09-14. Its numeric path
+    # segment resembles a Korean resident ID, so only this exact URL is exempt.
+    '073bb0474c24b36222a6feb0b17f5c80a5576356e4cbf145156e5427e9943123': 71,
 }
 
 
 def git(*args):
     return subprocess.check_output(['git', *args])
+
+
+def is_approved_public_url_match(path, content, match):
+    for candidate in re.finditer(r'https?://', content):
+        if candidate.start() > match.start():
+            break
+        for approved_digest, url_length in PUBLIC_SOURCE_URL_IDENTITIES.items():
+            end = candidate.start() + url_length
+            if end > len(content) or not (
+                candidate.start() <= match.start() and match.end() <= end
+            ):
+                continue
+            url = content[candidate.start():end]
+            digest = hashlib.sha256(url.encode('utf-8')).hexdigest()
+            if digest != approved_digest:
+                continue
+            if end == len(content) or content[end].isspace() or content[end] in '"\'<>':
+                return True
+            if content[end] == ',' and path.endswith('.csv'):
+                return True
+            if content[end] == ')' and content[max(0, candidate.start() - 2):candidate.start()] == '](':
+                return True
+    return False
+
+
+def empty_env_example(content):
+    assignment = re.compile(
+        r'''^\s*[A-Za-z_][A-Za-z0-9_]*\s*=\s*(?:""|'')?\s*(?:#.*)?$'''
+    )
+    return all(
+        not line.strip() or line.lstrip().startswith('#') or assignment.fullmatch(line)
+        for line in content.splitlines()
+    )
+
+
+def markdown_without_fenced_code(content):
+    visible = []
+    fence_character = None
+    fence_length = 0
+    for line in content.splitlines(keepends=True):
+        if fence_character:
+            closing = re.match(
+                r'^ {0,3}(' + re.escape(fence_character) + r'{' + str(fence_length) + r',})\s*$',
+                line.rstrip('\r\n'),
+            )
+            if closing:
+                fence_character = None
+                fence_length = 0
+            visible.append('\n' if line.endswith(('\n', '\r')) else '')
+            continue
+        opening = re.match(r'^ {0,3}(`{3,}|~{3,})', line)
+        if opening:
+            fence_character = opening.group(1)[0]
+            fence_length = len(opening.group(1))
+            visible.append('\n' if line.endswith(('\n', '\r')) else '')
+            continue
+        visible.append(line)
+    return ''.join(visible)
+
+
+def markdown_link_targets(content):
+    visible = markdown_without_fenced_code(content)
+    return re.findall(r'(?<!!)\[[^\]\n]+\]\(([^)]+)\)', visible)
 
 
 def scan_content(path, data):
@@ -61,7 +135,9 @@ def scan_content(path, data):
     parts = PurePosixPath(low).parts
     if any(p in {'raw', 'private', '.private', 'secrets', 'contracts', '.agents'} for p in parts):
         findings.append('private_path')
-    if PurePosixPath(low).name.startswith('.env') or re.search(
+    is_env_path = PurePosixPath(low).name.startswith('.env')
+    is_public_env_example = path == 'web/.env.example'
+    if (is_env_path and not is_public_env_example) or re.search(
         r'(?:service.account|credentials|^token).*\.json$|\.(?:pem|key|p12|pfx|mp3|mp4|mov|wav|docx|pdf)$', low
     ):
         findings.append('sensitive_or_unreviewed_file')
@@ -69,10 +145,16 @@ def scan_content(path, data):
         content = data.decode('utf-8')
     except UnicodeDecodeError:
         return findings + ['unreviewed_binary']
+    if is_public_env_example and not empty_env_example(content):
+        findings.append('sensitive_or_unreviewed_file')
     if not content.strip():
         findings.append('empty_file')
     for name, pattern in PATTERNS.items():
-        if re.search(pattern, content):
+        matches = re.finditer(pattern, content)
+        if any(
+            name != 'resident_id' or not is_approved_public_url_match(path, content, match)
+            for match in matches
+        ):
             findings.append(name)
     if low.endswith('.md'):
         body = [s for s in content.splitlines() if s.strip() and not s.startswith('#')]
@@ -102,7 +184,7 @@ def main():
             if digest in hashes:
                 errors.append(path + ':duplicate_document:' + hashes[digest])
             hashes[digest] = path
-            for target in re.findall(r'(?<!!)\[[^\]\n]+\]\(([^)]+)\)', content):
+            for target in markdown_link_targets(content):
                 target = unquote(target.strip('<>').split('#')[0])
                 if not target or re.match(r'[a-z]+:', target):
                     continue

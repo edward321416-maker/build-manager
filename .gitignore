@@ -1,6 +1,7 @@
 # Private environment and credentials
 .env
 .env.*
+!web/.env.example
 *.pem
 *.key
 *.p12
@@ -22,9 +23,26 @@ interviews/raw/
 *.mov
 # Local environment; do not redistribute installed third-party skills
 .agents/
+.omc/
+/.superpowers/
+/.worktrees/
 .venv/
 venv/
 node_modules/
+web/node_modules/
+web/.next/
+web/.env
+web/.env.local
+web/data/*.db
+web/test-results/
+web/playwright-report/
+/web/
+apps/*/.expo/
+apps/*/.next/
+apps/*/dist/
+apps/*/coverage/
+apps/*/test-results/
+apps/*/playwright-report/
 __pycache__/
 *.pyc
 .DS_Store
@@ -33,3 +51,5 @@ Thumbs.db
 /01_problem_evidence.md
 # Generated verification caches
 .pytest_cache/
+# Local demo database created on demand by the Web API
+.build-manager-local/

@@ -1,0 +1,13 @@
+{
+  "name": "@build-manager/application",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/in-memory-adapters.ts"
+  },
+  "dependencies": {
+    "@build-manager/domain": "0.0.0"
+  }
+}
