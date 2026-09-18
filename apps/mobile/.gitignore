@@ -41,3 +41,7 @@ example
 # generated native folders
 /ios
 /android
+
+# generated expo export output
+/.expo-export-android/
+/.expo-export-ios/
