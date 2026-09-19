@@ -210,4 +210,196 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
     `, [orgId, userId]);
     expect(count.rows[0]?.count).toBe(3);
   });
+  async function createRelationshipFixture() {
+    const identity = await createIdentityAndOrganization();
+    const property = await migrationClient.query<{ id: string }>(`
+      INSERT INTO app.property (org_id, address_reference, status)
+      VALUES ($1, 'SYNTHETIC_BUILDING_REFERENCE', 'ACTIVE') RETURNING id
+    `, [identity.orgId]);
+    const propertyId = property.rows[0]!.id;
+    const unit = await migrationClient.query<{ id: string }>(`
+      INSERT INTO app.unit (org_id, property_id, label, status)
+      VALUES ($1, $2, 'SYNTHETIC_UNIT', 'ACTIVE') RETURNING id
+    `, [identity.orgId, propertyId]);
+    const unitId = unit.rows[0]!.id;
+    const occupancy = await migrationClient.query<{ id: string }>(`
+      INSERT INTO app.occupancy (org_id, unit_id, starts_at, status)
+      VALUES ($1, $2, '2026-01-01T00:00:00Z', 'ACTIVE') RETURNING id
+    `, [identity.orgId, unitId]);
+    return { ...identity, propertyId, unitId, occupancyId: occupancy.rows[0]!.id };
+  }
+
+  it.each(["", " ", " PADDED", "PADDED ", "x".repeat(513)])(
+    "rejects invalid property reference %j", async (reference) => {
+      const { orgId } = await createIdentityAndOrganization();
+      await expect(migrationClient.query(`
+        INSERT INTO app.property (org_id, address_reference, status)
+        VALUES ($1, $2, 'ACTIVE')
+      `, [orgId, reference])).rejects.toMatchObject({
+        code: "23514", constraint: "property_address_reference_shape",
+      });
+    },
+  );
+
+  it.each(["", " ", " PADDED", "PADDED ", "x".repeat(81), "CONTROL\nLABEL"])(
+    "rejects invalid unit label %j", async (label) => {
+      const { orgId, propertyId } = await createRelationshipFixture();
+      await expect(migrationClient.query(`
+        INSERT INTO app.unit (org_id, property_id, label, status)
+        VALUES ($1, $2, $3, 'ACTIVE')
+      `, [orgId, propertyId, label])).rejects.toMatchObject({
+        code: "23514", constraint: "unit_label_shape",
+      });
+    },
+  );
+
+  it("rejects case-only duplicate active labels while allowing archived history", async () => {
+    const { orgId, propertyId } = await createRelationshipFixture();
+    const insert = (status: string) => migrationClient.query(`
+      INSERT INTO app.unit (org_id, property_id, label, status)
+      VALUES ($1, $2, 'synthetic_unit', $3) RETURNING status
+    `, [orgId, propertyId, status]);
+    await expect(insert("ACTIVE")).rejects.toMatchObject({
+      code: "23505", constraint: "unit_active_label_unique",
+    });
+    expect((await insert("ARCHIVED")).rows[0]?.status).toBe("ARCHIVED");
+    expect((await insert("ARCHIVED")).rows[0]?.status).toBe("ARCHIVED");
+  });
+
+  it("rejects a cross-organization unit parent with a foreign-key violation", async () => {
+    const { propertyId } = await createRelationshipFixture();
+    const other = await createIdentityAndOrganization();
+    await expect(migrationClient.query(`
+      INSERT INTO app.unit (org_id, property_id, label, status)
+      VALUES ($1, $2, 'OTHER_SYNTHETIC_UNIT', 'ACTIVE')
+    `, [other.orgId, propertyId])).rejects.toMatchObject({
+      code: "23503", constraint: "unit_property_fk",
+    });
+  });
+
+  it("rejects a second ACTIVE occupancy while allowing ended history", async () => {
+    const { orgId, unitId } = await createRelationshipFixture();
+    const insert = (status: string) => migrationClient.query(`
+      INSERT INTO app.occupancy (org_id, unit_id, starts_at, ends_at, status)
+      VALUES ($1, $2, '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z', $3)
+      RETURNING version
+    `, [orgId, unitId, status]);
+    await expect(insert("ACTIVE")).rejects.toMatchObject({
+      code: "23505", constraint: "occupancy_one_active_unit",
+    });
+    expect((await insert("ENDED")).rows[0]?.version).toBe(1);
+    expect((await insert("ENDED")).rows[0]?.version).toBe(1);
+  });
+
+  it.each([null, "2026-01-01T00:00:00Z", "2025-12-31T00:00:00Z"])(
+    "rejects an ENDED occupancy with invalid ends_at %s", async (endsAt) => {
+      const { orgId, unitId } = await createRelationshipFixture();
+      await expect(migrationClient.query(`
+        INSERT INTO app.occupancy (org_id, unit_id, starts_at, ends_at, status)
+        VALUES ($1, $2, '2026-01-01T00:00:00Z', $3, 'ENDED')
+      `, [orgId, unitId, endsAt])).rejects.toMatchObject({
+        code: "23514", constraint: "occupancy_time_shape",
+      });
+    },
+  );
+
+  it("rejects occupancy versions below one", async () => {
+    const { occupancyId } = await createRelationshipFixture();
+    await expect(migrationClient.query(
+      "UPDATE app.occupancy SET version = 0 WHERE id = $1", [occupancyId],
+    )).rejects.toMatchObject({ code: "23514", constraint: "occupancy_version_check" });
+  });
+
+  it("rejects a duplicate ACTIVE member while allowing ended history and other users", async () => {
+    const { orgId, occupancyId, userId } = await createRelationshipFixture();
+    const insert = (memberId: string, status: string) => migrationClient.query(`
+      INSERT INTO app.occupancy_member
+        (org_id, occupancy_id, user_id, joined_at, ended_at, status)
+      VALUES ($1, $2, $3, '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z', $4)
+      RETURNING status
+    `, [orgId, occupancyId, memberId, status]);
+    expect((await insert(userId, "ACTIVE")).rows[0]?.status).toBe("ACTIVE");
+    await expect(insert(userId, "ACTIVE")).rejects.toMatchObject({
+      code: "23505", constraint: "occupancy_member_one_active_user",
+    });
+    expect((await insert(userId, "ENDED")).rows[0]?.status).toBe("ENDED");
+    expect((await insert(userId, "ENDED")).rows[0]?.status).toBe("ENDED");
+    const other = await createIdentityAndOrganization();
+    expect((await insert(other.userId, "ACTIVE")).rows[0]?.status).toBe("ACTIVE");
+  });
+
+  it.each([null, "2025-12-31T00:00:00Z"])(
+    "rejects an ENDED member with invalid ended_at %s", async (endedAt) => {
+      const { orgId, occupancyId, userId } = await createRelationshipFixture();
+      await expect(migrationClient.query(`
+        INSERT INTO app.occupancy_member
+          (org_id, occupancy_id, user_id, joined_at, ended_at, status)
+        VALUES ($1, $2, $3, '2026-01-01T00:00:00Z', $4, 'ENDED')
+      `, [orgId, occupancyId, userId, endedAt])).rejects.toMatchObject({
+        code: "23514", constraint: "occupancy_member_time_shape",
+      });
+    },
+  );
+
+  it("allows member ending exactly at joining time", async () => {
+    const { orgId, occupancyId, userId } = await createRelationshipFixture();
+    const result = await migrationClient.query(`
+      INSERT INTO app.occupancy_member
+        (org_id, occupancy_id, user_id, joined_at, ended_at, status)
+      VALUES ($1, $2, $3, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 'ENDED')
+      RETURNING status
+    `, [orgId, occupancyId, userId]);
+    expect(result.rows[0]?.status).toBe("ENDED");
+  });
+
+  it("stores the actual composite parent columns without cascading deletes", async () => {
+    const result = await migrationClient.query(`
+      SELECT source.relname AS source_table, target.relname AS target_table,
+        ARRAY(SELECT a.attname::text FROM unnest(c.conkey) WITH ORDINALITY k(num, pos)
+          JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.num
+          ORDER BY k.pos) AS source_columns,
+        ARRAY(SELECT a.attname::text FROM unnest(c.confkey) WITH ORDINALITY k(num, pos)
+          JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.num
+          ORDER BY k.pos) AS target_columns,
+        c.confdeltype AS delete_action
+      FROM pg_constraint c
+      JOIN pg_class source ON source.oid = c.conrelid
+      JOIN pg_class target ON target.oid = c.confrelid
+      JOIN pg_namespace ns ON ns.oid = source.relnamespace
+      WHERE ns.nspname = 'app' AND c.contype = 'f'
+        AND source.relname IN ('property', 'unit', 'occupancy', 'occupancy_member')
+      ORDER BY source.relname, target.relname
+    `);
+    expect(result.rows).toEqual([
+      { source_table: "occupancy", target_table: "unit", source_columns: ["org_id", "unit_id"], target_columns: ["org_id", "id"], delete_action: "a" },
+      { source_table: "occupancy_member", target_table: "app_user", source_columns: ["user_id"], target_columns: ["id"], delete_action: "a" },
+      { source_table: "occupancy_member", target_table: "occupancy", source_columns: ["org_id", "occupancy_id"], target_columns: ["org_id", "id"], delete_action: "a" },
+      { source_table: "property", target_table: "organization", source_columns: ["org_id"], target_columns: ["id"], delete_action: "a" },
+      { source_table: "unit", target_table: "property", source_columns: ["org_id", "property_id"], target_columns: ["org_id", "id"], delete_action: "a" },
+    ]);
+  });
+
+  it("stores unique ACTIVE-only indexes with exact keys and C collation", async () => {
+    const result = await migrationClient.query(`
+      SELECT t.relname AS table_name, i.indisunique AS is_unique,
+        ARRAY(SELECT pg_get_indexdef(i.indexrelid, k, true)
+          FROM generate_series(1, i.indnkeyatts) k) AS keys,
+        ARRAY(SELECT col.collname::text
+          FROM unnest(i.indcollation) WITH ORDINALITY k(collation_id, pos)
+          LEFT JOIN pg_collation col ON col.oid = k.collation_id
+          ORDER BY k.pos) AS collations,
+        pg_get_expr(i.indpred, i.indrelid) AS predicate,
+        i.indisvalid AS is_valid
+      FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid
+      JOIN pg_namespace ns ON ns.oid = t.relnamespace
+      WHERE ns.nspname = 'app' AND i.indpred IS NOT NULL
+        AND t.relname IN ('unit', 'occupancy', 'occupancy_member')
+      ORDER BY t.relname
+    `);
+    expect(result.rows).toEqual([
+      { table_name: "occupancy", is_unique: true, keys: ["org_id", "unit_id"], collations: [null, null], predicate: "(status = 'ACTIVE'::text)", is_valid: true },
+      { table_name: "occupancy_member", is_unique: true, keys: ["org_id", "occupancy_id", "user_id"], collations: [null, null, null], predicate: "(status = 'ACTIVE'::text)", is_valid: true },
+      { table_name: "unit", is_unique: true, keys: ["org_id", "property_id", "lower(label)"], collations: [null, null, "C"], predicate: "(status = 'ACTIVE'::text)", is_valid: true },
+    ]);
+  });
 });
