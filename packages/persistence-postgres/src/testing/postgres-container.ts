@@ -45,6 +45,10 @@ export async function startPostgres18Container(): Promise<Postgres18Container> {
 
   try {
     await admin.connect();
+    const version = await admin.query<{ server_version: string }>(
+      "SHOW server_version",
+    );
+    console.info("PostgreSQL server_version:", version.rows[0]?.server_version);
     const result = await admin.query<{ server_version_num: string }>(
       "SHOW server_version_num",
     );
