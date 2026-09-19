@@ -1,10 +1,21 @@
 # D06 — 검증 런타임·러너·Action 고정
 
-상태: **PLAN_DRAFT / DECISION_REQUIRED — 조회 근거 확보, 운영자 확정 대기**
-날짜: 2026-09-18
+상태: **RUNTIME_CANDIDATE_SELECTED / READY_FOR_BOOTSTRAP — 실제 toolchain 및 A 검증은 NOT_RUN**
+정정일: 2026-09-19 (이전 공식 조회일: 2026-09-18)
 조사 기준: `main@6d0eaab3356b901e5ec8627c3a49e8730dd75a79`
 
-이 문서는 PF00-A/B 실행계획이 사용할 exact 런타임을 정한다. 이번 단계에서 수행한 것은 공식 배포 조회와 GitHub API 조회뿐이다. Node 설치, `npm ci`, 제품 테스트, workflow 수정은 수행하지 않았다.
+이 문서는 PF00-A/B 실행계획이 사용할 exact 런타임을 정한다. 운영자의 2026-09-19 승인에 따라 Node **24.21.0 / bundled npm 11.19.0**을 선택했다. 아래 배포 정보는 2026-09-18 조회 기록이며 실제 bootstrap 시 공식 SHASUMS256.txt를 새로 받아 배포물과 비교한다. 문서 정정 시점 Node 설치·npm ci·제품 테스트·workflow 수정은 NOT_RUN이다.
+
+승인 순서와 검증 상태는 구분한다.
+
+| 상태 | 의미와 다음 조건 |
+|---|---|
+| RUNTIME_CANDIDATE_SELECTED | 운영자가 exact 후보를 선택. 설치 성공을 의미하지 않음 |
+| READY_FOR_BOOTSTRAP | 문서/public gate와 PR #22 merge 후 exact merged main baseline으로 격리 설치를 시작할 권한. 설치 성공을 선행 요구하지 않음 |
+| TOOLCHAIN_VERIFIED | lane별 fresh 공식 checksum 검증과 실제 Node/npm 버전·경로·OS/architecture 확인 성공 |
+| PF00_A_VERIFIED | 같은 merged main SHA의 Windows/Linux 양쪽에서 npm ci/build:web/check:deps exit 0, tracked diff 0 및 lock hash 영수증 확보 |
+
+`READY_FOR_BOOTSTRAP`인 계획도 merge/base 불변 gate 이전에는 설치를 시작하지 않는다. 한 lane만 성공하면 전체 PF00-A는 검증 완료가 아니다.
 
 ## 1. 재현 환경과 지속 운영 환경의 분리
 
@@ -13,7 +24,7 @@
 | 구분 | 목적 | 값 | 근거 |
 |---|---|---|---|
 | 대조군 (재현용) | cold Mobile 최초 실패를 원래 조건에서 다시 만들기 | Node 24.14.0 / npm 11.9.0 | 과거 실행 보고에서 실패가 관측된 조합. 성능·보안 기준이 아님 |
-| 지속 운영 후보 (CI) | PF00 이후 계속 사용할 검증 기준 | Node 24.21.0 / npm 11.19.0 | 아래 §2 |
+| 선택된 PF00 런타임 후보 | 이번 A/B 설치·측정 대상 | Node 24.21.0 / bundled npm 11.19.0 | 운영자 승인; 실제 검증은 아래 상태 gate |
 
 과거 보고의 24.14.0을 "성공했으니 기준"으로 승격하지 않는다. 그 조합은 실패를 재현하기 위한 대조군이다.
 
@@ -44,7 +55,7 @@
 | `node-v24.21.0-linux-x64.tar.xz` | `fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6` |
 | `node-v24.21.0-win-x64.zip` | `158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541` |
 
-**미확인 항목:** 실제 내려받아 설치하고 `node --version` / `npm --version` 영수증을 확보하는 일은 하지 않았다. PF00-A의 첫 단계가 이것이며, 그 전까지 이 조합을 `READY_FOR_EXECUTION`으로 쓰지 않는다.
+**미확인 항목:** 실제 설치 영수증은 아직 없다. 이를 확인하는 것이 승인된 bootstrap의 목적이다. 성공을 미리 요구하지 않고 설치를 수행하되, checksum·버전·실행 경로 확인 전에는 TOOLCHAIN_VERIFIED로 표시하지 않는다. 전역 Node는 교체하지 않으며 각 OS의 private tool 디렉터리를 사용한다.
 
 ## 3. 러너
 
@@ -97,11 +108,13 @@
 
 최종 timeout 값은 측정 근거가 있어야 한다. 열린 handle, cleanup 누락, race, 제품 결함을 timeout으로 덮지 않는다. "30초로 늘리면 된다" 같은 선결론을 계획에 넣지 않는다.
 
-## 6. 확정 대기 항목
+## 6. 선택된 값과 남은 검증
 
 | 항목 | 상태 | 확정 시점 |
 |---|---|---|
-| Node 24.21.0 / npm 11.19.0 채택 | 제안 | 운영자 확정 + PF00-A 설치 영수증 |
+| Node 24.21.0 / bundled npm 11.19.0 채택 | RUNTIME_CANDIDATE_SELECTED | 설치 영수증은 PF00-A에서 별도 검증 |
 | `ubuntu-24.04` / `windows-2025` 채택 | 제안 | 운영자 확정 |
 | action major 상향 여부 | 미결 | 별도 변경 |
-| cold 원인과 최종 timeout 값 | 미결 | PF00-B 진단 결과 |
+| cold 원인 | 미확인 | PF00-B 진단 결과; 설정 수정은 별도 승인 |
+
+이번 lane은 실제 확보한 Windows x64 및 Linux x64 환경이다. WSL은 Linux Node binary와 Linux-linked npm, process.platform=linux, arch=x64를 입증해야 한다. 로컬/WSL 결과를 ubuntu-24.04 GitHub-hosted runner 결과로 표현하지 않는다. hosted runner label/action pin 적용과 workflow 수정은 후속 미승인 범위다.

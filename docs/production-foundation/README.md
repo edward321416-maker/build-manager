@@ -1,7 +1,10 @@
 # 출시 기반 기획 (production foundation)
 
-Revision: **0.3 (저장소 등록본)**
-상태: **REVIEWED_FOR_APPROVAL / IMPLEMENTATION_NOT_STARTED**
+Revision: **0.4 (PF00-A/B 승인 반영 등록본; supersedes 0.3)**
+상태: **READY_FOR_BOOTSTRAP / RUNTIME_VERIFICATION_NOT_RUN**
+승인 반영일: 2026-09-19
+POLICY_REF: `main@6d0eaab3356b901e5ec8627c3a49e8730dd75a79`
+검토 TARGET_REF: `1556981bbdd263d2a20e8a822eba4b7a89ddf925`
 등록일: 2026-09-18
 조사 기준: `main@6d0eaab3356b901e5ec8627c3a49e8730dd75a79` (등록 직전 원격에서 다시 확인함)
 
@@ -22,13 +25,15 @@ Revision: **0.3 (저장소 등록본)**
 
 | 대상 | 상태 |
 |---|---|
-| PF00 진단·검증 범위 | 승인 검토 대상 |
-| D06 런타임 값 | **PLAN_DRAFT / DECISION_REQUIRED** — 운영자 확정 대기 |
-| PF00-A/B 실행계획 | **PLAN_DRAFT** — D06 확정 전 실행 금지 |
+| PF00 진단·검증 범위 | 운영자의 2026-09-19 지시로 A 설치 재현성 + B 진단·측정만 승인 |
+| D06 런타임 값 | **RUNTIME_CANDIDATE_SELECTED** — Node 24.21.0 / bundled npm 11.19.0 |
+| PF00-A/B 실행계획 | **READY_FOR_BOOTSTRAP** — PR #22 merge 및 exact merged main baseline 확보 후 실행 |
 | PF01 관계·권한 상세 | **검토 초안** — PF02 구현을 포괄 승인하지 않음 |
 | PF02 이후 | 승인 대상 아님 |
 
-문서 등록은 구현 승인이 아니다. 아래 56개 예정 시험(C01~C12, F01~F44)은 **전부 NOT_RUN**이다.
+이 revision의 실행 승인은 PF00-A/B로 한정된다. PF00-C 및 workflow/Jest/제품/의존성 변경은 승인하지 않는다. 아래 56개 예정 시험(C01~C12, F01~F44)은 이 문서 정정 시점 **전부 NOT_RUN**이다. 이후 실행 증거는 별도 A/B 영수증으로 기록하며 전체 PF00 완료로 승격하지 않는다.
+
+기존 blueprint/PF00/PF01/audit의 proposal과 과거 조사 상태는 보존한다. 현재 실행 권한·런타임·중단 경계는 revision 0.4의 [D06](D06_runtime_decision.md)과 [A/B 계획](PF00-A-B_implementation_plan.md)을 따른다. PF01은 계속 검토 초안이고 PF02는 미승인이다.
 
 ## 이번 등록에서 반영한 정정
 

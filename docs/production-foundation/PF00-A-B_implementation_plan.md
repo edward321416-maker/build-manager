@@ -1,7 +1,7 @@
 # PF00-A / PF00-B 실행계획
 
-상태: **PLAN_DRAFT / DECISION_REQUIRED — D06 확정 전 실행 금지**
-날짜: 2026-09-18
+상태: **READY_FOR_BOOTSTRAP — 운영자 승인, merge/baseline gate 후 A 설치 및 B 진단만 실행**
+정정일: 2026-09-19 (supersedes registered revision 0.3 실행 조건)
 조사 기준: `main@6d0eaab3356b901e5ec8627c3a49e8730dd75a79`
 선행 문서: [D06 런타임 결정](D06_runtime_decision.md), [PF00 검증 기반](PF00_verification_foundation.md)
 
@@ -13,27 +13,35 @@
 |---|---|
 | 작업 디렉터리 | 저장소 root. 명령마다 명시하며 상대경로에 의존하지 않는다 |
 | shell | POSIX sh 또는 PowerShell. 두 OS에서 각각의 정확한 명령을 기록한다 |
-| 실행 baseline | 착수 직전 원격에서 다시 조회한 feature/문서 ref. 과거 SHA를 재사용하지 않는다 |
+| 실행 baseline | PR #22 merge commit 이후 fetch한 실제 main SHA를 PF00_EXECUTION_BASELINE으로 기록. 두 lane은 정확히 같은 SHA 사용. 이전 main/PR head 사용 금지 |
 | 종료코드 | 모든 단계에서 exit code를 직접 확인한다. 파이프 뒤 종료코드를 원본 명령의 결과로 쓰지 않는다 |
 | 중단 규칙 | 승인되지 않은 파일 변경이 필요해지면 즉시 중단하고 보고한다. 범위를 넓히지 않는다 |
 
 착수 전 `git status --short --untracked-files=all`로 사용자 소유의 미설명 변경이 없음을 확인한다. 있으면 보존하고 보고한다.
 
+### 1.1 PR #22 merge gate
+
+문서·ops 로그 경로만 변경됐는지 확인하고 candidate index/public tree/reachable history 및 whitespace gate를 실행한다. PR head와 checks를 재조회하고, merge 직전 origin/main을 fetch하여 검토 base `6d0eaab3356b901e5ec8627c3a49e8730dd75a79`와 비교한다. 이동했다면 STOP_AND_REPORT; 자동 reconciliation 금지. 모든 gate가 유효하면 merge commit으로 병합하고 문서 브랜치를 보존한다. force push/amend/rebase/history rewrite는 금지한다. 병합 후 fetch한 exact main SHA와 merge parents를 확인해 PF00_EXECUTION_BASELINE으로 기록한다.
+
 ## 2. PF00-A — 지원 환경·설치 재현성
 
 ### A-1. 런타임 영수증
 
-D06에서 제안한 조합을 실제로 설치해 확인한다.
+D06에서 선택한 Node 24.21.0 / bundled npm 11.19.0을 각 OS private tool 디렉터리에 설치한다. 사용자 전역 Node는 교체하지 않는다. READY_FOR_BOOTSTRAP은 설치를 검증하기 위한 실행 권한이며 설치 성공을 사전 조건으로 요구하지 않는다.
 
 1. 공식 배포를 내려받고 `SHASUMS256.txt`의 SHA-256과 대조한다. 대조 실패는 중단 사유다.
 2. `node --version`, `npm --version` 출력을 그대로 기록한다.
-3. 러너에서는 image version, runner version, architecture를 함께 수집한다.
+3. OS/environment type, architecture, node/npm executable path를 수집한다. hosted runner인 경우에만 실제 image/runner version도 기록한다.
+4. WSL은 process.platform=linux, arch=x64, Linux binary와 Linux-linked npm을 입증한다. Windows node.exe/npm.cmd 호출은 Linux 증거가 아니다. 로컬 WSL을 GitHub-hosted ubuntu-24.04라고 보고하지 않는다.
+5. checksum·버전·경로/플랫폼 검증 성공 후 lane별 TOOLCHAIN_VERIFIED를 기록한다.
 
 기대: Node `v24.21.0`, npm `11.19.0`. 다른 값이 나오면 그 값을 기록하고 D06을 갱신한 뒤 재확정한다. alias(`24`, `latest`)만으로 동일하다고 쓰지 않는다.
 
 ### A-2. 깨끗한 설치
 
-Linux와 Windows 각각에서, 같은 SHA의 새 작업 디렉터리에:
+Linux와 Windows 각각에서, 동일 PF00_EXECUTION_BASELINE의 독립 fresh workspace를 사용한다. node_modules, Jest cache, 작업 디렉터리는 공유하지 않는다. 각 lane에서 source HEAD와 package-lock SHA-256을 설치 전후 기록한다.
+
+저장소 root에서:
 
 ```
 npm ci
@@ -56,13 +64,13 @@ npm run check:deps
 
 ### A-4. 완료 조건
 
-Linux/Windows 양쪽에서 설치·빌드·의존성 검사가 성공하고, 실제 OS·runtime·lock 해시가 영수증에 남았을 때.
+Linux/Windows 양쪽에서 npm ci/build:web/check:deps가 각각 exit 0이고 전체 tracked diff 및 manifest/lock diff가 0이며, 실제 OS·architecture·runtime 버전/경로·source HEAD·lock 해시가 영수증에 남았을 때 PF00_A_VERIFIED다. 한 필수 환경이 불가하면 그 lane은 ENVIRONMENT_BLOCKED이고 다른 lane 성공을 전체 A 성공으로 승격하지 않는다. B는 A의 선행 검사를 모두 통과한 lane에서만 시작한다.
 
 ## 3. PF00-B — cold Mobile 원인 진단
 
 ### B-1. 진단 원칙
 
-이 단계의 목적은 **원인 규명**이지 초록불 만들기가 아니다.
+이 단계는 **진단·측정만 승인**됐다. apps/mobile/package.json의 Jest 설정, testTimeout, Tenant assertion/test, 제품 코드, dependencies/devDependencies, workflow는 변경하지 않는다. systematic root-cause debugging으로 원인을 조사하며 설정 수정 전에 멈춰 증거와 최소 후속 제안만 보고한다.
 
 - 최초 cold 실패는 실패로 보존한다. warm 재실행은 대조 자료로만 기록하며 cold 실패를 대체하지 않는다.
 - 새 임시 `cacheDirectory`를 쓰는 진단과 `--no-cache`는 **다른 것**이다. 전자는 "비어 있는 캐시에서 시작"이고 후자는 "캐시를 쓰지 않음"이다. 전자를 기본으로 하고, 후자를 썼다면 그렇게 적는다.
@@ -73,7 +81,7 @@ Linux/Windows 양쪽에서 설치·빌드·의존성 검사가 성공하고, 실
 각 실행마다 다음을 남긴다.
 
 - 최초로 실패한 suite와 테스트 이름
-- 해당 실행의 총 소요시간과 그 suite의 소요시간
+- 해당 실행의 총 소요시간과 각 suite/test의 이름·상태·소요시간, exit code
 - 실패 메시지 원문 분류(타임아웃 / 열린 handle / 단언 실패 / 기타)
 - 사용한 cacheDirectory 경로와 그것이 비어 있었다는 근거
 
@@ -102,7 +110,9 @@ timeout 값을 조정하는 경우 측정된 cold 소요시간을 근거로 제�
 
 ### B-5. 완료 조건
 
-독립된 새 cache 3개, 두 OS에서 Mobile 전체 실행의 **첫 실행**이 모두 성공하고 필수 skip/todo가 없을 때. "무결함"이라는 통계적 주장은 하지 않는다.
+첫 cold가 성공하면 두 개의 별도 새 cache를 더 사용해 lane별 독립 cold 총 3회를 측정한다. 매 cold 직후 동일 cache로 warm 1회를 비교한다. cache는 생성 전 부재 및 생성 직후 비어 있음을 기록하며 기존 cache를 삭제·변경하지 않는다. cold 실패가 생기면 원래 결과와 바로 다음 warm을 보존하고 근본원인을 조사한 뒤 수정 없이 보고한다. paired warm이 실패해도 해당 pair를 그대로 보존하고 진단 후 수정 없이 중단·보고하며, cold 성공으로 warm 실패를 가리지 않는다. 실패를 만들거나 성공까지 반복하지 않는다.
+
+모든 cold 3회와 paired warm 3회가 성공하고 필수 skip/todo가 없으면 해당 lane은 NOT_REPRODUCED_AT_SELECTED_TOOLCHAIN이다. cold 3회는 성공했지만 warm이 실패했다면 cold 미재현 사실과 warm 실패를 별도로 기록하고 해당 lane 전체를 성공으로 판정하지 않는다. 이 경우 timeout 변경을 제안하지 않는다. 일부 lane만 실행되면 그 범위만 보고하며 PF00 전체 완료로 표현하지 않는다.
 
 ## 4. 이 단계에서 하지 않는 것
 
@@ -123,14 +133,39 @@ timeout 값을 조정하는 경우 측정된 cold 소요시간을 근거로 제�
 
 두 파일은 서로 다르다. 위 숫자는 소스를 읽어 센 값이며 **실행 결과가 아니다(NOT_RUN).**
 
-PF00-C에서 실제 test ID로 발견할 때 쓸 명령:
+PF00-C의 미래 canonical 명령은 각 파일의 `unittest.main()`을 **별도 process**에서 직접 실행한다. 이번 A/B 작업에서는 실행하지 않으며 두 scanner unittest는 NOT_RUN이다.
 
-```
-python3 -m unittest discover -s tests -t . -v
-python3 -m unittest discover -s scripts/tests -t . -v
+POSIX (저장소 root):
+
+```bash
+PYTHONPATH="$PWD" python3 tests/test_verify_repository.py -v
+PYTHONPATH="$PWD" python3 scripts/tests/test_verify_repository.py -v
 ```
 
-두 파일 모두 저장소 root를 기준으로 `scripts` 패키지를 import하므로 top-level 디렉터리를 root(`-t .`)로 지정한다. 발견된 test ID 수가 0이면 성공으로 판정하지 않는다. 수집 0건과 통과 0건을 구분한다.
+PowerShell (저장소 root; 기존 환경은 finally에서 복원):
+
+```powershell
+$pf00HadPythonPath = Test-Path Env:PYTHONPATH
+$pf00PreviousPythonPath = $env:PYTHONPATH
+try {
+    $env:PYTHONPATH = (Get-Location).Path
+    python3 tests/test_verify_repository.py -v
+    $pf00RootScannerExit = $LASTEXITCODE
+    python3 scripts/tests/test_verify_repository.py -v
+    $pf00ScriptScannerExit = $LASTEXITCODE
+    if ($pf00RootScannerExit -ne 0 -or $pf00ScriptScannerExit -ne 0) {
+        throw 'Scanner regression process failed'
+    }
+} finally {
+    if ($pf00HadPythonPath) {
+        $env:PYTHONPATH = $pf00PreviousPythonPath
+    } else {
+        Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+    }
+}
+```
+
+각 process는 repository root의 `scripts` import를 PYTHONPATH로 해석한다. 실제 verbose test ID·개수와 각각의 exit code를 기록하며 0-test 성공은 인정하지 않는다. unittest discover의 top-level import 가능성에 기대는 명령을 canonical로 사용하지 않는다.
 
 "현재 자동 실행 연결이 없음"과 "과거 어느 환경에서도 실행된 적 없음"은 다르다. 후자는 이력을 확인하지 않았으므로 주장하지 않는다.
 

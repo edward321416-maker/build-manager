@@ -1,24 +1,24 @@
 {
-  "revision": "0.3",
+  "revision": "0.4",
   "generated_for": "docs/production-foundation registration",
   "baseline": "main@6d0eaab3356b901e5ec8627c3a49e8730dd75a79",
-  "note": "Distinct revision from the original package manifest. The original 16 checksums are not reused as evidence for this registered set.",
+  "note": "Revision 0.4 hashes and byte counts freshly recomputed from every registered file; revision 0.3 and original-package hashes are historical evidence only.",
   "files": {
     "00_foundation_blueprint.md": {
       "sha256": "ee47013f395d34d9435d7cfb201dc403dff4d89eb9a55d5d77a46c7ff76af999",
       "bytes": 10703
     },
     "AUDIT_REPORT.md": {
-      "sha256": "846ea68d7b5250b9b916cb58d671ec6947a8106493f529aafbccdb1d5a906453",
-      "bytes": 19308
+      "sha256": "1e6fd18df295e1f3efafa97a8c57a2aabfd642ce6d90d648aaea4e5901bd8168",
+      "bytes": 20023
     },
     "D06_runtime_decision.md": {
-      "sha256": "9940d4272c1cc01debc30d9d737256e8f497cc92fbb09837d00c2f9ee1e861a0",
-      "bytes": 5327
+      "sha256": "7e0361a42b70bb85c56b4c9c979b712ccbe94170a0353c0dc564048a8959bbfa",
+      "bytes": 6959
     },
     "PF00-A-B_implementation_plan.md": {
-      "sha256": "21ca68ce9a3af4bf31444438baef16e1e415f6bae53eeb6d4cf256ae7f203b92",
-      "bytes": 8089
+      "sha256": "678fd7beea97a2d495916022bb853b6a9fd2e920399d5f1b549149b9d2df42e4",
+      "bytes": 12245
     },
     "PF00_verification_foundation.md": {
       "sha256": "dc983fc81755b1818c6f787cc082e0d6f6ec35106deecc05c21091635ac00b69",
@@ -29,8 +29,8 @@
       "bytes": 26785
     },
     "README.md": {
-      "sha256": "037931e85ee47923dc66b2382f9f7f6c575275b5c1160287495208d7c406d110",
-      "bytes": 4207
+      "sha256": "9cc2d7057cb55cff9f0ae32f924bf80cf84a83bd33147da44401b5bcb08c4c12",
+      "bytes": 5029
     },
     "acceptance_cases.json": {
       "sha256": "5dd78db32b883707622b71e59ca0719b7d9699608dba781f52ffd30b56d44253",
@@ -52,5 +52,6 @@
       "sha256": "61e146099598b6e7f96d3acd2fb8cd2068c138f2be68485bc901231d95edc9df",
       "bytes": 6961
     }
-  }
+  },
+  "supersedes": "0.3"
 }

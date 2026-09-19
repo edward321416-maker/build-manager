@@ -5,6 +5,10 @@
 검토자: 이번 응답 작성자. 별도 독립 에이전트/사람의 코드 리뷰를 수행했다고 주장하지 않는다.
 판정: **REVIEWED_FOR_APPROVAL**. 범위 내 확인한 문서상 충돌·모호성을 수정했다. 실제 앱/DB/CI 회귀 시험은 수행하지 않았고 출시 적합성 판정도 아니다.
 
+## Revision 0.4 실행 권한 정정 (2026-09-19)
+
+아래 기존 감사 기록은 2026-09-18 문서 검토 snapshot으로 보존한다. 운영자는 Node 24.21.0 / bundled npm 11.19.0 후보와 PF00-A 설치 재현성 및 PF00-B 진단·측정만 승인했다. 현재 조건은 [D06](D06_runtime_decision.md)과 [A/B 계획](PF00-A-B_implementation_plan.md)을 따른다. 설치 미검증은 bootstrap을 막는 순환 조건이 아니다. PF00-C scanner 명령은 직접 파일 실행 + root PYTHONPATH로 정정했으며 실행 상태는 NOT_RUN이다. PF01은 검토 초안, PF02는 미승인이다. 등록 revision 0.4의 실제 bytes로 checksum을 재계산하며 0.3 영수증을 재사용하지 않는다.
+
 ## 1. 실제 수행한 일
 
 - GitHub 연결을 통한 main ref·고정 커밋의 정책, CI, package metadata, CreateTicketRequest, test tsconfig 확인.
