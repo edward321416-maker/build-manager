@@ -1,3 +1,21 @@
+# PF00 freeze reconciliation — revision 0.6
+
+Revision: **0.6 (supersedes 0.5)** | Snapshot: 2026-09-19
+POLICY_REF: `333228163227d55d13e514fb9311ecb8b9dea615`. Freeze-record TARGET_REF: `6669c50ee5c2a07d40412a7162ddf381fa4698b1`.
+Current disposition: **PF00 FROZEN / VERIFIED BASELINE; PF00-D ACCEPTED_AND_INTEGRATED**. PF01 remains REVIEW_DRAFT; PF02 remains NOT_AUTHORIZED / NOT_STARTED.
+
+The operator-side independent acceptance of PR #24 at `f8cbcdbd0c3ec7fde2e298a78f8c809caa1c2e19` is classified **OPERATOR_SIDE_INDEPENDENT_ACCEPTANCE**. It verified seven authorized documentation/ops paths, all eight PR checks, revision 0.5 remote UTF-8 hash/byte matches 12/12, C01–C12 provenance and all 44 F-cases NOT_RUN. The executor does not claim authorship of that independent review.
+
+This executor freshly verified and merged the accepted head with expected-head protection. Parents are `333228163227d55d13e514fb9311ecb8b9dea615` and `f8cbcdbd0c3ec7fde2e298a78f8c809caa1c2e19`; resulting main is `6669c50ee5c2a07d40412a7162ddf381fa4698b1`. The original branch and accepted tree are preserved. New push-to-main runs **35442667639 / 35442667660**, attempt 1, pass all eight required jobs. Actual logs show Shared301/Web256/Mobile133 per OS/E2E21/scanners3+14, Doctor1.20.4 21/21, and executed Android29/iOS25 JS/assets exports; all six aggregate dependencies report success. PR CI was not substituted for main publication evidence.
+
+Canonical receipt: [PF00-D independent acceptance and freeze](../../ops/pf00_d_acceptance.md). [C/F statuses](acceptance_cases.json) remain byte-for-byte unchanged. C12 still means PR #23 PF00-C publication. Revision 0.6 freshly recomputes every existing manifest entry from final bytes, preserving 12 entries and self-exclusion. The revision 0.5 and earlier audits below are retained verbatim as historical snapshots, including their then-pending acceptance language; this section owns the current freeze disposition.
+
+CodeRabbit remains SUCCESS_STATUS / REVIEW_SKIPPED, not independent review evidence. **OPEN_RISK / dependency-security-triage:** 14 moderate npm vulnerabilities and unrs-resolver install-script warning. **OPEN_RISK / ci-supply-chain-maintenance:** pinned v4 Actions older internal-runtime warning and hosted Node24 forcing. Neither is fixed here; both remain follow-up work before private beta/release.
+
+PF00 freeze establishes the reproducible production development/verification foundation and available automatic checks, not production/launch/real-user readiness. Production auth/database, real identity and real property/unit/occupancy persistence are not implemented; actual tenant data is not authorized; security/privacy work is not complete. Merge enforcement is unchanged. The next activity is PF01 consequential-decision review, not implementation. External sync remains PENDING.
+
+## Retained revision 0.5 and earlier audit snapshots — verbatim
+
 # PF00 evidence reconciliation and historical audit
 
 Revision: **0.5 (supersedes 0.4)** | Snapshot: 2026-09-19
