@@ -1,69 +1,61 @@
 # 출시 기반 기획 (production foundation)
 
-Revision: **0.4 (PF00-A/B 승인 반영 등록본; supersedes 0.3)**
-상태: **READY_FOR_BOOTSTRAP / RUNTIME_VERIFICATION_NOT_RUN**
-승인 반영일: 2026-09-19
-POLICY_REF: `main@6d0eaab3356b901e5ec8627c3a49e8730dd75a79`
-검토 TARGET_REF: `1556981bbdd263d2a20e8a822eba4b7a89ddf925`
-등록일: 2026-09-18
-조사 기준: `main@6d0eaab3356b901e5ec8627c3a49e8730dd75a79` (등록 직전 원격에서 다시 확인함)
+Revision: **0.5 (PF00 증거 정리; supersedes 0.4)**
+Snapshot: 2026-09-19
+POLICY_REF: `main@333228163227d55d13e514fb9311ecb8b9dea615`
+TARGET_REF / PF00-C publication: `333228163227d55d13e514fb9311ecb8b9dea615`
+상태: **READY_TO_FREEZE_AFTER_PF00_D_ACCEPTANCE** — PF00-D 문서 PR의 독립 인수 전이며 아직 freeze하지 않았다.
 
-이 디렉터리는 출시 기반 기획의 canonical 위치다. 원본 패키지는 저장소 밖의 immutable reference로 보존하며, 여기에는 공개 검토를 통과한 문서만 등록한다.
+이 디렉터리는 production-foundation의 canonical 기획·검증 기록이다. PF00 구현은 PR #23으로 main에 통합됐고 실제 merged-main CI가 통과했다. 이번 revision은 그 증거를 정리하며 새로운 제품 구현을 승인하지 않는다.
+
+## 현재 상태와 증거
+
+| 대상 | 상태 | 근거 |
+| --- | --- | --- |
+| Prototype / baseline MVP | INTEGRATED | 합성 Web/Mobile 흐름과 현재 main CI |
+| PF00-A | VERIFIED_FROM_ACCEPTED_EXECUTOR_EVIDENCE | [A/B 인수 기록](../../ops/pf00_ab_acceptance.md); 로컬 재실행과 구분 |
+| PF00-B | NOT_REPRODUCED_AT_SELECTED_TOOLCHAIN | OS별 독립 cold 3회 통과; root cause 미확정; timeout 변경 없음 |
+| PF00-C | ACCEPTED_AND_INTEGRATED | [인수·실제 main 공개 증거](../../ops/pf00_c_acceptance.md) |
+| PF00-D | EVIDENCE_FINALIZATION_RECORDED / ACCEPTANCE_PENDING | 이 revision과 문서 PR; PR 자체의 인수·병합을 주장하지 않음 |
+| PF01 | REVIEW_DRAFT | [관계·권한 설계](PF01_data_authorization.md); 구현 승인 아님 |
+| PF02 | NOT_AUTHORIZED / NOT_STARTED | F01–F44 모두 NOT_RUN |
+
+Node **24.21.0 / bundled npm 11.19.0**을 유지한다. PF00-C에서 별도 승인한 Expo SDK 57 패치 네 개와 필요한 lockfile 변경은 통합됐으며, 보호 대상 플랫폼 키 67개가 모두 남아 있다. 이 숫자는 현재 관측값이며 영구 고정 규칙이 아니다.
 
 ## 읽는 순서
 
-1. [전체 기획](00_foundation_blueprint.md) — 무엇을 먼저 만들고 어디에서 멈출지
-2. [PF00 검증 기반](PF00_verification_foundation.md) — 설치·cold Mobile·전체 CI·증거 기반
-3. [D06 런타임 결정](D06_runtime_decision.md) — exact Node/npm·러너·action 고정
-4. [PF00-A/B 실행계획](PF00-A-B_implementation_plan.md) — 다음에 실행할 범위
-5. [PF01 데이터·권한](PF01_data_authorization.md) — **검토 초안**, 승인된 정책이 아님
-6. [기획 감사 기록](AUDIT_REPORT.md) — 16개 설계 보완과 56개 예정 검증 사례
+1. [PF00-C 인수·공개 기록](../../ops/pf00_c_acceptance.md) — PR RED/GREEN, 실제 main CI, 독립 인수와 한계.
+2. [A/B 승인된 실행자 증거](../../ops/pf00_ab_acceptance.md) — 실제 hosted-runner 증거와 구분.
+3. [검증표](acceptance_cases.json) — C01–C12의 출처별 상태와 F01–F44 NOT_RUN.
+4. [감사 기록](AUDIT_REPORT.md) — revision 0.5 정합성 검토와 보존된 역사적 설계 감사.
+5. [전체 기획](00_foundation_blueprint.md), [PF00 계획](PF00_verification_foundation.md), [D06](D06_runtime_decision.md), [A/B 계획](PF00-A-B_implementation_plan.md) — 각 작성 시점의 설계·승인·실행계획.
+6. [PF01 설계](PF01_data_authorization.md), [단계 의존관계](phase_dependencies.json), [출처](sources/README.md) — 후속 검토 자료.
 
-기계 판독: [검증표](acceptance_cases.json), [단계 의존관계](phase_dependencies.json), [출처](sources/README.md).
+기존 blueprint/PF00/D06/A-B 계획의 과거 상태 문구는 역사적 snapshot으로 보존했다. 이후 실제 수행·현재 상태는 이 README, canonical 검증표, 연결된 ops 인수 기록을 따른다. 과거 NOT_RUN 문구를 현재 결과로 읽거나 PF01/PF02 실행 승인으로 확대하지 않는다.
 
-## 승인 상태의 구분
+## C01–C12 상태의 의미
 
-| 대상 | 상태 |
-|---|---|
-| PF00 진단·검증 범위 | 운영자의 2026-09-19 지시로 A 설치 재현성 + B 진단·측정만 승인 |
-| D06 런타임 값 | **RUNTIME_CANDIDATE_SELECTED** — Node 24.21.0 / bundled npm 11.19.0 |
-| PF00-A/B 실행계획 | **READY_FOR_BOOTSTRAP** — PR #22 merge 및 exact merged main baseline 확보 후 실행 |
-| PF01 관계·권한 상세 | **검토 초안** — PF02 구현을 포괄 승인하지 않음 |
-| PF02 이후 | 승인 대상 아님 |
+C01–C04는 `PASS_ACCEPTED_EXECUTOR_EVIDENCE`, C05–C09는 `PASS_GITHUB_CI`, C10은 `PASS_MERGED_MAIN_PUBLIC_GATE`, C11은 `PASS_PF00_D_EVIDENCE_RECONCILIATION`, C12는 `PASS_PF00_C_PUBLICATION`이다. C12는 PR #23의 실제 main 공개를 가리키며 PF00-D 문서 PR의 병합을 뜻하지 않는다.
 
-이 revision의 실행 승인은 PF00-A/B로 한정된다. PF00-C 및 workflow/Jest/제품/의존성 변경은 승인하지 않는다. 아래 56개 예정 시험(C01~C12, F01~F44)은 이 문서 정정 시점 **전부 NOT_RUN**이다. 이후 실행 증거는 별도 A/B 영수증으로 기록하며 전체 PF00 완료로 승격하지 않는다.
+첫 PR 시도의 Doctor mismatch와 export NOT_RUN을 보존했다. 새 PR head의 GREEN과 실제 main push CI도 각각 기록했다. CodeRabbit은 **SUCCESS_STATUS / SKIPPED**이며 독립 코드 리뷰가 아니다. PF00-C 독립 인수는 운영자 측 Git·로그·manifest·lockfile·CI 검토다.
 
-기존 blueprint/PF00/PF01/audit의 proposal과 과거 조사 상태는 보존한다. 현재 실행 권한·런타임·중단 경계는 revision 0.4의 [D06](D06_runtime_decision.md)과 [A/B 계획](PF00-A-B_implementation_plan.md)을 따른다. PF01은 계속 검토 초안이고 PF02는 미승인이다.
+## 검사 범위와 한계
 
-## 이번 등록에서 반영한 정정
+현재 workflow는 scanner 직접 파일 실행(3 + 14), Shared/Web 단위, Linux/Windows cold Mobile, Web E2E, lint, typecheck, build, dependency, pinned Doctor와 Android/iOS JS export를 실행한다. `typecheck`에는 `typecheck:tests`가 포함되지만 타입 검사는 런타임 테스트가 아니다. 사례 수 비중은 코드 커버리지나 제품 완성률이 아니다.
 
-앞선 검증 보고에 세 가지 정정이 필요했고, 실제 저장소에 대고 다시 확인했다.
+`foundation-gate`는 필수 결과가 모두 success일 때만 통과한다. `CHECKS_AVAILABLE`과 `CHECKS_EXECUTED`는 확인됐고, `MERGE_ENFORCED`는 변경하지 않았다. branch protection을 새로 설정했다는 뜻이 아니다.
 
-**`typecheck:tests`는 CI 미실행 항목이 아니다.** root `package.json`의 `typecheck`가 내부에서 `npm run typecheck:tests`를 호출하고, `app-check.yml`이 `npm run typecheck`를 실행한다. 다만 타입 검사는 테스트의 런타임 실행을 대체하지 않는다.
+PF00 완료는 개발·검증 기반의 재현성과 사용 가능한 자동 검사 gate를 뜻한다. production-ready, launch-ready, real-user-ready를 뜻하지 않는다. 실제 identity/property/unit/occupancy, production PostgreSQL/auth, 개인정보 운영, 실제 임차인 데이터는 후속 미구현 범위다. 보안·개인정보 검토 완료도 주장하지 않는다.
 
-**301/711 ≈ 42.3%는 코드 커버리지가 아니다.** 전달된 네 테스트 그룹의 **사례 수 비중**일 뿐이며, 검증된 기능 비율·안전성·출시 완성률이 아니다. 해당 개수는 과거 실행 보고에서 온 값이고 이번에 재실행한 수치가 아니다.
+## 남은 위험
 
-**Scanner는 "현재 자동 실행 연결이 없음"으로 기록한다.** `tests/test_verify_repository.py`와 `scripts/tests/test_verify_repository.py`가 존재하고 어느 workflow·npm script에서도 호출되지 않는 것은 확인했다. 그러나 과거 어느 환경에서도 실행된 적이 없다는 주장은 이력을 확인하지 않았으므로 하지 않는다.
+- **OPEN_RISK / dependency-security-triage:** npm 14 moderate vulnerabilities 및 unrs-resolver install-script 경고. 별도 검토 전 audit fix/script 승인을 하지 않는다.
+- **OPEN_RISK / ci-supply-chain-maintenance:** pinned v4 Actions의 오래된 내부 Node 대상과 hosted Node24 강제 실행 경고. Action major 갱신은 별도 범위다.
 
-현재 workflow가 직접·간접으로 연결하지 않은 주요 그룹은 `test:web`, `test:mobile`, `test:e2e:web`와 위 두 scanner unittest다.
+이 위험은 관측된 PF00-C 통과 증거를 소급 취소하지 않지만 private beta/release 전까지 명시적으로 유지한다.
 
-## 등록에서 제외한 것과 이유
+## 무결성과 원본 보존
 
-| 제외 | 이유 |
-|---|---|
-| 원본 ZIP | 저장소 밖 immutable reference로 보존 |
-| 원본 `SHA256SUMS.json` | 등록본은 revision이 다르므로 새 checksum을 계산했다. 원본 16개 checksum을 수정본의 증거로 재사용하지 않는다 |
-| `audit/AI_Execution_Log.csv` | raw 실행로그. 통째로 올리지 않고 이번 사건만 `ops/AI_Execution_Log.csv`에 append |
-| `audit/tool_schema_index.json` | tool schema cache |
-| `audit/pending_external_sync.md` | 저장소의 `ops/pending_external_sync.md`와 중복 canonical |
-| `audit/baseline_receipt.json` 등 감사 영수증 | 이번 등록 직전의 fresh 확인으로 대체 |
+[SHA256SUMS.json](SHA256SUMS.json)은 기존 12개 항목의 최종 UTF-8 bytes/hash를 revision 0.5에서 모두 다시 계산한 manifest다. 설계와 항목 집합은 유지하며 자기 자신을 해시하지 않는다. 변경 없는 파일의 해시가 같더라도 이번 바이트에서 재계산했다. revision 0.4/원본 ZIP의 해시를 새 revision 증거로 재사용하지 않았다.
 
-로컬 절대경로, 외부 Google 목적지 ID, 인증값은 포함되지 않았음을 등록 전에 확인했다.
-
-## 무결성
-
-이 디렉터리의 등록 파일 해시는 [SHA256SUMS.json](SHA256SUMS.json)에 있다. 원본 패키지 16개 파일의 해시와는 **별개의 revision**이다.
-
-## 외부 동기화
-
-Google Drive/Sheets 전송은 수행하지 않았고 `PENDING`이다. 목적지 식별자와 인증값은 공개 문서에 포함하지 않는다.
+원본 ZIP, raw receipt/log, 로컬 절대경로, 외부 Google 목적지, 인증값은 공개하지 않는다. Google Sheets/Drive는 **PENDING**이며 [기존 대기 큐](../../ops/pending_external_sync.md)를 사용한다.

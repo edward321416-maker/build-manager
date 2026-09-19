@@ -7,7 +7,14 @@
     "action": "npm ci + Web build + dependency 검사",
     "expected": "양쪽 성공, 추가 tracked diff 0, 실제 OS/runtime/lock hash 기록",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_ACCEPTED_EXECUTOR_EVIDENCE",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_ab_acceptance.md",
+      "classification": "PASS_ACCEPTED_EXECUTOR_EVIDENCE",
+      "source_ref": "067985d07b1f3aba69b46374f567545b734d4b64",
+      "note": "Accepted Windows11 x64 / Ubuntu26.04 WSL2 x64 receipts at the exact A/B baseline: install/build/dependencies exit0 and tracked diff0; not independently rerun by PF00-D."
+    }
   },
   {
     "id": "C02",
@@ -17,7 +24,14 @@
     "action": "실행계획의 exact pin과 실제 설치 비교",
     "expected": "Node/npm/action/ref가 계획과 일치, 이동 alias만으로 동일 주장 금지",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_ACCEPTED_EXECUTOR_EVIDENCE",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_ab_acceptance.md",
+      "classification": "PASS_ACCEPTED_EXECUTOR_EVIDENCE",
+      "source_ref": "067985d07b1f3aba69b46374f567545b734d4b64",
+      "note": "Accepted exact Node24.21.0/npm11.19.0 toolchain receipts. Current hosted workflow pins are separately inspected; WSL evidence is not hosted Ubuntu evidence."
+    }
   },
   {
     "id": "C03",
@@ -27,7 +41,14 @@
     "action": "cold 실행과 같은 cache warm 실행 대조",
     "expected": "최초 실패 원인과 suite/시간 보존, warm 성공으로 cold 실패를 삭제하지 않음",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_ACCEPTED_EXECUTOR_EVIDENCE",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_ab_acceptance.md",
+      "classification": "PASS_ACCEPTED_EXECUTOR_EVIDENCE",
+      "source_ref": "067985d07b1f3aba69b46374f567545b734d4b64",
+      "note": "Three preserved cold/warm pairs per OS; NOT_REPRODUCED_AT_SELECTED_TOOLCHAIN; ROOT_CAUSE_NOT_ESTABLISHED; no timeout/config change."
+    }
   },
   {
     "id": "C04",
@@ -37,7 +58,14 @@
     "action": "Linux/Windows 전체 Mobile 각각 3회",
     "expected": "모든 예정 run 첫 실행 성공, 필수 skip/todo 없음; 무결함 통계 주장은 하지 않음",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_ACCEPTED_EXECUTOR_EVIDENCE",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_ab_acceptance.md",
+      "classification": "PASS_ACCEPTED_EXECUTOR_EVIDENCE",
+      "source_ref": "067985d07b1f3aba69b46374f567545b734d4b64",
+      "note": "Three independent fresh cold caches per OS, all 13 suites/133 tests, no failed/skipped/todo. Accepted executor evidence, not statistical proof of no defects."
+    }
   },
   {
     "id": "C05",
@@ -47,7 +75,23 @@
     "action": "tests와 scripts/tests의 test ID 발견 및 실행",
     "expected": "0-test 성공 불가; 양쪽 scanner regression 실제 실행",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_GITHUB_CI",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_c_acceptance.md",
+      "classification": "PASS_GITHUB_CI",
+      "source_ref": "333228163227d55d13e514fb9311ecb8b9dea615",
+      "note": "Both direct scanner processes ran with explicit root PYTHONPATH and 3/14 inventory guards on PR and actual main.",
+      "pr_head": "33d1d77e913692fefb61550984353645b4574409",
+      "pr_ci_runs": [
+        35440280982,
+        35440280999
+      ],
+      "main_push_runs": [
+        35440841108,
+        35440841105
+      ]
+    }
   },
   {
     "id": "C06",
@@ -57,7 +101,23 @@
     "action": "Web 단위/Mobile/Shared/E2E/lint/type/build/dependency job 실행",
     "expected": "필수 job 누락/skipped/cancelled는 gate 실패",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_GITHUB_CI",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_c_acceptance.md",
+      "classification": "PASS_GITHUB_CI",
+      "source_ref": "333228163227d55d13e514fb9311ecb8b9dea615",
+      "note": "Eight required checks succeeded on PR and fresh push-to-main; Shared301/Web256/Mobile133 per OS/E2E21 plus lint/typecheck/build/dependencies; foundation requires six success results.",
+      "pr_head": "33d1d77e913692fefb61550984353645b4574409",
+      "pr_ci_runs": [
+        35440280982,
+        35440280999
+      ],
+      "main_push_runs": [
+        35440841108,
+        35440841105
+      ]
+    }
   },
   {
     "id": "C07",
@@ -67,7 +127,23 @@
     "action": "권한과 checkout/action source 검사",
     "expected": "production secret 없음; reviewed full SHA; 검증 없던 artifact 실행 안 함",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_GITHUB_CI",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_c_acceptance.md",
+      "classification": "PASS_GITHUB_CI",
+      "source_ref": "333228163227d55d13e514fb9311ecb8b9dea615",
+      "note": "Executed pinned workflows plus source inspection: contents read, persist-credentials false, full checkout/setup-node v4 SHAs, no production-secret references or pull_request_target. Not a comprehensive security audit; open supply-chain risks retained.",
+      "pr_head": "33d1d77e913692fefb61550984353645b4574409",
+      "pr_ci_runs": [
+        35440280982,
+        35440280999
+      ],
+      "main_push_runs": [
+        35440841108,
+        35440841105
+      ]
+    }
   },
   {
     "id": "C08",
@@ -77,7 +153,23 @@
     "action": "Doctor pin/version과 실제 결과 기록",
     "expected": "exit0/failed0; 원격 metadata 변동을 구분, exclude 우회 없음",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_GITHUB_CI",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_c_acceptance.md",
+      "classification": "PASS_GITHUB_CI",
+      "source_ref": "333228163227d55d13e514fb9311ecb8b9dea615",
+      "note": "Preserved Doctor1.20.4 first RED20/21; separate dependency correction; accepted PR and actual main Doctor21/21 exit0 without exclusions.",
+      "pr_head": "33d1d77e913692fefb61550984353645b4574409",
+      "pr_ci_runs": [
+        35440280982,
+        35440280999
+      ],
+      "main_push_runs": [
+        35440841108,
+        35440841105
+      ]
+    }
   },
   {
     "id": "C09",
@@ -87,7 +179,23 @@
     "action": "Android/iOS JS export",
     "expected": "새 비어있는 경로 생성물과 SHA 연결; native/device 주장 금지",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_GITHUB_CI",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_c_acceptance.md",
+      "classification": "PASS_GITHUB_CI",
+      "source_ref": "333228163227d55d13e514fb9311ecb8b9dea615",
+      "note": "Actual PR and main mobile-health export steps succeeded in fresh temporary destinations: Android29/iOS25 files. JS/assets only, no native/device claims.",
+      "pr_head": "33d1d77e913692fefb61550984353645b4574409",
+      "pr_ci_runs": [
+        35440280982,
+        35440280999
+      ],
+      "main_push_runs": [
+        35440841108,
+        35440841105
+      ]
+    }
   },
   {
     "id": "C10",
@@ -97,7 +205,23 @@
     "action": "repository/tree/history/whitespace 검사",
     "expected": "0 findings, actual checked 범위를 명시; scanner 종합보안 인증 아님",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_MERGED_MAIN_PUBLIC_GATE",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_c_acceptance.md",
+      "classification": "PASS_MERGED_MAIN_PUBLIC_GATE",
+      "source_ref": "333228163227d55d13e514fb9311ecb8b9dea615",
+      "note": "Actual merged main verifier: 284 files,90 internal links,559 reachable blobs,0 findings; direct scanners and merge-aware whitespace gates passed. Docs candidate has separate public validation before publication.",
+      "pr_head": "33d1d77e913692fefb61550984353645b4574409",
+      "pr_ci_runs": [
+        35440280982,
+        35440280999
+      ],
+      "main_push_runs": [
+        35440841108,
+        35440841105
+      ]
+    }
   },
   {
     "id": "C11",
@@ -107,7 +231,14 @@
     "action": "STATUS/검사 진입점/영수증 대조",
     "expected": "실행한 검사와 누락/OPEN RISK를 분리하고 raw log 비밀 제거",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_PF00_D_EVIDENCE_RECONCILIATION",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_c_acceptance.md",
+      "classification": "PASS_PF00_D_EVIDENCE_RECONCILIATION",
+      "source_ref": "333228163227d55d13e514fb9311ecb8b9dea615",
+      "note": "Revision0.5 reconciles STATUS, current workflow entrypoints, PR versus main receipts, accepted executor versus independent review evidence, CodeRabbit skip, open risks and pending external sync; PF00-D docs acceptance remains pending."
+    }
   },
   {
     "id": "C12",
@@ -117,7 +248,23 @@
     "action": "exact ref와 scope/diff 확인",
     "expected": "기존 frozen history 보존, 비승인 경로 없음, 실제 checked tree와 원격 대응",
     "planned_evidence": "actual commands + environment + exit/test results + SHA",
-    "status": "NOT_RUN"
+    "status": "PASS_PF00_C_PUBLICATION",
+    "evidence_revision": "0.5",
+    "evidence": {
+      "record": "../../ops/pf00_c_acceptance.md",
+      "classification": "PASS_PF00_C_PUBLICATION",
+      "source_ref": "333228163227d55d13e514fb9311ecb8b9dea615",
+      "note": "PR23 merge readback verified exact parents and same tree as accepted head; original branch preserved; actual main push CI succeeded. This is PF00-C implementation/CI publication, not merging the PF00-D docs PR.",
+      "pr_head": "33d1d77e913692fefb61550984353645b4574409",
+      "pr_ci_runs": [
+        35440280982,
+        35440280999
+      ],
+      "main_push_runs": [
+        35440841108,
+        35440841105
+      ]
+    }
   },
   {
     "id": "F01",

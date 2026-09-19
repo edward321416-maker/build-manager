@@ -1,3 +1,29 @@
+# PF00 evidence reconciliation and historical audit
+
+Revision: **0.5 (supersedes 0.4)** | Snapshot: 2026-09-19
+POLICY_REF / PF00-D TARGET_REF: `333228163227d55d13e514fb9311ecb8b9dea615`.
+Current disposition: **READY_TO_FREEZE_AFTER_PF00_D_ACCEPTANCE**. PF00-C is independently accepted and integrated; PF00-D documentation awaits independent acceptance. PF01 remains REVIEW_DRAFT and PF02 NOT_AUTHORIZED / NOT_STARTED.
+
+## Revision 0.5 reconciliation
+
+The operator independently accepted PF00-C after reviewing Git evidence, workflow logs, direct manifest/lockfile deltas and CI. This executor then verified the pinned pre-merge refs/checks, merged PR #23 with expected-head protection, checked both merge parents and the unchanged candidate tree, preserved its branch, and read back actual merged main. Fresh main push runs **35440841108 / 35440841105** at `333228163227d55d13e514fb9311ecb8b9dea615` passed all eight required checks. PR CI was not substituted for main publication evidence.
+
+Canonical evidence: [PF00-C acceptance](../../ops/pf00_c_acceptance.md), [A/B accepted executor evidence](../../ops/pf00_ab_acceptance.md), [current status](../../STATUS.md), and [case registry](acceptance_cases.json). C01–C04 use PASS_ACCEPTED_EXECUTOR_EVIDENCE; C05–C09 PASS_GITHUB_CI; C10 PASS_MERGED_MAIN_PUBLIC_GATE; C11 PASS_PF00_D_EVIDENCE_RECONCILIATION; C12 PASS_PF00_C_PUBLICATION. C12 concerns PR #23 publication, not the PF00-D docs PR. All F01–F44 stay NOT_RUN.
+
+The first Doctor mismatch (20/21, mobile-health/foundation FAIL, exports NOT_RUN) remains historical RED. Separately approved SDK57 direct patches produced fresh PR GREEN at `33d1d77...` and then actual main GREEN. No timeout/Doctor exclusion/product/workflow change was used to conceal that mismatch. PF00-D itself changes no application, workflow, dependency, scanner or test code.
+
+CodeRabbit classification is **SUCCESS_STATUS / SKIPPED**: its comment says automatic review was skipped below 10 repository stars. It is not independent code-review evidence. Local executor receipts, operator-side independent acceptance, GitHub PR jobs and actual main jobs are separate evidence classes.
+
+C11 reconciles available and executed test gates, actor/source distinctions, pending docs acceptance, raw-data exclusion and visible risks. Registered revision 0.5 recomputes all 12 existing manifest entries from final bytes, retaining the manifest design. The structural/public gates on the documentation candidate complement, rather than replace, the merged-main runtime evidence.
+
+**OPEN_RISK / dependency-security-triage:** npm reports 14 moderate vulnerabilities and an unrs-resolver install-script warning. **OPEN_RISK / ci-supply-chain-maintenance:** pinned v4 Actions target an older internal Node runtime and GitHub forces Node24. Neither is remediated here; both remain visible before private beta/release without retroactively erasing the observed CI results.
+
+PF00 verifies reproducible development and automatic available-check gates, not production/launch/real-user readiness or completed security/privacy review. Production identity/property/unit/occupancy, PostgreSQL/auth and real tenant-data operations are future work. MERGE_ENFORCED is unchanged. External Google sync remains PENDING.
+
+## Historical planning audit — retained verbatim below
+
+All dates, current-state wording, approval boundaries, NOT_RUN statements and planned scenarios below describe their original 2026-09-18/19 snapshots. They are retained for provenance and do not override revision 0.5's current evidence registry or authorize PF01/PF02 execution.
+
 # 기획 전수점검 기록
 
 날짜: 2026-09-18
