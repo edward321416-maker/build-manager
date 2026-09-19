@@ -1,0 +1,562 @@
+[
+  {
+    "id": "C01",
+    "phase": "PF00-A",
+    "requirement": "install",
+    "precondition": "동일 SHA의 새 Linux/Windows 작업환경",
+    "action": "npm ci + Web build + dependency 검사",
+    "expected": "양쪽 성공, 추가 tracked diff 0, 실제 OS/runtime/lock hash 기록",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "C02",
+    "phase": "PF00-A",
+    "requirement": "toolchain",
+    "precondition": "Node24 계열/지정 npm/runtime image",
+    "action": "실행계획의 exact pin과 실제 설치 비교",
+    "expected": "Node/npm/action/ref가 계획과 일치, 이동 alias만으로 동일 주장 금지",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "C03",
+    "phase": "PF00-B",
+    "requirement": "cold-diagnosis",
+    "precondition": "새 Jest cacheDirectory의 전체 Mobile",
+    "action": "cold 실행과 같은 cache warm 실행 대조",
+    "expected": "최초 실패 원인과 suite/시간 보존, warm 성공으로 cold 실패를 삭제하지 않음",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "C04",
+    "phase": "PF00-B",
+    "requirement": "cold-acceptance",
+    "precondition": "고정 수정 후보와 독립 새 cache 3개/OS",
+    "action": "Linux/Windows 전체 Mobile 각각 3회",
+    "expected": "모든 예정 run 첫 실행 성공, 필수 skip/todo 없음; 무결함 통계 주장은 하지 않음",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "C05",
+    "phase": "PF00-C",
+    "requirement": "scanner-regression",
+    "precondition": "두 scanner unittest 위치",
+    "action": "tests와 scripts/tests의 test ID 발견 및 실행",
+    "expected": "0-test 성공 불가; 양쪽 scanner regression 실제 실행",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "C06",
+    "phase": "PF00-C",
+    "requirement": "coverage",
+    "precondition": "일반 PR와 merged main 후보",
+    "action": "Web 단위/Mobile/Shared/E2E/lint/type/build/dependency job 실행",
+    "expected": "필수 job 누락/skipped/cancelled는 gate 실패",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "C07",
+    "phase": "PF00-C",
+    "requirement": "ci-security",
+    "precondition": "untrusted PR 입력",
+    "action": "권한과 checkout/action source 검사",
+    "expected": "production secret 없음; reviewed full SHA; 검증 없던 artifact 실행 안 함",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "C08",
+    "phase": "PF00-C",
+    "requirement": "doctor",
+    "precondition": "same candidate의 health 환경",
+    "action": "Doctor pin/version과 실제 결과 기록",
+    "expected": "exit0/failed0; 원격 metadata 변동을 구분, exclude 우회 없음",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "C09",
+    "phase": "PF00-C",
+    "requirement": "bundle",
+    "precondition": "동일 SHA와 새 export 출력경로",
+    "action": "Android/iOS JS export",
+    "expected": "새 비어있는 경로 생성물과 SHA 연결; native/device 주장 금지",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "C10",
+    "phase": "PF00-D",
+    "requirement": "public-gate",
+    "precondition": "공개될 후보 index와 reachable history",
+    "action": "repository/tree/history/whitespace 검사",
+    "expected": "0 findings, actual checked 범위를 명시; scanner 종합보안 인증 아님",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "C11",
+    "phase": "PF00-D",
+    "requirement": "evidence",
+    "precondition": "docs와 current workflows",
+    "action": "STATUS/검사 진입점/영수증 대조",
+    "expected": "실행한 검사와 누락/OPEN RISK를 분리하고 raw log 비밀 제거",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "C12",
+    "phase": "PF00-D",
+    "requirement": "publication",
+    "precondition": "최종 publication 직전/직후",
+    "action": "exact ref와 scope/diff 확인",
+    "expected": "기존 frozen history 보존, 비승인 경로 없음, 실제 checked tree와 원격 대응",
+    "planned_evidence": "actual commands + environment + exit/test results + SHA",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F01",
+    "phase": "PF02-A",
+    "requirement": "I02",
+    "precondition": "활성 ORG_ADMIN과 자기 조직",
+    "action": "건물·호실 생성 후 다른 조직에서 조회",
+    "expected": "자기 조직만 생성/조회, 다른 조직 응답에 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F02",
+    "phase": "PF02-B",
+    "requirement": "I01",
+    "precondition": "일반 입주자 세션",
+    "action": "role/view/actorUserId 주입",
+    "expected": "권한 상승·actor 변경 없음; strict schema 또는 현재 서버 정책으로 거부",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F03",
+    "phase": "PF02-D",
+    "requirement": "I02",
+    "precondition": "다른 조직의 실재 ticketId를 앎",
+    "action": "상세 API 호출",
+    "expected": "404 비노출, 본문/관계 정보/DB변경 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F04",
+    "phase": "PF02-D",
+    "requirement": "I02",
+    "precondition": "조직A 세션",
+    "action": "목록의 orgId/page/filter를 B로 치환",
+    "expected": "B 데이터 없음; 페이지 개수/오류로 B 존재를 공개하지 않음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F05",
+    "phase": "PF02-D",
+    "requirement": "I03",
+    "precondition": "staff는 건물A만 배정",
+    "action": "건물B 티켓 읽기/답변",
+    "expected": "거부, 변경 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F06",
+    "phase": "PF02-C",
+    "requirement": "I05",
+    "precondition": "미수락 초대가 만료 또는 철회",
+    "action": "정상 로그인 사용자 수락",
+    "expected": "새 관계 없음, 비노출 오류",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F07",
+    "phase": "PF02-C",
+    "requirement": "I05",
+    "precondition": "같은 토큰으로 두 동시 요청",
+    "action": "두 DB connection의 수락 경합",
+    "expected": "OccupancyMember 하나; 현재 유효한 동일 사용자 재요청만 기존 결과",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F08",
+    "phase": "PF02-C",
+    "requirement": "I06",
+    "precondition": "발급자 권한철회와 초대 수락 동시",
+    "action": "두 commit 순서를 각각 barrier로 재현",
+    "expected": "철회 먼저면 거부; 수락 먼저면 유효관계 유지, 발급자 퇴사로 자동퇴거 안 됨",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F09",
+    "phase": "PF02-D",
+    "requirement": "I04",
+    "precondition": "유효 입주자와 자기 occupancy",
+    "action": "텍스트 신고",
+    "expected": "서버가 자기 unit/member/actor를 확정하고 FK 관계 일치",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F10",
+    "phase": "PF02-D",
+    "requirement": "I03",
+    "precondition": "유효 입주자",
+    "action": "다른 unit/occupancy ID 신고",
+    "expected": "거부, 다른 호실 요청 생성 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F11",
+    "phase": "PF02-D",
+    "requirement": "I07",
+    "precondition": "DB commit 뒤 응답만 유실",
+    "action": "같은 clientRequestId와 내용으로 재시도",
+    "expected": "원래 티켓 하나와 같은 결과; 중복 티켓 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F12",
+    "phase": "PF02-D",
+    "requirement": "I03",
+    "precondition": "첫 구현에서 대리접수는 유예",
+    "action": "resident가 onBehalfOf/creator 값으로 다른 사람 위장",
+    "expected": "서버 소유 필드 거부; 본인 신고자 변조 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F13",
+    "phase": "PF02-C",
+    "requirement": "I06",
+    "precondition": "입주기간 종료 commit 완료",
+    "action": "이전 세션으로 읽기/쓰기",
+    "expected": "현재 호실의 새 요청 거부; User의 다른 활성 관계는 유지",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F14",
+    "phase": "PF02-D",
+    "requirement": "I08",
+    "precondition": "같은 Unit에 새 Occupancy",
+    "action": "새 입주자가 과거 티켓 ID/이력 조회",
+    "expected": "과거 개인대화/주소세부/파일 메타데이터 없음; 옛 티켓 FK 재연결 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F15",
+    "phase": "PF02-B",
+    "requirement": "I06",
+    "precondition": "직원 담당범위 철회 또는 membership 종료",
+    "action": "이전 로그인 토큰으로 티켓 읽기/답변",
+    "expected": "새 요청 거부; 단순 JWT role로 이전 허용 유지하지 않음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F16",
+    "phase": "PF02-A",
+    "requirement": "I09",
+    "precondition": "관계 생성 중 DB 실패 injection",
+    "action": "초대소비/관계생성 중간단계 오류",
+    "expected": "전체 rollback, 소비된 초대만 남거나 거짓 성공하지 않음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F17",
+    "phase": "PF02-E",
+    "requirement": "I10",
+    "precondition": "production mode의 synthetic DB만 사용",
+    "action": "v1 read/write/reset/test identity 경로를 시도",
+    "expected": "업무 데이터 접근 불가; reset이 실제 DB에 연결되지 않음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F18",
+    "phase": "PF02-A",
+    "requirement": "I02",
+    "precondition": "poolSize=1의 app runtime role",
+    "action": "A→rollback→B→missing context 요청 순서",
+    "expected": "A row가 B/missing context에 보이지 않음; transaction context 누수 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F19",
+    "phase": "PF02-A",
+    "requirement": "I10",
+    "precondition": "migration owner와 app runtime role 분리",
+    "action": "같은 격리 시험을 비특권 app role로 실행",
+    "expected": "owner/superuser/BYPASSRLS 사용 안 함; tenant context 없는 일반 업무 거부",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F20",
+    "phase": "PF02-E",
+    "requirement": "I12",
+    "precondition": "Web/Mobile 세션과 invitation return",
+    "action": "앱 재시작·재로그인·다른 계정 deep link",
+    "expected": "정확한 현재 User에만 연결; 다른 계정에 자동 부여 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F21",
+    "phase": "PF02-B",
+    "requirement": "I01",
+    "precondition": "같은 User는 조직A admin·조직B resident",
+    "action": "두 context 교대 및 섞인 요청",
+    "expected": "각 관계 권한만 적용; A admin이 B admin으로 전이되지 않음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F22",
+    "phase": "PF02-D",
+    "requirement": "I08",
+    "precondition": "같은 Occupancy에 여러 구성원",
+    "action": "주민A가 주민B의 티켓 조회",
+    "expected": "기본 거부; 공동거주가 개인대화 자동열람으로 이어지지 않음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F23",
+    "phase": "PF02-A",
+    "requirement": "I04",
+    "precondition": "같은 Unit에 두 startOccupancy 동시",
+    "action": "별도 transaction으로 ACTIVE 추가",
+    "expected": "active 기간 하나; 승자 외는 명시적 충돌",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F24",
+    "phase": "PF02-C",
+    "requirement": "I04",
+    "precondition": "두 구성원 중 한 구성원만 종료",
+    "action": "각 세션으로 자기 신고와 context 확인",
+    "expected": "종료자 차단, 다른 구성원과 그 티켓은 유지",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F25",
+    "phase": "PF02-B",
+    "requirement": "I06",
+    "precondition": "User/Organization 정지 또는 Property/Unit 비활성화",
+    "action": "새 읽기/쓰기 명령",
+    "expected": "해당 일반업무 접근 차단; 보안 정지가 last-admin guard로 막히지 않음; 본인 개인정보 요청은 별도 경로 유지",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F26",
+    "phase": "PF02-B",
+    "requirement": "I10",
+    "precondition": "Organization PENDING 또는 mode 미승인",
+    "action": "실데이터 업무 API 활성화 시도",
+    "expected": "업무 거부; 운영 확인 없이 self-signup을 실권한 증명으로 취급 안 함",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F27",
+    "phase": "PF02-C",
+    "requirement": "I05",
+    "precondition": "초대 수신대상과 다른 verified identity",
+    "action": "전달받은 초대 링크 수락",
+    "expected": "관계 생성 없음, 원 수신대상/건물 상세 비노출",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F28",
+    "phase": "PF02-C",
+    "requirement": "I05",
+    "precondition": "토큰이 유효했으나 잠금 대기 중 만료",
+    "action": "잠금 해제 후 수락",
+    "expected": "대기 후 DB 시간으로 만료 판정; 관계 생성 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F29",
+    "phase": "PF02-D",
+    "requirement": "I06",
+    "precondition": "권한검사·쓰기와 입주 종료 경합",
+    "action": "두 connection barrier로 commit 순서를 교대",
+    "expected": "쓰기 먼저면 당시 유효; 종료 먼저면 재검증 거부; 종료 후 새 쓰기 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F30",
+    "phase": "PF02-D",
+    "requirement": "I07",
+    "precondition": "한때 성공한 요청과 이후 퇴거",
+    "action": "기존 idempotency key로 replay",
+    "expected": "권한 확인 후 거부; 과거 receipt가 body를 유출/관계를 재활성화하지 않음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F31",
+    "phase": "PF02-D",
+    "requirement": "I07",
+    "precondition": "같은 org/actor/operation/request key",
+    "action": "payload만 바꿔 재제출",
+    "expected": "409, 원래 리소스 유지; 다른 org/actor receipt는 별도 scope",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F32",
+    "phase": "PF02-D",
+    "requirement": "I09",
+    "precondition": "서로 다른 client가 같은 version을 읽음",
+    "action": "If-Match로 동시 수정",
+    "expected": "하나 성공, stale은412; last-write-wins로 덮어쓰지 않음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F33",
+    "phase": "PF02-D",
+    "requirement": "I08",
+    "precondition": "internal과 resident-visible 메시지 혼재",
+    "action": "resident 응답/페이지/쓰기 검사",
+    "expected": "INTERNAL 원문이 payload에 없음; resident INTERNAL 생성 거부",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F34",
+    "phase": "PF02-E",
+    "requirement": "I11",
+    "precondition": "초대/입주/세션 철회 뒤 이전 backup 복원",
+    "action": "격리된 복원환경에서 조정 후 접근시도",
+    "expected": "최신 철회/삭제 조정·세션무효화 전 공개금지; 복원으로 접근 부활 안 됨",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F35",
+    "phase": "PF02-B",
+    "requirement": "I01",
+    "precondition": "identity provider/JWKS 검증 오류",
+    "action": "보호된 API 호출",
+    "expected": "fail closed, mock identity/demo fallback 없음, 재시도 오류도 비밀 미노출",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F36",
+    "phase": "PF02-E",
+    "requirement": "I10",
+    "precondition": "실패 경로·입력 공격·초대 요청",
+    "action": "로그/오류/감사/아티팩트 조사",
+    "expected": "원문/토큰/파일URL/실연락처 미복제; 내부 식별자도 접근통제",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F37",
+    "phase": "PF02-D",
+    "requirement": "I10",
+    "precondition": "UTF-8/한글/emoji 및 본문 경계",
+    "action": "2,000 codepoints/64KiB/page50 위아래 시험",
+    "expected": "동일 계약의 경계 처리, 초과 무음 절삭·거짓접수 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F38",
+    "phase": "PF02-E",
+    "requirement": "I10",
+    "precondition": "production에서 DB/mode 설정 누락",
+    "action": "서비스 조립/연결실패",
+    "expected": "시작/요청 실패; fixture seed와 SQLite fallback 없음",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F39",
+    "phase": "PF02-B",
+    "requirement": "I03",
+    "precondition": "마지막 admin 두 개의 권한제거 요청 경합",
+    "action": "자발적 탈퇴/강등 명령 동시",
+    "expected": "org lock으로 0 active admin 방지; 보안 계정정지는 별도로 허용하고 org 업무 잠금",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F40",
+    "phase": "PF02-E",
+    "requirement": "I12",
+    "precondition": "실제 Web 로그인과 Mobile 개발빌드, 같은 staging API",
+    "action": "Web/앱 교대 신고·답변·조회 및 퇴거",
+    "expected": "같은 ticketId·DB결과와 권한을 사용; mock DTO만으로 대체 안 됨, emulator/수동 여부 기록",
+    "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F41",
+    "phase": "PF02-A",
+    "requirement": "I02",
+    "precondition": "orgA의 unit/occupancy/member와 orgB 부모 조합",
+    "action": "runtime DB role에서 교차조직·불일치 FK insert/update 시도",
+    "expected": "application guard와 복합 FK/쓰기 정책이 모두 거부; 부모 관계 불일치가 저장되지 않음",
+    "planned_evidence": "real PostgreSQL/API + explicit security assertions",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F42",
+    "phase": "PF02-C",
+    "requirement": "I04",
+    "precondition": "상태 ACTIVE지만 시작 전 또는 종료시각 경과",
+    "action": "UTC 시간 경계에서 신규 권한검사",
+    "expected": "status만으로 허용하지 않고 시간조건까지 검사; 이전 판단을 cache로 재사용하지 않음",
+    "planned_evidence": "real PostgreSQL/API + explicit security assertions",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F43",
+    "phase": "PF02-A",
+    "requirement": "I02",
+    "precondition": "두 조직이 같은 공공주소를 입력",
+    "action": "각각 건물을 등록하고 검색",
+    "expected": "org-scoped 개별 자원; 타 조직 데이터/입주자 자동 합병·노출 없음",
+    "planned_evidence": "real PostgreSQL/API + explicit security assertions",
+    "status": "NOT_RUN"
+  },
+  {
+    "id": "F44",
+    "phase": "PF02-B",
+    "requirement": "I03",
+    "precondition": "일반 플랫폼 지원 계정",
+    "action": "조직 티켓 API 직접 접근",
+    "expected": "기본 거부; global superadmin 화면 우회 없음; 별도 break-glass 승인/구현 전 데이터 열람 불가",
+    "planned_evidence": "real PostgreSQL/API + explicit security assertions",
+    "status": "NOT_RUN"
+  }
+]
