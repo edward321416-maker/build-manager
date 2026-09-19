@@ -1,5 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { Client, type ClientConfig } from "pg";
+import { Client, type ClientConfig, type PoolClient } from "pg";
+import { randomUUID } from "node:crypto";
+import * as publicApi from "@build-manager/persistence-postgres";
+import { createPostgresDatabase, withTransaction, withOrgTransaction } from "@build-manager/persistence-postgres";
+import { getInternalPool } from "../../packages/persistence-postgres/src/database";
 import {
   provisionTestRoles,
   runPostgresMigrations,
@@ -14,6 +18,7 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
   let diagnostics: unknown[][] = [];
   let migrationClient: Client;
   let runtimeConfig: ClientConfig;
+  let migrationConfig: ClientConfig;
 
   beforeAll(async () => {
     const info = vi.spyOn(console, "info");
@@ -30,6 +35,7 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
     await migrationClient.connect();
     await runPostgresMigrations(migrationClient);
     runtimeConfig = roles.runtimeConfig;
+    migrationConfig = roles.migrationConfig;
   }, 120_000);
 
   afterAll(async () => {
@@ -39,6 +45,176 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
       await postgres?.stop();
     }
   }, 60_000);
+
+  it("commits a write only after the operation completes on one backend", async () => {
+    const database = createPostgresDatabase({ ...migrationConfig, max: 1 });
+    const id = randomUUID();
+    try {
+      const result = await withTransaction(database, async (client) => {
+        const before = await client.query("SELECT pg_backend_pid() AS pid, txid_current()::text AS tx");
+        await client.query("INSERT INTO app.organization (id, status, display_name) VALUES ($1, 'ACTIVE', 'SYNTHETIC_TX')", [id]);
+        expect((await migrationClient.query("SELECT id FROM app.organization WHERE id = $1", [id])).rows).toEqual([]);
+        const after = await client.query("SELECT pg_backend_pid() AS pid, txid_current()::text AS tx");
+        expect(after.rows).toEqual(before.rows);
+        return { id, pid: before.rows[0].pid };
+      });
+      expect(result.id).toBe(id);
+      expect((await migrationClient.query("SELECT id FROM app.organization WHERE id = $1", [id])).rows).toEqual([{ id }]);
+      await withTransaction(database, async (client) => {
+        expect((await client.query("SELECT pg_backend_pid() AS pid")).rows[0].pid).toBe(result.pid);
+      });
+    } finally { await database.close(); }
+  });
+
+  it("rolls back a valid write after an actual database error and reuses the client", async () => {
+    const database = createPostgresDatabase({ ...migrationConfig, max: 1 });
+    const id = randomUUID();
+    let pid: number | undefined;
+    let primary: unknown;
+    try {
+      const transaction = withTransaction(database, async (client) => {
+        pid = (await client.query("SELECT pg_backend_pid() AS pid")).rows[0].pid;
+        await client.query("INSERT INTO app.organization (id, status, display_name) VALUES ($1, 'ACTIVE', 'SYNTHETIC_ROLLBACK')", [id]);
+        try { await client.query("SELECT 1 / 0"); } catch (error) { primary = error; throw error; }
+      });
+      await expect(transaction).rejects.toMatchObject({ code: "22012" });
+      await expect(transaction).rejects.toBe(primary);
+      expect((await migrationClient.query("SELECT id FROM app.organization WHERE id = $1", [id])).rows).toEqual([]);
+      await withTransaction(database, async (client) => {
+        expect((await client.query("SELECT pg_backend_pid() AS pid")).rows[0].pid).toBe(pid);
+        expect((await client.query("SELECT 42 AS answer")).rows[0].answer).toBe(42);
+      });
+    } finally { await database.close(); }
+  });
+
+  it("sets parameterized organization context locally and clears it after commit and rollback", async () => {
+    const database = createPostgresDatabase({ ...runtimeConfig, max: 1 });
+    const orgId = randomUUID();
+    const primary = new Error("SYNTHETIC_OPERATION_FAILURE");
+    let pid: number | undefined;
+    const inspectContext = async (client: publicApi.SqlClient, expected: string | null) => {
+      const result = await client.query("SELECT pg_backend_pid() AS pid, NULLIF(current_setting('app.org_id', true), '') AS org");
+      expect(result.rows[0].org).toBe(expected);
+      pid ??= result.rows[0].pid;
+      expect(result.rows[0].pid).toBe(pid);
+    };
+    try {
+      await withOrgTransaction(database, orgId, (client) => inspectContext(client, orgId));
+      await withTransaction(database, (client) => inspectContext(client, null));
+      await expect(withOrgTransaction(database, orgId, async (client) => {
+        await inspectContext(client, orgId);
+        throw primary;
+      })).rejects.toBe(primary);
+      await withTransaction(database, (client) => inspectContext(client, null));
+    } finally { await database.close(); }
+  });
+
+  it.each(["", "not-a-uuid", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA", "aaaaaaaaaaaa4aaa8aaaaaaaaaaaaaaa", "aaaaaaaa-aaaa-0aaa-8aaa-aaaaaaaaaaaa", "aaaaaaaa-aaaa-4aaa-7aaa-aaaaaaaaaaaa", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa ", null, 123])(
+    "rejects non-canonical org %j before acquiring or calling the operation", async (orgId) => {
+      const database = createPostgresDatabase(runtimeConfig);
+      const pool = getInternalPool(database);
+      const connect = vi.spyOn(pool, "connect");
+      const operation = vi.fn(async () => undefined);
+      try {
+        await expect(withOrgTransaction(database, orgId as string, operation)).rejects.toThrow("Expected canonical lowercase UUID");
+        expect(connect).not.toHaveBeenCalled();
+        expect(operation).not.toHaveBeenCalled();
+      } finally { connect.mockRestore(); await database.close(); }
+    },
+  );
+
+  it("shares one close promise and exposes only the safe public handle and exports", async () => {
+    const database = createPostgresDatabase(runtimeConfig);
+    expect(Object.keys(database)).toEqual(["close"]);
+    expect(Object.keys(publicApi).sort()).toEqual(["createPostgresDatabase", "withOrgTransaction", "withTransaction"]);
+    const first = database.close();
+    const second = database.close();
+    // Await both before asserting identity so a failing implementation cannot leak a rejection.
+    const outcomes = await Promise.allSettled([first, second]);
+    expect(outcomes.map((outcome) => outcome.status)).toEqual(["fulfilled", "fulfilled"]);
+    expect(second).toBe(first);
+    expect(database.close()).toBe(first);
+  });
+
+  it("rejects a fabricated close-only handle without calling the operation", async () => {
+    const operation = vi.fn(async () => undefined);
+    await expect(withTransaction({ close: async () => undefined }, operation)).rejects.toThrow("Unknown PostgresDatabase handle");
+    expect(operation).not.toHaveBeenCalled();
+  });
+
+  describe("transaction cleanup fault injection (not server fault evidence)", () => {
+    it.each([
+      { stage: "BEGIN", rollbackFails: false, releaseFails: false, commands: ["BEGIN"], destroy: true },
+      { stage: "OPERATION", rollbackFails: false, releaseFails: false, commands: ["BEGIN", "ROLLBACK"], destroy: false },
+      { stage: "CONTEXT", rollbackFails: false, releaseFails: false, commands: ["BEGIN", "CONTEXT", "ROLLBACK"], destroy: false },
+      { stage: "COMMIT", rollbackFails: false, releaseFails: false, commands: ["BEGIN", "COMMIT", "ROLLBACK"], destroy: true },
+      { stage: "OPERATION", rollbackFails: true, releaseFails: false, commands: ["BEGIN", "ROLLBACK"], destroy: true },
+      { stage: "COMMIT", rollbackFails: true, releaseFails: false, commands: ["BEGIN", "COMMIT", "ROLLBACK"], destroy: true },
+      { stage: "BEGIN", rollbackFails: false, releaseFails: true, commands: ["BEGIN"], destroy: true },
+      { stage: "OPERATION", rollbackFails: false, releaseFails: true, commands: ["BEGIN", "ROLLBACK"], destroy: false },
+      { stage: "OPERATION", rollbackFails: true, releaseFails: true, commands: ["BEGIN", "ROLLBACK"], destroy: true },
+      { stage: "COMMIT", rollbackFails: true, releaseFails: true, commands: ["BEGIN", "COMMIT", "ROLLBACK"], destroy: true },
+    ])("preserves $stage failure (rollback=$rollbackFails, release=$releaseFails)", async ({ stage, rollbackFails, releaseFails, commands, destroy }) => {
+      const database = createPostgresDatabase(runtimeConfig);
+      const primary = Object.freeze(new Error("SYNTHETIC_PRIMARY"));
+      const rollbackError = new Error("SYNTHETIC_ROLLBACK_FAILURE");
+      const releaseError = new Error("SYNTHETIC_RELEASE_FAILURE");
+      const query = vi.fn(async (sql: string) => {
+        const command = sql.startsWith("SELECT pg_catalog.set_config") ? "CONTEXT" : sql;
+        if (command === stage) throw primary;
+        if (command === "ROLLBACK" && rollbackFails) throw rollbackError;
+        return { rows: [] };
+      });
+      const release = vi.fn(() => { if (releaseFails) throw releaseError; });
+      const client = { query, release } as unknown as PoolClient;
+      const connect = vi.spyOn(getInternalPool(database), "connect").mockImplementation(async () => client);
+      const operation = vi.fn(async (received: publicApi.SqlClient) => {
+        expect(received).toBe(client);
+        if (stage === "OPERATION") throw primary;
+        return "SYNTHETIC_RESULT";
+      });
+      try {
+        const transaction = stage === "CONTEXT"
+          ? withOrgTransaction(database, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", operation)
+          : withTransaction(database, operation);
+        if (rollbackFails || releaseFails) {
+          const errors = [primary, ...(rollbackFails ? [rollbackError] : []), ...(releaseFails ? [releaseError] : [])];
+          await expect(transaction).rejects.toBeInstanceOf(AggregateError);
+          await expect(transaction).rejects.toMatchObject({ cause: primary, errors });
+        } else { await expect(transaction).rejects.toBe(primary); }
+        expect(query.mock.calls.map(([sql]) => sql.startsWith("SELECT pg_catalog.set_config") ? "CONTEXT" : sql)).toEqual(commands);
+        if (stage === "CONTEXT") expect(query).toHaveBeenNthCalledWith(2, "SELECT pg_catalog.set_config('app.org_id', $1, true)", ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]);
+        expect(operation).toHaveBeenCalledTimes(stage === "BEGIN" || stage === "CONTEXT" ? 0 : 1);
+        expect(connect).toHaveBeenCalledTimes(1);
+        expect(release).toHaveBeenCalledExactlyOnceWith(destroy);
+      } finally { connect.mockRestore(); await database.close(); }
+    });
+
+    it("propagates release failure after a committed operation", async () => {
+      const database = createPostgresDatabase(runtimeConfig);
+      const primary = new Error("SYNTHETIC_RELEASE_FAILURE");
+      const query = vi.fn(async () => ({ rows: [] }));
+      const release = vi.fn(() => { throw primary; });
+      const connect = vi.spyOn(getInternalPool(database), "connect").mockImplementation(async () => ({ query, release } as unknown as PoolClient));
+      try {
+        await expect(withTransaction(database, async () => "done")).rejects.toBe(primary);
+        expect(query.mock.calls).toEqual([["BEGIN"], ["COMMIT"]]);
+        expect(release).toHaveBeenCalledExactlyOnceWith(false);
+      } finally { connect.mockRestore(); await database.close(); }
+    });
+
+    it.each([undefined, null, false, 0, "SYNTHETIC_THROWN_STRING"])("preserves arbitrary thrown value %j after rollback", async (primary) => {
+      const database = createPostgresDatabase(runtimeConfig);
+      const query = vi.fn(async () => ({ rows: [] }));
+      const release = vi.fn();
+      const connect = vi.spyOn(getInternalPool(database), "connect").mockImplementation(async () => ({ query, release } as unknown as PoolClient));
+      try {
+        await expect(withTransaction(database, async () => { throw primary; })).rejects.toBe(primary);
+        expect(query.mock.calls).toEqual([["BEGIN"], ["ROLLBACK"]]);
+        expect(release).toHaveBeenCalledExactlyOnceWith(false);
+      } finally { connect.mockRestore(); await database.close(); }
+    });
+  });
 
   it("runs the exact PostgreSQL 18.6 server", async () => {
     const result = await postgres!.admin.query<{ server_version_num: string }>(
