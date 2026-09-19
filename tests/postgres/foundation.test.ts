@@ -479,6 +479,157 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
     } finally { await database.close(); }
   });
 
+  // Database prerequisites only: canonical F01/F16/F41/F43 remain NOT_RUN.
+  it("A-ISO-01 database isolation prerequisite for F01: runtime creates and reads Property/Unit with tenant isolation", async () => {
+    const a = await createIdentityAndOrganization();
+    const b = await createIdentityAndOrganization();
+    const database = createPostgresDatabase({ ...runtimeConfig, max: 1 });
+    const properties = [randomUUID(), randomUUID()];
+    const units = [randomUUID(), randomUUID()];
+    try {
+      for (const [index, fixture] of [a, b].entries()) {
+        await withOrgTransaction(database, fixture.orgId, async (client) => {
+          expect((await client.query("SELECT current_user, session_user")).rows).toEqual([
+            { current_user: TEST_RUNTIME_ROLE, session_user: TEST_RUNTIME_ROLE },
+          ]);
+          await client.query(`
+            INSERT INTO app.property (id, org_id, address_reference, status)
+            VALUES ($1, $2, 'SYNTHETIC_A_ISO_REFERENCE', 'ACTIVE')
+          `, [properties[index], fixture.orgId]);
+          await client.query(`
+            INSERT INTO app.unit (id, org_id, property_id, label, status)
+            VALUES ($1, $2, $3, 'SYNTHETIC_A_ISO_UNIT', 'ACTIVE')
+          `, [units[index], fixture.orgId, properties[index]]);
+        });
+      }
+      await withOrgTransaction(database, a.orgId, async (client) => {
+        expect((await client.query("SELECT id, org_id FROM app.property WHERE id = ANY($1::uuid[])", [properties])).rows)
+          .toEqual([{ id: properties[0], org_id: a.orgId }]);
+        expect((await client.query("SELECT id, org_id, property_id FROM app.unit WHERE id = ANY($1::uuid[])", [units])).rows)
+          .toEqual([{ id: units[0], org_id: a.orgId, property_id: properties[0] }]);
+      });
+      await withOrgTransaction(database, b.orgId, async (client) => {
+        expect((await client.query("SELECT id FROM app.property WHERE org_id = $1", [a.orgId])).rows).toEqual([]);
+        expect((await client.query("SELECT id FROM app.unit WHERE org_id = $1", [a.orgId])).rows).toEqual([]);
+        expect((await client.query("SELECT id FROM app.property WHERE id = $1", [properties[1]])).rows)
+          .toEqual([{ id: properties[1] }]);
+        expect((await client.query("SELECT id FROM app.unit WHERE id = $1", [units[1]])).rows)
+          .toEqual([{ id: units[1] }]);
+      });
+      await withTransaction(database, async (client) => {
+        expect((await client.query("SELECT app.current_org_id() AS org")).rows).toEqual([{ org: null }]);
+        expect((await client.query("SELECT id FROM app.property")).rows).toEqual([]);
+        expect((await client.query("SELECT id FROM app.unit")).rows).toEqual([]);
+      });
+    } finally { await database.close(); }
+  });
+
+  it("A-TX-01 database transaction prerequisite for F16: a duplicate key rolls back the preceding valid write", async () => {
+    const database = createPostgresDatabase(migrationConfig);
+    const userId = randomUUID();
+    try {
+      await expect(withTransaction(database, async (client) => {
+        await client.query("INSERT INTO app.app_user (id, status) VALUES ($1, 'ACTIVE')", [userId]);
+        expect((await client.query("SELECT id FROM app.app_user WHERE id = $1", [userId])).rows)
+          .toEqual([{ id: userId }]);
+        await client.query("INSERT INTO app.app_user (id, status) VALUES ($1, 'ACTIVE')", [userId]);
+      })).rejects.toMatchObject({ code: "23505" });
+      expect((await migrationClient.query("SELECT id FROM app.app_user WHERE id = $1", [userId])).rows)
+        .toEqual([]);
+    } finally { await database.close(); }
+  });
+
+  it("A-FK-01 database foreign-key prerequisite for F41: composite parent rejects a foreign organization with 23503", async () => {
+    const constraint = await migrationClient.query(`
+      SELECT pg_get_constraintdef(c.oid) AS definition,
+        ARRAY(SELECT a.attname::text FROM unnest(c.conkey) WITH ORDINALITY k(num, pos)
+          JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.num
+          ORDER BY k.pos) AS source_columns,
+        ARRAY(SELECT a.attname::text FROM unnest(c.confkey) WITH ORDINALITY k(num, pos)
+          JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.num
+          ORDER BY k.pos) AS target_columns
+      FROM pg_constraint c
+      JOIN pg_namespace n ON n.oid = c.connamespace
+      WHERE n.nspname = 'app' AND c.conname = 'unit_property_fk' AND c.contype = 'f'
+        AND c.conrelid = 'app.unit'::regclass AND c.confrelid = 'app.property'::regclass
+    `);
+    expect(constraint.rows).toHaveLength(1);
+    expect(constraint.rows[0]).toMatchObject({
+      source_columns: ["org_id", "property_id"], target_columns: ["org_id", "id"],
+    });
+    const definition = constraint.rows[0]!.definition.replace(/\s+/g, " ");
+    expect(definition).toContain("FOREIGN KEY (org_id, property_id)");
+    expect(definition).toContain("REFERENCES app.property(org_id, id)");
+
+    const a = await createIdentityAndOrganization();
+    const b = await createIdentityAndOrganization();
+    const database = createPostgresDatabase(runtimeConfig);
+    const propertyA = randomUUID();
+    const propertyB = randomUUID();
+    const validUnit = randomUUID();
+    const rejectedUnit = randomUUID();
+    try {
+      for (const [orgId, propertyId] of [[a.orgId, propertyA], [b.orgId, propertyB]]) {
+        await withOrgTransaction(database, orgId!, (client) => client.query(`
+          INSERT INTO app.property (id, org_id, address_reference, status)
+          VALUES ($1, $2, 'SYNTHETIC_A_FK_REFERENCE', 'ACTIVE')
+        `, [propertyId, orgId]));
+      }
+      // A same-org child proves the runtime INSERT path and fixture are valid.
+      await withOrgTransaction(database, a.orgId, (client) => client.query(`
+        INSERT INTO app.unit (id, org_id, property_id, label, status)
+        VALUES ($1, $2, $3, 'SYNTHETIC_A_FK_UNIT', 'ACTIVE')
+      `, [validUnit, a.orgId, propertyA]));
+      await expect(withOrgTransaction(database, a.orgId, (client) => client.query(`
+        INSERT INTO app.unit (id, org_id, property_id, label, status)
+        VALUES ($1, $2, $3, 'SYNTHETIC_A_FK_UNIT', 'ACTIVE')
+      `, [rejectedUnit, a.orgId, propertyB]))).rejects.toMatchObject({
+        code: "23503", constraint: "unit_property_fk",
+      });
+      await withOrgTransaction(database, a.orgId, async (client) => {
+        expect((await client.query("SELECT id FROM app.unit WHERE id = ANY($1::uuid[])", [[validUnit, rejectedUnit]])).rows)
+          .toEqual([{ id: validUnit }]);
+      });
+      for (const fixture of [a, b]) {
+        await withOrgTransaction(migrationDatabase, fixture.orgId, async (client) => {
+          expect((await client.query("SELECT id FROM app.unit WHERE id = $1", [rejectedUnit])).rows).toEqual([]);
+        });
+      }
+    } finally { await database.close(); }
+  });
+
+  it("A-ADDRESS-01 database address prerequisite for F43: identical references coexist without cross-organization visibility", async () => {
+    const a = await createIdentityAndOrganization();
+    const b = await createIdentityAndOrganization();
+    const database = createPostgresDatabase(runtimeConfig);
+    const reference = `SYNTHETIC_A_ADDRESS_${randomUUID()}`;
+    const properties = [randomUUID(), randomUUID()];
+    try {
+      for (const [index, fixture] of [a, b].entries()) {
+        await withOrgTransaction(database, fixture.orgId, (client) => client.query(`
+          INSERT INTO app.property (id, org_id, address_reference, status)
+          VALUES ($1, $2, $3, 'ACTIVE')
+        `, [properties[index], fixture.orgId, reference]));
+      }
+      // FORCE RLS also binds the migration owner: verify each tenant separately.
+      const ownerRows: Array<{ id: string; org_id: string; address_reference: string }> = [];
+      for (const [index, fixture] of [a, b].entries()) {
+        const expected = [{ id: properties[index], org_id: fixture.orgId, address_reference: reference }];
+        const owner = await withOrgTransaction(migrationDatabase, fixture.orgId, (client) => client.query<{
+          id: string; org_id: string; address_reference: string;
+        }>("SELECT id, org_id, address_reference FROM app.property WHERE address_reference = $1", [reference]));
+        expect(owner.rows).toEqual(expected);
+        ownerRows.push(...owner.rows);
+        const runtime = await withOrgTransaction(database, fixture.orgId, (client) => client.query(
+          "SELECT id, org_id, address_reference FROM app.property WHERE address_reference = $1", [reference],
+        ));
+        expect(runtime.rows).toEqual(expected);
+      }
+      expect(ownerRows).toHaveLength(2);
+      expect(new Set(ownerRows.map((row) => row.id)).size).toBe(2);
+    } finally { await database.close(); }
+  });
+
   async function createIdentityAndOrganization() {
     const user = await migrationClient.query<{ id: string }>(
       "INSERT INTO app.app_user (status) VALUES ('ACTIVE') RETURNING id",
