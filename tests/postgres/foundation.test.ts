@@ -5,6 +5,7 @@ import * as publicApi from "@build-manager/persistence-postgres";
 import { createPostgresDatabase, withTransaction, withOrgTransaction } from "@build-manager/persistence-postgres";
 import { getInternalPool } from "../../packages/persistence-postgres/src/database";
 import {
+  grantRuntimeAccess,
   provisionTestRoles,
   runPostgresMigrations,
   TEST_MIGRATION_ROLE,
@@ -19,6 +20,7 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
   let migrationClient: Client;
   let runtimeConfig: ClientConfig;
   let migrationConfig: ClientConfig;
+  let migrationDatabase: publicApi.PostgresDatabase;
 
   beforeAll(async () => {
     const info = vi.spyOn(console, "info");
@@ -34,12 +36,15 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
     migrationClient = new Client(roles.migrationConfig);
     await migrationClient.connect();
     await runPostgresMigrations(migrationClient);
+    await grantRuntimeAccess(migrationClient);
     runtimeConfig = roles.runtimeConfig;
     migrationConfig = roles.migrationConfig;
+    migrationDatabase = createPostgresDatabase(migrationConfig);
   }, 120_000);
 
   afterAll(async () => {
     try {
+      await migrationDatabase?.close();
       await migrationClient?.end();
     } finally {
       await postgres?.stop();
@@ -50,16 +55,16 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
     const database = createPostgresDatabase({ ...migrationConfig, max: 1 });
     const id = randomUUID();
     try {
-      const result = await withTransaction(database, async (client) => {
+      const result = await withOrgTransaction(database, id, async (client) => {
         const before = await client.query("SELECT pg_backend_pid() AS pid, txid_current()::text AS tx");
         await client.query("INSERT INTO app.organization (id, status, display_name) VALUES ($1, 'ACTIVE', 'SYNTHETIC_TX')", [id]);
-        expect((await migrationClient.query("SELECT id FROM app.organization WHERE id = $1", [id])).rows).toEqual([]);
+        expect((await withOrgTransaction(migrationDatabase, id, (client) => client.query("SELECT id FROM app.organization WHERE id = $1", [id]))).rows).toEqual([]);
         const after = await client.query("SELECT pg_backend_pid() AS pid, txid_current()::text AS tx");
         expect(after.rows).toEqual(before.rows);
         return { id, pid: before.rows[0].pid };
       });
       expect(result.id).toBe(id);
-      expect((await migrationClient.query("SELECT id FROM app.organization WHERE id = $1", [id])).rows).toEqual([{ id }]);
+      expect((await withOrgTransaction(migrationDatabase, id, (client) => client.query("SELECT id FROM app.organization WHERE id = $1", [id]))).rows).toEqual([{ id }]);
       await withTransaction(database, async (client) => {
         expect((await client.query("SELECT pg_backend_pid() AS pid")).rows[0].pid).toBe(result.pid);
       });
@@ -72,14 +77,14 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
     let pid: number | undefined;
     let primary: unknown;
     try {
-      const transaction = withTransaction(database, async (client) => {
+      const transaction = withOrgTransaction(database, id, async (client) => {
         pid = (await client.query("SELECT pg_backend_pid() AS pid")).rows[0].pid;
         await client.query("INSERT INTO app.organization (id, status, display_name) VALUES ($1, 'ACTIVE', 'SYNTHETIC_ROLLBACK')", [id]);
         try { await client.query("SELECT 1 / 0"); } catch (error) { primary = error; throw error; }
       });
       await expect(transaction).rejects.toMatchObject({ code: "22012" });
       await expect(transaction).rejects.toBe(primary);
-      expect((await migrationClient.query("SELECT id FROM app.organization WHERE id = $1", [id])).rows).toEqual([]);
+      expect((await withOrgTransaction(migrationDatabase, id, (client) => client.query("SELECT id FROM app.organization WHERE id = $1", [id]))).rows).toEqual([]);
       await withTransaction(database, async (client) => {
         expect((await client.query("SELECT pg_backend_pid() AS pid")).rows[0].pid).toBe(pid);
         expect((await client.query("SELECT 42 AS answer")).rows[0].answer).toBe(42);
@@ -312,18 +317,182 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
     expect(after.rows).toEqual(before.rows);
   });
 
+  const scopedTables = ["organization", "organization_membership", "property", "unit", "occupancy", "occupancy_member"] as const;
+
+  it("stores an invoker stable context helper with fixed search path and no PUBLIC schema or function privileges", async () => {
+    const helper = await migrationClient.query(`
+      SELECT p.prosecdef, p.provolatile, p.proconfig,
+             has_function_privilege($1, p.oid, 'EXECUTE') AS runtime_execute,
+             EXISTS (SELECT 1 FROM aclexplode(p.proacl) a WHERE a.grantee = 0) AS public_execute
+      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'app' AND p.proname = 'current_org_id' AND p.pronargs = 0
+    `, [TEST_RUNTIME_ROLE]);
+    expect(helper.rows).toEqual([{
+      prosecdef: false, provolatile: "s", proconfig: ["search_path=pg_catalog"],
+      runtime_execute: true, public_execute: false,
+    }]);
+    const schema = await migrationClient.query(`
+      SELECT EXISTS (SELECT 1 FROM aclexplode(nspacl) a WHERE a.grantee = 0) AS public_access
+      FROM pg_namespace WHERE nspname = 'app'
+    `);
+    expect(schema.rows).toEqual([{ public_access: false }]);
+  });
+
+  it("F19 candidate: runtime is restricted, outside inherited roles, and every scoped table forces RLS", async () => {
+    const database = createPostgresDatabase(runtimeConfig);
+    try {
+      await withTransaction(database, async (client) => {
+        const role = await client.query(`
+          SELECT current_user, session_user, rolsuper, rolcreatedb, rolcreaterole,
+                 rolreplication, rolbypassrls,
+                 has_schema_privilege(current_user, 'app', 'CREATE') AS schema_create,
+                 pg_has_role(current_user, $1, 'MEMBER') AS migration_member
+          FROM pg_roles WHERE rolname = current_user
+        `, [TEST_MIGRATION_ROLE]);
+        expect(role.rows).toEqual([{
+          current_user: TEST_RUNTIME_ROLE, session_user: TEST_RUNTIME_ROLE,
+          rolsuper: false, rolcreatedb: false, rolcreaterole: false,
+          rolreplication: false, rolbypassrls: false, schema_create: false,
+          migration_member: false,
+        }]);
+        // MEMBER follows indirect membership too; no other role is reachable.
+        const memberships = await client.query(`
+          SELECT rolname FROM pg_roles
+          WHERE rolname <> current_user AND pg_has_role(current_user, oid, 'MEMBER')
+        `);
+        expect(memberships.rows).toEqual([]);
+        const tables = await client.query(`
+          SELECT c.relname, pg_get_userbyid(c.relowner) AS owner,
+                 c.relrowsecurity, c.relforcerowsecurity
+          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'app' AND c.relname = ANY($1::text[])
+          ORDER BY c.relname
+        `, [scopedTables]);
+        expect(tables.rows).toEqual([...scopedTables].sort().map((relname) => ({
+          relname, owner: TEST_MIGRATION_ROLE, relrowsecurity: true, relforcerowsecurity: true,
+        })));
+        expect(tables.rows.every((table) => table.owner !== role.rows[0].current_user)).toBe(true);
+      });
+    } finally { await database.close(); }
+  });
+
+  it("F19 candidate: runtime has only the exact scoped grants and cannot create schema objects", async () => {
+    const database = createPostgresDatabase(runtimeConfig);
+    try {
+      await withTransaction(database, async (client) => {
+        const privileges = await client.query(`
+          SELECT c.relname,
+                 has_table_privilege(current_user, c.oid, 'SELECT') AS can_select,
+                 has_table_privilege(current_user, c.oid, 'INSERT') AS can_insert,
+                 has_table_privilege(current_user, c.oid, 'UPDATE') AS can_update,
+                 has_table_privilege(current_user, c.oid, 'DELETE') AS can_delete,
+                 has_table_privilege(current_user, c.oid, 'TRUNCATE') AS can_truncate,
+                 has_table_privilege(current_user, c.oid, 'REFERENCES') AS can_reference,
+                 has_table_privilege(current_user, c.oid, 'TRIGGER') AS can_trigger,
+                 has_table_privilege(current_user, c.oid, 'MAINTAIN') AS can_maintain
+          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'app' AND c.relkind = 'r' ORDER BY c.relname
+        `);
+        expect(privileges.rows).toEqual(["app_user", ...scopedTables].sort().map((relname) => ({
+          relname, can_select: relname !== "app_user",
+          can_insert: ["property", "unit", "occupancy", "occupancy_member"].includes(relname),
+          can_update: ["property", "unit", "occupancy", "occupancy_member"].includes(relname),
+          can_delete: false, can_truncate: false, can_reference: false, can_trigger: false, can_maintain: false,
+        })));
+      });
+      await expect(withTransaction(database, (client) => client.query(
+        "CREATE TABLE app.synthetic_forbidden_runtime_table (id integer)",
+      ))).rejects.toMatchObject({ code: "42501" });
+    } finally { await database.close(); }
+  });
+
+  it("F18/F19 candidate: one runtime backend clears context after commit and rollback and isolates all six tables", async () => {
+    const a = await createRelationshipFixture();
+    const b = await createRelationshipFixture();
+    for (const fixture of [a, b]) {
+      await withOrgTransaction(migrationDatabase, fixture.orgId, (client) => client.query(`
+        INSERT INTO app.organization_membership (org_id, user_id, role, status)
+        VALUES ($1, $2, 'ORG_ADMIN', 'ACTIVE')
+      `, [fixture.orgId, fixture.userId]));
+      await withOrgTransaction(migrationDatabase, fixture.orgId, (client) => client.query(`
+        INSERT INTO app.occupancy_member (org_id, occupancy_id, user_id, joined_at, status)
+        VALUES ($1, $2, $3, '2026-01-01T00:00:00Z', 'ACTIVE')
+      `, [fixture.orgId, fixture.occupancyId, fixture.userId]));
+    }
+    const database = createPostgresDatabase({ ...runtimeConfig, max: 1 });
+    let pid: number | undefined;
+    const inspect = async (client: publicApi.SqlClient, expected: string | null, raw: string | null) => {
+      const result = await client.query(`
+        SELECT pg_backend_pid() AS pid, current_user, session_user,
+               current_setting('app.org_id', true) AS raw, app.current_org_id() AS org
+      `);
+      pid ??= result.rows[0].pid;
+      expect(result.rows).toEqual([{
+        pid, current_user: TEST_RUNTIME_ROLE, session_user: TEST_RUNTIME_ROLE, raw, org: expected,
+      }]);
+      for (const table of scopedTables) {
+        const key = table === "organization" ? "id" : "org_id";
+        const rows = await client.query(`SELECT DISTINCT ${key} AS org FROM app.${table}`);
+        expect(rows.rows).toEqual(expected === null ? [] : [{ org: expected }]);
+      }
+    };
+    const committedId = randomUUID();
+    const rolledBackId = randomUUID();
+    const failure = new Error("SYNTHETIC_F18_ROLLBACK");
+    try {
+      await withTransaction(database, (client) => inspect(client, null, null));
+      await withOrgTransaction(database, a.orgId, async (client) => {
+        await inspect(client, a.orgId, a.orgId);
+        await client.query(`INSERT INTO app.property (id, org_id, address_reference, status)
+          VALUES ($1, $2, 'SYNTHETIC_F18_COMMIT', 'ACTIVE')`, [committedId, a.orgId]);
+      });
+      await withTransaction(database, (client) => inspect(client, null, ""));
+      await expect(withOrgTransaction(database, a.orgId, async (client) => {
+        await inspect(client, a.orgId, a.orgId);
+        await client.query(`INSERT INTO app.property (id, org_id, address_reference, status)
+          VALUES ($1, $2, 'SYNTHETIC_F18_ROLLBACK', 'ACTIVE')`, [rolledBackId, a.orgId]);
+        throw failure;
+      })).rejects.toBe(failure);
+      await withTransaction(database, (client) => inspect(client, null, ""));
+      await withOrgTransaction(database, b.orgId, (client) => inspect(client, b.orgId, b.orgId));
+      await withTransaction(database, (client) => inspect(client, null, ""));
+      await withOrgTransaction(database, a.orgId, async (client) => {
+        expect((await client.query("SELECT id FROM app.property WHERE id = ANY($1::uuid[])", [
+          [committedId, rolledBackId],
+        ])).rows).toEqual([{ id: committedId }]);
+      });
+      await expect(withOrgTransaction(database, a.orgId, (client) => client.query(`
+        INSERT INTO app.property (org_id, address_reference, status)
+        VALUES ($1, 'SYNTHETIC_WRONG_CONTEXT', 'ACTIVE')
+      `, [b.orgId]))).rejects.toMatchObject({ code: "42501", message: 'new row violates row-level security policy for table "property"' });
+      await expect(withOrgTransaction(database, a.orgId, (client) => client.query(
+        "UPDATE app.property SET org_id = $1 WHERE id = $2", [b.orgId, committedId],
+      ))).rejects.toMatchObject({ code: "42501", message: 'new row violates row-level security policy for table "property"' });
+      await withOrgTransaction(database, b.orgId, async (client) => {
+        expect((await client.query("UPDATE app.property SET address_reference = 'SYNTHETIC_HIDDEN_UPDATE' WHERE id = $1 RETURNING id", [committedId])).rows).toEqual([]);
+      });
+      await expect(withTransaction(database, (client) => client.query(`
+        INSERT INTO app.property (org_id, address_reference, status)
+        VALUES ($1, 'SYNTHETIC_NO_CONTEXT', 'ACTIVE')
+      `, [a.orgId]))).rejects.toMatchObject({ code: "42501", message: 'new row violates row-level security policy for table "property"' });
+      await withTransaction(database, (client) => inspect(client, null, ""));
+    } finally { await database.close(); }
+  });
+
   async function createIdentityAndOrganization() {
     const user = await migrationClient.query<{ id: string }>(
       "INSERT INTO app.app_user (status) VALUES ('ACTIVE') RETURNING id",
     );
-    const organization = await migrationClient.query<{ id: string }>(
-      "INSERT INTO app.organization (status, display_name) VALUES ('ACTIVE', $1) RETURNING id",
-      ["SYNTHETIC_PF02A_ORG"],
-    );
+    // Forced RLS needs the future organization ID before the scoped INSERT.
+    const orgId = (await migrationClient.query<{ id: string }>("SELECT uuidv7() AS id")).rows[0]!.id;
+    const organization = await withOrgTransaction(migrationDatabase, orgId, (client) => client.query<{ id: string }>(
+      "INSERT INTO app.organization (id, status, display_name) VALUES ($1, 'ACTIVE', $2) RETURNING id",
+      [orgId, "SYNTHETIC_PF02A_ORG"],
+    ));
     return { userId: user.rows[0]!.id, orgId: organization.rows[0]!.id };
   }
 
-  it("creates synthetic identity and organization rows with UUIDv7 defaults", async () => {
+  it("creates a default UUIDv7 user and explicitly scoped UUIDv7 organization with its default intact", async () => {
     const { userId, orgId } = await createIdentityAndOrganization();
     expect(userId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(orgId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -333,23 +502,33 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
       ORDER BY ordinal_position
     `);
     expect(columns.rows.map((row) => row.column_name)).toEqual(["id", "status", "created_at"]);
+    const defaults = await migrationClient.query(`
+      SELECT table_name, column_default FROM information_schema.columns
+      WHERE table_schema = 'app' AND table_name IN ('app_user', 'organization') AND column_name = 'id'
+      ORDER BY table_name
+    `);
+    expect(defaults.rows).toEqual([
+      { table_name: "app_user", column_default: "uuidv7()" },
+      { table_name: "organization", column_default: "uuidv7()" },
+    ]);
   });
 
   it.each(["", " ", " PADDED", "PADDED ", "x".repeat(161)])(
     "rejects invalid organization display name %j", async (displayName) => {
-      await expect(migrationClient.query(
-        "INSERT INTO app.organization (status, display_name) VALUES ('ACTIVE', $1)",
-        [displayName],
-      )).rejects.toMatchObject({ code: "23514", constraint: "organization_display_name_shape" });
+      const orgId = randomUUID();
+      await expect(withOrgTransaction(migrationDatabase, orgId, (client) => client.query(
+        "INSERT INTO app.organization (id, status, display_name) VALUES ($1, 'ACTIVE', $2)",
+        [orgId, displayName],
+      ))).rejects.toMatchObject({ code: "23514", constraint: "organization_display_name_shape" });
     },
   );
 
   it("rejects a second ACTIVE membership for the same organization and user", async () => {
     const { userId, orgId } = await createIdentityAndOrganization();
-    const insert = () => migrationClient.query(`
+    const insert = () => withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
       INSERT INTO app.organization_membership (org_id, user_id, role, status)
       VALUES ($1, $2, 'ORG_ADMIN', 'ACTIVE') RETURNING version, ended_at
-    `, [orgId, userId]);
+    `, [orgId, userId]));
     expect((await insert()).rows[0]).toEqual({ version: 1, ended_at: null });
     await expect(insert()).rejects.toMatchObject({
       code: "23505", constraint: "organization_membership_one_active_user_org",
@@ -362,56 +541,56 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
     ["ENDED", "2025-12-31T00:00:00Z"],
   ])("rejects inconsistent membership lifecycle %s / %s", async (status, endedAt) => {
     const { userId, orgId } = await createIdentityAndOrganization();
-    await expect(migrationClient.query(`
+    await expect(withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
       INSERT INTO app.organization_membership
         (org_id, user_id, role, status, created_at, ended_at)
       VALUES ($1, $2, 'PROPERTY_STAFF', $3, '2026-01-01T00:00:00Z', $4)
-    `, [orgId, userId, status, endedAt])).rejects.toMatchObject({
+    `, [orgId, userId, status, endedAt]))).rejects.toMatchObject({
       code: "23514", constraint: "organization_membership_status_time",
     });
   });
 
   it("allows ended membership history alongside a new active membership", async () => {
     const { userId, orgId } = await createIdentityAndOrganization();
-    await migrationClient.query(`
+    await withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
       INSERT INTO app.organization_membership
         (org_id, user_id, role, status, ended_at)
       VALUES ($1, $2, 'ORG_ADMIN', 'ENDED', transaction_timestamp()),
              ($1, $2, 'PROPERTY_STAFF', 'ENDED', transaction_timestamp()),
              ($1, $2, 'PROPERTY_STAFF', 'ACTIVE', NULL)
-    `, [orgId, userId]);
-    const count = await migrationClient.query(`
+    `, [orgId, userId]));
+    const count = await withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
       SELECT count(*)::integer AS count FROM app.organization_membership
       WHERE org_id = $1 AND user_id = $2
-    `, [orgId, userId]);
+    `, [orgId, userId]));
     expect(count.rows[0]?.count).toBe(3);
   });
   async function createRelationshipFixture() {
     const identity = await createIdentityAndOrganization();
-    const property = await migrationClient.query<{ id: string }>(`
+    const property = await withOrgTransaction(migrationDatabase, identity.orgId, (client) => client.query<{ id: string }>(`
       INSERT INTO app.property (org_id, address_reference, status)
       VALUES ($1, 'SYNTHETIC_BUILDING_REFERENCE', 'ACTIVE') RETURNING id
-    `, [identity.orgId]);
+    `, [identity.orgId]));
     const propertyId = property.rows[0]!.id;
-    const unit = await migrationClient.query<{ id: string }>(`
+    const unit = await withOrgTransaction(migrationDatabase, identity.orgId, (client) => client.query<{ id: string }>(`
       INSERT INTO app.unit (org_id, property_id, label, status)
       VALUES ($1, $2, 'SYNTHETIC_UNIT', 'ACTIVE') RETURNING id
-    `, [identity.orgId, propertyId]);
+    `, [identity.orgId, propertyId]));
     const unitId = unit.rows[0]!.id;
-    const occupancy = await migrationClient.query<{ id: string }>(`
+    const occupancy = await withOrgTransaction(migrationDatabase, identity.orgId, (client) => client.query<{ id: string }>(`
       INSERT INTO app.occupancy (org_id, unit_id, starts_at, status)
       VALUES ($1, $2, '2026-01-01T00:00:00Z', 'ACTIVE') RETURNING id
-    `, [identity.orgId, unitId]);
+    `, [identity.orgId, unitId]));
     return { ...identity, propertyId, unitId, occupancyId: occupancy.rows[0]!.id };
   }
 
   it.each(["", " ", " PADDED", "PADDED ", "x".repeat(513)])(
     "rejects invalid property reference %j", async (reference) => {
       const { orgId } = await createIdentityAndOrganization();
-      await expect(migrationClient.query(`
+      await expect(withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
         INSERT INTO app.property (org_id, address_reference, status)
         VALUES ($1, $2, 'ACTIVE')
-      `, [orgId, reference])).rejects.toMatchObject({
+      `, [orgId, reference]))).rejects.toMatchObject({
         code: "23514", constraint: "property_address_reference_shape",
       });
     },
@@ -420,10 +599,10 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
   it.each(["", " ", " PADDED", "PADDED ", "x".repeat(81), "CONTROL\nLABEL"])(
     "rejects invalid unit label %j", async (label) => {
       const { orgId, propertyId } = await createRelationshipFixture();
-      await expect(migrationClient.query(`
+      await expect(withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
         INSERT INTO app.unit (org_id, property_id, label, status)
         VALUES ($1, $2, $3, 'ACTIVE')
-      `, [orgId, propertyId, label])).rejects.toMatchObject({
+      `, [orgId, propertyId, label]))).rejects.toMatchObject({
         code: "23514", constraint: "unit_label_shape",
       });
     },
@@ -431,10 +610,10 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
 
   it("rejects case-only duplicate active labels while allowing archived history", async () => {
     const { orgId, propertyId } = await createRelationshipFixture();
-    const insert = (status: string) => migrationClient.query(`
+    const insert = (status: string) => withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
       INSERT INTO app.unit (org_id, property_id, label, status)
       VALUES ($1, $2, 'synthetic_unit', $3) RETURNING status
-    `, [orgId, propertyId, status]);
+    `, [orgId, propertyId, status]));
     await expect(insert("ACTIVE")).rejects.toMatchObject({
       code: "23505", constraint: "unit_active_label_unique",
     });
@@ -445,21 +624,21 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
   it("rejects a cross-organization unit parent with a foreign-key violation", async () => {
     const { propertyId } = await createRelationshipFixture();
     const other = await createIdentityAndOrganization();
-    await expect(migrationClient.query(`
+    await expect(withOrgTransaction(migrationDatabase, other.orgId, (client) => client.query(`
       INSERT INTO app.unit (org_id, property_id, label, status)
       VALUES ($1, $2, 'OTHER_SYNTHETIC_UNIT', 'ACTIVE')
-    `, [other.orgId, propertyId])).rejects.toMatchObject({
+    `, [other.orgId, propertyId]))).rejects.toMatchObject({
       code: "23503", constraint: "unit_property_fk",
     });
   });
 
   it("rejects a second ACTIVE occupancy while allowing ended history", async () => {
     const { orgId, unitId } = await createRelationshipFixture();
-    const insert = (status: string) => migrationClient.query(`
+    const insert = (status: string) => withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
       INSERT INTO app.occupancy (org_id, unit_id, starts_at, ends_at, status)
       VALUES ($1, $2, '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z', $3)
       RETURNING version
-    `, [orgId, unitId, status]);
+    `, [orgId, unitId, status]));
     await expect(insert("ACTIVE")).rejects.toMatchObject({
       code: "23505", constraint: "occupancy_one_active_unit",
     });
@@ -470,30 +649,30 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
   it.each([null, "2026-01-01T00:00:00Z", "2025-12-31T00:00:00Z"])(
     "rejects an ENDED occupancy with invalid ends_at %s", async (endsAt) => {
       const { orgId, unitId } = await createRelationshipFixture();
-      await expect(migrationClient.query(`
+      await expect(withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
         INSERT INTO app.occupancy (org_id, unit_id, starts_at, ends_at, status)
         VALUES ($1, $2, '2026-01-01T00:00:00Z', $3, 'ENDED')
-      `, [orgId, unitId, endsAt])).rejects.toMatchObject({
+      `, [orgId, unitId, endsAt]))).rejects.toMatchObject({
         code: "23514", constraint: "occupancy_time_shape",
       });
     },
   );
 
   it("rejects occupancy versions below one", async () => {
-    const { occupancyId } = await createRelationshipFixture();
-    await expect(migrationClient.query(
+    const { orgId, occupancyId } = await createRelationshipFixture();
+    await expect(withOrgTransaction(migrationDatabase, orgId, (client) => client.query(
       "UPDATE app.occupancy SET version = 0 WHERE id = $1", [occupancyId],
-    )).rejects.toMatchObject({ code: "23514", constraint: "occupancy_version_check" });
+    ))).rejects.toMatchObject({ code: "23514", constraint: "occupancy_version_check" });
   });
 
   it("rejects a duplicate ACTIVE member while allowing ended history and other users", async () => {
     const { orgId, occupancyId, userId } = await createRelationshipFixture();
-    const insert = (memberId: string, status: string) => migrationClient.query(`
+    const insert = (memberId: string, status: string) => withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
       INSERT INTO app.occupancy_member
         (org_id, occupancy_id, user_id, joined_at, ended_at, status)
       VALUES ($1, $2, $3, '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z', $4)
       RETURNING status
-    `, [orgId, occupancyId, memberId, status]);
+    `, [orgId, occupancyId, memberId, status]));
     expect((await insert(userId, "ACTIVE")).rows[0]?.status).toBe("ACTIVE");
     await expect(insert(userId, "ACTIVE")).rejects.toMatchObject({
       code: "23505", constraint: "occupancy_member_one_active_user",
@@ -507,11 +686,11 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
   it.each([null, "2025-12-31T00:00:00Z"])(
     "rejects an ENDED member with invalid ended_at %s", async (endedAt) => {
       const { orgId, occupancyId, userId } = await createRelationshipFixture();
-      await expect(migrationClient.query(`
+      await expect(withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
         INSERT INTO app.occupancy_member
           (org_id, occupancy_id, user_id, joined_at, ended_at, status)
         VALUES ($1, $2, $3, '2026-01-01T00:00:00Z', $4, 'ENDED')
-      `, [orgId, occupancyId, userId, endedAt])).rejects.toMatchObject({
+      `, [orgId, occupancyId, userId, endedAt]))).rejects.toMatchObject({
         code: "23514", constraint: "occupancy_member_time_shape",
       });
     },
@@ -519,12 +698,12 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
 
   it("allows member ending exactly at joining time", async () => {
     const { orgId, occupancyId, userId } = await createRelationshipFixture();
-    const result = await migrationClient.query(`
+    const result = await withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
       INSERT INTO app.occupancy_member
         (org_id, occupancy_id, user_id, joined_at, ended_at, status)
       VALUES ($1, $2, $3, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 'ENDED')
       RETURNING status
-    `, [orgId, occupancyId, userId]);
+    `, [orgId, occupancyId, userId]));
     expect(result.rows[0]?.status).toBe("ENDED");
   });
 

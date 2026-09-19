@@ -9,6 +9,19 @@ export type TestRoleCredentials = {
   readonly runtimeConfig: ClientConfig;
 };
 
+export async function grantRuntimeAccess(migration: Client): Promise<void> {
+  await migration.query(`GRANT USAGE ON SCHEMA app TO ${TEST_RUNTIME_ROLE}`);
+  await migration.query(
+    `GRANT EXECUTE ON FUNCTION app.current_org_id() TO ${TEST_RUNTIME_ROLE}`,
+  );
+  await migration.query(
+    `GRANT SELECT ON app.organization, app.organization_membership TO ${TEST_RUNTIME_ROLE}`,
+  );
+  await migration.query(
+    `GRANT SELECT, INSERT, UPDATE ON app.property, app.unit, app.occupancy, app.occupancy_member TO ${TEST_RUNTIME_ROLE}`,
+  );
+}
+
 function quoteIdentifier(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
 }
