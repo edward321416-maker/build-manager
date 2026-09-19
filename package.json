@@ -13,6 +13,7 @@
   "scripts": {
     "test": "npm run test:shared",
     "test:shared": "vitest run --config vitest.shared.config.ts",
+    "test:postgres": "vitest run --config vitest.postgres.config.ts",
     "test:web": "npm --workspace @build-manager/web run test",
     "test:mobile": "npm --workspace @build-manager/mobile run test -- --runInBand",
     "test:e2e:web": "npm --workspace @build-manager/web run test:e2e",
