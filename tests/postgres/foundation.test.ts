@@ -783,6 +783,109 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
     });
   });
 
+  it("F23 candidate: concurrent runtime inserts wait on a lock and leave exactly one ACTIVE occupancy", async () => {
+    const { orgId } = await createIdentityAndOrganization();
+    const unitId = await withOrgTransaction(migrationDatabase, orgId, async (client) => {
+      const property = await client.query<{ id: string }>(`
+        INSERT INTO app.property (org_id, address_reference, status)
+        VALUES ($1, 'SYNTHETIC_F23_PROPERTY', 'ACTIVE') RETURNING id
+      `, [orgId]);
+      const unit = await client.query<{ id: string }>(`
+        INSERT INTO app.unit (org_id, property_id, label, status)
+        VALUES ($1, $2, 'SYNTHETIC_F23_UNIT', 'ACTIVE') RETURNING id
+      `, [orgId, property.rows[0]!.id]);
+      return unit.rows[0]!.id;
+    });
+    // Local bounds also release B if coordination fails; no global timeout changes.
+    const bounds = { connectionTimeoutMillis: 5_000, statement_timeout: 4_000, query_timeout: 5_000 };
+    const clientA = new Client({ ...runtimeConfig, ...bounds });
+    const clientB = new Client({ ...runtimeConfig, ...bounds });
+    const diagnostic = new Client({ ...postgres!.adminConfig, ...bounds });
+    const failures: unknown[] = [];
+    let connectedA = false;
+    let connectedB = false;
+    let conflictingInsert: Promise<{ ok: true } | { ok: false; error: unknown }> | undefined;
+    try {
+      await clientA.connect();
+      connectedA = true;
+      await clientB.connect();
+      connectedB = true;
+      await diagnostic.connect();
+      const pids: number[] = [];
+      for (const client of [clientA, clientB]) {
+        await client.query("BEGIN");
+        await client.query("SELECT set_config('app.org_id', $1, true)", [orgId]);
+        const identity = await client.query<{ pid: number; role: string }>(
+          "SELECT pg_backend_pid() AS pid, current_user AS role",
+        );
+        expect(identity.rows[0]!.role).toBe(TEST_RUNTIME_ROLE);
+        pids.push(identity.rows[0]!.pid);
+      }
+      const diagnosticPid = (await diagnostic.query<{ pid: number }>(
+        "SELECT pg_backend_pid() AS pid",
+      )).rows[0]!.pid;
+      expect(new Set([...pids, diagnosticPid]).size).toBe(3);
+      const [pidA, pidB] = pids;
+      const insert = `INSERT INTO app.occupancy (org_id, unit_id, starts_at, status)
+        VALUES ($1, $2, transaction_timestamp(), 'ACTIVE')`;
+      await clientA.query(insert, [orgId, unitId]);
+      // Attach both handlers immediately, before any diagnostic await.
+      conflictingInsert = clientB.query(insert, [orgId, unitId]).then(
+        () => ({ ok: true as const }),
+        (error: unknown) => ({ ok: false as const, error }),
+      );
+      type LockObservation = { wait_event_type: string | null; wait_event: string | null; blockers: number[] };
+      let observation: LockObservation | undefined;
+      const deadline = performance.now() + 2_000;
+      do {
+        const activity = await diagnostic.query<LockObservation>(`
+          SELECT wait_event_type, wait_event, pg_blocking_pids(pid) AS blockers
+          FROM pg_stat_activity WHERE pid = $1
+        `, [pidB]);
+        observation = activity.rows[0];
+        if (observation?.wait_event_type === "Lock" && observation.blockers.includes(pidA!)) break;
+        // Poll pacing is not evidence: only the server observation can satisfy the assertion.
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      } while (performance.now() < deadline);
+      expect(observation, "B must be observed waiting on A before A commits").toMatchObject({
+        wait_event_type: "Lock", blockers: expect.arrayContaining([pidA]),
+      });
+      await clientA.query("COMMIT");
+      const result = await conflictingInsert;
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error("Expected the concurrent ACTIVE insert to fail");
+      expect(result.error).toMatchObject({ code: "23505", constraint: "occupancy_one_active_unit" });
+      await clientB.query("ROLLBACK");
+      await clientA.query("BEGIN");
+      await clientA.query("SELECT set_config('app.org_id', $1, true)", [orgId]);
+      const count = await clientA.query<{ count: number }>(`
+        SELECT count(*)::integer AS count FROM app.occupancy
+        WHERE org_id = $1 AND unit_id = $2 AND status = 'ACTIVE'
+      `, [orgId, unitId]);
+      expect(count.rows[0]!.count).toBe(1);
+      await clientA.query("COMMIT");
+      console.info("F23 concurrency evidence", { pidA, pidB, diagnosticPid, observation, sqlstate: "23505", activeCount: count.rows[0]!.count });
+    } catch (error) {
+      failures.push(error);
+    } finally {
+      // Release A before awaiting B: B may still be blocked on A after an assertion failure.
+      if (connectedA) {
+        try { await clientA.query("ROLLBACK"); } catch (error) { failures.push(error); }
+      }
+      try { await clientA.end(); } catch (error) { failures.push(error); }
+      if (conflictingInsert) await conflictingInsert;
+      if (connectedB) {
+        try { await clientB.query("ROLLBACK"); } catch (error) { failures.push(error); }
+      }
+      const closed = await Promise.allSettled([clientB.end(), diagnostic.end()]);
+      for (const result of closed) {
+        if (result.status === "rejected") failures.push(result.reason);
+      }
+    }
+    if (failures.length === 1) throw failures[0];
+    if (failures.length > 1) throw new AggregateError(failures, "F23 operation and cleanup failures", { cause: failures[0] });
+  });
+
   it("rejects a second ACTIVE occupancy while allowing ended history", async () => {
     const { orgId, unitId } = await createRelationshipFixture();
     const insert = (status: string) => withOrgTransaction(migrationDatabase, orgId, (client) => client.query(`
