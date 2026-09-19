@@ -1,24 +1,364 @@
 name: App checks
+
 on:
   pull_request:
   push:
     branches: [main]
+
 permissions:
   contents: read
+
 jobs:
   apps:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: "24"
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.21.0"
           cache: npm
           cache-dependency-path: package-lock.json
-      - run: npm ci
-      - run: npm run test:shared
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run build:web
-      - run: npm run check:deps
+      - name: Verify exact runtime and record environment
+        shell: bash
+        run: |
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "11.19.0"
+          node --version
+          npm --version
+          echo "RUNNER_OS=$RUNNER_OS"
+          echo "RUNNER_ARCH=$RUNNER_ARCH"
+          echo "ImageOS=${ImageOS:-unknown}"
+          echo "ImageVersion=${ImageVersion:-unknown}"
+          git rev-parse HEAD
+          sha256sum package-lock.json
+      - name: Install without manifest or lock drift
+        shell: bash
+        run: |
+          npm ci
+          git diff --exit-code -- \
+            package.json \
+            package-lock.json \
+            apps/mobile/package.json \
+            apps/mobile/app.json
+      - name: Shared unit tests
+        shell: bash
+        run: |
+          npm run test:shared
+      - name: Web unit tests
+        shell: bash
+        run: |
+          npm run test:web
+      - name: Lint
+        shell: bash
+        run: |
+          npm run lint
+      - name: Typecheck (includes test typechecking)
+        shell: bash
+        run: |
+          npm run typecheck
+      - name: Build Web
+        shell: bash
+        run: |
+          npm run build:web
+      - name: Check dependency tree
+        shell: bash
+        run: |
+          npm run check:deps
+
+  # Transitional duplication keeps public repository checks inside foundation-gate.
+  repository-safety:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Run scanner regressions with inventory guards
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 --version
+          PYTHONPATH="$PWD" python3 - <<'PY'
+          import scripts.verify_repository
+          print(scripts.verify_repository.__file__)
+          PY
+          PYTHONPATH="$PWD" python3 tests/test_verify_repository.py -v \
+            2>&1 | tee "$RUNNER_TEMP/root-scanner.log"
+          grep -Eq '^Ran 3 tests in ' "$RUNNER_TEMP/root-scanner.log"
+          PYTHONPATH="$PWD" python3 scripts/tests/test_verify_repository.py -v \
+            2>&1 | tee "$RUNNER_TEMP/scripts-scanner.log"
+          grep -Eq '^Ran 14 tests in ' "$RUNNER_TEMP/scripts-scanner.log"
+      - name: Validate public tree and reachable history
+        shell: bash
+        run: |
+          python3 scripts/verify_repository.py --history
+      - name: Check committed whitespace
+        shell: bash
+        run: |
+          git diff-tree --check HEAD
+          # pull_request checks out a synthetic merge; inspect its parent diffs too.
+          git diff-tree -m --check HEAD
+
+  mobile-cold-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.21.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Verify exact runtime and record environment
+        shell: bash
+        run: |
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "11.19.0"
+          node --version
+          npm --version
+          echo "RUNNER_OS=$RUNNER_OS"
+          echo "RUNNER_ARCH=$RUNNER_ARCH"
+          echo "ImageOS=${ImageOS:-unknown}"
+          echo "ImageVersion=${ImageVersion:-unknown}"
+          git rev-parse HEAD
+          sha256sum package-lock.json
+      - name: Install without manifest or lock drift
+        shell: bash
+        run: |
+          npm ci
+          git diff --exit-code -- \
+            package.json \
+            package-lock.json \
+            apps/mobile/package.json \
+            apps/mobile/app.json
+      - name: Run Mobile once with a fresh cache and validate results
+        shell: bash
+        run: |
+          JEST_CACHE_DIR="$RUNNER_TEMP/build-manager-jest-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e "$JEST_CACHE_DIR"
+          MOBILE_JEST_JSON="$RUNNER_TEMP/mobile-jest.json"
+          export MOBILE_JEST_JSON
+          echo "JEST_CACHE_DIR=$JEST_CACHE_DIR"
+          npm run test:mobile -- \
+            --cacheDirectory "$JEST_CACHE_DIR" \
+            --json \
+            --outputFile "$MOBILE_JEST_JSON"
+          node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs';
+          const result = JSON.parse(readFileSync(process.env.MOBILE_JEST_JSON, 'utf8'));
+          console.log(JSON.stringify({
+            suites: result.numTotalTestSuites,
+            tests: result.numTotalTests,
+            failedSuites: result.numFailedTestSuites,
+            failedTests: result.numFailedTests,
+            pendingTests: result.numPendingTests,
+            todoTests: result.numTodoTests,
+          }));
+          if (result.success !== true || !(result.numTotalTests > 0) ||
+              result.numFailedTests !== 0 || result.numFailedTestSuites !== 0 ||
+              result.numPendingTests !== 0 || result.numTodoTests !== 0) {
+            throw new Error('Mobile cold run did not satisfy the required result gate');
+          }
+          JS
+
+  install-mobile-windows:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.21.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Verify exact runtime and record environment
+        shell: pwsh
+        run: |
+          if ((node --version).Trim() -ne "v24.21.0") {
+              throw "Unexpected Node version"
+          }
+          if ((npm --version).Trim() -ne "11.19.0") {
+              throw "Unexpected npm version"
+          }
+          node --version
+          npm --version
+          "RUNNER_OS=$env:RUNNER_OS"
+          "RUNNER_ARCH=$env:RUNNER_ARCH"
+          "ImageOS=$env:ImageOS"
+          "ImageVersion=$env:ImageVersion"
+          git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-FileHash package-lock.json -Algorithm SHA256
+      - name: Install and verify Windows build and dependency tree
+        shell: pwsh
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code -- package.json package-lock.json apps/mobile/package.json apps/mobile/app.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build:web
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run check:deps
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run Mobile once with a fresh cache and validate results
+        shell: pwsh
+        run: |
+          $jestCacheDir = Join-Path $env:RUNNER_TEMP "build-manager-jest-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          if (Test-Path -LiteralPath $jestCacheDir) { throw "Jest cache must not already exist" }
+          $mobileJestJson = Join-Path $env:RUNNER_TEMP "mobile-jest.json"
+          "JEST_CACHE_DIR=$jestCacheDir"
+          npm run test:mobile -- --cacheDirectory $jestCacheDir --json --outputFile $mobileJestJson
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $result = Get-Content -LiteralPath $mobileJestJson -Raw | ConvertFrom-Json
+          [ordered]@{
+              suites = $result.numTotalTestSuites
+              tests = $result.numTotalTests
+              failedSuites = $result.numFailedTestSuites
+              failedTests = $result.numFailedTests
+              pendingTests = $result.numPendingTests
+              todoTests = $result.numTodoTests
+          } | ConvertTo-Json -Compress
+          if ($result.success -ne $true -or $result.numTotalTests -le 0 -or
+              $result.numFailedTests -ne 0 -or $result.numFailedTestSuites -ne 0 -or
+              $result.numPendingTests -ne 0 -or $result.numTodoTests -ne 0) {
+              throw "Mobile cold run did not satisfy the required result gate"
+          }
+
+  web-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.21.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Verify exact runtime and record environment
+        shell: bash
+        run: |
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "11.19.0"
+          node --version
+          npm --version
+          echo "RUNNER_OS=$RUNNER_OS"
+          echo "RUNNER_ARCH=$RUNNER_ARCH"
+          echo "ImageOS=${ImageOS:-unknown}"
+          echo "ImageVersion=${ImageVersion:-unknown}"
+          git rev-parse HEAD
+          sha256sum package-lock.json
+      - name: Install
+        shell: bash
+        run: |
+          npm ci
+      - name: Install Chromium and Linux dependencies
+        shell: bash
+        run: |
+          npm exec --workspace @build-manager/web -- playwright install --with-deps chromium
+      - name: Run Web E2E with existing synthetic-state configuration
+        shell: bash
+        run: |
+          npm run test:e2e:web
+
+  mobile-health:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.21.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Verify exact runtime and record environment
+        shell: bash
+        run: |
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "11.19.0"
+          node --version
+          npm --version
+          echo "RUNNER_OS=$RUNNER_OS"
+          echo "RUNNER_ARCH=$RUNNER_ARCH"
+          echo "ImageOS=${ImageOS:-unknown}"
+          echo "ImageVersion=${ImageVersion:-unknown}"
+          git rev-parse HEAD
+          sha256sum package-lock.json
+      - name: Install
+        shell: bash
+        run: |
+          npm ci
+      - name: Verify pinned Expo Doctor and run health checks
+        shell: bash
+        working-directory: apps/mobile
+        run: |
+          DOCTOR_VERSION="$(npx --yes expo-doctor@1.20.4 --version)"
+          printf 'expo-doctor=%s\n' "$DOCTOR_VERSION"
+          test "$DOCTOR_VERSION" = "1.20.4"
+          npx --yes expo-doctor@1.20.4 .
+      - name: Export Android and iOS JS/assets bundles (not native builds)
+        shell: bash
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: http://127.0.0.1:3000
+        run: |
+          ANDROID_EXPORT_DIR="$RUNNER_TEMP/build-manager-expo-${GITHUB_SHA}/android"
+          IOS_EXPORT_DIR="$RUNNER_TEMP/build-manager-expo-${GITHUB_SHA}/ios"
+          test ! -e "$ANDROID_EXPORT_DIR"
+          test ! -e "$IOS_EXPORT_DIR"
+          npx expo export --platform android --output-dir "$ANDROID_EXPORT_DIR"
+          npx expo export --platform ios --output-dir "$IOS_EXPORT_DIR"
+          for output in "$ANDROID_EXPORT_DIR" "$IOS_EXPORT_DIR"; do
+            test -d "$output"
+            count="$(find "$output" -type f | wc -l)"
+            test "$count" -gt 0
+            printf 'JS/assets export: %s; generated files: %s\n' "$output" "$count"
+          done
+
+  foundation-gate:
+    if: ${{ always() }}
+    needs:
+      - repository-safety
+      - apps
+      - mobile-cold-linux
+      - install-mobile-windows
+      - web-e2e
+      - mobile-health
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every foundation check to succeed
+        shell: bash
+        env:
+          REPOSITORY_SAFETY_RESULT: ${{ needs.repository-safety.result }}
+          APPS_RESULT: ${{ needs.apps.result }}
+          MOBILE_COLD_LINUX_RESULT: ${{ needs.mobile-cold-linux.result }}
+          INSTALL_MOBILE_WINDOWS_RESULT: ${{ needs.install-mobile-windows.result }}
+          WEB_E2E_RESULT: ${{ needs.web-e2e.result }}
+          MOBILE_HEALTH_RESULT: ${{ needs.mobile-health.result }}
+        run: |
+          failed=0
+          for result in \
+            "repository-safety=$REPOSITORY_SAFETY_RESULT" \
+            "apps=$APPS_RESULT" \
+            "mobile-cold-linux=$MOBILE_COLD_LINUX_RESULT" \
+            "install-mobile-windows=$INSTALL_MOBILE_WINDOWS_RESULT" \
+            "web-e2e=$WEB_E2E_RESULT" \
+            "mobile-health=$MOBILE_HEALTH_RESULT"; do
+            printf '%s\n' "$result"
+            if [ "${result#*=}" != "success" ]; then
+              failed=1
+            fi
+          done
+          exit "$failed"

@@ -1,22 +1,45 @@
 name: Repository checks
+
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Checkout reviewed tree
-        uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Verify public repository
-        run: python3 scripts/verify_repository.py --history
-      - name: Verify whitespace
-        run: git diff-tree --check HEAD
+      - name: Run scanner regressions with inventory guards
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 --version
+          PYTHONPATH="$PWD" python3 - <<'PY'
+          import scripts.verify_repository
+          print(scripts.verify_repository.__file__)
+          PY
+          PYTHONPATH="$PWD" python3 tests/test_verify_repository.py -v \
+            2>&1 | tee "$RUNNER_TEMP/root-scanner.log"
+          grep -Eq '^Ran 3 tests in ' "$RUNNER_TEMP/root-scanner.log"
+          PYTHONPATH="$PWD" python3 scripts/tests/test_verify_repository.py -v \
+            2>&1 | tee "$RUNNER_TEMP/scripts-scanner.log"
+          grep -Eq '^Ran 14 tests in ' "$RUNNER_TEMP/scripts-scanner.log"
+      - name: Validate public tree and reachable history
+        shell: bash
+        run: |
+          python3 scripts/verify_repository.py --history
+      - name: Check committed whitespace
+        shell: bash
+        run: |
+          git diff-tree --check HEAD
+          # pull_request checks out a synthetic merge; inspect its parent diffs too.
+          git diff-tree -m --check HEAD
