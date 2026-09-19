@@ -1,16 +1,16 @@
 {
-  "revision": "0.5",
-  "generated_for": "docs/production-foundation PF00-D evidence reconciliation",
-  "baseline": "main@333228163227d55d13e514fb9311ecb8b9dea615",
-  "note": "Revision 0.5: every existing registered file freshly read to recompute final byte count and SHA-256; unchanged content can retain the same freshly computed hash. Revision 0.4 receipts remain historical. Existing entry set and self-exclusion are preserved.",
+  "revision": "0.6",
+  "generated_for": "docs/production-foundation PF00 freeze record",
+  "baseline": "main@6669c50ee5c2a07d40412a7162ddf381fa4698b1",
+  "note": "Revision 0.6: all 12 existing entries freshly read as final UTF-8 bytes to recompute SHA-256 and byte length. Unchanged files naturally retain matching values. Revision 0.5 evidence remains historical; entry set and self-exclusion are unchanged.",
   "files": {
     "00_foundation_blueprint.md": {
       "sha256": "ee47013f395d34d9435d7cfb201dc403dff4d89eb9a55d5d77a46c7ff76af999",
       "bytes": 10703
     },
     "AUDIT_REPORT.md": {
-      "sha256": "c2a225bf9fc08700eac0c36c3241a889b3ebfabd61fcf68d629d73da46601ecd",
-      "bytes": 23634
+      "sha256": "4816132ecbe4dcfa7906375867a4748524f28fca100a31b3af4ce5a4cd9b4330",
+      "bytes": 26547
     },
     "D06_runtime_decision.md": {
       "sha256": "7e0361a42b70bb85c56b4c9c979b712ccbe94170a0353c0dc564048a8959bbfa",
@@ -29,8 +29,8 @@
       "bytes": 26785
     },
     "README.md": {
-      "sha256": "04e0fe2ded89ab1b823507997586875b3284c85c9cc3a2ea46b967a2bbeba09a",
-      "bytes": 5824
+      "sha256": "20b96dadfb7fde926db370742a5ce2d92909b9516a573f2e62204fe4a36af858",
+      "bytes": 6689
     },
     "acceptance_cases.json": {
       "sha256": "637a89f3c29a5ae5324908314a4b5ce1bd0dd6d76868f4ca5d2d4e3c51dea173",
@@ -53,5 +53,5 @@
       "bytes": 6961
     }
   },
-  "supersedes": "0.4"
+  "supersedes": "0.5"
 }
