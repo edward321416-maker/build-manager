@@ -444,7 +444,18 @@
     "action": "A→rollback→B→missing context 요청 순서",
     "expected": "A row가 B/missing context에 보이지 않음; transaction context 누수 없음",
     "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
-    "status": "NOT_RUN"
+    "status": "PASS_POSTGRES_INTEGRATION",
+    "evidence_revision": "0.7",
+    "evidence": {
+      "record": "../../ops/pf02_a_acceptance.md",
+      "classification": "PASS_POSTGRES_INTEGRATION",
+      "source_ref": "63c619c6bfa451155249ebc458b9d3ac053d0ed7",
+      "accepted_head": "0fa5a9c14c9b57c6362f048b611c0148a3a76132",
+      "app_run": 35491995616,
+      "repository_run": 35491995683,
+      "postgres_job": 106028416097,
+      "note": "Actual runtime max-1 pool test verifies normalized context reset after commit/rollback and org-B/missing-context isolation; full PostgreSQL suite 86/86 passed on accepted merged main."
+    }
   },
   {
     "id": "F19",
@@ -454,7 +465,18 @@
     "action": "같은 격리 시험을 비특권 app role로 실행",
     "expected": "owner/superuser/BYPASSRLS 사용 안 함; tenant context 없는 일반 업무 거부",
     "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
-    "status": "NOT_RUN"
+    "status": "PASS_POSTGRES_INTEGRATION",
+    "evidence_revision": "0.7",
+    "evidence": {
+      "record": "../../ops/pf02_a_acceptance.md",
+      "classification": "PASS_POSTGRES_INTEGRATION",
+      "source_ref": "63c619c6bfa451155249ebc458b9d3ac053d0ed7",
+      "accepted_head": "0fa5a9c14c9b57c6362f048b611c0148a3a76132",
+      "app_run": 35491995616,
+      "repository_run": 35491995683,
+      "postgres_job": 106028416097,
+      "note": "Actual runtime role catalog/grant checks and forced-RLS tests prove non-owner nonprivileged execution, no privileged inherited membership and no schema CREATE; owner/admin credentials do not substitute."
+    }
   },
   {
     "id": "F20",
@@ -494,7 +516,18 @@
     "action": "별도 transaction으로 ACTIVE 추가",
     "expected": "active 기간 하나; 승자 외는 명시적 충돌",
     "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
-    "status": "NOT_RUN"
+    "status": "PASS_POSTGRES_INTEGRATION",
+    "evidence_revision": "0.7",
+    "evidence": {
+      "record": "../../ops/pf02_a_acceptance.md",
+      "classification": "PASS_POSTGRES_INTEGRATION",
+      "source_ref": "63c619c6bfa451155249ebc458b9d3ac053d0ed7",
+      "accepted_head": "0fa5a9c14c9b57c6362f048b611c0148a3a76132",
+      "app_run": 35491995616,
+      "repository_run": 35491995683,
+      "postgres_job": 106028416097,
+      "note": "Actual two-runtime-backend overlap observed by third diagnostic connection: B waits on Lock before A commits, then B SQLSTATE23505 and exactly one ACTIVE occupancy; not sequential evidence."
+    }
   },
   {
     "id": "F24",
