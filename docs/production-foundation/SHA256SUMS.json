@@ -1,8 +1,8 @@
 {
-  "revision": "0.7",
-  "generated_for": "docs/production-foundation PF02-A acceptance and main publication",
-  "baseline": "main@63c619c6bfa451155249ebc458b9d3ac053d0ed7",
-  "note": "Revision 0.7: all 12 existing entries freshly read as final UTF-8 bytes; SHA-256 and byte lengths recomputed. PF02-A actual-main evidence promotes only F18/F19/F23; historical audits and the entry set/self-exclusion remain intact.",
+  "revision": "0.8",
+  "generated_for": "docs/production-foundation PF02-A freeze closure",
+  "baseline": "main@bfef69cc35b23a1fb5077a6fc73f54bfaa12133e",
+  "note": "Revision 0.8: PR28 independent acceptance, merge and fresh main CI close PF02-A freeze. All 12 existing entries freshly hashed from UTF-8 bytes; entry set and self-exclusion unchanged. Historical audit and acceptance cases are unchanged.",
   "files": {
     "00_foundation_blueprint.md": {
       "sha256": "ee47013f395d34d9435d7cfb201dc403dff4d89eb9a55d5d77a46c7ff76af999",
@@ -29,8 +29,8 @@
       "bytes": 26785
     },
     "README.md": {
-      "sha256": "07677e5110a9f42c34ae8735a9cb70a88e210f60bf4523d830688612c1d626d2",
-      "bytes": 7835
+      "sha256": "142ef26e531827f8dc11ef4cdb9ccab2a243d92ee36c9f83b4a28d895c55a142",
+      "bytes": 8772
     },
     "acceptance_cases.json": {
       "sha256": "8750571f5db4e9b04d4e90085df2fd40d7651f96b6ee71b453cdec8d8c8026c1",
@@ -53,5 +53,5 @@
       "bytes": 6961
     }
   },
-  "supersedes": "0.6"
+  "supersedes": "0.7"
 }
