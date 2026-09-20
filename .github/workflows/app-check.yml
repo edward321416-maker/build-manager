@@ -326,6 +326,66 @@ jobs:
             printf 'JS/assets export: %s; generated files: %s\n' "$output" "$count"
           done
 
+  postgres-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.21.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Verify runtime and Docker
+        shell: bash
+        run: |
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "11.19.0"
+          docker info
+      - name: Install without manifest, lock, or platform-key drift
+        shell: bash
+        env:
+          BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          test -n "$BASELINE_SHA"
+          npm ci
+          git diff --exit-code -- package.json package-lock.json packages/persistence-postgres/package.json
+          git show "$BASELINE_SHA:package-lock.json" > "$RUNNER_TEMP/pf02a-lock-baseline.json"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const baseline = JSON.parse(
+            readFileSync(process.env.RUNNER_TEMP + "/pf02a-lock-baseline.json", "utf8"),
+          );
+          const candidate = JSON.parse(readFileSync("package-lock.json", "utf8"));
+          const prefixes = [
+            "node_modules/@tailwindcss/oxide-",
+            "node_modules/@next/swc-",
+            "node_modules/@img/sharp-",
+            "node_modules/@unrs/resolver-binding-",
+          ];
+          const select = (lock) =>
+            Object.keys(lock.packages ?? {}).filter((key) =>
+              prefixes.some((prefix) => key.startsWith(prefix)),
+            );
+          const before = select(baseline);
+          const after = new Set(select(candidate));
+          const missing = before.filter((key) => !after.has(key));
+          console.log(
+            JSON.stringify(
+              { baseline: before.length, candidate: after.size, missing },
+              null,
+              2,
+            ),
+          );
+          if (missing.length) process.exit(1);
+          NODE
+      - name: PostgreSQL 18.6 integration tests
+        shell: bash
+        run: npm run test:postgres
+
   foundation-gate:
     if: ${{ always() }}
     needs:
@@ -335,6 +395,7 @@ jobs:
       - install-mobile-windows
       - web-e2e
       - mobile-health
+      - postgres-integration
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -347,6 +408,7 @@ jobs:
           INSTALL_MOBILE_WINDOWS_RESULT: ${{ needs.install-mobile-windows.result }}
           WEB_E2E_RESULT: ${{ needs.web-e2e.result }}
           MOBILE_HEALTH_RESULT: ${{ needs.mobile-health.result }}
+          POSTGRES_INTEGRATION_RESULT: ${{ needs.postgres-integration.result }}
         run: |
           failed=0
           for result in \
@@ -355,7 +417,8 @@ jobs:
             "mobile-cold-linux=$MOBILE_COLD_LINUX_RESULT" \
             "install-mobile-windows=$INSTALL_MOBILE_WINDOWS_RESULT" \
             "web-e2e=$WEB_E2E_RESULT" \
-            "mobile-health=$MOBILE_HEALTH_RESULT"; do
+            "mobile-health=$MOBILE_HEALTH_RESULT" \
+            "postgres-integration=$POSTGRES_INTEGRATION_RESULT"; do
             printf '%s\n' "$result"
             if [ "${result#*=}" != "success" ]; then
               failed=1
