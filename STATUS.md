@@ -11,7 +11,7 @@ Snapshot: **2026-09-20**. Current delivery evidence: [PF02-A independent accepta
 | PF00-C | ACCEPTED_AND_INTEGRATED | PR #23 merged at `333228163227d55d13e514fb9311ecb8b9dea615`; fresh actual main CI all required SUCCESS |
 | PF00-D | ACCEPTED_AND_INTEGRATED | PR #24 merged at `6669c50ee5c2a07d40412a7162ddf381fa4698b1`; revision 0.5 independently accepted; revision 0.6 records freeze |
 | PF01 | REVIEW_DRAFT | PF02-A-required constraints were approved for that slice; broader identity/authorization implementation remains deferred |
-| PF02-A | VERIFIED (IMPLEMENTATION_VERIFIED) | PR #27 accepted and merged at `63c619c6bfa451155249ebc458b9d3ac053d0ed7`; fresh actual-main CI 9/9 SUCCESS; evidence-finalization PR awaits independent acceptance |
+| PF02-A | VERIFIED / FROZEN | PR #27 implementation and PR #28 evidence independently accepted and merged; PR #28 merge `bfef69cc35b23a1fb5077a6fc73f54bfaa12133e`; fresh main CI [App 35496169603](https://github.com/edward321416-maker/build-manager/actions/runs/35496169603) / [Repository 35496169579](https://github.com/edward321416-maker/build-manager/actions/runs/35496169579), 9/9 SUCCESS |
 | PF02-B | NOT_STARTED / D01 REQUIRED | No identity provider/auth implementation authorized; F18/F19/F23 PASS_POSTGRES_INTEGRATION, other 41 F cases NOT_RUN |
 | Product definition and initial customer target | DECISION | [Charter](PROJECT_CHARTER.md) |
 | Problem evidence, interviews, market, pricing, willingness to pay | TO VERIFY | [Evidence workflow](research/README.md); no validation claims inferred from CI |
@@ -31,4 +31,4 @@ Open risks retained before private beta/release:
 
 Preserved Mobile limitation: the first Windows-mounted Ubuntu run failed 2/133 tests at the unchanged 5000 ms timeout, with prior cache state UNKNOWN. Native ext4 and hosted passes remain separate evidence; ROOT_CAUSE_NOT_ESTABLISHED and TIMEOUT_NOT_REPRODUCED_ON_NATIVE_EXT4 are unchanged. No timeout/config fix or warm retry is claimed. See the PF02-A acceptance record for historical local evidence and remaining helper/install-script limitations.
 
-Next gate: independent acceptance of the PF02-A evidence-finalization PR. PF02-B remains NOT_STARTED / D01 REQUIRED; review unresolved identity-provider/account-recovery decisions separately before any implementation. Existing operator decisions remain resolved. Production DB hosting and real tenant data remain NOT_AUTHORIZED. Research/submission verification is a separate open track.
+Next gate: PF02-B D01 consequential-decision review. PR #28 is merged; PF02-A is VERIFIED / FROZEN. PF02-B remains NOT_STARTED / D01 REQUIRED; review unresolved identity-provider/account-recovery decisions separately before any implementation. Existing operator decisions remain resolved. Production DB hosting and real tenant data remain NOT_AUTHORIZED. Research/submission verification is a separate open track.
