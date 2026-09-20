@@ -1,3 +1,23 @@
+# PF02-A acceptance/publication reconciliation — revision 0.7
+
+Revision: **0.7 (supersedes 0.6)** | Snapshot: 2026-09-20
+POLICY_REF: `08b99623eaec9b654eebeb30854374194ab49233`. TARGET_REF / actual main: `63c619c6bfa451155249ebc458b9d3ac053d0ed7`.
+Current disposition: **PF00 FROZEN; PF02-A VERIFIED (IMPLEMENTATION_VERIFIED); PF01 REVIEW_DRAFT; PF02-B NOT_STARTED / D01 REQUIRED**. This evidence-finalization PR awaits separate independent acceptance and must not be merged in this run.
+
+**OPERATOR_SIDE_INDEPENDENT_ACCEPTANCE** accepted corrected PR #27 head `0fa5a9c14c9b57c6362f048b611c0148a3a76132`. The executor did not perform that operator review. Fresh pre-merge checks confirmed the pinned main/head, OPEN state and nine successful PR checks. Expected-head-protected merge commit produced `63c619c6bfa451155249ebc458b9d3ac053d0ed7`, with parents `08b99623eaec9b654eebeb30854374194ab49233` and `0fa5a9c14c9b57c6362f048b611c0148a3a76132`; the implementation branch and accepted tree were preserved.
+
+Separate fresh push-to-main runs **35491995616 / 35491995683**, both attempt 1, passed all **nine** required checks at the actual merge SHA. Actual PostgreSQL logs show **18.6**, executed exact numeric assertion **180006**, **86/86 tests PASS**, both R27-H01 controls, R27-H02 own-idle-backend termination/recovery and F23 **Lock → 23505 → ACTIVE1**. The aggregate log confirms all **seven** internal dependencies success. PR CI was not substituted for actual-main evidence.
+
+The [canonical acceptance receipt](../../ops/pf02_a_acceptance.md) distinguishes operator acceptance, executor-local history, PR CI and actual-main CI. Only **F18/F19/F23** become **PASS_POSTGRES_INTEGRATION**. F01/F16/F41/F43 and all other unexecuted F cases remain **NOT_RUN** (41/44); database prerequisites do not weaken their canonical semantics. C01–C12 objects and provenance remain unchanged. Revision 0.7 recomputes all 12 existing manifest entries from final bytes, retaining entry set and self-exclusion.
+
+The first Windows-mounted Ubuntu Mobile **2/133 tests / 2/13 suites** failure is preserved with prior cache UNKNOWN and ROOT_CAUSE_NOT_ESTABLISHED. Native ext4 and hosted passes remain separate; TIMEOUT_NOT_REPRODUCED_ON_NATIVE_EXT4 is retained. Original PR checks that missed H01/H02, actual RED, corrected GREEN and new main proof remain distinct.
+
+CodeRabbit stays **SUCCESS_STATUS / REVIEW_SKIPPED**. Existing 14 moderate advisories, install-script/optional-build limitations, pinned Actions runtime warnings and limited container failure/concurrent-stop coverage remain open, as detailed in the receipt. No application, schema, workflow, dependency, scanner or test code changes in this documentation phase. Real identity is NOT_IMPLEMENTED; real tenant data and production DB hosting are NOT_AUTHORIZED; security/privacy work is incomplete; Google sync PENDING.
+
+## Retained revision 0.6 and earlier audit snapshots — verbatim
+
+The current reconciliation above supersedes current-state language in the historical snapshots below; their original assertions and evidence remain intact.
+
 # PF00 freeze reconciliation — revision 0.6
 
 Revision: **0.6 (supersedes 0.5)** | Snapshot: 2026-09-19
