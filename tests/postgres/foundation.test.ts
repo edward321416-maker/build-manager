@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { Client, type ClientConfig, type PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
+import { fork } from "node:child_process";
+import { on } from "node:events";
 import * as publicApi from "@build-manager/persistence-postgres";
 import { createPostgresDatabase, withTransaction, withOrgTransaction } from "@build-manager/persistence-postgres";
 import { getInternalPool } from "../../packages/persistence-postgres/src/database";
@@ -50,6 +52,118 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
       await postgres?.stop();
     }
   }, 60_000);
+
+  it("R27-H01 rejects a swallowed SQL error when PostgreSQL rolls COMMIT back", async () => {
+    const id = randomUUID();
+    const transaction = withTransaction(migrationDatabase, async (client) => {
+      await client.query("INSERT INTO app.app_user (id, status) VALUES ($1, 'ACTIVE')", [id]);
+      try {
+        await client.query("SELECT 1 / 0");
+      } catch (error) {
+        expect(error).toMatchObject({ code: "22012" });
+      }
+      return "SYNTHETIC_FALSE_SUCCESS";
+    });
+    // Settle before reading through the independent migration connection.
+    await transaction.then(() => undefined, () => undefined);
+    expect((await migrationClient.query("SELECT id FROM app.app_user WHERE id = $1", [id])).rows).toEqual([]);
+    await expect(transaction).rejects.toThrow("PostgreSQL transaction did not commit");
+    console.info("R27-H01: swallowed SQL error rejected; preceding write absent");
+  });
+
+  it("R27-H01 commits successfully after recovering the SQL error with a SAVEPOINT", async () => {
+    const id = randomUUID();
+    await expect(withTransaction(migrationDatabase, async (client) => {
+      await client.query("INSERT INTO app.app_user (id, status) VALUES ($1, 'ACTIVE')", [id]);
+      await client.query("SAVEPOINT recoverable");
+      try {
+        await client.query("SELECT 1 / 0");
+      } catch (error) {
+        expect(error).toMatchObject({ code: "22012" });
+        await client.query("ROLLBACK TO SAVEPOINT recoverable");
+      }
+      await client.query("RELEASE SAVEPOINT recoverable");
+      return "SYNTHETIC_RECOVERED";
+    })).resolves.toBe("SYNTHETIC_RECOVERED");
+    expect((await migrationClient.query("SELECT id FROM app.app_user WHERE id = $1", [id])).rows).toEqual([{ id }]);
+    console.info("R27-H01: SAVEPOINT recovery committed; write persisted");
+  });
+
+  it("R27-H02 survives termination of its own idle runtime backend and restores isolated transactions", async () => {
+    const orgA = randomUUID();
+    const orgB = randomUUID();
+    for (const org of [orgA, orgB]) {
+      await withOrgTransaction(migrationDatabase, org, (client) =>
+        client.query("INSERT INTO app.organization (id, status, display_name) VALUES ($1, 'ACTIVE', 'SYNTHETIC_IDLE')", [org]),
+      );
+    }
+    // Fatal Node error output can include pg's attached client/config: discard it.
+    // Observe IPC and exit status instead; no global exception suppression.
+    const child = fork(new URL("./helpers/idle-pool-worker.ts", import.meta.url), [], {
+      execArgv: [],
+      stdio: ["ignore", "ignore", "ignore", "ipc"],
+    });
+    const exited = new Promise<{ code: number | null; signal: string | null }>((resolve) =>
+      child.once("exit", (code, signal) => resolve({ code, signal })),
+    );
+    const events = on(child, "message", { signal: AbortSignal.timeout(12_000) });
+    const next = async () => {
+      const message = await Promise.race([
+        events.next(),
+        exited.then(({ code, signal }) => { throw new Error("Idle worker exited before recovery: " + code + "/" + signal); }),
+      ]);
+      return message.value?.[0];
+    };
+    try {
+      child.send({ config: runtimeConfig, orgA, orgB });
+      const idle = await next();
+      expect(idle.type).toBe("idle");
+      expect(Number.isInteger(idle.pid)).toBe(true);
+      // Confirm ownership, database and idle state on the same ephemeral server.
+      const activity = await postgres!.admin.query(
+        "SELECT usename, datname, state FROM pg_stat_activity WHERE pid = $1", [idle.pid],
+      );
+      expect(activity.rows).toEqual([{ usename: TEST_RUNTIME_ROLE, datname: postgres!.database, state: "idle" }]);
+      const termination = await postgres!.admin.query(
+        "SELECT pg_terminate_backend(pid) AS terminated FROM pg_stat_activity WHERE pid = $1 AND usename = $2 AND datname = $3 AND state = 'idle'",
+        [idle.pid, TEST_RUNTIME_ROLE, postgres!.database],
+      );
+      expect(termination.rows).toEqual([{ terminated: true }]);
+      expect(await next()).toEqual({ type: "diagnostic", safe: true });
+      const recovered = await next();
+      expect(recovered.type).toBe("recovered");
+      expect(Number.isInteger(recovered.plain.pid)).toBe(true);
+      expect(recovered.plain.pid).not.toBe(idle.pid);
+      expect(recovered.plain.org).toBeNull();
+      expect(recovered.plain.visible).toBe(0);
+      expect(recovered.scoped).toEqual({ pid: recovered.plain.pid, org: orgB, rows: [{ id: orgB }] });
+      expect(await next()).toEqual({ type: "closed" });
+      expect(await exited).toEqual({ code: 0, signal: null });
+      console.info("R27-H02: real idle backend terminated; diagnostic observed; replacement backend isolated; worker exit 0");
+    } finally {
+      await events.return?.();
+      if (child.exitCode === null && child.signalCode === null) child.kill();
+      await exited;
+    }
+  });
+
+  it.each(["57P01", "SYNTHETIC_SENSITIVE_MARKER", undefined])(
+    "R27-H02 bounds idle diagnostics and excludes raw Error/client fields (code %j)", async (code) => {
+      const database = createPostgresDatabase(runtimeConfig);
+      const marker = "SYNTHETIC_SENSITIVE_MARKER";
+      const error = Object.assign(new Error(marker), { code, detail: marker, client: { privateData: marker } });
+      const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      try {
+        // Event injection verifies redaction only; the separate worker proves actual pg recovery.
+        getInternalPool(database).emit("error", error, { privateData: marker });
+        expect(log.mock.calls).toEqual([["postgres.pool.idle_error", code === "57P01" ? "57P01" : "UNKNOWN"]]);
+        expect(JSON.stringify(log.mock.calls)).not.toContain(marker);
+      } finally {
+        log.mockRestore();
+        await database.close();
+      }
+    },
+  );
 
   it("commits a write only after the operation completes on one backend", async () => {
     const database = createPostgresDatabase({ ...migrationConfig, max: 1 });
@@ -168,7 +282,7 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
         const command = sql.startsWith("SELECT pg_catalog.set_config") ? "CONTEXT" : sql;
         if (command === stage) throw primary;
         if (command === "ROLLBACK" && rollbackFails) throw rollbackError;
-        return { rows: [] };
+        return { rows: [], command, rowCount: null, oid: 0, fields: [] };
       });
       const release = vi.fn(() => { if (releaseFails) throw releaseError; });
       const client = { query, release } as unknown as PoolClient;
@@ -198,7 +312,7 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
     it("propagates release failure after a committed operation", async () => {
       const database = createPostgresDatabase(runtimeConfig);
       const primary = new Error("SYNTHETIC_RELEASE_FAILURE");
-      const query = vi.fn(async () => ({ rows: [] }));
+      const query = vi.fn(async (command: string) => ({ rows: [], command, rowCount: null, oid: 0, fields: [] }));
       const release = vi.fn(() => { throw primary; });
       const connect = vi.spyOn(getInternalPool(database), "connect").mockImplementation(async () => ({ query, release } as unknown as PoolClient));
       try {
@@ -210,7 +324,7 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
 
     it.each([undefined, null, false, 0, "SYNTHETIC_THROWN_STRING"])("preserves arbitrary thrown value %j after rollback", async (primary) => {
       const database = createPostgresDatabase(runtimeConfig);
-      const query = vi.fn(async () => ({ rows: [] }));
+      const query = vi.fn(async (command: string) => ({ rows: [], command, rowCount: null, oid: 0, fields: [] }));
       const release = vi.fn();
       const connect = vi.spyOn(getInternalPool(database), "connect").mockImplementation(async () => ({ query, release } as unknown as PoolClient));
       try {

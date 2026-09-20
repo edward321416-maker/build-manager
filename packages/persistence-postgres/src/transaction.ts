@@ -20,7 +20,10 @@ export async function withTransaction<T>(
     began = true;
     result = await operation(client);
     committing = true;
-    await client.query("COMMIT");
+    const completion = await client.query("COMMIT");
+    if (completion.command !== "COMMIT") {
+      throw new Error("PostgreSQL transaction did not commit");
+    }
   } catch (primary) {
     failures.push(primary);
     // Failed BEGIN or COMMIT leaves connection/transaction state uncertain.
