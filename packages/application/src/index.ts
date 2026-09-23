@@ -20,3 +20,4 @@ export * from "./use-cases/reset-demo";
 export * from "./b1/ports";
 export * from "./b1/errors";
 export * from "./b1/begin-web-session";
+export * from "./b1/organization-access";

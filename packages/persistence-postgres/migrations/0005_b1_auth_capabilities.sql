@@ -87,4 +87,13 @@ REVOKE ALL ON FUNCTION authn.current_actor(bytea),authn.revoke_session(bytea) FR
 GRANT EXECUTE ON FUNCTION authn.current_actor(bytea),authn.revoke_session(bytea) TO bm_b1_web;
 ALTER FUNCTION authn.current_actor(bytea) OWNER TO bm_b1_capability_owner;
 ALTER FUNCTION authn.revoke_session(bytea) OWNER TO bm_b1_capability_owner;
+CREATE FUNCTION authn.context_session_digest() RETURNS bytea
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path=pg_catalog AS $$
+ SELECT CASE WHEN NULLIF(current_setting('app.b1_session_digest',true),'') ~ '^[a-f0-9]{64}$'
+ THEN decode(current_setting('app.b1_session_digest',true),'hex') ELSE NULL END
+$$;
+REVOKE ALL ON FUNCTION authn.context_session_digest() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION authn.context_session_digest() TO bm_b1_web;
+ALTER FUNCTION authn.context_session_digest() OWNER TO bm_b1_capability_owner;
+
 REVOKE CREATE ON SCHEMA authn FROM bm_b1_capability_owner;
