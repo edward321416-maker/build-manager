@@ -1,3 +1,20 @@
+# PF02-B B1 closure reconciliation — revision 0.9
+
+Revision: **0.9 (supersedes manifest revision 0.8)** | Snapshot: 2026-09-23
+POLICY_REF: `87341f143b04dd96a5b7e66dedf8df47b5f5ae73`. TARGET_REF / actual implementation main: `2ede1520e681c3fe02cb5ac2b85847ea803282d8`.
+
+Current disposition: **PF00 FROZEN; PF01 REVIEW_DRAFT; PF02-A VERIFIED / FROZEN; PF02-B IN_PROGRESS; B1 VERIFIED / FROZEN; B2 NOT_STARTED / NEXT**. D01 = RESOLVED_FOR_B1 for Auth0 selection and Database-only Web identity, not all provider/operational decisions.
+
+Operator-side independent Opus review SHA-256 `7c6e6714f92ce98aaa44442cec8428de9099e8ed5f5d573a334eeb2b4797e5ed` returned NO_BLOCKING_FINDINGS on PR #31 candidate `281bb651c2f47a528fd148137fd94d318aa193c7`. The operator explicitly authorized merge and closure. Expected-head merge produced `2ede1520e681c3fe02cb5ac2b85847ea803282d8` with parents `87341f143b04dd96a5b7e66dedf8df47b5f5ae73` and `281bb651c2f47a528fd148137fd94d318aa193c7`; accepted and merged trees match. Fresh main push attempt-1 runs [App 35838146830](https://github.com/edward321416-maker/build-manager/actions/runs/35838146830) / [Repository 35838146810](https://github.com/edward321416-maker/build-manager/actions/runs/35838146810) pass all nine required checks; aggregate dependencies seven/seven success. Main logs include PostgreSQL124, H01/H02/F23 and M05, Shared358/Web313, DEMO21+B1E2E12, Doctor21/21 and executed Android/iOS JS exports.
+
+The [B1 receipt](../../ops/pf02_b_b1_acceptance.md) separates PR/main CI, independent review and EXECUTOR_LIVE_EVIDENCE. LIVE_AUTH0_INDEPENDENT_REPRO=NOT_RUN. PF02-A migration bytes, frozen runtime/F18/F19 and seven-table contract are retained. Canonical acceptance_cases.json is unchanged: only F18/F19/F23 already PASS_POSTGRES_INTEGRATION; other 41 F-cases NOT_RUN. All 12 manifest entries are freshly recomputed for revision 0.9 with unchanged entry set/self-exclusion.
+
+B1I-M01 is OPEN_HARDENING_BACKLOG (explicit membership predicate as a future second defense); B1I-M02 is DOCUMENT_RECONCILED against the final 84-path inventory; six LOW findings remain deferred/non-blocking. No source/workflow/dependency/test changes in closure. Existing moderate14/install-script/Actions runtime risks and unresolved Windows-mounted Ubuntu Mobile timeout remain. Production hosting/credentials, real-data pilot, final session/retention, Kakao/linking/Mobile/staff/B2 remain unfinished. Real tenant data and production DB hosting NOT_AUTHORIZED; external sync PENDING. B1 freeze is not PF02-B completion or production readiness.
+
+## Historical revision 0.7 and earlier audit snapshots — retained verbatim
+
+The historical dispositions below describe their own dates and do not override the current revision 0.9 disposition above. Revision 0.8 updated README/manifest without rewriting those audits.
+
 # PF02-A acceptance/publication reconciliation — revision 0.7
 
 Revision: **0.7 (supersedes 0.6)** | Snapshot: 2026-09-20
