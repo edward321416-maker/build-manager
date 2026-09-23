@@ -1,1 +1,1 @@
-export { createIdentityBootstrapPort } from "./identity-session";
+export { createIdentityBootstrapPort, createSessionRegistryPort } from "./identity-session";

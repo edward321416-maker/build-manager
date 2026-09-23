@@ -1,5 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
+import { scanProxyTransport } from './b1-graph';
 
 export type ImportBoundaryFinding = {
   file: string;
@@ -8,7 +9,8 @@ export type ImportBoundaryFinding = {
     | "client-server-core"
     | "server-core-purity"
     | "api-client-purity"
-    | "server-driver-isolation";
+    | "server-driver-isolation"
+    | "proxy-transport";
 };
 
 export type RouteRuntimeFinding = {
@@ -332,8 +334,10 @@ export async function scanImportBoundaries(
   }
 
   const findings: ImportBoundaryFinding[] = [];
+  findings.push(...await scanProxyTransport(repositoryRoot));
 
   for (const file of files) {
+    if(file==='apps/web/src/proxy.ts')continue;
     const client = isClientFile(file);
     const serverCore = isServerCoreFile(file);
     const apiClient = isApiClientFile(file);

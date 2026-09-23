@@ -58,6 +58,6 @@ it("B1 roles have no privileged attributes, inherited capability or schema CREAT
     await expect(f.web.query("SELECT authn.begin_session(NULL,NULL,NULL,NULL)")).rejects.toMatchObject({code:"42501"});
     for(const c of [f.login,f.web]) for(const table of ["app.app_user","authn.external_identity","authn.web_session","app.organization_membership"]) await expect(c.query(`SELECT * FROM ${table}`)).rejects.toMatchObject({code:"42501"});
     const functions=(await f.migration.query("SELECT p.prosecdef,p.proconfig,r.rolname,EXISTS(SELECT 1 FROM aclexplode(p.proacl) a WHERE a.grantee=0) AS public_exec FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace JOIN pg_roles r ON r.oid=p.proowner WHERE n.nspname='authn'")).rows;
-    for(const fun of functions) { expect(fun.public_exec).toBe(false); expect(fun.proconfig).toEqual(["search_path=pg_catalog"]); expect(fun.rolname).toBe("bm_b1_capability_owner"); }
+    for(const fun of functions) { expect(fun.public_exec).toBe(false); expect(fun.proconfig).toEqual(["search_path=pg_catalog"]); expect(fun.rolname).toBe(fun.prosecdef ? "bm_b1_capability_owner" : "bm_pf02a_migrator"); }
   } finally { await f.close(); }
 },120_000);

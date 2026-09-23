@@ -52,3 +52,16 @@ CREATE TABLE authn.web_session (
   CHECK (expires_at > created_at AND expires_at <= created_at + interval '1 hour')
 );
 REVOKE ALL ON ALL TABLES IN SCHEMA authn FROM PUBLIC;
+
+CREATE FUNCTION authn.bump_session_epoch() RETURNS trigger
+LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog AS $$
+BEGIN
+  NEW.session_epoch := greatest(OLD.session_epoch,NEW.session_epoch)
+    + CASE WHEN OLD.status='ACTIVE' AND NEW.status<>'ACTIVE' THEN 1 ELSE 0 END;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION authn.bump_session_epoch() FROM PUBLIC;
+CREATE TRIGGER app_user_epoch BEFORE UPDATE ON app.app_user
+FOR EACH ROW EXECUTE FUNCTION authn.bump_session_epoch();
+CREATE TRIGGER external_identity_epoch BEFORE UPDATE ON authn.external_identity
+FOR EACH ROW EXECUTE FUNCTION authn.bump_session_epoch();

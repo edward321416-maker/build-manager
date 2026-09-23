@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     "@build-manager/api-contracts",
     "@build-manager/api-client",
     "@build-manager/fixtures",
+    "@build-manager/persistence-postgres",
   ],
 };
 

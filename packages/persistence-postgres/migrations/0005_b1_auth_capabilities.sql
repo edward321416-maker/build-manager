@@ -67,3 +67,24 @@ REVOKE ALL ON FUNCTION authn.begin_session(text,text,bytea,timestamptz) FROM PUB
 GRANT EXECUTE ON FUNCTION authn.begin_session(text,text,bytea,timestamptz) TO bm_b1_login;
 ALTER FUNCTION authn.begin_session(text,text,bytea,timestamptz) OWNER TO bm_b1_capability_owner;
 REVOKE CREATE ON SCHEMA authn FROM bm_b1_capability_owner;
+
+-- Registry authorization is authoritative, independently of transport cookies.
+GRANT CREATE ON SCHEMA authn TO bm_b1_capability_owner;
+CREATE FUNCTION authn.current_actor(p_digest bytea) RETURNS uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog
+AS $$ SELECT u.id FROM authn.web_session s
+  JOIN authn.external_identity i ON i.id=s.identity_id AND i.user_id=s.user_id
+  JOIN app.app_user u ON u.id=s.user_id
+  WHERE s.digest=p_digest AND octet_length(p_digest)=32
+    AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()
+    AND u.status='ACTIVE' AND i.status='ACTIVE'
+    AND s.user_epoch=u.session_epoch AND s.identity_epoch=i.session_epoch $$;
+CREATE FUNCTION authn.revoke_session(p_digest bytea) RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog AS $$
+  UPDATE authn.web_session SET revoked_at=clock_timestamp() WHERE digest=p_digest AND revoked_at IS NULL
+$$;
+REVOKE ALL ON FUNCTION authn.current_actor(bytea),authn.revoke_session(bytea) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION authn.current_actor(bytea),authn.revoke_session(bytea) TO bm_b1_web;
+ALTER FUNCTION authn.current_actor(bytea) OWNER TO bm_b1_capability_owner;
+ALTER FUNCTION authn.revoke_session(bytea) OWNER TO bm_b1_capability_owner;
+REVOKE CREATE ON SCHEMA authn FROM bm_b1_capability_owner;
