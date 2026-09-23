@@ -38,3 +38,12 @@ it('R12 business request graph cannot acquire the completion login capability',a
  const root=await fixture({'apps/web/src/server/b1/http.ts':'export * from "./complete-session";','apps/web/src/server/b1/complete-session.ts':'export {};'});
  expect((await scanB1ProductionGraph(root,['apps/web/src/server/b1/http.ts'])).length).toBeGreaterThan(0);
 });
+it.each(['apps/web/src/app/workspace/page.tsx','apps/web/src/app/outside/page.tsx'])('R12 default inventory detects fixture imports from %s',async path=>{
+ const root=await fixture(Object.fromEntries([
+  ...['apps/web/src/proxy.ts','apps/web/src/server/b1/http.ts','apps/web/src/server/b1/complete-session.ts','apps/web/src/server/b1/logout.ts'].map(p=>[p,'export {};']),
+  [path,'import "@/fixture-facade";'],
+  ['apps/web/src/fixture-facade.ts','export * from "../../../../scripts/b1-local-fixture.mjs";'],
+  ['scripts/b1-local-fixture.mjs','export {};'],
+ ]));
+ expect((await scanB1ProductionGraph(root)).length).toBeGreaterThan(0);
+});

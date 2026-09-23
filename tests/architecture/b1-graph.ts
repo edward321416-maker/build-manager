@@ -56,21 +56,34 @@ export async function scanProxyTransport(root:string){
 }
 export async function scanB1ProductionGraph(root:string,entries?:string[]){
  const findings:{file:string;specifier:string}[]=[],seen=new Set<string>();
- let bootstrapAllowed=false;
+ let bootstrapAllowed=false,fixtureOnly=false;
  const forbidden=(file:string)=>file.startsWith('../')||file.startsWith('scripts/')||/(^|\/)(tests|testing|__tests__|fixtures)(\/|$)|\.test\.[cm]?[jt]sx?$/.test(file)||file.includes('/server/persistence/')||file.includes('/server/container.');
  async function walk(file:string){
-  if(seen.has(file))return;seen.add(file);
-  if(!bootstrapAllowed && file==='apps/web/src/server/b1/complete-session.ts'){findings.push({file,specifier:'<login-capability-outside-completion>'});return;}
+  const key=String(fixtureOnly)+String(bootstrapAllowed)+file;if(seen.has(key))return;seen.add(key);
+  if(!fixtureOnly && !bootstrapAllowed && file==='apps/web/src/server/b1/complete-session.ts'){findings.push({file,specifier:'<login-capability-outside-completion>'});return;}
   let source:string;try{source=await readFile(join(root,file),'utf8');}catch{findings.push({file,specifier:'<unresolved-source>'});return;}
   for(const edge of moduleEdges(source)){
    const local=await resolveLocal(root,file,edge.specifier);
-   if(edge.dynamic || edge.specifier==='@auth0/nextjs-auth0/testing'||edge.specifier==='node:sqlite'||local&&(forbidden(local)||local.startsWith('<'))){findings.push({file,specifier:edge.specifier});continue;}
+   const testOnly=local&&(local.startsWith('scripts/')||/(^|\/)(tests|testing|__tests__)(\/|$)|\.test\.[cm]?[jt]sx?$/.test(local));
+   if(edge.dynamic || edge.specifier==='@auth0/nextjs-auth0/testing'||(!fixtureOnly&&edge.specifier==='node:sqlite')||local&&(local.startsWith('<')||local.startsWith('../')||testOnly||!fixtureOnly&&forbidden(local))){findings.push({file,specifier:edge.specifier});continue;}
    if(local)await walk(local);
   }
  }
  const defaults=['apps/web/src/proxy.ts','apps/web/src/server/b1/http.ts','apps/web/src/server/b1/complete-session.ts','apps/web/src/server/b1/logout.ts'];
  async function routeEntries(dir:string){let rows;try{rows=await readdir(join(root,dir),{withFileTypes:true});}catch{return;}for(const row of rows){const file=dir+'/'+row.name;if(row.isDirectory())await routeEntries(file);else if(row.name==='route.ts')defaults.push(file);}}
  if(!entries)await routeEntries('apps/web/src/app/api/v2');
- for(const entry of entries??defaults){seen.clear();bootstrapAllowed=entry==='apps/web/src/server/b1/complete-session.ts'||entry==='apps/web/src/app/api/v2/session/complete/route.ts';await walk(entry);}
+ for(const entry of entries??defaults){bootstrapAllowed=entry==='apps/web/src/server/b1/complete-session.ts'||entry==='apps/web/src/app/api/v2/session/complete/route.ts';await walk(entry);}
+ if(!entries){
+  const sources:string[]=[];
+  async function inventory(dir:string){let rows;try{rows=await readdir(join(root,dir),{withFileTypes:true});}catch{return;}
+   for(const row of rows){const path=dir+'/'+row.name;if(row.isDirectory()){if(!['testing','tests','__tests__'].includes(row.name))await inventory(path);}else if(/\.[cm]?[jt]sx?$/.test(row.name)&&!/(\.test\.|\.d\.ts$)/.test(row.name))sources.push(path);}
+  }
+  await inventory('apps/web/src');
+  for(const entry of sources){
+   fixtureOnly=!entry.startsWith('apps/web/src/app/workspace/')&&!entry.startsWith('apps/web/src/server/b1/');
+   bootstrapAllowed=entry==='apps/web/src/server/b1/complete-session.ts'||entry==='apps/web/src/app/api/v2/session/complete/route.ts';
+   await walk(entry);
+  }
+ }
  return findings;
 }

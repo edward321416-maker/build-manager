@@ -22,7 +22,8 @@
     "typecheck": "tsc -p tsconfig.packages.json --noEmit && npm run typecheck:tests && npm --workspace @build-manager/web run typecheck && npm --workspace @build-manager/mobile run typecheck",
     "build:web": "npm --workspace @build-manager/web run build",
     "check:deps": "npm ls react && npm ls react-dom && npm ls react-native && npm ls expo",
-    "verify": "npm run test:shared && npm run lint && npm run typecheck && npm run build:web && npm run check:deps"
+    "verify": "npm run test:shared && npm run lint && npm run typecheck && npm run build:web && npm run check:deps",
+    "test:e2e:b1": "npm --workspace @build-manager/web run test:e2e:b1"
   },
   "overrides": {
     "react": "19.2.3",
