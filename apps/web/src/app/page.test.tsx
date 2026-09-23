@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach,beforeEach,describe, expect, it,vi } from "vitest";
 import Home from "./page";
 
 function markup(): string {
@@ -7,6 +7,8 @@ function markup(): string {
 }
 
 describe("product root", () => {
+  beforeEach(()=>vi.stubEnv('BUILD_MANAGER_MODE','DEMO'));
+  afterEach(()=>vi.unstubAllEnvs());
   it("still leads with the product hero", () => {
     const html = markup();
 
@@ -43,3 +45,4 @@ describe("product root", () => {
     expect(html).toContain("중단");
   });
 });
+it('B1 root presents authentication/workspace without demo data',()=>{vi.stubEnv('BUILD_MANAGER_MODE','B1');try{const html=markup();expect(html).toContain('href="/auth/login"');expect(html).toContain('href="/workspace"');expect(html).not.toContain('/demo/');}finally{vi.unstubAllEnvs();}});

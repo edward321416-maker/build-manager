@@ -265,10 +265,22 @@ jobs:
         shell: bash
         run: |
           npm exec --workspace @build-manager/web -- playwright install --with-deps chromium
+      - name: Build Web once for both browser suites
+        shell: bash
+        run: npm run build:web
       - name: Run Web E2E with existing synthetic-state configuration
+        env:
+          BUILD_MANAGER_E2E_PREBUILT: "1"
         shell: bash
         run: |
           npm run test:e2e:web
+      - name: Run B1 Web with PostgreSQL and synthetic SDK sessions
+        env:
+          BUILD_MANAGER_E2E_PREBUILT: "1"
+        shell: bash
+        run: |
+          npm run test:e2e:b1
+          node apps/web/tests/b1-e2e/check-results.mjs
 
   mobile-health:
     runs-on: ubuntu-24.04

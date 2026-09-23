@@ -1,8 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { existsSync } from 'node:fs';
 
 const PORT = 3123;
+const prebuilt=process.env.BUILD_MANAGER_E2E_PREBUILT==='1';
+if(prebuilt&&!existsSync(join(process.cwd(),'.next','BUILD_ID')))throw new Error('E2E_PREBUILT_BUILD_REQUIRED');
 
 /**
  * The end-to-end server keeps its demo database in the OS temp directory, so a
@@ -25,10 +28,10 @@ export default defineConfig({
     ...devices["Desktop Chrome"],
   },
   webServer: {
-    command: `npm run build && npm run start -- --port ${PORT}`,
+    command: `${prebuilt?'':'npm run build && '}npm run start -- --port ${PORT}`,
     url: `http://127.0.0.1:${PORT}/demo/landlord`,
     reuseExistingServer: false,
     timeout: 180_000,
-    env: { BUILD_MANAGER_DB_PATH: E2E_DATABASE_PATH },
+    env: { BUILD_MANAGER_DB_PATH: E2E_DATABASE_PATH, BUILD_MANAGER_MODE: "DEMO" },
   },
 });
