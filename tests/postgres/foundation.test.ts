@@ -766,7 +766,8 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
       WHERE table_schema = 'app' AND table_name = 'app_user'
       ORDER BY ordinal_position
     `);
-    expect(columns.rows.map((row) => row.column_name)).toEqual(["id", "status", "created_at"]);
+    // B1 adds the approved epoch column; preserve every original field and UUID default.
+    expect(columns.rows.map((row) => row.column_name)).toEqual(["id", "status", "created_at", "session_epoch"]);
     const defaults = await migrationClient.query(`
       SELECT table_name, column_default FROM information_schema.columns
       WHERE table_schema = 'app' AND table_name IN ('app_user', 'organization') AND column_name = 'id'
