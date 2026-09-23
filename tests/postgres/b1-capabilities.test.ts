@@ -20,12 +20,12 @@ it("M05 missing B1 roles rejects the full chain atomically on an empty database"
   }
 }, 120_000);
 
-it("B1 private tables are separate from the frozen seven app tables", async () => {
+it("B1 private tables remain separate from the eight current app tables", async () => {
   const f = await createB1Fixture();
   try {
     const tableNames = async (schema: string) => (await f.migration.query("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname=$1 ORDER BY tablename", [schema])).rows.map(r => r.tablename);
     expect(await tableNames("authn")).toEqual(["external_identity", "web_session"]);
-    expect(await tableNames("app")).toEqual(["app_user", "occupancy", "occupancy_member", "organization", "organization_membership", "property", "unit"]);
+    expect(await tableNames("app")).toEqual(["app_user", "occupancy", "occupancy_member", "organization", "organization_membership", "property", "property_assignment", "unit"]);
   } finally { await f.close(); }
 }, 120_000);
 
