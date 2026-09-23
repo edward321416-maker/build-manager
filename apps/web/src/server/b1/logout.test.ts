@@ -33,3 +33,7 @@ it('provider failure after commit cannot undo server revoke',async()=>{
  const r=await executeB1Logout(f.request(),f.session,f.registry,f.provider,base);expect(r.status).toBe(503);expect(await r.text()).not.toContain('PRIVATE_PROVIDER_DETAILS');
  expect(await f.registry.currentActor()).toBeNull();
 });
+it('native same-origin logout form preserves provider redirect after server commit',async()=>{
+ const f=fixture(),request=new NextRequest(base+'/api/v2/session/logout',{method:'POST',headers:{origin:base,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf:f.csrf})});
+ const r=await executeB1Logout(request,f.session,f.registry,f.provider,base);expect(r.status).toBe(303);expect(f.registry.revoke).toHaveBeenCalledOnce();expect(f.provider).toHaveBeenCalledOnce();
+});

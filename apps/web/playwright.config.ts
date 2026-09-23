@@ -29,6 +29,6 @@ export default defineConfig({
     url: `http://127.0.0.1:${PORT}/demo/landlord`,
     reuseExistingServer: false,
     timeout: 180_000,
-    env: { BUILD_MANAGER_DB_PATH: E2E_DATABASE_PATH },
+    env: { BUILD_MANAGER_DB_PATH: E2E_DATABASE_PATH, BUILD_MANAGER_MODE: "DEMO" },
   },
 });

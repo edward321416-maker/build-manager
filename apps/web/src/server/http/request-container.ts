@@ -9,6 +9,7 @@ import {
   resolveDemoDatabasePath,
 } from "../runtime/demo-database-path";
 import { getProcessSystemClock } from "../runtime/system";
+import { parseApplicationMode } from '../../runtime/application-mode';
 
 export type ContainerProvider = <T>(
   operation: (container: ServerContainer) => Promise<T> | T,
@@ -48,8 +49,11 @@ export function createSqliteContainerProvider(
 }
 
 /** Production provider for the route handlers. */
-export const withRequestContainer: ContainerProvider =
-  createSqliteContainerProvider();
+const demoProvider=createSqliteContainerProvider();
+export const withRequestContainer: ContainerProvider = async(operation)=>{
+  if(parseApplicationMode(process.env.BUILD_MANAGER_MODE)!=='DEMO')throw new Error('DEMO_MODE_REQUIRED');
+  return demoProvider(operation);
+};
 
 /**
  * Test provider. Keeps one container alive across calls so a test can model
