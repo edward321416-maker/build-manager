@@ -11,3 +11,21 @@ it('R03 relationship guard failure is preserved and never converted into an empt
  const d=fixture();d.sessions.currentActor.mockResolvedValue({userId:'synthetic'});d.organizations.listProperties.mockRejectedValue(new B1Error('NOT_FOUND'));
  await expect(listOrganizationProperties(d,'a'.repeat(64),'00000000-0000-4000-8000-000000000001',{limit:20})).rejects.toMatchObject({code:'NOT_FOUND'});
 });
+
+it('AC03 current actor can discover context and receive an authorized empty property list without a role DTO',async()=>{
+ const d=fixture(),digest='b'.repeat(64),orgId='00000000-0000-4000-8000-000000000001';
+ d.sessions.currentActor.mockResolvedValue({userId:'synthetic'});
+ d.organizations.listMine.mockResolvedValue({items:[{id:orgId,displayName:'Synthetic org'}],nextCursor:null});
+ expect(await listMyOrganizations(d,digest,{limit:20})).toEqual({items:[{id:orgId,displayName:'Synthetic org'}],nextCursor:null});
+ expect(await listOrganizationProperties(d,digest,orgId,{limit:20})).toEqual({items:[],nextCursor:null});
+ // A previous success does not authorize the next request after actor removal.
+ d.sessions.currentActor.mockResolvedValue(null);
+ await expect(listOrganizationProperties(d,digest,orgId,{limit:20})).rejects.toMatchObject({code:'UNAUTHENTICATED'});
+ expect(d.organizations.listProperties).toHaveBeenCalledTimes(1);
+});
+
+it.each(['NOT_FOUND','DEPENDENCY_UNAVAILABLE'] as const)('AC13 preserves reader %s without role-dependent fallback',async code=>{
+ const d=fixture();d.sessions.currentActor.mockResolvedValue({userId:'synthetic'});
+ d.organizations.getProperty.mockRejectedValue(new B1Error(code));
+ await expect(getOrganizationProperty(d,'b'.repeat(64),'00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000002')).rejects.toMatchObject({code});
+});

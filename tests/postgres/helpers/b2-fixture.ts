@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { type Client } from "pg";
+import { Client, type QueryResult } from "pg";
+import { vi } from "vitest";
 import { createPostgresDatabase, type PostgresDatabase } from "@build-manager/persistence-postgres";
 import { createIdentityBootstrapPort, createOrganizationReadPort } from "@build-manager/persistence-postgres/b1";
 import type { OrganizationReadPort } from "@build-manager/application";
@@ -39,6 +40,46 @@ export function barrier() {
   const reached = new Promise<void>(resolve => { arrive = resolve; });
   const released = new Promise<void>(resolve => { release = resolve; });
   return { reached, released, arrive, release };
+}
+
+export type PropertySelectGate = {
+  reached: Promise<void>; arm(): void; release(): void; restore(): void;
+  observations: { sentinelCount: number; finalSelectCount: number; isolation?: string; rowCount?: number };
+};
+
+export function gateNextPropertySelect(orgId: string): PropertySelectGate {
+  const latch = barrier();
+  const observations: PropertySelectGate["observations"] = { sentinelCount: 0, finalSelectCount: 0 };
+  const original = Client.prototype.query;
+  const detail = "SELECT id,org_id,address_reference FROM app.property WHERE org_id=$1 AND id=$2 AND authn.can_read_property($3::bytea,org_id,id)";
+  let armed = false;
+  // Preserve every node-postgres overload outside the one Promise-form detail call.
+  const spy = vi.spyOn(Client.prototype, "query").mockImplementation(function (this: Client, ...args: unknown[]) {
+    const forward = () => Reflect.apply(original, this, args);
+    const sql = typeof args[0] === "string" ? args[0].replace(/\s+/g, " ").trim() : undefined;
+    if (args[0] === "SELECT 1 /* B2_POOLCLIENT_SPY_PROBE */") observations.sentinelCount++;
+    const parameters = args[1];
+    if (!armed || sql !== detail || !Array.isArray(parameters) || parameters.length !== 3 ||
+        parameters[0] !== orgId || args.length !== 2) return forward();
+    if (++observations.finalSelectCount !== 1) return Promise.reject(new Error("B2_EXTRA_FINAL_SELECT"));
+    return (async () => {
+      const isolation = await Reflect.apply(original, this, ["SHOW transaction_isolation"]) as QueryResult;
+      observations.isolation = isolation.rows[0].transaction_isolation;
+      latch.arrive();
+      await latch.released;
+      const result = await forward() as QueryResult;
+      observations.rowCount = result.rowCount ?? undefined;
+      return result;
+    })();
+  } as typeof Client.prototype.query);
+  return { reached: latch.reached, observations,
+    arm() {
+      if (observations.sentinelCount !== 1) throw new Error("B2_POOLCLIENT_SPY_NOT_OBSERVED");
+      armed = true;
+    },
+    release: latch.release,
+    restore() { latch.release(); spy.mockRestore(); },
+  };
 }
 
 export async function seedB2Scope(h: B2Harness): Promise<B2Scope> {

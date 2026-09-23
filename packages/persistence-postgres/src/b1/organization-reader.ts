@@ -21,11 +21,11 @@ export function createOrganizationReadPort(database:PostgresDatabase):Organizati
    return paginate(r.rows.map(x=>({id:x.id,displayName:x.display_name})),page.limit);
   }));},
   async listProperties(digest,orgId,page){validate(digest,page,orgId);return safe(()=>withB1OrgTransaction(database,digest,orgId,async c=>{
-   const r=await c.query<{id:string;org_id:string;address_reference:string|null}>('SELECT id,org_id,address_reference FROM app.property WHERE org_id=$1 AND ($2::uuid IS NULL OR id>$2) ORDER BY id LIMIT $3',[orgId,page.after??null,page.limit+1]);
+   const r=await c.query<{id:string;org_id:string;address_reference:string|null}>('SELECT id,org_id,address_reference FROM app.property WHERE org_id=$1 AND authn.can_read_property($4::bytea,org_id,id) AND ($2::uuid IS NULL OR id>$2) ORDER BY id LIMIT $3',[orgId,page.after??null,page.limit+1,Buffer.from(digest,'hex')]);
    return paginate(r.rows.map(x=>({id:x.id,orgId:x.org_id,addressReference:x.address_reference})),page.limit);
   }));},
   async getProperty(digest,orgId,propertyId){validate(digest,undefined,orgId,propertyId);return safe(()=>withB1OrgTransaction(database,digest,orgId,async c=>{
-   const r=await c.query<{id:string;org_id:string;address_reference:string|null}>('SELECT id,org_id,address_reference FROM app.property WHERE org_id=$1 AND id=$2',[orgId,propertyId]);
+   const r=await c.query<{id:string;org_id:string;address_reference:string|null}>('SELECT id,org_id,address_reference FROM app.property WHERE org_id=$1 AND id=$2 AND authn.can_read_property($3::bytea,org_id,id)',[orgId,propertyId,Buffer.from(digest,'hex')]);
    const row=r.rows[0];if(!row)throw new B1Error('NOT_FOUND');return {id:row.id,orgId:row.org_id,addressReference:row.address_reference};
   }));},
  };
