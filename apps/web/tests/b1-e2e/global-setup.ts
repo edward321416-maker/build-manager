@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { spawn,execFileSync } from 'node:child_process';
-import { access } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { access,readFile } from 'node:fs/promises';
+import { resolve,dirname } from 'node:path';
 import { fileURLToPath,pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
@@ -11,6 +11,10 @@ import { startPostgres18Container,provisionTestRoles,runPostgresMigrations,grant
 import { stopOwnedServer } from './global-teardown';
 export default async function setup(){
  const directory=fileURLToPath(new URL('.',import.meta.url)),web=resolve(directory,'../..'),cli=createRequire(import.meta.url).resolve('next/dist/bin/next');
+ // Read installed metadata via the public testing entrypoint; never import SDK internals.
+ const testingEntry=createRequire(import.meta.url).resolve('@auth0/nextjs-auth0/testing');
+ const sdk=JSON.parse(await readFile(resolve(dirname(testingEntry),'../../package.json'),'utf8'));
+ if(sdk.name!=='@auth0/nextjs-auth0'||sdk.version!=='4.30.0')throw new Error('B1_E2E_SDK_VERSION_MISMATCH');
  // Refuse an occupied port: never reuse or stop another server.
  await new Promise<void>((ok,no)=>{const probe=createServer();probe.once('error',()=>no(new Error('B1_E2E_PORT_IN_USE')));probe.listen(3124,()=>probe.close(()=>ok()));});
  if(process.env.BUILD_MANAGER_E2E_PREBUILT==='1')await access(resolve(web,'.next/BUILD_ID'));
