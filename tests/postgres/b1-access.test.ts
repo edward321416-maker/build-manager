@@ -41,7 +41,7 @@ it('R03 known foreign organization/property IDs never disclose data',async()=>{
  await expect(reader.getProperty(a.digest,orgA,propertyB)).rejects.toMatchObject({code:'NOT_FOUND'});
  await expect(reader.listProperties(a.digest,orgB,{limit:20})).rejects.toMatchObject({code:'NOT_FOUND'});
 });
-it('R04 PROPERTY_STAFF cannot gain organization-wide administrator reads',async()=>{expect((await reader.listMine(staff.digest,{limit:20})).items).toEqual([]);await expect(reader.getProperty(staff.digest,orgA,propertyA)).rejects.toMatchObject({code:'NOT_FOUND'});});
+it('R04 PROPERTY_STAFF sees context without organization-wide administrator reads',async()=>{expect((await reader.listMine(staff.digest,{limit:20})).items.map(x=>x.id)).toEqual([orgA]);await expect(reader.getProperty(staff.digest,orgA,propertyA)).rejects.toMatchObject({code:'NOT_FOUND'});});
 it('R05 committed organization suspension denies new reads',async()=>{
  await change(orgA,"UPDATE app.organization SET status='SUSPENDED' WHERE id=$1",[orgA]);
  try{expect((await reader.listMine(a.digest,{limit:20})).items).toEqual([]);await expect(reader.getProperty(a.digest,orgA,propertyA)).rejects.toMatchObject({code:'NOT_FOUND'});}
