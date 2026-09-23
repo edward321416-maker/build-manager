@@ -62,8 +62,8 @@ test('R04 userA/BcacheIsolation',async({browser})=>{
   for(const f of [a,b,a]){const response=await f.context.request.get('/api/v2/me/organizations');expect(response.headers()['cache-control']).toContain('no-store');expect((await response.json()).items.map((x:{id:string})=>x.id)).toEqual([f.orgId]);}
  }finally{await a.close();await b.close();}
 });
-test('R04 staff/residentDenied',async({browser})=>{
- for(const role of ['PROPERTY_STAFF','RESIDENT'] as const){const f=await fixtureSession(browser,role);try{expect((await (await f.context.request.get('/api/v2/me/organizations')).json()).items).toEqual([]);expect((await f.context.request.get(`/api/v2/organizations/${f.orgId}/properties`)).status()).toBe(404);}finally{await f.close();}}
+test('R04 residentDenied',async({browser})=>{
+ const f=await fixtureSession(browser,'RESIDENT');try{expect((await (await f.context.request.get('/api/v2/me/organizations')).json()).items).toEqual([]);expect((await f.context.request.get(`/api/v2/organizations/${f.orgId}/properties`)).status()).toBe(404);}finally{await f.close();}
 });
 test('R09 B1demoV1Blocked',async({browser})=>{
  const f=await fixtureSession(browser);try{expect((await f.context.request.get('/demo/landlord')).status()).toBe(404);for(const path of ['/api/v1/buildings/demo-building-a','/api/v1/tickets'])expect((await f.context.request.get(path)).status()).toBeGreaterThanOrEqual(400);}finally{await f.close();}

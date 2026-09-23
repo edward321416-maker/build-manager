@@ -34,7 +34,7 @@ export function WorkspaceShell({orgId,propertyId}:{orgId?:string;propertyId?:str
    <form action="/api/v2/session/logout" method="post" onSubmit={event=>{event.preventDefault();active.current?.abort();event.currentTarget.submit();setState({phase:'loading'});}}><input type="hidden" name="csrf" value={state.csrf}/><button type="submit">로그아웃</button></form>
    {state.organizations?.length===0&&<p>접근 가능한 조직이 없습니다.</p>}
    {state.organizations&&<ul>{state.organizations.map(org=><li key={org.id}><Link href={`/workspace/organizations/${org.id}`}>{org.displayName}</Link></li>)}</ul>}
-   {state.properties?.length===0&&<p>등록된 건물이 없습니다.</p>}
+   {state.properties?.length===0&&<p>조회 가능한 건물이 없습니다.</p>}
    {state.properties&&<ul>{state.properties.map(p=><li key={p.id}><Link href={`/workspace/organizations/${p.orgId}/properties/${p.id}`}>{p.addressReference??'주소 미등록 건물'}</Link></li>)}</ul>}
    {state.property&&<p>{state.property.addressReference??'주소가 등록되지 않았습니다.'}</p>}
    {state.nextCursor&&<button onClick={()=>{active.current?.abort();setState({phase:'loading'});setCursor(state.nextCursor??null);}}>다음</button>}
