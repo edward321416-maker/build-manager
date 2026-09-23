@@ -17,3 +17,5 @@ export * from "./use-cases/list-buildings";
 export * from "./use-cases/get-building";
 export * from "./use-cases/search-address";
 export * from "./use-cases/reset-demo";
+export * from "./b1/ports";
+export * from "./b1/errors";
