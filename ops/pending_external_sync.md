@@ -51,3 +51,11 @@ Implementation PR34 merge f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1 and fresh mai
 ## 2026-09-24 PF02-B B2 post-closure finalization and session bootstrap publication
 
 Closure PR35 merge `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`, closure-main CI 35947253215/35947253217 (9/9 SUCCESS), PR33 supersession close and the session-bootstrap publication candidate are queued in AI_Execution_Log.csv with four new distinct event IDs and `sync_status=pending`. Earlier B2 acceptance/implementation-main rows are unchanged; implementation-main and closure-main CI remain separate evidence generations. Google Sheets/Drive writes = 0; account/OAuth/IAM changes = 0. EXTERNAL_SYNC = PENDING. No private destination, local path or credential is published.
+
+## 2026-09-25 PF02-B B3 design candidate
+
+- Event: `PF02-B-B3-DESIGN-CANDIDATE-20260925`; observed/recorded UTC `2026-09-24T17:12:23.255754+00:00`.
+- Operator authorized B3 DESIGN / SPEC / STATE-ROUTER DOCS ONLY; candidate spec: [Building Registration Foundation](../docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md).
+- B1/B2 remain VERIFIED / FROZEN; B3 independent design/spec review pending; product implementation and implementation plan NOT_AUTHORIZED.
+- Design candidate publication is queued; runtime tests NOT_RUN. Tokens: unknown.
+- Google Sheets/Drive writes: 0. Account/OAuth/IAM changes: 0. EXTERNAL_SYNC=PENDING; sync_status=pending.

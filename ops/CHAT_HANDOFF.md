@@ -183,14 +183,16 @@ current canonical documents.
 
 ## Current authorized next task
 
-**`NONE_AUTHORIZED`.**
+**PF02-B / B3 — ORG_ADMIN Building Registration Foundation: DESIGN_AUTHORIZED / SPEC_REVIEW_PENDING.**
 
-No later PF02-B product slice is scoped or implementation-authorized. The operator must scope and
-approve one before any further product work begins.
+The operator authorized design/spec work only. Read the [B3 design candidate](../docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md)
+and current `STATUS.md`; next gate is **independent design/spec review**. This current authorization
+supersedes the older milestone-summary row's unscoped status only for B3 design; beyond B3 remains
+NOT_STARTED / NOT_YET_SCOPED. B1/B2 remain VERIFIED / FROZEN.
 
-Do not propose a "B3", draft a roadmap, or start designing the next slice on your own initiative.
-If asked what is next, answer: nothing is authorized yet, and name the open risks above as the
-outstanding non-product work.
+**B3 IMPLEMENTATION = NOT_AUTHORIZED.** Do not create an implementation plan or begin product work.
+Independent design review, operator acceptance and design publication/merge must precede separately
+authorized implementation planning. The candidate is not an entry in manifest `approved_specs`.
 
 ## Private artifact rule
 
