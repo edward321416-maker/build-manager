@@ -1,3 +1,22 @@
+# PF02-B B2 closure reconciliation — revision 1.0
+
+Revision: **1.0 (supersedes 0.9)** | Snapshot: 2026-09-24
+POLICY_REF / TARGET_REF / B2 implementation main: `f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1`.
+
+Current disposition: **PF00 FROZEN; PF01 REVIEW_DRAFT; PF02-A VERIFIED / FROZEN; PF02-B IN_PROGRESS; B1 VERIFIED / FROZEN; B2 VERIFIED / FROZEN**. This is the proposed canonical B2 closure; documentation merge/readback remains pending. Later PF02-B slices = NOT_STARTED / NOT_YET_SCOPED; no B3 scope is created.
+
+Independent implementation review SHA-256 `5b830146be30e3a05675537d35bfe1a85f1b002ed5e804f777e7007abb1d2d32` returned NO_BLOCKING_FINDINGS on `d074741e8212ebb2fdb8d0ea7f46a100fd58f24a` (BLOCKER/HIGH/MEDIUM0, LOW4). PR #34 is MERGED at `f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1`, with parents `bd0921c503d952a150ecadeb9873a0299b6263c2` and `d074741e8212ebb2fdb8d0ea7f46a100fd58f24a` and the same accepted tree. Fresh **push/main** [App 35944851872](https://github.com/edward321416-maker/build-manager/actions/runs/35944851872) / [Repository 35944851923](https://github.com/edward321416-maker/build-manager/actions/runs/35944851923) at that exact merge SHA pass all9 required checks. Candidate PR runs35901709983/35901709798 remain separate evidence. Main logs show PostgreSQL151, demo21 and B1+B2 Web21 with zero skips/retries/failures. The independent reviewer did not rerun PostgreSQL/Playwright/npm; those runtime results remain HOSTED_CI_EVIDENCE / EXECUTOR_EVIDENCE.
+
+The [B2 receipt](../../ops/pf02_b_b2_acceptance.md) records all16 slice ACs as PASS_IMPLEMENTATION_ACCEPTED, exact spec canonicalization from PR33 (`1a056151d908a8d7bebb76100a2307e6555621b7`,32,600bytes,SHA-256 `ec9fc095767624fdc4098447bd8b00bc65f90b5456f6570378d704fe41b63557`), and branch-preserving supersession. PR33 remains OPEN/DRAFT/NOT_MERGED; close is separate after closure merge/readback. B1I-M01=CLOSED_BY_B2; its historical B1 receipt stays byte-identical with the then-open backlog. B1 LOW6 and B2I-L01–L04 remain deferred. B2 auth evidence is SYNTHETIC_AUTH + ACTUAL_WEB + ACTUAL_POSTGRES; LIVE_AUTH0_B2=NOT_RUN, not required. B1's EXECUTOR_LIVE_EVIDENCE remains separately attributed.
+
+Migrations0001–0006 remain byte-identical; only0007 adds B2. Historical seven-table snapshots are preserved; current exact app inventory is eight with the original seven semantics/runtime matrix retained. No product/source/SQL/test/dependency/workflow/provider changes in closure. Canonical F-case content is unchanged; all12 manifest entries are freshly recomputed under revision1.0 with the same entry set and self-exclusion.
+
+Existing moderate14/install-script/Actions-runtime risks, Windows-mounted Ubuntu timeout ROOT_CAUSE_NOT_ESTABLISHED, Auth0 Free entitlement NOT_VERIFIED, hosting/credentials, real-data pilot, final operational session/retention and complete security/privacy review remain open. REAL_TENANT_DATA=NOT_AUTHORIZED; PRODUCTION_DB_HOSTING=NOT_AUTHORIZED; EXTERNAL_SYNC=PENDING. B2 read scope excludes invitation/assignment mutation/management UI/resident/ticket/Mobile auth/Kakao/linking and production readiness.
+
+## Historical revision 0.9 and earlier audit snapshots — retained verbatim
+
+All text below describes its own historical snapshot, including then-current disposition and open M01 status. It does not override revision1.0 above.
+
 # PF02-B B1 closure reconciliation — revision 0.9
 
 Revision: **0.9 (supersedes manifest revision 0.8)** | Snapshot: 2026-09-23
