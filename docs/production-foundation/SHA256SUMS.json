@@ -1,16 +1,16 @@
 {
-  "revision": "1.0",
-  "generated_for": "docs/production-foundation PF02-B B2 closure",
-  "baseline": "main@f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1",
-  "note": "Revision 1.0: B2 independently accepted/merged with fresh actual-main CI9of9 SUCCESS; B1/B2 VERIFIED/FROZEN in proposed canonical closure, PF02-B overall IN_PROGRESS. All12 final UTF-8 byte streams freshly hashed; entry set/self-exclusion and canonical F-case content unchanged; historical audits retained. Closure merge pending.",
+  "revision": "1.1",
+  "generated_for": "docs/production-foundation PF02-B B2 post-closure finalization",
+  "baseline": "main@5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d",
+  "note": "Revision 1.1: PF02-B B2 canonical closure published (PR35 merged at 5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d, closure-main CI9of9 SUCCESS); B1/B2 VERIFIED/FROZEN, PF02-B overall IN_PROGRESS, no later slice scoped or implementation-authorized. PR33 CLOSED/NOT_MERGED/SUPERSEDED_BY_CANONICAL_SPEC_IN_MAIN. All12 final UTF-8 byte streams freshly hashed; entry set/self-exclusion and canonical F-case content unchanged; historical audits retained; prior 1.0 values not reused as evidence.",
   "files": {
     "00_foundation_blueprint.md": {
       "sha256": "ee47013f395d34d9435d7cfb201dc403dff4d89eb9a55d5d77a46c7ff76af999",
       "bytes": 10703
     },
     "AUDIT_REPORT.md": {
-      "sha256": "1a102ee2d3cf4de8a1d3b6fbbe882983f0d71a52823108f484bdd70873a00d9c",
-      "bytes": 35855
+      "sha256": "ba24af705c4053a5cfc252cac5912ab268625a051d571b1e5a868f2851918a22",
+      "bytes": 39286
     },
     "D06_runtime_decision.md": {
       "sha256": "7e0361a42b70bb85c56b4c9c979b712ccbe94170a0353c0dc564048a8959bbfa",
@@ -29,8 +29,8 @@
       "bytes": 26785
     },
     "README.md": {
-      "sha256": "3901617b6b678216913116dd13e43f67be35771ace64c992641d10006a24c74f",
-      "bytes": 12046
+      "sha256": "d2bc8d82f785fe776fb0e55a72f63a2d4e5ab85b8be18be890740b151e066fd3",
+      "bytes": 12551
     },
     "acceptance_cases.json": {
       "sha256": "8750571f5db4e9b04d4e90085df2fd40d7651f96b6ee71b453cdec8d8c8026c1",
@@ -53,5 +53,5 @@
       "bytes": 6961
     }
   },
-  "supersedes": "0.9"
+  "supersedes": "1.0"
 }

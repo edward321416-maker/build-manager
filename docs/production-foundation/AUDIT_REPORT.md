@@ -1,4 +1,26 @@
-# PF02-B B2 closure reconciliation — revision 1.0
+# PF02-B B2 post-closure finalization — revision 1.1
+
+Revision: **1.1 (supersedes 1.0)** | Snapshot: 2026-09-24
+POLICY_REF / CLOSURE_BASE / B2 closure main: `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`
+B2 implementation main: `f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1`
+
+Current disposition: **PF00 FROZEN; PF01 REVIEW_DRAFT; PF02-A VERIFIED / FROZEN; PF02-B IN_PROGRESS; B1 VERIFIED / FROZEN; B2 VERIFIED / FROZEN**. B2 canonical closure is **published**, not proposed. Later PF02-B slices = NOT_STARTED / NOT_YET_SCOPED and **no later product slice is currently scoped or implementation-authorized**; no B3 scope is created here.
+
+Closure publication facts: PR [#35](https://github.com/edward321416-maker/build-manager/pull/35) is **MERGED** at closure main `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d` and read back. Fresh **push/main** [App 35947253215](https://github.com/edward321416-maker/build-manager/actions/runs/35947253215) / [Repository 35947253217](https://github.com/edward321416-maker/build-manager/actions/runs/35947253217) at that exact SHA pass all 9 required checks. Three CI generations stay distinct: candidate (`pull_request`, `d074741e…`), implementation-main (`push`, `f0c6e80c…`) and closure-main (`push`, `5670a624…`). The closure commit changed documentation only; its green run is publication evidence, not product re-verification.
+
+PR #33 is now **CLOSED / NOT_MERGED / SUPERSEDED_BY_CANONICAL_SPEC_IN_MAIN**. This is supersession, not design rejection: the approved exact spec is canonical in main at blob `b6fd0ce3c15d2255105434911889dd61693dbdb7`, 32,600 UTF-8 bytes, SHA-256 `ec9fc095767624fdc4098447bd8b00bc65f90b5456f6570378d704fe41b63557`, and PR #33's branch/history are preserved. PR #30 remains OPEN / DRAFT as a historical B1 coordination-document registration and is NOT_CANONICAL; it is untouched by this revision.
+
+This revision also publishes the session bootstrap package (`ops/CHAT_HANDOFF.md`, `ops/CHAT_CONTEXT_MANIFEST.json`, `ops/NEW_CHAT_BOOTSTRAP.md`) so a new session can reconstruct project state from GitHub alone. Those files are routers, not a second canonical truth: live `main` and the canonical receipts override them.
+
+Unchanged by this revision: migrations 0001–0007, product source, tests, dependencies, workflows and provider settings. Canonical `acceptance_cases.json` content/status is unchanged. B1I-M01 = CLOSED_BY_B2 and B1I-M02 = DOCUMENT_RECONCILED; the historical B1 receipt keeps its then-open backlog wording. B1 LOW6 and B2I-L01–L04 remain deferred. All 12 manifest entries are freshly recomputed under revision 1.1 with the same entry set and self-exclusion; prior 1.0 values are not reused as evidence.
+
+Open risks are unchanged: moderate 14 advisories, install-script warning, Actions internal-runtime warning, Windows-mounted Ubuntu timeout ROOT_CAUSE_NOT_ESTABLISHED, Auth0 Free entitlement NOT_VERIFIED, hosting/credentials, real-data pilot, final operational session/retention and complete security/privacy review. REAL_TENANT_DATA = NOT_AUTHORIZED; PRODUCTION_DB_HOSTING = NOT_AUTHORIZED; EXTERNAL_SYNC = PENDING.
+
+## Historical revision 1.0 closure-candidate snapshot — retained verbatim
+
+The section below describes the closure-candidate snapshot as written before closure merge, including its then-pending merge/readback and then-open PR #33 wording. It is preserved as a historical record and does not override revision 1.1 above.
+
+### PF02-B B2 closure reconciliation — revision 1.0
 
 Revision: **1.0 (supersedes 0.9)** | Snapshot: 2026-09-24
 POLICY_REF / TARGET_REF / B2 implementation main: `f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1`.

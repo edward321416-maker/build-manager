@@ -1,10 +1,14 @@
-# PF02-B B2 independent acceptance and implementation-main publication
+# PF02-B B2 independent acceptance, implementation-main publication and canonical closure
 
-Snapshot: 2026-09-24. POLICY_REF / TARGET_REF / IMPLEMENTATION_MAIN: `f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1`.
+Snapshot: 2026-09-24.
+
+- POLICY_REF / CLOSURE_BASE: `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`
+- IMPLEMENTATION_MAIN: `f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1`
+- CLOSURE_MAIN: `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`
 
 ## Disposition and scope
 
-[FACT] The independently accepted B2 implementation is merged and fresh actual-main CI is 9/9 SUCCESS. [DECISION] This documentation candidate records **PF02-B / B2 = VERIFIED / FROZEN**, proposed for canonical closure publication. Closure PR merge/readback is still pending; this receipt does not claim that this documentation branch has reached main.
+[FACT] The independently accepted B2 implementation is merged and fresh implementation-main CI is 9/9 SUCCESS. [FACT] Canonical closure PR [#35](https://github.com/edward321416-maker/build-manager/pull/35) is **MERGED** at closure main `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`, read back, with fresh closure-main CI 9/9 SUCCESS. **PF02-B / B2 = VERIFIED / FROZEN** is now the canonical published state, no longer a proposal.
 
 | Area | Disposition |
 | --- | --- |
@@ -13,7 +17,7 @@ Snapshot: 2026-09-24. POLICY_REF / TARGET_REF / IMPLEMENTATION_MAIN: `f0c6e80c9e
 | PF02-A | VERIFIED / FROZEN |
 | PF02-B | IN_PROGRESS |
 | PF02-B / B1 | VERIFIED / FROZEN |
-| PF02-B / B2 | VERIFIED / FROZEN — proposed canonical closure |
+| PF02-B / B2 | VERIFIED / FROZEN — canonically closed on closure main |
 | Later PF02-B slice(s) | NOT_STARTED / NOT_YET_SCOPED |
 
 Verified B2 means active PROPERTY_STAFF organization discovery, organization visibility with zero assignments, PropertyAssignment constraints, active ORG_ADMIN own-organization ACTIVE Property reads, active staff assigned ACTIVE Property reads, uniform unassigned/foreign/archived denial, committed assignment/membership/organization revocation, READ COMMITTED guard-to-final-SELECT race safety, pool/GUC isolation, explicit discovery membership predicates, existing API reuse, neutral Web empty state and PF02-A/B1 regressions.
@@ -24,7 +28,7 @@ It does not include staff invitation, assignment mutation API, staff-management 
 
 The [approved A+ spec](../docs/superpowers/specs/2026-09-23-pf02-b-b2-property-staff-scope-design.md) comes from [PR #33](https://github.com/edward321416-maker/build-manager/pull/33), exact source ref `1a056151d908a8d7bebb76100a2307e6555621b7`. Canonicalization copies the Git blob without text/encoding changes: **32,600 UTF-8 bytes**, SHA-256 `ec9fc095767624fdc4098447bd8b00bc65f90b5456f6570378d704fe41b63557`. This is not a design rewrite.
 
-PR #33 remains **OPEN / DRAFT / NOT_MERGED**, the approved design source. Its execution-log EOF append overlaps the independently merged implementation's append from the same base. Direct merge was deliberately not selected; no merge/rebase/update/cherry-pick/close of PR #33 occurred. Its branch/history remain preserved. `PR33 = SUPERSEDED_PENDING_CLOSURE_MERGE`; any superseded close is a separate operation only after closure merge/readback.
+PR #33 is now **CLOSED / NOT_MERGED**, disposition `SUPERSEDED_BY_CANONICAL_SPEC_IN_MAIN`. Its execution-log EOF append overlapped the independently merged implementation's append from the same base, so direct merge was deliberately not selected; no rebase/update/cherry-pick of PR #33 occurred and its branch/history remain preserved. **This is supersession, not design rejection**: the approved exact spec was canonicalized into main through closure, byte-identical at blob `b6fd0ce3c15d2255105434911889dd61693dbdb7`, and is now readable at [`docs/superpowers/specs/2026-09-23-pf02-b-b2-property-staff-scope-design.md`](../docs/superpowers/specs/2026-09-23-pf02-b-b2-property-staff-scope-design.md) on main.
 
 ## Implementation plan and independent review provenance
 
@@ -44,7 +48,7 @@ PR #33 remains **OPEN / DRAFT / NOT_MERGED**, the approved design source. Its ex
 
 HOSTED_CI_EVIDENCE: [App 35901709983](https://github.com/edward321416-maker/build-manager/actions/runs/35901709983) and [Repository 35901709798](https://github.com/edward321416-maker/build-manager/actions/runs/35901709798), event `pull_request`, head `d074741e8212ebb2fdb8d0ea7f46a100fd58f24a`, completed/success, required checks **9/9 SUCCESS**. These are candidate evidence only.
 
-## Fresh actual-main CI provenance
+## Fresh implementation-main CI provenance
 
 HOSTED_CI_EVIDENCE: [App 35944851872](https://github.com/edward321416-maker/build-manager/actions/runs/35944851872) and [Repository 35944851923](https://github.com/edward321416-maker/build-manager/actions/runs/35944851923), event **push**, head **`f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1`**, completed/success. Both are actual implementation-main evidence, independently read back for this closure; candidate CI was not substituted.
 
@@ -60,7 +64,13 @@ HOSTED_CI_EVIDENCE: [App 35944851872](https://github.com/edward321416-maker/buil
 | postgres-integration | SUCCESS |
 | foundation-gate | SUCCESS |
 
-Actual-main logs show PostgreSQL **151 passed across 10 files**, demo Web **21 passed**, B1+B2 Web **21 passed** and the exact named-case gate with zero failures/skips/retries and six negative controls. These logs were read, not rerun locally in closure. Passing counts are execution receipts, not coverage or release-readiness measures. Hosted JS/assets export is not native Mobile compilation.
+Implementation-main logs show PostgreSQL **151 passed across 10 files**, demo Web **21 passed**, B1+B2 Web **21 passed** and the exact named-case gate with zero failures/skips/retries and six negative controls. These logs were read, not rerun locally in closure. Passing counts are execution receipts, not coverage or release-readiness measures. Hosted JS/assets export is not native Mobile compilation.
+
+## Fresh closure-main CI provenance
+
+HOSTED_CI_EVIDENCE: [App 35947253215](https://github.com/edward321416-maker/build-manager/actions/runs/35947253215) and [Repository 35947253217](https://github.com/edward321416-maker/build-manager/actions/runs/35947253217), event **push**, head **`5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`**, completed/success, required checks **9/9 SUCCESS** (`verify`, `repository-safety`, `apps`, `mobile-cold-linux`, `install-mobile-windows`, `web-e2e`, `mobile-health`, `postgres-integration`, `foundation-gate`).
+
+Three CI generations remain distinct and are not interchangeable: **candidate** CI (`pull_request`, head `d074741e…`), **implementation-main** CI (`push`, head `f0c6e80c…`) and **closure-main** CI (`push`, head `5670a624…`). The closure commit changed documentation only; its green run is publication evidence, not a re-verification of product behavior.
 
 ## PropertyAssignment schema and constraint evidence
 
@@ -141,6 +151,6 @@ B1's six LOW findings remain deferred in its historical receipt. Existing npm14m
 
 This eight-path documentation candidate canonicalizes the approved spec and records accepted implementation evidence. Product/source/SQL/tests/dependency/workflow/provider changes = **0** in closure. B1 historical receipt and canonical F-case statuses are unchanged; the production-foundation manifest keeps its twelve-entry set and self-exclusion, recomputing every final UTF-8 byte stream.
 
-Documentation checks are separate from product runtime evidence. Product suites are NOT_RERUN_FOR_CLOSURE. Closure Draft PR and its later expected-head merge are separate gates; no closure merge or PR33 close is authorized in this operation. Later PF02-B slices remain NOT_STARTED / NOT_YET_SCOPED; PF02-B overall remains IN_PROGRESS.
+Documentation checks are separate from product runtime evidence. Product suites are NOT_RERUN_FOR_CLOSURE. Closure PR #35 has since been merged at `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d` and read back, closure-main CI is 9/9 SUCCESS, and PR #33 has been closed as superseded. Later PF02-B slices remain NOT_STARTED / NOT_YET_SCOPED and **no later product slice is currently scoped or implementation-authorized**; PF02-B overall remains IN_PROGRESS.
 
 External Google Sheets/Drive writes = 0; account/OAuth/IAM changes = 0. EXTERNAL_SYNC = PENDING. See [execution log](AI_Execution_Log.csv) and [pending sync](pending_external_sync.md).
