@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "purpose": "Machine-readable router for reconstructing edward321416-maker/build-manager state in a new ChatGPT, Claude or Codex session without replaying prior conversations. Routing only: every substantive fact lives in the canonical repository file referenced here, read at the current main.",
+  "repository": "edward321416-maker/build-manager",
+  "snapshot": {
+    "baseline_main": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d",
+    "baseline_meaning": "canonical B2 closure main used to build this bootstrap package; provenance only, not a permanent claim about the current main",
+    "current_main": "LIVE_READ_REQUIRED",
+    "status": "B2_CLOSED_BOOTSTRAP_PUBLICATION",
+    "snapshot_date": "2026-09-24",
+    "staleness_rule": [
+      "Always read the live main SHA yourself; never take current_main from this file.",
+      "Compare live main against baseline_main. A newer main is expected and normal, because publishing this package is itself a commit.",
+      "If they differ, do not treat this manifest as truth. Reconstruct from live main using Git ancestry, current STATUS.md, the newest acceptance receipts and current PR state.",
+      "Report which documents you found stale rather than silently trusting either side."
+    ]
+  },
+  "mandatory_bootstrap": [
+    "AGENTS.md",
+    "governance/ai_delivery_rules.md",
+    "governance/project_policy.md",
+    "ops/CHAT_CONTEXT_MANIFEST.json",
+    "STATUS.md",
+    "ops/CHAT_HANDOFF.md"
+  ],
+  "canonical_status": {
+    "PF00": "FROZEN",
+    "PF01": "REVIEW_DRAFT",
+    "PF02-A": "VERIFIED_FROZEN",
+    "PF02-B": "IN_PROGRESS",
+    "PF02-B/B1": "VERIFIED_FROZEN",
+    "PF02-B/B2": {
+      "state": "VERIFIED_FROZEN",
+      "implementation_main": "f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1",
+      "implementation_pr": 34,
+      "closure_main": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d",
+      "closure_pr": 35,
+      "canonical_receipt": "ops/pf02_b_b2_acceptance.md",
+      "present_at_baseline": true
+    },
+    "PF02-B/later_slices": "NOT_STARTED_NOT_YET_SCOPED",
+    "D01": "RESOLVED_FOR_B1_ONLY",
+    "B1I-M01": "CLOSED_BY_B2",
+    "B1I-M02": "DOCUMENT_RECONCILED"
+  },
+  "acceptance_receipts": [
+    { "milestone": "PF00-A/B", "path": "ops/pf00_ab_acceptance.md", "present_at_baseline": true },
+    { "milestone": "PF00-C", "path": "ops/pf00_c_acceptance.md", "present_at_baseline": true },
+    { "milestone": "PF00-D", "path": "ops/pf00_d_acceptance.md", "present_at_baseline": true },
+    { "milestone": "PF02-A", "path": "ops/pf02_a_acceptance.md", "present_at_baseline": true },
+    { "milestone": "PF02-B/B1", "path": "ops/pf02_b_b1_acceptance.md", "present_at_baseline": true },
+    { "milestone": "PF02-B/B2", "path": "ops/pf02_b_b2_acceptance.md", "present_at_baseline": true }
+  ],
+  "supporting_design_documents": [
+    "docs/production-foundation/README.md",
+    "docs/production-foundation/AUDIT_REPORT.md",
+    "docs/production-foundation/00_foundation_blueprint.md",
+    "docs/production-foundation/PF01_data_authorization.md",
+    "docs/production-foundation/acceptance_cases.json",
+    "docs/production-foundation/phase_dependencies.json",
+    "docs/production-foundation/SHA256SUMS.json",
+    "PROJECT_CHARTER.md",
+    "research/README.md"
+  ],
+  "approved_specs": [
+    {
+      "slice": "PF02-B/B2",
+      "path": "docs/superpowers/specs/2026-09-23-pf02-b-b2-property-staff-scope-design.md",
+      "canonical_blob": "b6fd0ce3c15d2255105434911889dd61693dbdb7",
+      "sha256": "ec9fc095767624fdc4098447bd8b00bc65f90b5456f6570378d704fe41b63557",
+      "bytes": 32600,
+      "architecture": "A+",
+      "approval": "operator_approved",
+      "present_at_baseline": true,
+      "origin_pr": 33,
+      "origin_ref": "1a056151d908a8d7bebb76100a2307e6555621b7",
+      "note": "Canonicalized into main through closure PR #35 as a byte-identical copy of the PR #33 source. Read it from main; verify the sha256 either way."
+    }
+  ],
+  "frozen_decisions": [
+    "PF00 toolchain and verification foundation are frozen.",
+    "PF02-A PostgreSQL foundation (schema, transaction/RLS boundary, ephemeral integration tests) is frozen.",
+    "B1 uses the Auth0 Database connection only for Web identity.",
+    "B1 authentication, session registry, proxy transport, session completion and logout are frozen.",
+    "B2 uses the approved A+ architecture, canonical in main.",
+    "Organization context is a separate capability from property authority.",
+    "ORG_ADMIN reads every ACTIVE property in their own ACTIVE organization.",
+    "PROPERTY_STAFF reads only properties with a current ACTIVE assignment to their current membership.",
+    "Existing /api/v2 URLs are reused; no staff-specific duplicate API.",
+    "No assignment mutation API or UI in B2.",
+    "Modular Monolith with explicit SQL and application ports; no ORM."
+  ],
+  "do_not_reopen_without_new_evidence": {
+    "rule": "Reopen a frozen decision only on new, specific, reproducible evidence: a demonstrated security or data-isolation defect, a contradiction proven against an exact ref, or an explicit operator instruction.",
+    "insufficient_reasons": [
+      "a cleaner or more modern architecture",
+      "naming, layout or framework-style preference",
+      "a general best-practice claim with no failing case in this repository",
+      "a wish to refactor or unify frozen code without adding verified behavior"
+    ],
+    "required_action_if_suspected_defect": "Report exact file, ref and failing scenario, then stop. Do not redesign first."
+  },
+  "deferred_or_unauthorized": [
+    "production DB hosting and credential/IAM provisioning",
+    "real tenant, landlord or address data (REAL_TENANT_DATA = NOT_AUTHORIZED)",
+    "staff invitation and staff creation",
+    "membership role mutation",
+    "assignment mutation API, UI or lifecycle",
+    "resident / occupancy end-user flow",
+    "ticket flow",
+    "Mobile authentication",
+    "Kakao login and account linking",
+    "billing",
+    "completion of privacy and security work"
+  ],
+  "open_risks": [
+    { "id": "dependency-security-triage", "source": "STATUS.md" },
+    { "id": "ci-supply-chain-maintenance", "source": "STATUS.md" },
+    { "id": "mobile-windows-mount-timeout", "state": "ROOT_CAUSE_NOT_ESTABLISHED", "source": "STATUS.md" },
+    { "id": "auth0-entitlement-not-verified", "source": "ops/pf02_b_b1_acceptance.md" },
+    { "id": "live-auth0-independent-repro", "state": "NOT_RUN", "source": "ops/pf02_b_b1_acceptance.md" },
+    { "id": "live-auth0-b2", "state": "NOT_RUN", "source": "ops/pf02_b_b2_acceptance.md" },
+    { "id": "deferred-low-findings", "source": "ops/pf02_b_b1_acceptance.md, ops/pf02_b_b2_acceptance.md", "note": "B1 LOW findings and B2 B2I-L01..L04 remain non-blocking; read each receipt for current disposition." },
+    { "id": "canonical-f-cases-mostly-not-run", "source": "docs/production-foundation/acceptance_cases.json" },
+    { "id": "external-sync-pending", "source": "ops/pending_external_sync.md" }
+  ],
+  "active_or_historical_prs": [
+    { "number": 35, "title": "docs: close PF02-B B2 acceptance and publication", "state": "MERGED", "merged": true, "merge_commit": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d", "role": "B2 canonical closure" },
+    { "number": 34, "title": "feat: add B2 property staff scope", "state": "MERGED", "merged": true, "merge_commit": "f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1", "role": "B2 implementation" },
+    { "number": 33, "title": "docs: design PF02-B B2 property staff scope", "state": "CLOSED", "merged": false, "disposition": "SUPERSEDED_BY_CANONICAL_SPEC_IN_MAIN", "role": "approved B2 design source", "note": "Supersession, not rejection: the approved exact spec is canonical in main; PR branch/history preserved." },
+    { "number": 32, "title": "docs: close PF02-B B1 acceptance and publication", "state": "MERGED", "merged": true, "role": "B1 closure" },
+    { "number": 31, "title": "feat: add PF02-B B1 auth and organization read", "state": "MERGED", "merged": true, "role": "B1 implementation" },
+    { "number": 30, "title": "docs: register B1 Astra Opus coordination", "state": "OPEN_DRAFT", "merged": false, "disposition": "HISTORICAL_NOT_CANONICAL", "role": "B1 coordination-document registration", "note": "Do not merge or close as part of unrelated work." }
+  ],
+  "ci_evidence": {
+    "rule": "Candidate, implementation-main and closure-main CI are distinct generations and are not interchangeable. A docs-only closure run is publication evidence, not product re-verification.",
+    "b2_implementation_main": { "head": "f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1", "event": "push", "app_run": "35944851872", "repository_run": "35944851923", "required": "9/9 SUCCESS" },
+    "b2_closure_main": { "head": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d", "event": "push", "app_run": "35947253215", "repository_run": "35947253217", "required": "9/9 SUCCESS" },
+    "required_checks": ["verify", "repository-safety", "apps", "mobile-cold-linux", "install-mobile-windows", "web-e2e", "mobile-health", "postgres-integration", "foundation-gate"]
+  },
+  "current_product_task": {
+    "status": "NONE_AUTHORIZED",
+    "next_gate": "operator scopes and approves a later PF02-B slice",
+    "note": "Do not propose a B3 scope, draft a roadmap or begin designing the next slice unprompted."
+  },
+  "private_artifacts": [
+    { "id": "b2_implementation_plan", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b2_acceptance.md" },
+    { "id": "b2_independent_implementation_review", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b2_acceptance.md" },
+    { "id": "b1_planning_and_review_artifacts", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b1_acceptance.md" }
+  ],
+  "evidence_rules": {
+    "authority_order": [
+      "conversation memory (lowest, never a source of truth)",
+      "ops/CHAT_HANDOFF.md and this manifest (routing only)",
+      "exact Git ref readback from the current main",
+      "canonical acceptance receipts and STATUS.md at that ref (highest)"
+    ],
+    "classes": {
+      "EXECUTOR_LOCAL": "Run on the executor machine; not independently reproduced.",
+      "HOSTED_CI": "GitHub Actions run; cite run id, head SHA and event.",
+      "INDEPENDENT_REVIEW": "Reviewer reading of a fixed ref; not a runtime claim.",
+      "LIVE_PROVIDER": "Real Auth0 interaction; currently executor-reported only.",
+      "SYNTHETIC_AUTH": "Test-minted session cookie, not a provider login.",
+      "ACTUAL_WEB_POSTGRES": "Real app server and real PostgreSQL with synthetic identity."
+    },
+    "not_evidence": [
+      "automated bot status such as CodeRabbit is not independent review",
+      "test counts are not coverage",
+      "a green CI run is not an authorization-correctness proof",
+      "configuration present in a workflow file is not proof it executed"
+    ],
+    "historical_truth_rule": "An acceptance receipt preserves the facts as of its own closure. A later milestone may change the current disposition of an item recorded there; B1I-M01 is open in the B1 receipt and CLOSED_BY_B2 now. That is succession, not contradiction. Never edit a past receipt to match current status; record the new disposition in the newer receipt and in STATUS.md.",
+    "contradiction_procedure": [
+      "identify the exact refs and snapshot dates of both documents",
+      "check Git ancestry to see which state is actually reachable from main",
+      "prefer the canonical evidence at the newer exact ref",
+      "state explicitly which document is stale and why",
+      "do not silently edit either document as part of an unrelated task"
+    ]
+  }
+}
