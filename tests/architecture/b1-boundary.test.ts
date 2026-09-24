@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach,expect,it } from 'vitest';
 import { scanRouteRuntimes } from './import-boundaries';
-import { scanB1ProductionGraph } from './b1-graph';
+import { resolveLocal,scanB1ProductionGraph } from './b1-graph';
 const routes=['session/complete','session','me/organizations','organizations/[orgId]/properties','organizations/[orgId]/properties/[propertyId]','session/logout'].map(x=>'apps/web/src/app/api/v2/'+x+'/route.ts');
 const roots:string[]=[];
 afterEach(async()=>{for(const root of roots.splice(0))await rm(root,{recursive:true,force:true});});
@@ -34,6 +34,38 @@ it.each([
  expect((await scanB1ProductionGraph(root,['apps/web/src/server/b1/http.ts'])).length).toBeGreaterThan(0);
 });
 it('R12 actual production graph excludes test/demo/SQLite identity fallbacks',async()=>{expect(await scanB1ProductionGraph(process.cwd())).toEqual([]);});
+it.each(['tests/postgres/helpers/b2-fixture.ts','apps/web/tests/b1-e2e/b2-fixture.ts'])('B2 fixtures cannot enter production graph: %s',async target=>{
+ const fromSrc=target.startsWith('tests/')?'../../../'+target:'../tests/b1-e2e/b2-fixture.ts';
+ const fromPackage=target.startsWith('tests/')?'../../'+target:'../../apps/web/tests/b1-e2e/b2-fixture.ts';
+ const sources=[
+  'import "../../fixture-facade";',
+  'import "@/fixture-facade";',
+  'export * from "@/fixture-facade";',
+  'const x=require("@/fixture-facade");',
+  'const x=import("@/fixture-facade");',
+  'import type {X} from "@/fixture-facade";',
+  'type X=import("@/fixture-facade").X;',
+  'import "@build-manager/b2-test-support";',
+  'const x=import(target);',
+  'const x=require(target);',
+ ];
+ for(const entry of ['apps/web/src/server/b1/http.ts','apps/web/src/app/workspace/page.tsx']){
+  for(const source of sources){
+   const root=await fixture({
+    [entry]:source,
+    'apps/web/src/fixture-facade.ts':`export * from "${fromSrc}";`,
+    'packages/b2-test-support/package.json':JSON.stringify({name:'@build-manager/b2-test-support',exports:'./index.ts'}),
+    'packages/b2-test-support/index.ts':`export * from "${fromPackage}";`,
+    [target]:'export type X = string;',
+   });
+   expect(await resolveLocal(root,'apps/web/src/fixture-facade.ts',fromSrc)).toBe(target);
+   expect(await resolveLocal(root,'packages/b2-test-support/index.ts',fromPackage)).toBe(target);
+   const findings=await scanB1ProductionGraph(root,[entry]);
+   expect(findings.length,entry+': '+source+' -> '+target).toBeGreaterThan(0);
+   expect(findings.some(x=>x.specifier.startsWith('<unresolved')),source).toBe(false);
+  }
+ }
+});
 it('R12 business request graph cannot acquire the completion login capability',async()=>{
  const root=await fixture({'apps/web/src/server/b1/http.ts':'export * from "./complete-session";','apps/web/src/server/b1/complete-session.ts':'export {};'});
  expect((await scanB1ProductionGraph(root,['apps/web/src/server/b1/http.ts'])).length).toBeGreaterThan(0);

@@ -507,8 +507,8 @@ describe("PF02-A PostgreSQL foundation", { concurrent: false }, () => {
           FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
           WHERE n.nspname = 'app' AND c.relkind = 'r' ORDER BY c.relname
         `);
-        expect(privileges.rows).toEqual(["app_user", ...scopedTables].sort().map((relname) => ({
-          relname, can_select: relname !== "app_user",
+        expect(privileges.rows).toEqual(["app_user", ...scopedTables, "property_assignment"].sort().map((relname) => ({
+          relname, can_select: (scopedTables as readonly string[]).includes(relname),
           can_insert: ["property", "unit", "occupancy", "occupancy_member"].includes(relname),
           can_update: ["property", "unit", "occupancy", "occupancy_member"].includes(relname),
           can_delete: false, can_truncate: false, can_reference: false, can_trigger: false, can_maintain: false,
