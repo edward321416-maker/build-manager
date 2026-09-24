@@ -21,3 +21,7 @@ Fetch only the currently needed tool schemas. Keep bulky schemas/results outside
 After each major phase or skill acquisition, append to [AI execution log](ops/AI_Execution_Log.csv) and emit `CHECKPOINT | <task> | evidence=<file/command/commit> | tokens=<estimated/unknown>`. Never invent measured token usage. External Google sync requires working authorized access; otherwise set `sync_status=pending` and update [pending sync](ops/pending_external_sync.md). Do not copy raw inputs or credentials into logs.
 
 `main` may receive direct commits and merges by users with Write access; PRs are useful but optional. Required approvals: 0. Mandatory CODEOWNER review: off. No collaborator invitations until the operator supplies a username. Validate the public tree, evidence labels, links, and settings before reporting success.
+
+## New session entry point
+
+Starting a new session or reconstructing lost context: after the policy preflight above, read [session handoff](ops/CHAT_HANDOFF.md) and [session context manifest](ops/CHAT_CONTEXT_MANIFEST.json) to rebuild current state. They are routers, not a second rulebook, and they do not restate this file. The manifest's snapshot is provenance only: read the live `main` and prefer current canonical documents and acceptance receipts over any stored snapshot. [New chat bootstrap](ops/NEW_CHAT_BOOTSTRAP.md) is the operator's copy-paste prompt for a fresh session.
