@@ -38,7 +38,14 @@
       "canonical_receipt": "ops/pf02_b_b2_acceptance.md",
       "present_at_baseline": true
     },
-    "PF02-B/B3": "DESIGN_AUTHORIZED_SPEC_REVIEW_PENDING",
+    "PF02-B/B3": {
+      "state": "DESIGN_APPROVED",
+      "approved_spec": "docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md",
+      "sha256": "5ac8d8bb24197f655993507ffc97cc93fa38ffc23c0555306b8756788bb933e1",
+      "bytes": 48802,
+      "independent_review": "NO_BLOCKING_FINDINGS",
+      "implementation_authorized": false
+    },
     "PF02-B/later_slices": "BEYOND_B3_NOT_STARTED_NOT_YET_SCOPED",
     "D01": "RESOLVED_FOR_B1_ONLY",
     "B1I-M01": "CLOSED_BY_B2",
@@ -76,6 +83,18 @@
       "origin_pr": 33,
       "origin_ref": "1a056151d908a8d7bebb76100a2307e6555621b7",
       "note": "Canonicalized into main through closure PR #35 as a byte-identical copy of the PR #33 source. Read it from main; verify the sha256 either way."
+    },
+    {
+      "slice": "PF02-B/B3",
+      "path": "docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md",
+      "sha256": "5ac8d8bb24197f655993507ffc97cc93fa38ffc23c0555306b8756788bb933e1",
+      "bytes": 48802,
+      "approval": "operator_approved_after_independent_review",
+      "independent_review": "NO_BLOCKING_FINDINGS",
+      "review_ref": "c32bb6fc5880cefc2d402069b1147844a1af1068",
+      "origin_pr": 37,
+      "implementation_authorized": false,
+      "note": "Reviewer LOW B3R-L01 was corrected before publication; B3D-L01 and B3D-L02 remain accepted non-blocking LOW risks. This approved design does not authorize implementation planning or product implementation."
     }
   ],
   "frozen_decisions": [
@@ -89,7 +108,8 @@
     "PROPERTY_STAFF reads only properties with a current ACTIVE assignment to their current membership.",
     "Existing /api/v2 URLs are reused; no staff-specific duplicate API.",
     "No assignment mutation API or UI in B2.",
-    "Modular Monolith with explicit SQL and application ports; no ORM."
+    "Modular Monolith with explicit SQL and application ports; no ORM.",
+    "B3 approved design is the canonical future implementation boundary; design approval does not authorize implementation planning or product work."
   ],
   "do_not_reopen_without_new_evidence": {
     "rule": "Reopen a frozen decision only on new, specific, reproducible evidence: a demonstrated security or data-isolation defect, a contradiction proven against an exact ref, or an explicit operator instruction.",
@@ -140,19 +160,19 @@
     "required_checks": ["verify", "repository-safety", "apps", "mobile-cold-linux", "install-mobile-windows", "web-e2e", "mobile-health", "postgres-integration", "foundation-gate"]
   },
   "current_product_task": {
-    "status": "DESIGN_AUTHORIZED_SPEC_REVIEW_PENDING",
-    "slice": "PF02-B/B3",
-    "title": "ORG_ADMIN Building Registration Foundation",
-    "implementation_authorized": false,
-    "next_gate": "independent design/spec review",
-    "note": "Operator-authorized design candidate only; no implementation plan or product implementation. Beyond B3, later slices remain unscoped."
+    "status": "NONE_AUTHORIZED",
+    "next_gate": "operator explicitly authorizes PF02-B/B3 implementation planning",
+    "note": "B3 design is approved. Implementation planning and product implementation remain NOT_AUTHORIZED; slices beyond B3 remain unscoped."
   },
-  "design_candidate": {
+  "design_approval": {
     "slice": "PF02-B/B3",
     "path": "docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md",
-    "target_ref": "ec3d05f69fe33baab70e4a9268e9dc7eca089428",
-    "state": "SPEC_REVIEW_PENDING",
-    "approval": "design_scope_only; written_spec_acceptance_pending",
+    "state": "DESIGN_APPROVED",
+    "sha256": "5ac8d8bb24197f655993507ffc97cc93fa38ffc23c0555306b8756788bb933e1",
+    "bytes": 48802,
+    "independent_review": "NO_BLOCKING_FINDINGS",
+    "review_ref": "c32bb6fc5880cefc2d402069b1147844a1af1068",
+    "review_low_corrected_ref": "6a8662def88a4d3764a961ed62a390636bd54435",
     "implementation_authorized": false
   },
   "private_artifacts": [

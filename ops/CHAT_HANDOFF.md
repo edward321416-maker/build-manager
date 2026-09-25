@@ -64,7 +64,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B | IN_PROGRESS | — |
 | PF02-B / B1 | VERIFIED / FROZEN | `ops/pf02_b_b1_acceptance.md` |
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
-| PF02-B / B3 | DESIGN_AUTHORIZED / SPEC_REVIEW_PENDING | `docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md` (design candidate; implementation not authorized) |
+| PF02-B / B3 | DESIGN_APPROVED / IMPLEMENTATION_NOT_AUTHORIZED | `docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md` (approved design; not an implementation receipt) |
 | Beyond B3 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
@@ -184,16 +184,11 @@ current canonical documents.
 
 ## Current authorized next task
 
-**PF02-B / B3 — ORG_ADMIN Building Registration Foundation: DESIGN_AUTHORIZED / SPEC_REVIEW_PENDING.**
+**`NONE_AUTHORIZED`.**
 
-The operator authorized design/spec work only. Read the [B3 design candidate](../docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md)
-and current `STATUS.md`; next gate is **independent design/spec review**. This current authorization
-supersedes the older milestone-summary row's unscoped status only for B3 design; beyond B3 remains
-NOT_STARTED / NOT_YET_SCOPED. B1/B2 remain VERIFIED / FROZEN.
+PF02-B / B3 — ORG_ADMIN Building Registration Foundation now has an **approved design** after independent review returned `NO_BLOCKING_FINDINGS`; the reviewer LOW was corrected before publication. Read the [approved B3 design](../docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md) and current `STATUS.md` for the boundary.
 
-**B3 IMPLEMENTATION = NOT_AUTHORIZED.** Do not create an implementation plan or begin product work.
-Independent design review, operator acceptance and design publication/merge must precede separately
-authorized implementation planning. The candidate is not an entry in manifest `approved_specs`.
+**B3 implementation planning = NOT_AUTHORIZED. B3 product implementation = NOT_AUTHORIZED.** The next gate is a separate explicit operator authorization to draft the B3 implementation plan. Slices beyond B3 remain NOT_STARTED / NOT_YET_SCOPED. Do not infer plan or code authorization from design approval.
 
 ## Private artifact rule
 
