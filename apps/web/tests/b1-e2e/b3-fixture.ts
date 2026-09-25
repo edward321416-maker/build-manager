@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { QueryResultRow } from 'pg';
 import type { Browser,APIResponse } from '@playwright/test';
 import { baseURL } from './fixture-session';
 import { fixtureB2Session,type B2WebFixture } from './b2-fixture';
@@ -64,9 +65,31 @@ export async function seedUnit(
   );
   return id;
 }
+// Diagnostic reads use the existing fixture owner with transaction-local scope.
+// FORCE RLS remains enabled; never leave a tenant GUC on the shared connection.
+export async function queryFixture<Row extends QueryResultRow>(
+  f:B3WebFixture,
+  sql:string,
+  args:unknown[]=[],
+){
+  await f.migration.query('BEGIN READ ONLY');
+  try{
+    await f.migration.query("SELECT set_config('app.org_id',$1,true)",[f.orgId]);
+    const result=await f.migration.query<Row>(sql,args);
+    await f.migration.query('COMMIT');
+    return result;
+  }catch(error){
+    await f.migration.query('ROLLBACK');
+    throw error;
+  }
+}
 export async function countRows(f:B3WebFixture,sql:string,args:unknown[]=[]):Promise<number>{
-  const result=await f.migration.query<{count:string}>(sql,args);
-  return Number(result.rows[0]?.count??0);
+  const result=await queryFixture<{count:string}>(f,sql,args);
+  const count=Number(result.rows[0]?.count);
+  if(result.rows.length!==1 || !Number.isSafeInteger(count) || count<0){
+    throw new Error('B3_FIXTURE_COUNT_INVALID');
+  }
+  return count;
 }
 export async function jsonError(response:APIResponse,status:number,code:string){
   if(response.status()!==status)throw new Error(`EXPECTED_${status}_GOT_${response.status()}`);

@@ -2,7 +2,7 @@ import { test,expect } from '@playwright/test';
 import { baseURL } from './fixture-session';
 import {
   countRows,fixtureB3Session,jsonError,mutationHeaders,postProperty,postUnit,
-  propertiesPath,propertyPath,seedUnit,unitPath,unitsPath,
+  propertiesPath,propertyPath,queryFixture,seedUnit,unitPath,unitsPath,
 } from './b3-fixture';
 
 test('B3 AC01 adminPropertyCreateReadback',async({browser})=>{
@@ -16,7 +16,7 @@ test('B3 AC01 adminPropertyCreateReadback',async({browser})=>{
   await page.getByRole('button',{name:'등록',exact:true}).click();
   await page.waitForURL(new RegExp(`/workspace/organizations/${f.orgId}/properties/[0-9a-f-]+$`));
   await expect(page.getByText('SYNTHETIC-B3-AC01',{exact:true})).toBeVisible();
-  const rows=await f.migration.query<{id:string}>("SELECT id FROM app.property WHERE org_id=$1 AND address_reference='SYNTHETIC-B3-AC01'",[f.orgId]);
+  const rows=await queryFixture<{id:string}>(f,"SELECT id FROM app.property WHERE org_id=$1 AND address_reference='SYNTHETIC-B3-AC01'",[f.orgId]);
   expect(rows.rows).toHaveLength(1);
   const response=await f.context.request.get(propertyPath(f,rows.rows[0].id));
   expect(response.status()).toBe(200);
@@ -36,8 +36,9 @@ test('B3 AC02 staffPropertyCreateForbidden',async({browser})=>{
 test('B3 AC03 hiddenOrgPropertyCreate404',async({browser})=>{
  const f=await fixtureB3Session(browser,'PROPERTY_STAFF',true),foreign=await fixtureB3Session(browser);
  try{
+  expect(await countRows(foreign,'SELECT count(*) FROM app.property WHERE org_id=$1',[foreign.orgId])).toBeGreaterThan(0);
   await jsonError(await postProperty(f,'SYNTHETIC-B3-HIDDEN',foreign.orgId),404,'NOT_FOUND');
-  expect(await countRows(f,"SELECT count(*) FROM app.property WHERE org_id=$1 AND address_reference='SYNTHETIC-B3-HIDDEN'",[foreign.orgId])).toBe(0);
+  expect(await countRows(foreign,"SELECT count(*) FROM app.property WHERE org_id=$1 AND address_reference='SYNTHETIC-B3-HIDDEN'",[foreign.orgId])).toBe(0);
   await f.change("UPDATE app.organization SET status='SUSPENDED' WHERE id=$1",[f.orgId]);
   await jsonError(await postProperty(f,'SYNTHETIC-B3-SUSPENDED'),404,'NOT_FOUND');
  }finally{await f.close();await foreign.close();}
@@ -54,7 +55,7 @@ test('B3 AC05 adminUnitCreateReadback',async({browser})=>{
   await page.getByRole('button',{name:'등록',exact:true}).click();
   await page.waitForURL(new RegExp(`/workspace/organizations/${f.orgId}/properties/${f.propertyId}/units/[0-9a-f-]+$`));
   await expect(page.getByText('SYNTHETIC-501',{exact:true})).toBeVisible();
-  const units=await f.migration.query<{id:string}>("SELECT id FROM app.unit WHERE org_id=$1 AND property_id=$2 AND label='SYNTHETIC-501'",[f.orgId,f.propertyId]);
+  const units=await queryFixture<{id:string}>(f,"SELECT id FROM app.unit WHERE org_id=$1 AND property_id=$2 AND label='SYNTHETIC-501'",[f.orgId,f.propertyId]);
   expect(units.rows).toHaveLength(1);
   expect((await f.context.request.get(unitPath(f,units.rows[0].id))).status()).toBe(200);
   expect(await countRows(f,'SELECT count(*) FROM app.property_assignment WHERE property_id=$1',[f.propertyId])).toBe(0);
@@ -78,6 +79,7 @@ test('B3 AC07 hiddenPropertyUnitCreate404',async({browser})=>{
   await jsonError(await postUnit(f,'SYNTHETIC-701',f.propertyId),404,'NOT_FOUND');
   await jsonError(await postUnit(f,'SYNTHETIC-702',foreign.propertyId,foreign.orgId),404,'NOT_FOUND');
   expect(await countRows(f,"SELECT count(*) FROM app.unit WHERE label IN ('SYNTHETIC-701','SYNTHETIC-702')")).toBe(0);
+  expect(await countRows(foreign,"SELECT count(*) FROM app.unit WHERE label IN ('SYNTHETIC-701','SYNTHETIC-702')")).toBe(0);
  }finally{await f.close();await foreign.close();}
 });
 
@@ -125,6 +127,9 @@ test('B3 AC14 csrfOriginBodyBoundaries',async({browser})=>{
  const anonymous=await browser.newContext({baseURL});
  try{
   const before=await countRows(f,'SELECT count(*) FROM app.property WHERE org_id=$1',[f.orgId]);
+  expect(before).toBeGreaterThan(0);
+  const context=await f.migration.query<{org_id:string|null}>("SELECT NULLIF(current_setting('app.org_id',true),'') AS org_id");
+  expect(context.rows[0]?.org_id).toBeNull();
   await jsonError(await f.context.request.post(propertiesPath(f),{headers:{'x-b1-csrf':f.csrf,'content-type':'application/json'},data:{addressReference:'SYNTHETIC-NO-ORIGIN'}}),403,'FORBIDDEN');
   await jsonError(await f.context.request.post(propertiesPath(f),{headers:{origin:baseURL,'content-type':'application/json'},data:{addressReference:'SYNTHETIC-NO-CSRF'}}),403,'FORBIDDEN');
   await jsonError(await anonymous.request.post(propertiesPath(f),{headers:{origin:baseURL,'x-b1-csrf':f.csrf,'content-type':'application/json'},data:{addressReference:'SYNTHETIC-ANON'}}),401,'UNAUTHENTICATED');
