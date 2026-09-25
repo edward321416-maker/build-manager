@@ -18,7 +18,7 @@ const unitReadback =
 
 async function waitForLock(
   diagnostic: Client,
-  applicationName: string,
+  waiterPid: number,
   blockerPid: number,
 ): Promise<void> {
   const deadline = Date.now() + 8_000;
@@ -27,14 +27,18 @@ async function waitForLock(
       wait_event_type: string | null;
       blockers: number[];
     }>(
-      "SELECT wait_event_type,pg_blocking_pids(pid) AS blockers FROM pg_stat_activity " +
-        "WHERE application_name=$1 ORDER BY backend_start DESC LIMIT 1",
-      [applicationName],
+      "SELECT wait_event_type,pg_blocking_pids(pid) AS blockers FROM pg_stat_activity WHERE pid=$1",
+      [waiterPid],
     )).rows[0];
     if (row?.wait_event_type === "Lock" && row.blockers.includes(blockerPid)) return;
     await new Promise(resolve => setTimeout(resolve, 25));
   }
   throw new Error("B3_EXPECTED_SERVER_LOCK_WAIT_NOT_OBSERVED");
+}
+
+async function poolBackendPid(database: ReturnType<typeof createPostgresDatabase>): Promise<number> {
+  return withTransaction(database, async client =>
+    (await client.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0].pid);
 }
 
 async function countActiveLabel(
@@ -96,10 +100,11 @@ describe("B3 concurrency boundaries", { concurrent: false }, () => {
       });
       expect(gate.observations.backendPid).toEqual(expect.any(Number));
 
+      const bPid = await poolBackendPid(dbB);
       const b = portB.createUnit(s.adminA.digest, s.orgA, s.propertyA, { label: "RACE LABEL" });
       const bOutcome = b.then(value => ({ value, error: null }), error => ({ value: null, error }));
       bDrain = bOutcome.then(() => {});
-      await waitForLock(h.migration, appB, gate.observations.backendPid!);
+      await waitForLock(h.migration, bPid, gate.observations.backendPid!);
 
       gate.release();
       const aResult = await aOutcome;
@@ -132,13 +137,14 @@ describe("B3 concurrency boundaries", { concurrent: false }, () => {
         "INSERT INTO app.unit(id,org_id,property_id,label,status) VALUES($1,$2,$3,$4,'ACTIVE')",
         [randomUUID(), s.orgA, s.propertyA, "Raw conflict",],
       );
+      const bPid = (await b.query("SELECT pg_backend_pid() AS pid")).rows[0].pid as number;
       const bInsert = b.query(
         "INSERT INTO app.unit(id,org_id,property_id,label,status) VALUES($1,$2,$3,$4,'ACTIVE')",
         [randomUUID(), s.orgA, s.propertyA, "RAW CONFLICT"],
       );
       const bOutcome = bInsert.then(() => ({ error: null }), error => ({ error }));
       const aPid = (await a.query("SELECT pg_backend_pid() AS pid")).rows[0].pid as number;
-      await waitForLock(h.migration, appB, aPid);
+      await waitForLock(h.migration, bPid, aPid);
       await a.query("COMMIT");
       const result = await bOutcome;
       expect(result.error).toMatchObject({ code: "23505", constraint: "unit_active_label_unique" });
@@ -177,10 +183,11 @@ describe("B3 concurrency boundaries", { concurrent: false }, () => {
         aOutcome.then(() => { throw new Error("B3_ROLLBACK_A_FINISHED_BEFORE_GATE"); }),
       ]);
 
+      const bPid = await poolBackendPid(dbB);
       const bOutcome = portB.createUnit(s.adminA.digest, s.orgA, s.propertyA, { label: "ROLLBACK RACE" })
         .then(value => ({ value, error: null }), error => ({ value: null, error }));
       bDrain = bOutcome.then(() => {});
-      await waitForLock(h.migration, appB, gate.observations.backendPid!);
+      await waitForLock(h.migration, bPid, gate.observations.backendPid!);
       gate.release();
 
       const aResult = await aOutcome;
