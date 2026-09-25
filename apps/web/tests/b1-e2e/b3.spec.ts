@@ -5,6 +5,37 @@ import {
   propertiesPath,propertyPath,queryFixture,seedUnit,unitPath,unitsPath,
 } from './b3-fixture';
 
+test('B3 LOW M04 propertyUnicodeHttpBoundary',async({browser})=>{
+ const f=await fixtureB3Session(browser);
+ try{
+  const snapshot=async()=>(await queryFixture(f,
+   'SELECT id,org_id,address_reference FROM app.property WHERE org_id=$1 ORDER BY id',[f.orgId])).rows;
+  const initial=await snapshot();
+  expect(initial.some(row=>row.id===f.propertyId && row.address_reference===null)).toBe(true);
+  for(const reference of ['한'.repeat(512),'😀'.repeat(512),'한😀A'.repeat(170)+'한😀']){
+   expect([...reference]).toHaveLength(512);
+   const response=await postProperty(f,reference);
+   expect(response.status()).toBe(201);
+   const created=await response.json();
+   expect(created).toEqual({id:expect.any(String),orgId:f.orgId,addressReference:reference});
+   const read=await f.context.request.get(propertyPath(f,created.id));
+   expect(read.status()).toBe(200);
+   expect(await read.json()).toEqual(created);
+   expect((await queryFixture(f,
+    'SELECT id,org_id,address_reference,char_length(address_reference) AS code_points FROM app.property WHERE id=$1',
+    [created.id])).rows).toEqual([{id:created.id,org_id:f.orgId,address_reference:reference,code_points:512}]);
+   const before=await snapshot();
+   const tooLong=reference+'한';
+   expect([...tooLong]).toHaveLength(513);
+   expect(Buffer.byteLength(JSON.stringify({addressReference:tooLong}),'utf8')).toBeLessThan(8192);
+   await jsonError(await postProperty(f,tooLong),400,'INVALID_INPUT');
+   expect(await snapshot()).toEqual(before); // Exact visible row set and existing values, not only a zero count.
+  }
+  expect((await snapshot()).length).toBe(initial.length+3);
+  expect((await f.context.request.get(propertyPath(f))).status()).toBe(200);
+ }finally{await f.close();}
+});
+
 test('B3 AC01 adminPropertyCreateReadback',async({browser})=>{
  const f=await fixtureB3Session(browser);
  try{

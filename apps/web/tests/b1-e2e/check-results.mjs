@@ -29,6 +29,7 @@ const cases = [
   'B3 H01 unit navigation lateDenial',
   'B3 H01 unit logout late201',
   'B3 H01 unit logout lateDenial',
+  'B3 LOW M04 propertyUnicodeHttpBoundary',
 ];
 function collect(suite) {
   return [...(suite.specs ?? []), ...(suite.suites ?? []).flatMap(collect)];
@@ -55,6 +56,7 @@ const controls = [
   copy => { collect(copy)[0].tests[0].results[0].status = 'failed'; },
   copy => { collect(copy)[0].tests[0].results.push({ status: 'passed', retry: 1 }); },
   copy => { copy.errors = [{ message: 'synthetic report error' }]; },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 LOW M04 propertyUnicodeHttpBoundary'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
 ];
 for (const mutate of controls) {
   const copy = JSON.parse(JSON.stringify(report));

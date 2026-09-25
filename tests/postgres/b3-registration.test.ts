@@ -10,6 +10,29 @@ describe("B3 registration adapter", { concurrent: false }, () => {
   beforeAll(async () => { h = await createB3Harness(); }, 120_000);
   afterAll(async () => { await h?.close(); });
 
+  it("AC04 LOW M04 preserves 512 Unicode code points through PostgreSQL and independent readback", async () => {
+    const s = await seedB3Scope(h);
+    const assertStored = (actual: unknown, expected: unknown) => expect(actual).toEqual(expected);
+    for (const addressReference of ["한".repeat(512), "😀".repeat(512), "한😀A".repeat(170) + "한😀"]) {
+      expect([...addressReference]).toHaveLength(512);
+      const created = await h.registration.createProperty(s.adminA.digest, s.orgA, { addressReference });
+      expect(created).toEqual({ id: expect.stringMatching(uuidV7), orgId: s.orgA, addressReference });
+      expect(await h.reader.getProperty(s.adminA.digest, s.orgA, created.id)).toEqual(created);
+      const rows = await inOrg(h.migration, s.orgA, async () => (await h.migration.query(
+        "SELECT id,org_id,address_reference,char_length(address_reference) AS code_points,octet_length(address_reference) AS utf8_bytes FROM app.property WHERE id=$1",
+        [created.id],
+      )).rows);
+      const expected = [{ id: created.id, org_id: s.orgA, address_reference: addressReference,
+        code_points: 512, utf8_bytes: Buffer.byteLength(addressReference, "utf8") }];
+      assertStored(rows, expected); // Positive control also proves the FORCE RLS diagnostic read is not empty.
+      for (const changed of [[...addressReference].slice(0, -1).join(""), "X" + [...addressReference].slice(1).join("")]) {
+        // ASSERTION_MUTATION_PROBE: same assertion, throwaway observation; no stored data is mutated.
+        expect(() => assertStored([{ ...rows[0], address_reference: changed }], expected)).toThrow();
+      }
+    }
+    expect((await h.reader.getProperty(s.adminA.digest, s.orgA, s.propertyA)).addressReference).toBeNull();
+  });
+
   it("AC01/AC04 admin creates Property, keeps legacy null rows readable, and permits duplicate references", async () => {
     const s = await seedB3Scope(h);
     const legacy = await h.reader.getProperty(s.adminA.digest, s.orgA, s.propertyA);
