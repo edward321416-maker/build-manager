@@ -154,3 +154,13 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - GREEN `80e50ee...`: B3 Property/Unit workspace, registration and detail UX implemented; exact capability headers remain advisory only; 503/network outcomes never auto-retry.
 - Fresh lint correction `f975adb...` removed only synchronous effect setState at the identified React lint boundary. Fresh App run `36114895762`: Shared 377, Web 377, B3 component 19, existing workspace-shell 1, lint/typecheck/build/deps SUCCESS.
 - Google Sheets/Drive writes: 0. EXTERNAL_SYNC=PENDING.
+
+## 2026-09-25 B3 implementation acceptance and status reconciliation candidate
+
+- Source: [B3 implementation acceptance receipt](pf02_b_b3_acceptance.md), PR #42 accepted candidate `2252929b56f375a4fe8f19858c23b8d2e92c7845`, merge `741997d93015991c1c89716a3ca93b662a8be0d8`, actual-main Repository/App runs `36132125772` / `36132125715`, push/main attempt 1, 9/9 SUCCESS.
+- Accessible prior executor queue events appended to this documentation candidate: `PR42-EXACT-CANDIDATE-ACCEPTED-20260925`, `PR42-MERGE-READBACK-20260925`, `PR42-ACTUAL-MERGE-MAIN-CI-VERIFIED-20260925`. Original recorded timestamps preserved; the acceptance intake timestamp is recording time, not a claim that acceptance happened after merge.
+- Attached coordinator queue events appended with coordinator attribution: `B3-DOCS-HANDOFF-SKILL-READ-20260925`, `B3-DOCS-STATUS-RECONCILIATION-HANDOFF-20260925`. This does not attribute the coordinator's earlier work to Codex.
+- New local preparation event: `B3-STATUS-RECONCILIATION-CANDIDATE-20260925`. Candidate rows are not yet integrated into main. Document-candidate CI is separate DOCUMENTATION_PUBLICATION evidence; see its PR for exact HEAD/run results.
+- Only these accessible queues are reconciled. Unavailable earlier-session queue originals, schema-cache uploads and unlisted events are not claimed synchronized. All appended rows retain tokens=unknown and sync_status=pending.
+- M01/M03/M04 LOW / OPEN; AC04 PARTIAL; F01/F43 NOT_RUN. Current additional product work NONE_AUTHORIZED. No canonical B3 closure, VERIFIED/FROZEN promotion, LOW repair or later slice.
+- EXTERNAL_SYNC=PENDING. Google Sheets/Drive writes: 0. Account/OAuth/IAM/provider changes: 0. Repository log integration remains pending while the documentation PR is OPEN / DRAFT / NOT_MERGED.
