@@ -1,0 +1,1 @@
+export { createBuildingRegistrationPort } from "./registration";

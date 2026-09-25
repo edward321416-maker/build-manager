@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./testing": "./src/testing/index.ts",
-    "./b1": "./src/b1/index.ts"
+    "./b1": "./src/b1/index.ts",
+    "./b3": "./src/b3/index.ts"
   },
   "dependencies": {
     "pg": "8.23.0",
