@@ -114,3 +114,11 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Operator explicitly authorized B3 product implementation within the approved design/plan boundary. Implementation itself has not started; canonical authorization becomes active only when the authorization publication reaches main.
 - REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. Slices beyond B3 remain unscoped.
 - Google Sheets/Drive writes: 0. OAuth/IAM/provider changes: 0. EXTERNAL_SYNC=PENDING.
+
+## 2026-09-25 PF02-B B3 implementation preflight and Task 1
+
+- Events: `PF02-B-B3-PREFLIGHT-20260925`, `PF02-B-B3-T1-GREEN-20260925`; tokens=unknown; sync_status=pending.
+- P1–P4: live main/authorization confirmed, plan-base delta was documentation-only, migrations 0001–0007 hashes matched 7/7, isolated feature branch preserved at exact implementation base.
+- Task 1: behavioral RED `5972dd66...` observed in hosted Shared tests; GREEN `f372ccda...` passed Shared/Web unit/lint/typecheck/build/dependency checks.
+- Draft PR #42 is used early only as the hosted TDD execution channel because this session has no local repository shell; it remains NOT_MERGED and does not change READY_FOR_ACCEPTANCE rules.
+- Google Sheets/Drive writes: 0. EXTERNAL_SYNC=PENDING.
