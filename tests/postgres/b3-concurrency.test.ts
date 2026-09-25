@@ -24,13 +24,14 @@ async function waitForLock(
   const deadline = Date.now() + 8_000;
   while (Date.now() < deadline) {
     const row = (await diagnostic.query<{
-      wait_event_type: string | null;
+      waiting: boolean;
       blockers: number[];
     }>(
-      "SELECT wait_event_type,pg_blocking_pids(pid) AS blockers FROM pg_stat_activity WHERE pid=$1",
+      "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=$1 AND NOT granted) AS waiting," +
+        "pg_blocking_pids($1) AS blockers",
       [waiterPid],
     )).rows[0];
-    if (row?.wait_event_type === "Lock" && row.blockers.includes(blockerPid)) return;
+    if (row?.waiting && row.blockers.includes(blockerPid)) return;
     await new Promise(resolve => setTimeout(resolve, 25));
   }
   throw new Error("B3_EXPECTED_SERVER_LOCK_WAIT_NOT_OBSERVED");
