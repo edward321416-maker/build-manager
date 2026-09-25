@@ -59,3 +59,12 @@ Closure PR35 merge `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`, closure-main CI 3
 - B1/B2 remain VERIFIED / FROZEN; B3 independent design/spec review pending; product implementation and implementation plan NOT_AUTHORIZED.
 - Design candidate publication is queued; runtime tests NOT_RUN. Tokens: unknown.
 - Google Sheets/Drive writes: 0. Account/OAuth/IAM changes: 0. EXTERNAL_SYNC=PENDING; sync_status=pending.
+
+## 2026-09-25 Expo SDK 57 patch compatibility maintenance
+
+- Event: `EXPO57-PATCH-COMPAT-MAINTENANCE-20260925`; recorded UTC `2026-09-25T02:13:21.802927+00:00`; tokens=unknown; sync_status=pending.
+- Separate main-based maintenance candidate: exact five Mobile direct patch bumps plus npm-generated lockfile; B3 PR #37 unchanged.
+- Expo Doctor 1.20.4: baseline 20/21, patched local 21/21; compatibility check up to date. npm ci preserved manifest/lock bytes.
+- Local lint/typecheck/Web build/dependency checks and Android/iOS JS/assets exports passed; native binary builds NOT_RUN. Mobile initial parallel run: 132/133, one 5000ms timeout; isolated fresh-cache run: 133/133. ROOT_CAUSE_NOT_ESTABLISHED; no test/timeout changes.
+- Hosted candidate CI/publication pending at this event. Existing 14 moderate advisories and install-script warnings remain outside scope.
+- Google Sheets/Drive writes: 0. OAuth/IAM changes: 0. EXTERNAL_SYNC=PENDING.
