@@ -118,6 +118,34 @@ describe("B3 migration schema", { concurrent: false }, () => {
   beforeAll(async () => { h = await createB2Harness(); }, 120_000);
   afterAll(async () => { await h?.close(); });
 
+  it("AC17 M02 rejects a privileged executor before B3 grants", async () => {
+    const sql = await readFile(join(migrationsDir, b3Migration), "utf8");
+    const boundary = "GRANT CREATE ON SCHEMA authn TO bm_b1_capability_owner;";
+    expect(sql.split(boundary)).toHaveLength(2);
+    const preflight = sql.slice(0, sql.indexOf(boundary));
+    const before = await b3Snapshot(h.migration);
+
+    const attributes = "SELECT rolsuper,rolbypassrls FROM pg_catalog.pg_roles WHERE rolname=current_user";
+    expect((await h.migration.query(attributes)).rows).toEqual([
+      { rolsuper: false, rolbypassrls: false },
+    ]);
+    // The valid executing owner must pass the actual, unchanged preflight.
+    await h.migration.query(preflight);
+    expect((await h.p.admin.query(attributes)).rows[0]?.rolsuper).toBe(true);
+    // Exercise PostgreSQL's real effective user, without changing any role.
+    await expect(h.p.admin.query(preflight)).rejects.toThrow("B3_MIGRATION_OWNER_CONTRACT_INVALID");
+    expect(await b3Snapshot(h.migration)).toEqual(before);
+
+    // Pin both forbidden attributes and their placement before every grant.
+    // The runtime control above covers a real privileged session; this source
+    // assertion also detects losing the independent BYPASSRLS check.
+    expect(preflight.replace(/\s+/g, " ")).toContain(
+      "BEGIN IF NOT EXISTS ( SELECT 1 FROM pg_catalog.pg_roles " +
+      "WHERE rolname=current_user AND NOT rolsuper AND NOT rolbypassrls " +
+      ") THEN RAISE EXCEPTION 'B3_MIGRATION_OWNER_CONTRACT_INVALID'; END IF;",
+    );
+  });
+
   it("AC17 preserves frozen 0001-0007 hashes and fresh/upgrade catalogs", async () => {
     for (const [name, sha] of Object.entries(frozenMigrations)) {
       const bytes = await readFile(join(migrationsDir, name));
