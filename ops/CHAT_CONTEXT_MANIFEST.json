@@ -44,7 +44,8 @@
       "sha256": "5ac8d8bb24197f655993507ffc97cc93fa38ffc23c0555306b8756788bb933e1",
       "bytes": 48802,
       "independent_review": "NO_BLOCKING_FINDINGS",
-      "implementation_authorized": false
+      "implementation_authorized": false,
+      "implementation_plan_authorized": true
     },
     "PF02-B/later_slices": "BEYOND_B3_NOT_STARTED_NOT_YET_SCOPED",
     "D01": "RESOLVED_FOR_B1_ONLY",
@@ -94,7 +95,8 @@
       "review_ref": "c32bb6fc5880cefc2d402069b1147844a1af1068",
       "origin_pr": 37,
       "implementation_authorized": false,
-      "note": "Reviewer LOW B3R-L01 was corrected before publication; B3D-L01 and B3D-L02 remain accepted non-blocking LOW risks. This approved design does not authorize implementation planning or product implementation."
+      "implementation_plan_authorized": true,
+      "note": "Reviewer LOW B3R-L01 was corrected before publication; B3D-L01 and B3D-L02 remain accepted non-blocking LOW risks. The operator separately authorized implementation-plan drafting on 2026-09-25; product implementation remains NOT_AUTHORIZED."
     }
   ],
   "frozen_decisions": [
@@ -109,7 +111,7 @@
     "Existing /api/v2 URLs are reused; no staff-specific duplicate API.",
     "No assignment mutation API or UI in B2.",
     "Modular Monolith with explicit SQL and application ports; no ORM.",
-    "B3 approved design is the canonical future implementation boundary; design approval does not authorize implementation planning or product work."
+    "B3 approved design is the canonical future implementation boundary; implementation-plan drafting was separately authorized on 2026-09-25, while product implementation remains NOT_AUTHORIZED."
   ],
   "do_not_reopen_without_new_evidence": {
     "rule": "Reopen a frozen decision only on new, specific, reproducible evidence: a demonstrated security or data-isolation defect, a contradiction proven against an exact ref, or an explicit operator instruction.",
@@ -160,9 +162,13 @@
     "required_checks": ["verify", "repository-safety", "apps", "mobile-cold-linux", "install-mobile-windows", "web-e2e", "mobile-health", "postgres-integration", "foundation-gate"]
   },
   "current_product_task": {
-    "status": "NONE_AUTHORIZED",
-    "next_gate": "operator explicitly authorizes PF02-B/B3 implementation planning",
-    "note": "B3 design is approved. Implementation planning and product implementation remain NOT_AUTHORIZED; slices beyond B3 remain unscoped."
+    "status": "IMPLEMENTATION_PLAN_AUTHORIZED",
+    "slice": "PF02-B/B3",
+    "title": "ORG_ADMIN Building Registration Foundation",
+    "implementation_plan_authorized": true,
+    "implementation_authorized": false,
+    "next_gate": "draft B3 implementation plan, self-audit it, then obtain independent plan review",
+    "note": "Planning only. Do not implement product code, SQL migrations, tests, APIs or Web behavior until a later explicit operator authorization."
   },
   "design_approval": {
     "slice": "PF02-B/B3",
@@ -173,6 +179,7 @@
     "independent_review": "NO_BLOCKING_FINDINGS",
     "review_ref": "c32bb6fc5880cefc2d402069b1147844a1af1068",
     "review_low_corrected_ref": "6a8662def88a4d3764a961ed62a390636bd54435",
+    "implementation_plan_authorized": true,
     "implementation_authorized": false
   },
   "private_artifacts": [
