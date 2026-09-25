@@ -37,6 +37,7 @@
 - The only new migration is <code>packages/persistence-postgres/migrations/0008_b3_building_registration.sql</code>.
 - The app business-table inventory remains exactly eight: app_user, occupancy, occupancy_member, organization, organization_membership, property, property_assignment, unit.
 - No new role, role membership, ORM, dependency, provider, hosted database, production credential, IAM operation, address API, building-register integration, Kakao integration, billing, Mobile auth, Occupancy mutation, invitation, assignment mutation, ticket, CommandReceipt, update/delete/archive mutation, or real tenant/address data.
+- Preserve accepted B3D-L01 explicitly: B3 has no idempotency key or exactly-once receipt. Disabling an in-flight browser submit is UX protection only; after an uncertain 503/network outcome the user must reconcile current state before an explicit retry, and a repeated Property POST can create another Property because addressReference is intentionally non-unique.
 - REAL_TENANT_DATA remains NOT_AUTHORIZED. PRODUCTION_DB_HOSTING remains NOT_AUTHORIZED.
 - Use only synthetic identities, organization names, references, labels, and browser fixtures. Do not place real addresses, session/CSRF material, credentials, raw SQL exceptions, or request bodies in logs, PR prose, screenshots, or assertion diffs.
 - Preserve existing B1 flat JSON bodies and strict B1 schemas. Do not add B3 fields to <code>B1PropertySchema</code>, <code>B1PropertyPageSchema</code>, <code>B1ErrorSchema</code>, or <code>B1ErrorCode</code>.
@@ -93,6 +94,8 @@ The following is the future implementation scope. Creating this plan does not cr
 - <code>apps/web/src/server/b3/request.ts</code>
 - <code>apps/web/src/server/b3/http.ts</code>
 - <code>apps/web/src/server/b3/http.test.ts</code>
+- <code>apps/web/src/components/b3/session-controls.tsx</code>
+- <code>apps/web/src/components/b3/session-controls.test.tsx</code>
 - <code>apps/web/src/components/b3/property-workspace.tsx</code>
 - <code>apps/web/src/components/b3/property-workspace.test.tsx</code>
 - <code>apps/web/src/components/b3/property-registration.tsx</code>
@@ -1316,6 +1319,7 @@ git commit -m "feat: wire B3 registration routes"
 - Property detail page becomes UnitWorkspace and still displays the Property reference.
 - Dedicated registration routes are <code>.../properties/new</code> and <code>.../units/new</code>.
 - Unit detail route is <code>.../units/[unitId]</code>.
+- Every B3 workspace/registration/detail surface that obtains session CSRF preserves the existing visible logout affordance through the frozen <code>/api/v2/session/logout</code> endpoint. The shared client-only <code>SessionControls</code> component receives the already-fetched CSRF and an abort/clear callback; it does not read roles or server modules.
 
 - [ ] **Step 1: Write component RED for advisory-capability behavior**
 
@@ -1327,7 +1331,8 @@ With mocked fetch responses, pin:
 - logout/navigation aborts in-flight fetch and clears state;
 - staff can navigate visible Unit list/detail but never sees create affordance;
 - role-neutral empty copy remains exactly “조회 가능한 건물이 없습니다.” / “조회 가능한 호실이 없습니다.”;
-- no ORG_ADMIN/PROPERTY_STAFF badge appears.
+- no ORG_ADMIN/PROPERTY_STAFF badge appears;
+- SessionControls submits the frozen logout form with the current CSRF, aborts in-flight B3 fetches, and clears advisory capability state before navigation/provider logout.
 
 Run the focused Web tests and require behavioral RED before implementing components.
 
@@ -1340,13 +1345,14 @@ PropertyWorkspace:
 - reads X-B3-Can-Create-Property exactly;
 - renders existing Property links and pagination;
 - when true, renders link to <code>/workspace/organizations/&lt;orgId&gt;/properties/new</code>;
-- preserves B2 role-neutral empty state and denial behavior.
+- preserves B2 role-neutral empty state and denial behavior;
+- renders SessionControls using the CSRF from GET /api/v2/session and clears B3 state when logout begins.
 
 Do not infer capability from a role, pathname, existing Property count, JWT claim, or query/header supplied by the browser.
 
 - [ ] **Step 3: Implement direct Property registration page**
 
-Before rendering the form, perform the same protected Property collection GET and require exact create=true. A direct URL with false/missing capability shows no form.
+Before rendering the form, GET /api/v2/session to obtain current CSRF, then perform the same protected Property collection GET and require exact create=true. A direct URL with false/missing capability shows no form. Render SessionControls with that CSRF and clear/abort all registration state when logout begins.
 
 Form:
 - one field labelled as an unverified/manual building reference;
@@ -1354,7 +1360,7 @@ Form:
 - may offer trimming before POST, but API remains authoritative;
 - sends JSON and x-b1-csrf;
 - disables duplicate submit while request is in flight;
-- on 201, navigate to returned Property detail path;
+- on 201, parse the returned B1PropertySchema, require returned orgId to equal the route orgId, and derive the same-origin Property detail path from the validated IDs; do not follow an arbitrary Location value supplied to the client;
 - on 400 show validation guidance;
 - on 403/404 hide the form and capability;
 - on 503/network outcome show uncertainty/reconciliation guidance, never auto-retry and never claim rollback;
@@ -1368,6 +1374,7 @@ On visible Property page:
 - show current Property reference;
 - show ACTIVE visible Unit links only;
 - show role-neutral empty Unit copy;
+- preserve SessionControls/logout using the current /api/v2/session CSRF and clear Unit/capability state when logout begins;
 - read create-Unit header exactly from the successful scoped Unit collection; Property-detail header is independently tested at API level;
 - true exposes Unit registration link, otherwise hidden;
 - pagination uses only server nextCursor.
@@ -1377,12 +1384,13 @@ No count or hidden ID is shown.
 - [ ] **Step 5: Implement direct Unit registration and Unit detail**
 
 Unit registration:
-- first performs a protected Unit collection/read for the exact parent and requires create=true;
+- GET /api/v2/session for current CSRF, then performs a protected Unit collection/read for the exact parent and requires create=true;
+- renders SessionControls and clears/aborts registration state when logout begins;
 - one label field only;
 - POST JSON with CSRF;
 - duplicate 409 -> general “이미 사용 중인 호실 이름입니다.” style message with no conflicting row/tenant detail;
 - 503/network -> reconcile list before explicit resubmission, no automatic retry;
-- 201 -> exact Unit detail.
+- 201 -> parse B3UnitSchema, require returned orgId/propertyId to equal the route chain, and derive the same-origin Unit detail path from validated IDs rather than trusting an arbitrary client-visible Location.
 
 Unit detail:
 - GET exact nested Unit detail;
@@ -1469,7 +1477,7 @@ Coverage requirements:
 - valid Origin + invalid session = 401, missing/wrong Origin = 403, bad CSRF = 403;
 - actual >8 KiB UTF-8 body = 413 and malformed JSON = 400 with no row;
 - Property failure does not create; Unit failure after previously successful Property does not erase Property;
-- after login/session fixture establishment, B3 registration flow makes zero address/building-provider requests and uses only synthetic references/labels.
+- after login/session fixture establishment, B3 registration flow makes zero address/building-provider requests and uses only synthetic references/labels. The existing child-process <code>provider-network-preload.mjs</code> already throws <code>EXTERNAL_PROVIDER_REQUEST_FORBIDDEN_IN_E2E</code> for every non-localhost/non-synthetic-Auth0 outbound fetch, so this is server-side network evidence rather than browser-request inference.
 
 - [ ] **Step 3: Extend check-results.mjs, including negative controls**
 
