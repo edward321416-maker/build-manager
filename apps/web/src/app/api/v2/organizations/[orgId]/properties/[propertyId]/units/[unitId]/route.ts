@@ -3,9 +3,9 @@ import { getB1Container } from '@/server/b1/container';
 import { handleB3Http } from '@/server/b3/http';
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-type Context={params:Promise<{orgId:string;propertyId:string}>};
+type Context={params:Promise<{orgId:string;propertyId:string;unitId:string}>};
 async function dispatch(request:NextRequest,context:Context){
- const response=await handleB3Http(request,'property',await context.params,getB1Container);
+ const response=await handleB3Http(request,'unit',await context.params,getB1Container);
  if(response.status===405)response.headers.set('Allow','GET');
  return response;
 }
