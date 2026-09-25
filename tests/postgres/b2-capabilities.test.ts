@@ -121,7 +121,9 @@ it("AC15 exactB2CapabilityCatalog", async () => {
     WHERE granted.rolname LIKE 'bm_%' OR member.rolname LIKE 'bm_%' ORDER BY granted.rolname,member.rolname`)).rows;
   expect(memberships).toEqual([{ granted: "bm_b1_capability_owner", member: owner.rolname,
     admin_option: false, inherit_option: false, set_option: true }]);
-  const policies = await catalog();
+  // Keep this frozen regression scoped to the B1/B2 policy inventory. B3 policies
+  // are asserted independently in b3-capabilities.test.ts.
+  const policies = (await catalog()).filter(policy => !policy.polname.startsWith("b3_"));
   const capOid = roleRows.find(r => r.rolname === "bm_b1_capability_owner")!.oid;
   const webOid = roleRows.find(r => r.rolname === "bm_b1_web")!.oid;
   const m = "user_id=authn.context_actor() AND status='ACTIVE' AND role=ANY(ARRAY['ORG_ADMIN','PROPERTY_STAFF'])";

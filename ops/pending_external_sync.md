@@ -122,3 +122,9 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Task 1: behavioral RED `5972dd66...` observed in hosted Shared tests; GREEN `f372ccda...` passed Shared/Web unit/lint/typecheck/build/dependency checks.
 - Draft PR #42 is used early only as the hosted TDD execution channel because this session has no local repository shell; it remains NOT_MERGED and does not change READY_FOR_ACCEPTANCE rules.
 - Google Sheets/Drive writes: 0. EXTERNAL_SYNC=PENDING.
+
+## 2026-09-25 PF02-B B3 Task 2 catalog-test reconciliation
+- Event: `PF02-B-B3-T2-CATALOG-RECONCILE-20260925`; tokens=unknown; sync_status=pending.
+- 0008 exposed two test-support issues only: B3 expression normalization removed function parentheses, and the frozen B2 exact-policy inventory needed to ignore additive B3 policies while retaining its B1/B2 exact assertions.
+- No B1/B2 product behavior, frozen migration, ACL, policy, provider, workflow, dependency or timeout was changed.
+- External sync remains PENDING.

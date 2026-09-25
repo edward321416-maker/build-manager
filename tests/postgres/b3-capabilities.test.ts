@@ -55,7 +55,7 @@ it("AC17 installs exactly the three bm_b1_web restrictive B3 policies", async ()
     { relname: "unit", polname: "b3_unit_read_ceiling", polcmd: "r", polpermissive: false, polroles: [webOid] },
   ]);
 
-  const normalize = (value: string | null) => value?.replace(/::text/g, "").replace(/[\s()]/g, "").toLowerCase() ?? null;
+  const normalize = (value: string | null) => value?.replace(/::text/g, "").replace(/\s/g, "").toLowerCase() ?? null;
   const byName = new Map(policies.rows.map(row => [row.polname, row]));
   expect(normalize(byName.get("b3_property_insert_ceiling")?.check_expr ?? null))
     .toContain("authn.can_administer_org(authn.context_session_digest(),org_id)");
