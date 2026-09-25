@@ -17,7 +17,7 @@
 - The plan branch is <code>docs/pf02-b-b3-implementation-plan</code>, created from that exact commit.
 - The approved B3 design is DESIGN_APPROVED. Implementation-plan drafting, self-audit, and independent plan review are authorized. <code>implementation_authorized=false</code> remains controlling until a later canonical repository update and explicit operator authorization say otherwise.
 - The design was originally written against historical TARGET_REF <code>ec3d05f69fe33baab70e4a9268e9dc7eca089428</code>. Live main has since advanced through documentation/maintenance publication; B3 product code inspected for this plan remains unchanged.
-- The stale aggregate planning text in <code>STATUS.md</code> and the stale B3 milestone row in <code>ops/CHAT_HANDOFF.md</code> do not override the more specific manifest/current-next-task evidence or merged PR #39. Do not edit those routers in the plan-candidate branch merely to make the summaries prettier.
+- <code>STATUS.md</code>, the manifest, and the handoff's <code>Current authorized next task</code> all authorize B3 implementation planning. The handoff's older B3 milestone-table label remains stale/underspecified for planning authorization, while product implementation is consistently NOT_AUTHORIZED. Do not edit those routers in the plan-candidate branch merely to reconcile summary wording.
 - No product, SQL migration, test, API, Web, workflow, dependency, or lockfile change belongs in the plan-candidate branch.
 
 ## Global Constraints
