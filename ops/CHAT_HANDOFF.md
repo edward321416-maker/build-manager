@@ -184,11 +184,11 @@ current canonical documents.
 
 ## Current authorized next task
 
-**`NONE_AUTHORIZED`.**
+**PF02-B / B3 IMPLEMENTATION PLAN = AUTHORIZED.**
 
-PF02-B / B3 — ORG_ADMIN Building Registration Foundation now has an **approved design** after independent review returned `NO_BLOCKING_FINDINGS`; the reviewer LOW was corrected before publication. Read the [approved B3 design](../docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md) and current `STATUS.md` for the boundary.
+PF02-B / B3 — ORG_ADMIN Building Registration Foundation has an **approved design** after independent review returned `NO_BLOCKING_FINDINGS`; the reviewer LOW was corrected before publication. Read the [approved B3 design](../docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md) and current `STATUS.md` for the boundary.
 
-**B3 implementation planning = NOT_AUTHORIZED. B3 product implementation = NOT_AUTHORIZED.** The next gate is a separate explicit operator authorization to draft the B3 implementation plan. Slices beyond B3 remain NOT_STARTED / NOT_YET_SCOPED. Do not infer plan or code authorization from design approval.
+The operator explicitly authorized **implementation-plan drafting only** on 2026-09-25. The authorized next flow is: draft the B3 implementation plan → self-audit → independent plan review. **B3 product implementation = NOT_AUTHORIZED.** Do not modify product code, SQL migrations, tests, APIs or Web behavior until a later explicit operator authorization. Slices beyond B3 remain NOT_STARTED / NOT_YET_SCOPED.
 
 ## Private artifact rule
 
