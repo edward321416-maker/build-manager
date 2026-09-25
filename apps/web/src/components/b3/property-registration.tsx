@@ -41,18 +41,25 @@ export function PropertyRegistration({orgId}:{orgId:string}){
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState('');
  const active=useRef<AbortController|null>(null);
- const clear=()=>{active.current?.abort();setAccess({phase:'loading'});setBusy(false);setMessage('');};
+ const pending=useRef<AbortController|null>(null);
+ const clear=()=>{active.current?.abort();pending.current?.abort();pending.current=null;setAccess({phase:'loading'});setValue('');setBusy(false);setMessage('');};
  useEffect(()=>{
   const controller=new AbortController();active.current=controller;
   void loadPropertyRegistrationAccess(fetch,orgId,controller.signal).then(result=>{
    if(!controller.signal.aborted)setAccess(result.canCreate?{phase:'ready',csrf:result.csrf}:{phase:'denied'});
   }).catch(error=>{if(!controller.signal.aborted)setAccess({phase:error instanceof Error&&['401','403','404'].includes(error.message)?'denied':'unavailable'});});
-  return()=>controller.abort();
+  return()=>{controller.abort();pending.current?.abort();pending.current=null;};
  },[orgId]);
  async function submit(event:React.FormEvent<HTMLFormElement>){
-  event.preventDefault();if(access.phase!=='ready'||!access.csrf||busy)return;
+  event.preventDefault();
+  const scope=active.current;
+  if(access.phase!=='ready'||!access.csrf||busy||pending.current||!scope||scope.signal.aborted)return;
+  const submission=new AbortController();pending.current=submission;
   setBusy(true);setMessage('');
-  const result=await submitPropertyRegistration(fetch,orgId,access.csrf,value);
+  const result=await submitPropertyRegistration(fetch,orgId,access.csrf,value,submission.signal);
+  // A buffered response can resolve after abort; never revive a departed view.
+  if(submission.signal.aborted||scope.signal.aborted||active.current!==scope||pending.current!==submission)return;
+  pending.current=null;
   setBusy(false);
   if(result.kind==='created'){window.location.assign(result.path);return;}
   if(result.kind==='invalid')setMessage('건물 참조값을 확인해 주세요.');
@@ -61,7 +68,7 @@ export function PropertyRegistration({orgId}:{orgId:string}){
  }
  return <main className="page-shell">
   <h1>건물 등록</h1>
-  <nav><Link href={`/workspace/organizations/${orgId}`}>건물 목록</Link></nav>
+  <nav><Link href={`/workspace/organizations/${orgId}`} onNavigate={clear}>건물 목록</Link></nav>
   {access.phase==='loading'&&<p role="status">등록 권한을 확인하고 있습니다.</p>}
   {access.phase==='denied'&&<p role="alert">건물을 등록할 권한이 없습니다.</p>}
   {access.phase==='unavailable'&&<p role="alert">현재 등록 권한을 확인할 수 없습니다.</p>}

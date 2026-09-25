@@ -38,15 +38,23 @@ export async function submitUnitRegistration(fetcher:B3Fetcher,orgId:string,prop
 type Access={phase:'loading'|'ready'|'denied'|'unavailable';csrf?:string};
 export function UnitRegistration({orgId,propertyId}:{orgId:string;propertyId:string}){
  const [access,setAccess]=useState<Access>({phase:'loading'}),[label,setLabel]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),active=useRef<AbortController|null>(null);
- const clear=()=>{active.current?.abort();setAccess({phase:'loading'});setBusy(false);setMessage('');};
+ const pending=useRef<AbortController|null>(null);
+ const clear=()=>{active.current?.abort();pending.current?.abort();pending.current=null;setAccess({phase:'loading'});setLabel('');setBusy(false);setMessage('');};
  useEffect(()=>{
   const controller=new AbortController();active.current=controller;
   void loadUnitRegistrationAccess(fetch,orgId,propertyId,controller.signal).then(result=>{if(!controller.signal.aborted)setAccess(result.canCreate?{phase:'ready',csrf:result.csrf}:{phase:'denied'});}).catch(error=>{if(!controller.signal.aborted)setAccess({phase:error instanceof Error&&['401','403','404'].includes(error.message)?'denied':'unavailable'});});
-  return()=>controller.abort();
+  return()=>{controller.abort();pending.current?.abort();pending.current=null;};
  },[orgId,propertyId]);
  async function submit(event:React.FormEvent<HTMLFormElement>){
-  event.preventDefault();if(access.phase!=='ready'||!access.csrf||busy)return;setBusy(true);setMessage('');
-  const result=await submitUnitRegistration(fetch,orgId,propertyId,access.csrf,label);setBusy(false);
+  event.preventDefault();
+  const scope=active.current;
+  if(access.phase!=='ready'||!access.csrf||busy||pending.current||!scope||scope.signal.aborted)return;
+  const submission=new AbortController();pending.current=submission;
+  setBusy(true);setMessage('');
+  const result=await submitUnitRegistration(fetch,orgId,propertyId,access.csrf,label,submission.signal);
+  // A buffered response can resolve after abort; never revive a departed view.
+  if(submission.signal.aborted||scope.signal.aborted||active.current!==scope||pending.current!==submission)return;
+  pending.current=null;setBusy(false);
   if(result.kind==='created'){window.location.assign(result.path);return;}
   if(result.kind==='conflict')setMessage('이미 사용 중인 호실 이름입니다.');
   else if(result.kind==='invalid')setMessage('호실 이름을 확인해 주세요.');
@@ -55,7 +63,7 @@ export function UnitRegistration({orgId,propertyId}:{orgId:string;propertyId:str
  }
  return <main className="page-shell">
   <h1>호실 등록</h1>
-  <nav><Link href={`/workspace/organizations/${orgId}/properties/${propertyId}`}>건물 상세</Link></nav>
+  <nav><Link href={`/workspace/organizations/${orgId}/properties/${propertyId}`} onNavigate={clear}>건물 상세</Link></nav>
   {access.phase==='loading'&&<p role="status">등록 권한을 확인하고 있습니다.</p>}
   {access.phase==='denied'&&<p role="alert">호실을 등록할 권한이 없습니다.</p>}
   {access.phase==='unavailable'&&<p role="alert">현재 등록 권한을 확인할 수 없습니다.</p>}
