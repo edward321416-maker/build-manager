@@ -27,7 +27,7 @@ export function PropertyWorkspace({orgId}:{orgId:string}){
  const active=useRef<AbortController|null>(null);
  const clear=()=>{active.current?.abort();setState({phase:'loading'});setCursor(null);};
  useEffect(()=>{
-  const controller=new AbortController();active.current=controller;setState({phase:'loading'});
+  const controller=new AbortController();active.current=controller;
   void loadPropertyWorkspace(fetch,orgId,cursor,controller.signal)
    .then(data=>{if(!controller.signal.aborted)setState({phase:'ready',data});})
    .catch(error=>{if(!controller.signal.aborted)setState({phase:phase(error)});});
@@ -45,7 +45,7 @@ export function PropertyWorkspace({orgId}:{orgId:string}){
    {data.canCreate&&<p><Link href={`/workspace/organizations/${orgId}/properties/new`}>건물 등록</Link></p>}
    {data.properties.length===0&&<p>조회 가능한 건물이 없습니다.</p>}
    {data.properties.length>0&&<ul>{data.properties.map(property=><li key={property.id}><Link href={`/workspace/organizations/${property.orgId}/properties/${property.id}`}>{property.addressReference??'주소 미등록 건물'}</Link></li>)}</ul>}
-   {data.nextCursor&&<button onClick={()=>{active.current?.abort();setCursor(data.nextCursor);}}>다음</button>}
+   {data.nextCursor&&<button onClick={()=>{active.current?.abort();setState({phase:'loading'});setCursor(data.nextCursor);}}>다음</button>}
   </>}
  </main>;
 }

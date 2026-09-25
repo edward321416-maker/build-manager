@@ -22,7 +22,7 @@ export function UnitWorkspace({orgId,propertyId}:{orgId:string;propertyId:string
  const [state,setState]=useState<State>({phase:'loading'}),[cursor,setCursor]=useState<string|null>(null),active=useRef<AbortController|null>(null);
  const clear=()=>{active.current?.abort();setState({phase:'loading'});setCursor(null);};
  useEffect(()=>{
-  const controller=new AbortController();active.current=controller;setState({phase:'loading'});
+  const controller=new AbortController();active.current=controller;
   void loadUnitWorkspace(fetch,orgId,propertyId,cursor,controller.signal).then(data=>{if(!controller.signal.aborted)setState({phase:'ready',data});}).catch(error=>{if(!controller.signal.aborted)setState({phase:error instanceof Error&&['401','403','404'].includes(error.message)?'denied':'unavailable'});});
   return()=>controller.abort();
  },[orgId,propertyId,cursor]);
@@ -39,7 +39,7 @@ export function UnitWorkspace({orgId,propertyId}:{orgId:string;propertyId:string
    {data.canCreate&&<p><Link href={`/workspace/organizations/${orgId}/properties/${propertyId}/units/new`}>호실 등록</Link></p>}
    {data.units.length===0&&<p>조회 가능한 호실이 없습니다.</p>}
    {data.units.length>0&&<ul>{data.units.map(unit=><li key={unit.id}><Link href={`/workspace/organizations/${orgId}/properties/${propertyId}/units/${unit.id}`}>{unit.label}</Link></li>)}</ul>}
-   {data.nextCursor&&<button onClick={()=>{active.current?.abort();setCursor(data.nextCursor);}}>다음</button>}
+   {data.nextCursor&&<button onClick={()=>{active.current?.abort();setState({phase:'loading'});setCursor(data.nextCursor);}}>다음</button>}
   </>}
  </main>;
 }
