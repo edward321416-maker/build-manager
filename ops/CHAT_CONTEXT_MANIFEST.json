@@ -322,6 +322,13 @@
       "app_run": "36100925800",
       "repository_run": "36100925799",
       "required": "9/9 SUCCESS"
+    },
+    "b3_plan_main": {
+      "head": "425fb71441b03d3fcc94492c69ebfcf36787bdf9",
+      "event": "push",
+      "app_run": "36101754840",
+      "repository_run": "36101754775",
+      "required": "9/9 SUCCESS"
     }
   },
   "current_product_task": {
