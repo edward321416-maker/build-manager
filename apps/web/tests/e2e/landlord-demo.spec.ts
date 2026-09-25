@@ -1,4 +1,38 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+
+// The real safety flow and DOM probes deliberately share this assertion path.
+async function assertSafeGuidance(page: Page, ticketId: string): Promise<void> {
+  const required = "SAFETY_SURFACE_REQUIRED";
+  for (const selector of ["main.landlord-page", ".repair-packet", "#packet-heading", "[data-testid=\"override-unavailable\"]", "[data-status=\"SAFETY_ESCALATED\"]"]) {
+    const region = page.locator(selector);
+    expect(await region.count(), required).toBe(1);
+    await expect(region, required).toBeVisible();
+    expect((await region.innerText()).trim().length, required).toBeGreaterThan(0);
+  }
+  await expect(page.locator('[data-status="SAFETY_ESCALATED"]'), required)
+    .toHaveText("상태: 안전 확인 필요");
+  expect(ticketId, required).not.toBe("");
+  expect(await page.locator("#packet-heading").textContent(), required)
+    .toMatch(new RegExp(`^수리 요청 ${ticketId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|\\s)`));
+  const content = await page.evaluate((expectedId) => {
+    // Inspect the whole body, including adjacent notices, actions and hidden
+    // accessible-description text. Framework serialization is not guidance.
+    const body = document.body.cloneNode(true) as HTMLElement;
+    body.querySelectorAll("script, style, template").forEach((node) => node.remove());
+    const attributes = [body, ...body.querySelectorAll("*")].flatMap((element) =>
+      ["aria-label", "aria-description", "title", "alt", "href", "action", "formaction", "placeholder", "value"]
+        .map((name) => element.getAttribute(name) ?? ""),
+    );
+    // Only this known field's exact expected ID is excluded, once. Retain
+    // suffix guidance and all attributes, including those on the heading.
+    const heading = body.querySelector("#packet-heading")!;
+    heading.textContent = heading.textContent!.replace(`수리 요청 ${expectedId}`, "수리 요청 ");
+    return [body.textContent ?? "", ...attributes].join("\n");
+  }, ticketId);
+  for (const unsafe of ["119", "직접 수리", "밸브를 잠그"]) {
+    expect(content, `UNSAFE_GUIDANCE:${unsafe}`).not.toContain(unsafe);
+  }
+}
 
 const BUILDING_A = "demo-building-a";
 const BUILDING_B = "demo-building-b";
@@ -302,9 +336,70 @@ test.describe("landlord demo", () => {
     await expect(page.getByTestId("override")).toHaveCount(0);
     await expect(page.getByTestId("approve")).toBeDisabled();
 
-    const wire = await page.content();
-    for (const unsafe of ["119", "직접 수리", "밸브를 잠그"]) {
-      expect(wire).not.toContain(unsafe);
+    await assertSafeGuidance(page, ticketId);
+  });
+  test("safety assertion distinguishes identifiers from unsafe guidance (DOM_PROBE)", async ({ page, request }) => {
+    await resetDemo(request);
+    const originalId = await createEscalatedTicket(request);
+    await page.goto(`/demo/landlord/tickets/${originalId}`);
+    await expect(page.getByTestId("override-unavailable")).toBeVisible();
+    // Snapshot real API-backed rendering. Mutations below are DOM probes only,
+    // not evidence of fixed server IDs or changed persistence/API behavior.
+    const snapshot = await page.evaluate(() => {
+      const body = document.body.cloneNode(true) as HTMLElement;
+      body.querySelectorAll("script").forEach((node) => node.remove());
+      return body.outerHTML;
+    });
+    const probeId = "ticket-e10c7902-9b7c-4b6c-ad4b-228127119d8e";
+    const install = async (id: string) => {
+      await page.setContent(snapshot);
+      await page.evaluate((id) => {
+        document.body.dataset.ticketId = id;
+        document.querySelector("#packet-heading")!.textContent = `수리 요청 ${id}`;
+        const data = document.createElement("script");
+        data.type = "application/json";
+        data.textContent = JSON.stringify({ ticketId: id });
+        document.body.append(data);
+      }, id);
+    };
+    try {
+      for (const id of ["ticket-safe-control", probeId]) {
+        await install(id);
+        await assertSafeGuidance(page, id);
+      }
+      for (const unsafe of ["119", "직접 수리", "밸브를 잠그"]) {
+        for (const surface of ["guidance", "adjacent", "heading", "aria-label", "title", "href"]) {
+          await install(probeId);
+          await page.evaluate(({ unsafe, surface }) => {
+            const heading = document.querySelector("#packet-heading")!;
+            const guidance = document.querySelector("[data-testid=override-unavailable]")!;
+            if (surface === "guidance") guidance.append(` ${unsafe}`);
+            else if (surface === "heading") heading.append(` ${unsafe}`);
+            else if (surface === "adjacent") {
+              const note = document.createElement("p");
+              note.textContent = unsafe;
+              document.body.append(note); // Outside the first notice AND main.
+            } else {
+              const action = document.createElement("a");
+              action.textContent = "연락 안내";
+              action.setAttribute(surface, surface === "href" ? `tel:${unsafe}` : unsafe);
+              document.body.append(action);
+            }
+          }, { unsafe, surface });
+          await expect(assertSafeGuidance(page, probeId), `${surface}:${unsafe}`).rejects.toThrow(`UNSAFE_GUIDANCE:${unsafe}`);
+        }
+      }
+      for (const missing of ["state", "region", "empty"]) {
+        await install(probeId);
+        await page.evaluate((missing) => {
+          if (missing === "empty") document.body.replaceChildren();
+          else document.querySelector(missing === "state" ? '[data-status="SAFETY_ESCALATED"]' : ".repair-packet")!.remove();
+        }, missing);
+        await expect(assertSafeGuidance(page, probeId), missing).rejects.toThrow("SAFETY_SURFACE_REQUIRED");
+      }
+    } finally {
+      await page.setContent(snapshot);
     }
   });
+
 });
