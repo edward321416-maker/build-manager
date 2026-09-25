@@ -21,6 +21,14 @@ const cases = [
   'B3 AC19 hiddenUnitPagination',
   'B3 AC20 syntheticNoFallback',
   'B3 AC21 capabilityUiAndForgedHeader',
+  'B3 H01 property navigation late201',
+  'B3 H01 property navigation lateDenial',
+  'B3 H01 property logout late201',
+  'B3 H01 property logout lateDenial',
+  'B3 H01 unit navigation late201',
+  'B3 H01 unit navigation lateDenial',
+  'B3 H01 unit logout late201',
+  'B3 H01 unit logout lateDenial',
 ];
 function collect(suite) {
   return [...(suite.specs ?? []), ...(suite.suites ?? []).flatMap(collect)];
@@ -41,6 +49,7 @@ const specs = verify(report);
 const controls = [
   copy => { const suite = copy.suites.find(s => collect(s).some(s => s.title === 'AC03 staffNoAssignmentEmpty')); function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'AC03 staffNoAssignmentEmpty'); for (const child of s.suites ?? []) remove(child); } remove(suite); },
   copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 AC01 adminPropertyCreateReadback'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 H01 property navigation late201'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
   copy => { const rows = collect(copy); rows[1].title = rows[0].title; },
   copy => { collect(copy)[0].tests[0].results[0].status = 'skipped'; },
   copy => { collect(copy)[0].tests[0].results[0].status = 'failed'; },

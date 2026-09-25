@@ -179,3 +179,101 @@ test('B3 AC21 capabilityUiAndForgedHeader',async({browser})=>{
   expect(await countRows(staff,"SELECT count(*) FROM app.property WHERE org_id=$1 AND address_reference='SYNTHETIC-FORGED'",[staff.orgId])).toBe(0);
  }finally{await admin.close();await staff.close();}
 });
+
+type H01Probe={ready:boolean;status:number;posts:number;signal?:AbortSignal|null;release?:()=>void;logoutDeferred:boolean};
+type H01Window=Window & typeof globalThis & {__b3H01:H01Probe};
+
+for(const kind of ['property','unit'] as const){
+ for(const exit of ['navigation','logout'] as const){
+  for(const outcome of ['late201','lateDenial'] as const){
+   test(`B3 H01 ${kind} ${exit} ${outcome}`,async({browser})=>{
+    const f=await fixtureB3Session(browser);
+    try{
+     const page=await f.context.newPage();
+     const postPath=kind==='property'?propertiesPath(f):unitsPath(f);
+     const registrationPath=kind==='property'
+      ?`/workspace/organizations/${f.orgId}/properties/new`
+      :`/workspace/organizations/${f.orgId}/properties/${f.propertyId}/units/new`;
+     const destination=kind==='property'?`/workspace/organizations/${f.orgId}`:`/workspace/organizations/${f.orgId}/properties/${f.propertyId}`;
+     await page.addInitScript(({postPath,deferLogout})=>{
+      const w=window as H01Window;
+      const probe:H01Probe={ready:false,status:0,posts:0,logoutDeferred:false};w.__b3H01=probe;
+      const originalFetch=window.fetch.bind(window);
+      window.fetch=async(input,init)=>{
+       const path=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href).pathname;
+       if(init?.method!=='POST'||path!==postPath)return originalFetch(input,init);
+       probe.posts+=1;probe.signal=init.signal;
+       // The real API and database finish first. Only delivery to the mounted
+       // component is gated; a fully buffered response may outlive cancellation.
+       const response=await originalFetch(input,init),text=await response.text();
+       const buffered=new Response(text,{status:response.status,headers:response.headers});
+       buffered.json=()=>Promise.resolve(JSON.parse(text));
+       const released=new Promise<void>(resolve=>{probe.release=resolve;});
+       probe.status=response.status;probe.ready=true;
+       await released;return buffered;
+      };
+      if(deferLogout){
+       const originalSubmit=HTMLFormElement.prototype.submit;
+       HTMLFormElement.prototype.submit=function(this:HTMLFormElement){
+        if(new URL(this.action,location.href).pathname==='/api/v2/session/logout'){
+         // Defer native document navigation to inspect the actual onSubmit
+         // cleanup. Frozen B1 cases separately exercise the real logout endpoint.
+         probe.logoutDeferred=true;return;
+        }
+        originalSubmit.call(this);
+       };
+      }
+     },{postPath,deferLogout:exit==='logout'});
+     await page.goto(registrationPath);
+     const field=page.getByLabel(kind==='property'?'확인되지 않은 수동 건물 참조':'호실 이름');
+     await field.fill('SYNTHETIC-H01');
+     if(outcome==='lateDenial')await f.change("UPDATE app.organization_membership SET role='PROPERTY_STAFF' WHERE id=$1",[f.membershipId]);
+     await page.getByRole('button',{name:'등록',exact:true}).click();
+     await page.waitForFunction(()=>(window as H01Window).__b3H01.ready);
+     const observedStatus=await page.evaluate(()=>(window as H01Window).__b3H01.status);
+     expect(observedStatus).toBe(outcome==='late201'?201:kind==='property'?403:404);
+     const committedCount=()=>kind==='property'
+      ?countRows(f,"SELECT count(*) FROM app.property WHERE org_id=$1 AND address_reference='SYNTHETIC-H01'",[f.orgId])
+      :countRows(f,"SELECT count(*) FROM app.unit WHERE org_id=$1 AND property_id=$2 AND label='SYNTHETIC-H01'",[f.orgId,f.propertyId]);
+     expect(await committedCount()).toBe(outcome==='late201'?1:0);
+     await expect(page.getByRole('button',{name:'등록 중',exact:true})).toBeDisabled();
+     if(exit==='navigation'){
+      await page.getByRole('link',{name:kind==='property'?'건물 목록':'건물 상세',exact:true}).click();
+      await expect(page).toHaveURL(baseURL+destination);
+      await expect(page.getByRole('heading',{name:kind==='property'?'내 조직의 건물':'건물 상세',exact:true})).toBeVisible();
+     }else{
+      await page.getByRole('button',{name:'로그아웃',exact:true}).click();
+      expect(await page.evaluate(()=>(window as H01Window).__b3H01.logoutDeferred)).toBe(true);
+      await expect(page.getByRole('status')).toHaveText('등록 권한을 확인하고 있습니다.');
+     }
+     expect.soft(await page.evaluate(()=>{
+      const p=(window as H01Window).__b3H01;return {hasSignal:Boolean(p.signal),aborted:p.signal?.aborted??false,posts:p.posts};
+     })).toEqual({hasSignal:true,aborted:true,posts:1});
+     const lateNavigations:string[]=[];
+     page.on('request',request=>{if(request.isNavigationRequest()&&request.frame()===page.mainFrame())lateNavigations.push(new URL(request.url()).pathname);});
+     let pathAfterRelease:string|undefined;
+     try{
+      pathAfterRelease=await page.evaluate(async()=>{
+       const p=(window as H01Window).__b3H01;
+       if(!p.release)throw new Error('H01_RESPONSE_GATE_NOT_REACHED');
+       p.release();
+       // A posted task drains the buffered-response promise continuations;
+       // no elapsed sleep is used as evidence of request completion.
+       await new Promise<void>(resolve=>{
+        const channel=new MessageChannel();
+        channel.port1.onmessage=()=>{channel.port1.close();channel.port2.close();resolve();};
+        channel.port2.postMessage(null);
+       });
+       return location.pathname;
+      });
+     }catch(error){if(lateNavigations.length===0)throw error;}
+     expect.soft(lateNavigations).toEqual([]);
+     if(pathAfterRelease!==undefined)expect.soft(pathAfterRelease).toBe(exit==='navigation'?destination:registrationPath);
+     if(exit==='logout'&&lateNavigations.length===0)await expect.soft(page.getByRole('status')).toHaveText('등록 권한을 확인하고 있습니다.');
+     // Aborting UI processing is not a rollback or an automatic write retry.
+     expect(await committedCount()).toBe(outcome==='late201'?1:0);
+    }finally{await f.close();}
+   });
+  }
+ }
+}
