@@ -5,8 +5,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 type Context={params:Promise<{orgId:string;propertyId:string}>};
 async function dispatch(request:NextRequest,context:Context){
- const response=await handleB3Http(request,'property',await context.params,getB1Container);
- if(response.status===405)response.headers.set('Allow','GET');
+ const response=await handleB3Http(request,'units',await context.params,getB1Container);
+ if(response.status===405)response.headers.set('Allow','GET, POST');
  return response;
 }
 export async function GET(request:NextRequest,context:Context){return dispatch(request,context);}

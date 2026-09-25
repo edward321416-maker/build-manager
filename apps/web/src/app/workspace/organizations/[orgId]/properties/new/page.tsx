@@ -1,8 +1,8 @@
-import { PropertyWorkspace } from '@/components/b3/property-workspace';
+import { PropertyRegistration } from '@/components/b3/property-registration';
 import { parseApplicationMode } from '@/runtime/application-mode';
 import { notFound } from 'next/navigation';
 export const dynamic = "force-dynamic";
 export default async function Page({params:pending}:{params:Promise<{orgId:string}>}){
  if(parseApplicationMode(process.env.BUILD_MANAGER_MODE)!=='B1')notFound();
- const params=await pending;return <PropertyWorkspace key={params.orgId} orgId={params.orgId}/>;
+ const params=await pending;return <PropertyRegistration key={params.orgId} orgId={params.orgId}/>;
 }

@@ -8,6 +8,27 @@ const cases = [
   'AC01 adminAB', 'AC02 staffAssignedA', 'AC03 staffNoAssignmentEmpty', 'AC04 foreign404',
   'AC05 assignmentEnded', 'AC06 membershipEnded', 'AC07 orgSuspended', 'AC08 archived404',
   'AC13 forgedAuthority',
+  'B3 AC01 adminPropertyCreateReadback',
+  'B3 AC02 staffPropertyCreateForbidden',
+  'B3 AC03 hiddenOrgPropertyCreate404',
+  'B3 AC05 adminUnitCreateReadback',
+  'B3 AC06 staffUnitCreateBoundary',
+  'B3 AC07 hiddenPropertyUnitCreate404',
+  'B3 AC08 duplicateUnit409',
+  'B3 AC10 adminUnitReadEmptyAndDetail',
+  'B3 AC11 staffAssignedUnitScope',
+  'B3 AC14 csrfOriginBodyBoundaries',
+  'B3 AC19 hiddenUnitPagination',
+  'B3 AC20 syntheticNoFallback',
+  'B3 AC21 capabilityUiAndForgedHeader',
+  'B3 H01 property navigation late201',
+  'B3 H01 property navigation lateDenial',
+  'B3 H01 property logout late201',
+  'B3 H01 property logout lateDenial',
+  'B3 H01 unit navigation late201',
+  'B3 H01 unit navigation lateDenial',
+  'B3 H01 unit logout late201',
+  'B3 H01 unit logout lateDenial',
 ];
 function collect(suite) {
   return [...(suite.specs ?? []), ...(suite.suites ?? []).flatMap(collect)];
@@ -19,7 +40,7 @@ function verify(candidate) {
       specs.some(spec => spec.tests.length !== 1 || spec.tests.some(test =>
         test.expectedStatus !== 'passed' || test.status !== 'expected' || test.results.length !== 1 ||
         test.results[0].status !== 'passed' || test.results[0].retry !== 0 || test.results[0].errors?.length))) {
-    throw new Error('B1_B2_E2E_REQUIRED_CASE_GATE_FAILED');
+    throw new Error('B1_B2_B3_E2E_REQUIRED_CASE_GATE_FAILED');
   }
   return specs;
 }
@@ -27,6 +48,8 @@ const specs = verify(report);
 // Mutate only parsed throwaway copies: the actual evidence file is never changed.
 const controls = [
   copy => { const suite = copy.suites.find(s => collect(s).some(s => s.title === 'AC03 staffNoAssignmentEmpty')); function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'AC03 staffNoAssignmentEmpty'); for (const child of s.suites ?? []) remove(child); } remove(suite); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 AC01 adminPropertyCreateReadback'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 H01 property navigation late201'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
   copy => { const rows = collect(copy); rows[1].title = rows[0].title; },
   copy => { collect(copy)[0].tests[0].results[0].status = 'skipped'; },
   copy => { collect(copy)[0].tests[0].results[0].status = 'failed'; },
@@ -38,6 +61,6 @@ for (const mutate of controls) {
   mutate(copy);
   let rejected = false;
   try { verify(copy); } catch { rejected = true; }
-  if (!rejected) throw new Error('B1_B2_E2E_GATE_NEGATIVE_CONTROL_FAILED');
+  if (!rejected) throw new Error('B1_B2_B3_E2E_GATE_NEGATIVE_CONTROL_FAILED');
 }
 console.log(JSON.stringify({ classification: 'SYNTHETIC_AUTH_ACTUAL_WEB_POSTGRES', tests: specs.length, failed: 0, skipped: 0, retries: 0, negativeControls: controls.length }));

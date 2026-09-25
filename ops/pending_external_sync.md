@@ -114,3 +114,43 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Operator explicitly authorized B3 product implementation within the approved design/plan boundary. Implementation itself has not started; canonical authorization becomes active only when the authorization publication reaches main.
 - REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. Slices beyond B3 remain unscoped.
 - Google Sheets/Drive writes: 0. OAuth/IAM/provider changes: 0. EXTERNAL_SYNC=PENDING.
+
+## 2026-09-25 PF02-B B3 implementation preflight and Task 1
+
+- Events: `PF02-B-B3-PREFLIGHT-20260925`, `PF02-B-B3-T1-GREEN-20260925`; tokens=unknown; sync_status=pending.
+- P1–P4: live main/authorization confirmed, plan-base delta was documentation-only, migrations 0001–0007 hashes matched 7/7, isolated feature branch preserved at exact implementation base.
+- Task 1: behavioral RED `5972dd66...` observed in hosted Shared tests; GREEN `f372ccda...` passed Shared/Web unit/lint/typecheck/build/dependency checks.
+- Draft PR #42 is used early only as the hosted TDD execution channel because this session has no local repository shell; it remains NOT_MERGED and does not change READY_FOR_ACCEPTANCE rules.
+- Google Sheets/Drive writes: 0. EXTERNAL_SYNC=PENDING.
+
+## 2026-09-25 PF02-B B3 Task 2 catalog-test reconciliation
+- Event: `PF02-B-B3-T2-CATALOG-RECONCILE-20260925`; tokens=unknown; sync_status=pending.
+- 0008 exposed two test-support issues only: B3 expression normalization removed function parentheses, and the frozen B2 exact-policy inventory needed to ignore additive B3 policies while retaining its B1/B2 exact assertions.
+- No B1/B2 product behavior, frozen migration, ACL, policy, provider, workflow, dependency or timeout was changed.
+- External sync remains PENDING.
+
+## 2026-09-25 PF02-B B3 Task 2 GREEN
+- Event: `PF02-B-B3-T2-GREEN-20260925`; tokens=unknown; sync_status=pending.
+- 0008, B3 capability/ACL/RLS catalog, frozen hashes, fresh/upgrade equivalence, injected rollback and role-preflight tests completed GREEN: PostgreSQL 12 files / 157 tests.
+- External sync remains PENDING.
+
+## 2026-09-25 PF02-B B3 Task 3 GREEN
+- Event: `PF02-B-B3-T3-GREEN-20260925`; tokens=unknown; sync_status=pending.
+- Registration adapter GREEN at `ac19feca...`: B3 registration 8/8, PostgreSQL 13 files, apps/typecheck/build/dependency gates SUCCESS.
+- External sync remains PENDING.
+
+## 2026-09-25 PF02-B B3 Tasks 6–7 GREEN
+
+- Events: `PF02-B-B3-T6-GREEN-20260925`, `PF02-B-B3-T7-GREEN-20260925`; tokens=unknown; sync_status=pending.
+- Task 6: B3 secure HTTP handler completed GREEN at `359bfb0...`; HTTP unit 34/34, required hosted CI 9/9 SUCCESS.
+- Task 7: behavioral RED `5e3ba78...` failed only on missing 8-route inventory and missing B3 container ports; GREEN `9b4877b...` passed architecture B1 18/B3 3, Shared 376, Web 358, lint/typecheck/build/dependencies.
+- No frozen B1 auth/session/logout source was changed. B3 ports reuse the existing B1 Web database handle.
+- Google Sheets/Drive writes: 0. EXTERNAL_SYNC=PENDING.
+
+## 2026-09-25 PF02-B B3 Task 8 GREEN
+
+- Event: `PF02-B-B3-T8-GREEN-20260925`; tokens=unknown; sync_status=pending.
+- RED `3feb3df...`: six B3 component suites failed 16 assertions only because compileable stubs returned NOT_IMPLEMENTED.
+- GREEN `80e50ee...`: B3 Property/Unit workspace, registration and detail UX implemented; exact capability headers remain advisory only; 503/network outcomes never auto-retry.
+- Fresh lint correction `f975adb...` removed only synchronous effect setState at the identified React lint boundary. Fresh App run `36114895762`: Shared 377, Web 377, B3 component 19, existing workspace-shell 1, lint/typecheck/build/deps SUCCESS.
+- Google Sheets/Drive writes: 0. EXTERNAL_SYNC=PENDING.
