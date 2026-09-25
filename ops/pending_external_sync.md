@@ -133,3 +133,8 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event: `PF02-B-B3-T2-GREEN-20260925`; tokens=unknown; sync_status=pending.
 - 0008, B3 capability/ACL/RLS catalog, frozen hashes, fresh/upgrade equivalence, injected rollback and role-preflight tests completed GREEN: PostgreSQL 12 files / 157 tests.
 - External sync remains PENDING.
+
+## 2026-09-25 PF02-B B3 Task 3 GREEN
+- Event: `PF02-B-B3-T3-GREEN-20260925`; tokens=unknown; sync_status=pending.
+- Registration adapter GREEN at `ac19feca...`: B3 registration 8/8, PostgreSQL 13 files, apps/typecheck/build/dependency gates SUCCESS.
+- External sync remains PENDING.

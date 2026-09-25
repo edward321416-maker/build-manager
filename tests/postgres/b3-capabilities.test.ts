@@ -100,3 +100,41 @@ it("AC17 grants only the approved B3 Web columns and leaves owner CREATE revoked
     "organization_membership","property","property_assignment","unit",
   ]);
 });
+
+it("AC13 pins exact Unit Web columns and no capability-owner Unit grant", async () => {
+  const columns = (await h.migration.query(
+    "SELECT attname FROM pg_attribute WHERE attrelid='app.unit'::regclass AND attnum>0 AND NOT attisdropped ORDER BY attnum",
+  )).rows.map(row => row.attname as string);
+  const webSelect = new Set(["id","org_id","property_id","label","status"]);
+  const webInsert = new Set(["id","org_id","property_id","label","status"]);
+
+  for (const column of columns) {
+    for (const privilege of ["SELECT","INSERT","UPDATE","REFERENCES"]) {
+      const allowed = (await h.migration.query(
+        "SELECT has_column_privilege('bm_b1_web','app.unit',$1,$2) AS allowed",
+        [column, privilege],
+      )).rows[0].allowed as boolean;
+      const expected = privilege === "SELECT" ? webSelect.has(column)
+        : privilege === "INSERT" ? webInsert.has(column)
+        : false;
+      expect(allowed, "bm_b1_web unit." + column + " " + privilege).toBe(expected);
+
+      const ownerAllowed = (await h.migration.query(
+        "SELECT has_column_privilege('bm_b1_capability_owner','app.unit',$1,$2) AS allowed",
+        [column, privilege],
+      )).rows[0].allowed as boolean;
+      expect(ownerAllowed, "capability owner unit." + column + " " + privilege).toBe(false);
+    }
+  }
+  for (const privilege of ["UPDATE","DELETE","TRUNCATE","REFERENCES","TRIGGER","MAINTAIN"]) {
+    expect((await h.migration.query(
+      "SELECT has_table_privilege('bm_b1_web','app.unit',$1) AS allowed",
+      [privilege],
+    )).rows[0].allowed, "bm_b1_web unit " + privilege).toBe(false);
+    expect((await h.migration.query(
+      "SELECT has_table_privilege('bm_b1_capability_owner','app.unit',$1) AS allowed",
+      [privilege],
+    )).rows[0].allowed, "capability owner unit " + privilege).toBe(false);
+  }
+});
+
