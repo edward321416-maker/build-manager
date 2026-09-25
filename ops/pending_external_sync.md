@@ -138,3 +138,11 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event: `PF02-B-B3-T3-GREEN-20260925`; tokens=unknown; sync_status=pending.
 - Registration adapter GREEN at `ac19feca...`: B3 registration 8/8, PostgreSQL 13 files, apps/typecheck/build/dependency gates SUCCESS.
 - External sync remains PENDING.
+
+## 2026-09-25 PF02-B B3 Tasks 6–7 GREEN
+
+- Events: `PF02-B-B3-T6-GREEN-20260925`, `PF02-B-B3-T7-GREEN-20260925`; tokens=unknown; sync_status=pending.
+- Task 6: B3 secure HTTP handler completed GREEN at `359bfb0...`; HTTP unit 34/34, required hosted CI 9/9 SUCCESS.
+- Task 7: behavioral RED `5e3ba78...` failed only on missing 8-route inventory and missing B3 container ports; GREEN `9b4877b...` passed architecture B1 18/B3 3, Shared 376, Web 358, lint/typecheck/build/dependencies.
+- No frozen B1 auth/session/logout source was changed. B3 ports reuse the existing B1 Web database handle.
+- Google Sheets/Drive writes: 0. EXTERNAL_SYNC=PENDING.
