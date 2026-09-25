@@ -239,6 +239,8 @@ PF01 §8.2's locking protocol explicitly addresses invitation acceptance/ticket/
 |503|DEPENDENCY_UNAVAILABLE: DB/config/unknown storage or commit outcome; not an empty success|
 |405|METHOD_NOT_ALLOWED: unsupported method, including PATCH/DELETE; Allow advertises only supported application methods|
 
+B3 defines its own mutation/error response vocabulary and must not modify the frozen `B1ErrorCode` or `B1ErrorSchema`. The pre-existing direct HTTP405 `METHOD_NOT_ALLOWED` response in the B1 HTTP layer is historical B1 behavior, outside B3 scope; do not reconcile or refactor that existing discrepancy as part of B3.
+
 B3's error schema extends its own response vocabulary for409/413/405; it must not alter existing B1 errors/logout semantics. Unit FK23503 is a DB invariant; normal API parent authorization hides invalid/foreign parent as404 before INSERT. Unexpected database failures stay503, sanitized. Late RLS failure after earlier valid guard rolls back; a fresh read-only authority classification may return401/404/403 without retrying the write, otherwise503. No foreign resource leaks through conflict messages or action headers. Ordinary framework HEAD/OPTIONS behavior must not invoke mutations; explicit unsupported application methods remain405.
 
 ## 15. Freeze / migration compatibility
