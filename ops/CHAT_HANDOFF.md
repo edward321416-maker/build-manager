@@ -64,7 +64,8 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B | IN_PROGRESS | — |
 | PF02-B / B1 | VERIFIED / FROZEN | `ops/pf02_b_b1_acceptance.md` |
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
-| Later PF02-B slices | NOT_STARTED / NOT_YET_SCOPED | — |
+| PF02-B / B3 | DESIGN_APPROVED / IMPLEMENTATION_NOT_AUTHORIZED | `docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md` (approved design; not an implementation receipt) |
+| Beyond B3 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
 `docs/production-foundation/README.md`, `docs/production-foundation/00_foundation_blueprint.md`,
@@ -185,12 +186,9 @@ current canonical documents.
 
 **`NONE_AUTHORIZED`.**
 
-No later PF02-B product slice is scoped or implementation-authorized. The operator must scope and
-approve one before any further product work begins.
+PF02-B / B3 — ORG_ADMIN Building Registration Foundation now has an **approved design** after independent review returned `NO_BLOCKING_FINDINGS`; the reviewer LOW was corrected before publication. Read the [approved B3 design](../docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md) and current `STATUS.md` for the boundary.
 
-Do not propose a "B3", draft a roadmap, or start designing the next slice on your own initiative.
-If asked what is next, answer: nothing is authorized yet, and name the open risks above as the
-outstanding non-product work.
+**B3 implementation planning = NOT_AUTHORIZED. B3 product implementation = NOT_AUTHORIZED.** The next gate is a separate explicit operator authorization to draft the B3 implementation plan. Slices beyond B3 remain NOT_STARTED / NOT_YET_SCOPED. Do not infer plan or code authorization from design approval.
 
 ## Private artifact rule
 

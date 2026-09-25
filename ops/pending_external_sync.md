@@ -52,6 +52,14 @@ Implementation PR34 merge f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1 and fresh mai
 
 Closure PR35 merge `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`, closure-main CI 35947253215/35947253217 (9/9 SUCCESS), PR33 supersession close and the session-bootstrap publication candidate are queued in AI_Execution_Log.csv with four new distinct event IDs and `sync_status=pending`. Earlier B2 acceptance/implementation-main rows are unchanged; implementation-main and closure-main CI remain separate evidence generations. Google Sheets/Drive writes = 0; account/OAuth/IAM changes = 0. EXTERNAL_SYNC = PENDING. No private destination, local path or credential is published.
 
+## 2026-09-25 PF02-B B3 design candidate
+
+- Event: `PF02-B-B3-DESIGN-CANDIDATE-20260925`; observed/recorded UTC `2026-09-24T17:12:23.255754+00:00`.
+- Operator authorized B3 DESIGN / SPEC / STATE-ROUTER DOCS ONLY; candidate spec: [Building Registration Foundation](../docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md).
+- B1/B2 remain VERIFIED / FROZEN; B3 independent design/spec review pending; product implementation and implementation plan NOT_AUTHORIZED.
+- Design candidate publication is queued; runtime tests NOT_RUN. Tokens: unknown.
+- Google Sheets/Drive writes: 0. Account/OAuth/IAM changes: 0. EXTERNAL_SYNC=PENDING; sync_status=pending.
+
 ## 2026-09-25 Expo SDK 57 patch compatibility maintenance
 
 - Event: `EXPO57-PATCH-COMPAT-MAINTENANCE-20260925`; recorded UTC `2026-09-25T02:13:21.802927+00:00`; tokens=unknown; sync_status=pending.
@@ -60,3 +68,10 @@ Closure PR35 merge `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`, closure-main CI 3
 - Local lint/typecheck/Web build/dependency checks and Android/iOS JS/assets exports passed; native binary builds NOT_RUN. Mobile initial parallel run: 132/133, one 5000ms timeout; isolated fresh-cache run: 133/133. ROOT_CAUSE_NOT_ESTABLISHED; no test/timeout changes.
 - Hosted candidate CI/publication pending at this event. Existing 14 moderate advisories and install-script warnings remain outside scope.
 - Google Sheets/Drive writes: 0. OAuth/IAM changes: 0. EXTERNAL_SYNC=PENDING.
+
+## 2026-09-25 Expo main publication and B3 design approval
+
+- `EXPO57-PATCH-COMPAT-MAIN-CI-20260925`: PR #38 merged at main `3522d5778a2bb328fc44d47f77dca96d55c24447`; fresh push App `36086857051` and Repository `36086857020` completed required 9/9 SUCCESS. This is maintenance evidence, not B3 runtime evidence.
+- `PF02-B-B3-DESIGN-APPROVED-20260925`: independent design review returned `NO_BLOCKING_FINDINGS`; reviewer LOW `B3R-L01` was corrected before publication. B3 design is approved; implementation planning and product implementation remain NOT_AUTHORIZED.
+- Final B3 design content: 48802 UTF-8 bytes; SHA-256 `5ac8d8bb24197f655993507ffc97cc93fa38ffc23c0555306b8756788bb933e1`.
+- Google Sheets/Drive writes: 0. OAuth/IAM changes: 0. EXTERNAL_SYNC=PENDING; both events remain `sync_status=pending`.
