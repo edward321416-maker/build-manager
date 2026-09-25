@@ -85,14 +85,18 @@ export async function handleB3Http(
       throw new B3Error("FORBIDDEN");
     }
 
-    if (request.method === "GET" && (kind === "properties" || kind === "units")) pageQuery(request);
-    else noQuery(request);
-    assertIds(kind, params);
+    if (request.method === "GET") {
+      if (kind === "properties" || kind === "units") pageQuery(request);
+      else noQuery(request);
+      assertIds(kind, params);
+    }
 
     const current = await requireCurrentSession(await d.readSession(request), d.sessions);
 
     if (request.method === "POST") {
       csrf(request.headers.get("x-b1-csrf"), current.csrf);
+      noQuery(request);
+      assertIds(kind, params);
       const body = await readB3Json(request);
       if (kind === "properties") {
         const parsed = B3PropertyCreateSchema.safeParse(body);
