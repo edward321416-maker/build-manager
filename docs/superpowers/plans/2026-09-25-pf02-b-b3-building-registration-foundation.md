@@ -1551,7 +1551,7 @@ git diff --exit-code -- package.json package-lock.json apps/mobile/package.json 
 npm run test:shared
 npm run test:postgres
 npm run test:web
-npm run test:mobile -- --runInBand
+npm run test:mobile
 npm run lint
 npm run typecheck
 npm run build:web
