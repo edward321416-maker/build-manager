@@ -2,6 +2,13 @@
 -- Roles are provisioned externally; this migration fails closed on contract drift.
 DO $b3_preflight$
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_roles
+    WHERE rolname=current_user AND NOT rolsuper AND NOT rolbypassrls
+  ) THEN
+    RAISE EXCEPTION 'B3_MIGRATION_OWNER_CONTRACT_INVALID';
+  END IF;
+
   IF (SELECT count(*) FROM pg_catalog.pg_roles
       WHERE rolname IN ('bm_b1_login','bm_b1_web','bm_b1_capability_owner')) <> 3 THEN
     RAISE EXCEPTION 'B3_REQUIRED_ROLES_MISSING';
