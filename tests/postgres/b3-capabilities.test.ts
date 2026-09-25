@@ -137,4 +137,3 @@ it("AC13 pins exact Unit Web columns and no capability-owner Unit grant", async 
     )).rows[0].allowed, "capability owner unit " + privilege).toBe(false);
   }
 });
-
