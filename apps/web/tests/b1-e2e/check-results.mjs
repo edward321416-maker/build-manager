@@ -40,6 +40,7 @@ const specs = verify(report);
 // Mutate only parsed throwaway copies: the actual evidence file is never changed.
 const controls = [
   copy => { const suite = copy.suites.find(s => collect(s).some(s => s.title === 'AC03 staffNoAssignmentEmpty')); function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'AC03 staffNoAssignmentEmpty'); for (const child of s.suites ?? []) remove(child); } remove(suite); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 AC01 adminPropertyCreateReadback'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
   copy => { const rows = collect(copy); rows[1].title = rows[0].title; },
   copy => { collect(copy)[0].tests[0].results[0].status = 'skipped'; },
   copy => { collect(copy)[0].tests[0].results[0].status = 'failed'; },
