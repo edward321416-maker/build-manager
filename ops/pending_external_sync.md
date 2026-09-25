@@ -146,3 +146,11 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Task 7: behavioral RED `5e3ba78...` failed only on missing 8-route inventory and missing B3 container ports; GREEN `9b4877b...` passed architecture B1 18/B3 3, Shared 376, Web 358, lint/typecheck/build/dependencies.
 - No frozen B1 auth/session/logout source was changed. B3 ports reuse the existing B1 Web database handle.
 - Google Sheets/Drive writes: 0. EXTERNAL_SYNC=PENDING.
+
+## 2026-09-25 PF02-B B3 Task 8 GREEN
+
+- Event: `PF02-B-B3-T8-GREEN-20260925`; tokens=unknown; sync_status=pending.
+- RED `3feb3df...`: six B3 component suites failed 16 assertions only because compileable stubs returned NOT_IMPLEMENTED.
+- GREEN `80e50ee...`: B3 Property/Unit workspace, registration and detail UX implemented; exact capability headers remain advisory only; 503/network outcomes never auto-retry.
+- Fresh lint correction `f975adb...` removed only synchronous effect setState at the identified React lint boundary. Fresh App run `36114895762`: Shared 377, Web 377, B3 component 19, existing workspace-shell 1, lint/typecheck/build/deps SUCCESS.
+- Google Sheets/Drive writes: 0. EXTERNAL_SYNC=PENDING.
