@@ -21,3 +21,6 @@ export * from "./b1/ports";
 export * from "./b1/errors";
 export * from "./b1/begin-web-session";
 export * from "./b1/organization-access";
+export * from "./b3/ports";
+export * from "./b3/errors";
+export * from "./b3/building-registration";
