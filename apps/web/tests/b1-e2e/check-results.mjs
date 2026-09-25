@@ -8,6 +8,19 @@ const cases = [
   'AC01 adminAB', 'AC02 staffAssignedA', 'AC03 staffNoAssignmentEmpty', 'AC04 foreign404',
   'AC05 assignmentEnded', 'AC06 membershipEnded', 'AC07 orgSuspended', 'AC08 archived404',
   'AC13 forgedAuthority',
+  'B3 AC01 adminPropertyCreateReadback',
+  'B3 AC02 staffPropertyCreateForbidden',
+  'B3 AC03 hiddenOrgPropertyCreate404',
+  'B3 AC05 adminUnitCreateReadback',
+  'B3 AC06 staffUnitCreateBoundary',
+  'B3 AC07 hiddenPropertyUnitCreate404',
+  'B3 AC08 duplicateUnit409',
+  'B3 AC10 adminUnitReadEmptyAndDetail',
+  'B3 AC11 staffAssignedUnitScope',
+  'B3 AC14 csrfOriginBodyBoundaries',
+  'B3 AC19 hiddenUnitPagination',
+  'B3 AC20 syntheticNoFallback',
+  'B3 AC21 capabilityUiAndForgedHeader',
 ];
 function collect(suite) {
   return [...(suite.specs ?? []), ...(suite.suites ?? []).flatMap(collect)];
@@ -19,7 +32,7 @@ function verify(candidate) {
       specs.some(spec => spec.tests.length !== 1 || spec.tests.some(test =>
         test.expectedStatus !== 'passed' || test.status !== 'expected' || test.results.length !== 1 ||
         test.results[0].status !== 'passed' || test.results[0].retry !== 0 || test.results[0].errors?.length))) {
-    throw new Error('B1_B2_E2E_REQUIRED_CASE_GATE_FAILED');
+    throw new Error('B1_B2_B3_E2E_REQUIRED_CASE_GATE_FAILED');
   }
   return specs;
 }
@@ -38,6 +51,6 @@ for (const mutate of controls) {
   mutate(copy);
   let rejected = false;
   try { verify(copy); } catch { rejected = true; }
-  if (!rejected) throw new Error('B1_B2_E2E_GATE_NEGATIVE_CONTROL_FAILED');
+  if (!rejected) throw new Error('B1_B2_B3_E2E_GATE_NEGATIVE_CONTROL_FAILED');
 }
 console.log(JSON.stringify({ classification: 'SYNTHETIC_AUTH_ACTUAL_WEB_POSTGRES', tests: specs.length, failed: 0, skipped: 0, retries: 0, negativeControls: controls.length }));
