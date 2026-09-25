@@ -64,7 +64,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B | IN_PROGRESS | — |
 | PF02-B / B1 | VERIFIED / FROZEN | `ops/pf02_b_b1_acceptance.md` |
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
-| PF02-B / B3 | IMPLEMENTATION_AUTHORIZED / NOT_STARTED | `ops/pf02_b_b3_plan_acceptance.md`; approved design + approved implementation plan; product implementation authorized, not yet executed |
+| PF02-B / B3 | MERGED_WITH_DISCLOSED_LOW | [Implementation acceptance and actual-main publication](pf02_b_b3_acceptance.md); PR #42 MERGED; LOW3 OPEN / AC04 PARTIAL; canonical closure and VERIFIED/FROZEN not authorized |
 | Beyond B3 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
@@ -87,7 +87,7 @@ Closed. Do not re-derive, re-propose or re-ask these. Each is evidenced by the r
 - Existing `/api/v2` URLs are reused. No staff-specific duplicate API.
 - No assignment mutation API or UI in B2.
 - Modular Monolith, explicit SQL, application ports. No ORM.
-- B3 implementation must follow the approved plan at `docs/superpowers/plans/2026-09-25-pf02-b-b3-building-registration-foundation.md`; migrations 0001–0007 remain byte-frozen and implementation stops at READY_FOR_ACCEPTANCE with its PR open/unmerged.
+- B3's approved design/plan remain its implementation boundary; migrations 0001–0007 remain byte-frozen. The historical READY_FOR_ACCEPTANCE/open-PR gate was followed by independent review, explicit operator acceptance and PR #42 merge. See the [implementation receipt](pf02_b_b3_acceptance.md); this does not authorize B3 canonical closure or further product work.
 
 ## Do not reopen without new evidence
 
@@ -150,6 +150,7 @@ Summarized by link only. Read the cited file for the current wording.
   `ops/pf02_b_b1_acceptance.md`, `ops/pf02_b_b2_acceptance.md`.
 - Deferred findings — B1 LOW findings and B2 `B2I-L01`–`L04` remain non-blocking and deferred.
   See each receipt for current disposition.
+- B3 M01/M03/M04 LOW / OPEN, AC04 PARTIAL and retained B3D-L01/L02 — [B3 implementation receipt](pf02_b_b3_acceptance.md).
 - Canonical acceptance cases — most `F` cases remain `NOT_RUN`.
   `docs/production-foundation/acceptance_cases.json`.
 - External sync — `EXTERNAL_SYNC = PENDING`. `ops/pending_external_sync.md`.
@@ -185,11 +186,11 @@ current canonical documents.
 
 ## Current authorized next task
 
-**PF02-B / B3 PRODUCT IMPLEMENTATION = AUTHORIZED.**
+**CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED.**
 
-PF02-B / B3 — ORG_ADMIN Building Registration Foundation has an approved design and an approved implementation plan at [`docs/superpowers/plans/2026-09-25-pf02-b-b3-building-registration-foundation.md`](../docs/superpowers/plans/2026-09-25-pf02-b-b3-building-registration-foundation.md). The full independent plan review returned `NO_BLOCKING_FINDINGS`; the sole LOW `B3P-L01` was corrected, and the independent delta review returned `DELTA_ACCEPTED`. PR #40 merged the reviewed plan into main.
+PF02-B / B3 — ORG_ADMIN Building Registration Foundation is MERGED_WITH_DISCLOSED_LOW. The [implementation acceptance receipt](pf02_b_b3_acceptance.md) routes to the independent full/delta review, exact-head operator approval, PR #42 merge and actual-main CI. The [plan authorization receipt](pf02_b_b3_plan_acceptance.md) remains the historical authorization record, not an instruction to restart Tasks 1–10.
 
-The operator explicitly authorized **B3 product implementation** on 2026-09-25. Before code changes, re-bootstrap from live `main`, read the approved plan and [`ops/pf02_b_b3_plan_acceptance.md`](pf02_b_b3_plan_acceptance.md), and run the plan's P1–P4 authorization/frozen-migration preflight. Then execute Tasks 1–10 in order. Stop at `READY_FOR_ACCEPTANCE` with the B3 implementation PR OPEN / NOT_MERGED for fixed-head independent implementation review. Slices beyond B3 remain NOT_STARTED / NOT_YET_SCOPED. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED.
+Only this documentation reconciliation and its candidate submission are authorized; next gate is documentation-candidate review with its PR OPEN / DRAFT / NOT_MERGED. Codex writes/publishes, Opus independently reviews, and the coordinator mediates operator approval/scope; recording received reviews is not independent re-review. M01/M03/M04 remain LOW / OPEN, AC04 PARTIAL and F01/F43 NOT_RUN. LOW fixes, formal B3 closure, VERIFIED/FROZEN promotion, additional implementation/planning and later slices need separate authorization. Slices beyond B3 remain NOT_STARTED / NOT_YET_SCOPED. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED.
 
 ## Private artifact rule
 

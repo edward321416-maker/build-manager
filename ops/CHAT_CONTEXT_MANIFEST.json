@@ -39,7 +39,7 @@
       "present_at_baseline": true
     },
     "PF02-B/B3": {
-      "state": "IMPLEMENTATION_AUTHORIZED",
+      "state": "MERGED_WITH_DISCLOSED_LOW",
       "approved_spec": "docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md",
       "approved_plan": "docs/superpowers/plans/2026-09-25-pf02-b-b3-building-registration-foundation.md",
       "sha256": "5ac8d8bb24197f655993507ffc97cc93fa38ffc23c0555306b8756788bb933e1",
@@ -51,7 +51,16 @@
       "plan_merge_main": "425fb71441b03d3fcc94492c69ebfcf36787bdf9",
       "plan_independent_review": "NO_BLOCKING_FINDINGS",
       "plan_delta_review": "DELTA_ACCEPTED",
-      "canonical_receipt": "ops/pf02_b_b3_plan_acceptance.md",
+      "plan_authorization_receipt": "ops/pf02_b_b3_plan_acceptance.md",
+      "canonical_receipt": "ops/pf02_b_b3_acceptance.md",
+      "implementation_pr": 42,
+      "implementation_main": "741997d93015991c1c89716a3ca93b662a8be0d8",
+      "accepted_candidate_head": "2252929b56f375a4fe8f19858c23b8d2e92c7845",
+      "implementation_review": "NO_BLOCKING_FINDINGS",
+      "implementation_delta_review": "DELTA_ACCEPTED",
+      "review_and_operator_approval": "https://github.com/edward321416-maker/build-manager/pull/42#issuecomment-5831953075",
+      "publication_receipt": "https://github.com/edward321416-maker/build-manager/pull/42#issuecomment-5832041814",
+      "authorization_note": "The following true fields preserve the completed plan/implementation authorization history. They do not authorize additional work; current_product_task controls that. MERGED_WITH_DISCLOSED_LOW records integration, not canonical closure or VERIFIED/FROZEN.",
       "implementation_authorized": true,
       "implementation_plan_authorized": true
     },
@@ -67,7 +76,8 @@
     { "milestone": "PF02-A", "path": "ops/pf02_a_acceptance.md", "present_at_baseline": true },
     { "milestone": "PF02-B/B1", "path": "ops/pf02_b_b1_acceptance.md", "present_at_baseline": true },
     { "milestone": "PF02-B/B2", "path": "ops/pf02_b_b2_acceptance.md", "present_at_baseline": true },
-    { "milestone": "PF02-B/B3 plan authorization", "path": "ops/pf02_b_b3_plan_acceptance.md", "present_at_baseline": false }
+    { "milestone": "PF02-B/B3 plan authorization", "path": "ops/pf02_b_b3_plan_acceptance.md", "present_at_baseline": false },
+    { "milestone": "PF02-B/B3 implementation acceptance with disclosed limitations", "path": "ops/pf02_b_b3_acceptance.md", "present_at_baseline": false }
   ],
   "supporting_design_documents": [
     "docs/production-foundation/README.md",
@@ -120,7 +130,7 @@
     "Existing /api/v2 URLs are reused; no staff-specific duplicate API.",
     "No assignment mutation API or UI in B2.",
     "Modular Monolith with explicit SQL and application ports; no ORM.",
-    "B3 approved design and independently reviewed implementation plan are the canonical B3 implementation boundary; product implementation was explicitly authorized by the operator on 2026-09-25."
+    "B3 approved design and independently reviewed implementation plan remain the B3 implementation boundary. That authorization was executed and PR42 was accepted/merged with disclosed limitations; it does not authorize additional product work or canonical closure."
   ],
   "do_not_reopen_without_new_evidence": {
     "rule": "Reopen a frozen decision only on new, specific, reproducible evidence: a demonstrated security or data-isolation defect, a contradiction proven against an exact ref, or an explicit operator instruction.",
@@ -153,10 +163,15 @@
     { "id": "live-auth0-independent-repro", "state": "NOT_RUN", "source": "ops/pf02_b_b1_acceptance.md" },
     { "id": "live-auth0-b2", "state": "NOT_RUN", "source": "ops/pf02_b_b2_acceptance.md" },
     { "id": "deferred-low-findings", "source": "ops/pf02_b_b1_acceptance.md, ops/pf02_b_b2_acceptance.md", "note": "B1 LOW findings and B2 B2I-L01..L04 remain non-blocking; read each receipt for current disposition." },
+    { "id": "B3SR-M01", "state": "LOW_OPEN", "source": "ops/pf02_b_b3_acceptance.md" },
+    { "id": "B3SR-M03", "state": "LOW_OPEN", "source": "ops/pf02_b_b3_acceptance.md" },
+    { "id": "B3SR-M04", "state": "LOW_OPEN", "source": "ops/pf02_b_b3_acceptance.md" },
+    { "id": "B3-AC04", "state": "PARTIAL", "source": "ops/pf02_b_b3_acceptance.md" },
     { "id": "canonical-f-cases-mostly-not-run", "source": "docs/production-foundation/acceptance_cases.json" },
     { "id": "external-sync-pending", "source": "ops/pending_external_sync.md" }
   ],
   "active_or_historical_prs": [
+    { "number": 42, "state": "MERGED", "merged": true, "merge_commit": "741997d93015991c1c89716a3ca93b662a8be0d8", "accepted_head": "2252929b56f375a4fe8f19858c23b8d2e92c7845", "role": "B3 implementation accepted and merged with disclosed LOW; not canonical closure" },
     { "number": 40, "title": "docs: plan PF02-B B3 building registration", "state": "MERGED", "merged": true, "merge_commit": "425fb71441b03d3fcc94492c69ebfcf36787bdf9", "role": "B3 approved implementation plan" },
     { "number": 39, "title": "docs: authorize PF02-B B3 implementation planning", "state": "MERGED", "merged": true, "merge_commit": "9d2916b037a7d421fd60650ffcab18c566df13f2", "role": "B3 planning authorization" },
     { "number": 37, "title": "docs: design PF02-B B3 building registration foundation", "state": "MERGED", "merged": true, "merge_commit": "38164591ab5ed2bbbbbf39f9e454f164db8c5548", "role": "B3 approved design publication" },
@@ -173,17 +188,19 @@
     "b2_closure_main": { "head": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d", "event": "push", "app_run": "35947253215", "repository_run": "35947253217", "required": "9/9 SUCCESS" },
     "b3_plan_candidate": { "head": "6cd63e0843937443b8850e2ff86da3302140d7f4", "event": "pull_request", "app_run": "36100925800", "repository_run": "36100925799", "required": "9/9 SUCCESS" },
     "b3_plan_main": { "head": "425fb71441b03d3fcc94492c69ebfcf36787bdf9", "event": "push", "app_run": "36101754840", "repository_run": "36101754775", "required": "9/9 SUCCESS" },
+    "b3_implementation_candidate": { "head": "2252929b56f375a4fe8f19858c23b8d2e92c7845", "event": "pull_request", "attempt": 1, "app_run": "36128243625", "repository_run": "36128244741", "required": "9/9 SUCCESS" },
+    "b3_implementation_main": { "head": "741997d93015991c1c89716a3ca93b662a8be0d8", "event": "push", "branch": "main", "attempt": 1, "app_run": "36132125715", "repository_run": "36132125772", "required": "9/9 SUCCESS" },
     "required_checks": ["verify", "repository-safety", "apps", "mobile-cold-linux", "install-mobile-windows", "web-e2e", "mobile-health", "postgres-integration", "foundation-gate"]
   },
   "current_product_task": {
-    "status": "IMPLEMENTATION_AUTHORIZED",
+    "status": "NONE_AUTHORIZED",
     "slice": "PF02-B/B3",
     "title": "ORG_ADMIN Building Registration Foundation",
     "approved_plan": "docs/superpowers/plans/2026-09-25-pf02-b-b3-building-registration-foundation.md",
-    "implementation_plan_authorized": true,
-    "implementation_authorized": true,
-    "next_gate": "re-bootstrap from live main, complete plan P1-P4, then execute B3 Tasks 1-10 and stop at READY_FOR_ACCEPTANCE with the implementation PR open and unmerged",
-    "note": "Implementation is authorized only within the approved B3 design/plan. Migrations 0001-0007 stay frozen; REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED; slices beyond B3 remain unscoped."
+    "implementation_plan_authorized": false,
+    "implementation_authorized": false,
+    "next_gate": "review the documentation-only status reconciliation candidate; keep its PR OPEN / DRAFT / NOT_MERGED",
+    "note": "PR42 implementation acceptance and merge are complete; do not restart implementation or repeat merge. Only this documentation reconciliation/candidate submission is authorized. LOW remediation, new product work/planning, formal B3 closure, VERIFIED/FROZEN or F01/F43 promotion and later slices need separate authorization. M01/M03/M04 LOW OPEN; AC04 PARTIAL; F01/F43 NOT_RUN. Historical authorization true fields elsewhere record completed approvals, not current permissions. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED."
   },
   "design_approval": {
     "slice": "PF02-B/B3",
@@ -202,7 +219,8 @@
     { "id": "b2_implementation_plan", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b2_acceptance.md" },
     { "id": "b2_independent_implementation_review", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b2_acceptance.md" },
     { "id": "b1_planning_and_review_artifacts", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b1_acceptance.md" },
-    { "id": "b3_independent_plan_review", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b3_plan_acceptance.md" }
+    { "id": "b3_independent_plan_review", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b3_plan_acceptance.md" },
+    { "id": "b3_independent_full_and_m02_delta_reviews", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "receipt": "ops/pf02_b_b3_acceptance.md" }
   ],
   "evidence_rules": {
     "authority_order": [
