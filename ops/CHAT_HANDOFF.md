@@ -64,7 +64,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B | IN_PROGRESS | — |
 | PF02-B / B1 | VERIFIED / FROZEN | `ops/pf02_b_b1_acceptance.md` |
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
-| PF02-B / B3 | DESIGN_APPROVED / IMPLEMENTATION_NOT_AUTHORIZED | `docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md` (approved design; not an implementation receipt) |
+| PF02-B / B3 | IMPLEMENTATION_AUTHORIZED / NOT_STARTED | `ops/pf02_b_b3_plan_acceptance.md`; approved design + approved implementation plan; product implementation authorized, not yet executed |
 | Beyond B3 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
@@ -87,6 +87,7 @@ Closed. Do not re-derive, re-propose or re-ask these. Each is evidenced by the r
 - Existing `/api/v2` URLs are reused. No staff-specific duplicate API.
 - No assignment mutation API or UI in B2.
 - Modular Monolith, explicit SQL, application ports. No ORM.
+- B3 implementation must follow the approved plan at `docs/superpowers/plans/2026-09-25-pf02-b-b3-building-registration-foundation.md`; migrations 0001–0007 remain byte-frozen and implementation stops at READY_FOR_ACCEPTANCE with its PR open/unmerged.
 
 ## Do not reopen without new evidence
 
@@ -184,11 +185,11 @@ current canonical documents.
 
 ## Current authorized next task
 
-**PF02-B / B3 IMPLEMENTATION PLAN = AUTHORIZED.**
+**PF02-B / B3 PRODUCT IMPLEMENTATION = AUTHORIZED.**
 
-PF02-B / B3 — ORG_ADMIN Building Registration Foundation has an **approved design** after independent review returned `NO_BLOCKING_FINDINGS`; the reviewer LOW was corrected before publication. Read the [approved B3 design](../docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md) and current `STATUS.md` for the boundary.
+PF02-B / B3 — ORG_ADMIN Building Registration Foundation has an approved design and an approved implementation plan at [`docs/superpowers/plans/2026-09-25-pf02-b-b3-building-registration-foundation.md`](../docs/superpowers/plans/2026-09-25-pf02-b-b3-building-registration-foundation.md). The full independent plan review returned `NO_BLOCKING_FINDINGS`; the sole LOW `B3P-L01` was corrected, and the independent delta review returned `DELTA_ACCEPTED`. PR #40 merged the reviewed plan into main.
 
-The operator explicitly authorized **implementation-plan drafting only** on 2026-09-25. The authorized next flow is: draft the B3 implementation plan → self-audit → independent plan review. **B3 product implementation = NOT_AUTHORIZED.** Do not modify product code, SQL migrations, tests, APIs or Web behavior until a later explicit operator authorization. Slices beyond B3 remain NOT_STARTED / NOT_YET_SCOPED.
+The operator explicitly authorized **B3 product implementation** on 2026-09-25. Before code changes, re-bootstrap from live `main`, read the approved plan and [`ops/pf02_b_b3_plan_acceptance.md`](pf02_b_b3_plan_acceptance.md), and run the plan's P1–P4 authorization/frozen-migration preflight. Then execute Tasks 1–10 in order. Stop at `READY_FOR_ACCEPTANCE` with the B3 implementation PR OPEN / NOT_MERGED for fixed-head independent implementation review. Slices beyond B3 remain NOT_STARTED / NOT_YET_SCOPED. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED.
 
 ## Private artifact rule
 
