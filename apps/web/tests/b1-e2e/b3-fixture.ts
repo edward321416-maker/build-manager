@@ -13,16 +13,16 @@ export async function fixtureB3Session(
   return fixtureB2Session(browser,role,assigned);
 }
 
-export function propertiesPath(f:B3WebFixture,orgId=f.orgId){
+export function propertiesPath(f:B3WebFixture,orgId:string=f.orgId){
   return `/api/v2/organizations/${orgId}/properties`;
 }
-export function propertyPath(f:B3WebFixture,propertyId=f.propertyId,orgId=f.orgId){
+export function propertyPath(f:B3WebFixture,propertyId:string=f.propertyId,orgId:string=f.orgId){
   return `${propertiesPath(f,orgId)}/${propertyId}`;
 }
-export function unitsPath(f:B3WebFixture,propertyId=f.propertyId,orgId=f.orgId){
+export function unitsPath(f:B3WebFixture,propertyId:string=f.propertyId,orgId:string=f.orgId){
   return `${propertyPath(f,propertyId,orgId)}/units`;
 }
-export function unitPath(f:B3WebFixture,unitId:string,propertyId=f.propertyId,orgId=f.orgId){
+export function unitPath(f:B3WebFixture,unitId:string,propertyId:string=f.propertyId,orgId:string=f.orgId){
   return `${unitsPath(f,propertyId,orgId)}/${unitId}`;
 }
 export function mutationHeaders(f:B3WebFixture,extra:Record<string,string>={}){
@@ -31,7 +31,7 @@ export function mutationHeaders(f:B3WebFixture,extra:Record<string,string>={}){
 export async function postProperty(
   f:B3WebFixture,
   addressReference:string,
-  orgId=f.orgId,
+  orgId:string=f.orgId,
   extraHeaders:Record<string,string>={},
 ):Promise<APIResponse>{
   return f.context.request.post(propertiesPath(f,orgId),{
@@ -42,8 +42,8 @@ export async function postProperty(
 export async function postUnit(
   f:B3WebFixture,
   label:string,
-  propertyId=f.propertyId,
-  orgId=f.orgId,
+  propertyId:string=f.propertyId,
+  orgId:string=f.orgId,
   extraHeaders:Record<string,string>={},
 ):Promise<APIResponse>{
   return f.context.request.post(unitsPath(f,propertyId,orgId),{
@@ -53,9 +53,9 @@ export async function postUnit(
 }
 export async function seedUnit(
   f:B3WebFixture,
-  propertyId=f.propertyId,
+  propertyId:string=f.propertyId,
   label='SYNTHETIC-UNIT',
-  id=randomUUID(),
+  id:string=randomUUID(),
   status:'ACTIVE'|'ARCHIVED'='ACTIVE',
 ):Promise<string>{
   await f.change(
