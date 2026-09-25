@@ -64,7 +64,8 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B | IN_PROGRESS | — |
 | PF02-B / B1 | VERIFIED / FROZEN | `ops/pf02_b_b1_acceptance.md` |
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
-| Later PF02-B slices | NOT_STARTED / NOT_YET_SCOPED | — |
+| PF02-B / B3 | DESIGN_AUTHORIZED / SPEC_REVIEW_PENDING | `docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md` (design candidate; implementation not authorized) |
+| Beyond B3 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
 `docs/production-foundation/README.md`, `docs/production-foundation/00_foundation_blueprint.md`,
