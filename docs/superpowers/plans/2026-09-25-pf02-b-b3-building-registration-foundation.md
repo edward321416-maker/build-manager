@@ -1657,7 +1657,7 @@ PRODUCT_IMPLEMENTATION_BEYOND_B3 = NOT_AUTHORIZED
 | AC01 | 3, 8, 9 | actual bm_b1_web Property INSERT/readback + API 201/Location + Web persisted readback after confirmed commit |
 | AC02 | 3, 9 | visible staff returns FORBIDDEN/403; raw/app no Property row |
 | AC03 | 3, 9 | foreign/PENDING/SUSPENDED/ARCHIVED org generalized NOT_FOUND/404 and no row |
-| AC04 | 1, 3, 6, 9 | contract/app/HTTP Unicode-code-point, trim, controls, surrogate, unknown/server fields; existing null Property readable |
+| AC04 | 1, 3, 6 | contract/app/HTTP Unicode-code-point, trim, controls, surrogate, unknown/server fields; existing null Property readable |
 | AC05 | 3, 8, 9 | admin Unit create 201/list/detail/Web; no automatic assignment or Occupancy |
 | AC06 | 3, 9 | assigned staff 403; same-org unassigned parent 404; no row |
 | AC07 | 3, 9 | foreign/archived parent 404, uniform body, no row |
