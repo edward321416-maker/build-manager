@@ -164,3 +164,28 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Only these accessible queues are reconciled. Unavailable earlier-session queue originals, schema-cache uploads and unlisted events are not claimed synchronized. All appended rows retain tokens=unknown and sync_status=pending.
 - M01/M03/M04 LOW / OPEN; AC04 PARTIAL; F01/F43 NOT_RUN. Current additional product work NONE_AUTHORIZED. No canonical B3 closure, VERIFIED/FROZEN promotion, LOW repair or later slice.
 - EXTERNAL_SYNC=PENDING. Google Sheets/Drive writes: 0. Account/OAuth/IAM/provider changes: 0. Repository log integration remains pending while the documentation PR is OPEN / DRAFT / NOT_MERGED.
+
+
+## 2026-09-26 B3 LOW remediation local progress; publication blocked
+
+- Event: `B3-LOW-M04-EVIDENCE-20260926`; recording time 2026-09-25T15:54:59.969256+00:00; tokens=unknown; sync_status=pending.
+- Event: `B3-LOW-M03-CATALOG-20260926`; recording time 2026-09-25T15:54:59.969256+00:00; tokens=unknown; sync_status=pending.
+- Event: `B3-LOW-M01-LOCAL-REGRESSION-20260926`; recording time 2026-09-25T15:54:59.969256+00:00; tokens=unknown; sync_status=pending.
+- Event: `B3-LOW-PUBLICATION-BLOCKED-20260926`; recording time 2026-09-25T15:54:59.969256+00:00; tokens=unknown; sync_status=pending.
+- Approved base: `9590ffe4bdd5602a9b2975214d6f2f0fdd12b1bf`. M04 and M03 have local test commits; M01 changes remain in the isolated worktree.
+- Local evidence: PostgreSQL 184 PASS; Web unit 389 PASS; shared 377 PASS; lint/typecheck/build/dependency checks PASS; authenticated actual Web/PostgreSQL E2E 51 PASS, including H01 original 8, with 17 result-gate mutation controls.
+- Additional Mobile run: 132 PASS / 1 FAIL; unchanged tenant-ticket loading test exceeded 5000 ms. ROOT_CAUSE_NOT_ESTABLISHED. Failure preserved; no repeat-until-green or out-of-scope repair. Approved handoff section 7.8 stops publication.
+- Full demo regression, final public/history checks, push, Draft PR and new-head CI are NOT_RUN. No independent Opus review or final FIX_HEAD is claimed.
+- B3 MERGED_WITH_DISCLOSED_LOW; M01/M03/M04 LOW / OPEN; AC04 PARTIAL; F01/F43 NOT_RUN remain unchanged. No closure, promotion or later-slice work.
+- EXTERNAL_SYNC=PENDING. Google Sheets/Drive writes=0; account/OAuth/IAM/provider changes=0. Repository queue entries are local and uncommitted.
+
+
+## 2026-09-26 B3 LOW limited Draft resumption
+
+- Recording time: 2026-09-26T03:23:59.037364+00:00. Coordinator scope review satisfied the operator's conditional approval. The exception covers the recorded local Mobile timeout as a Draft publication prerequisite only; no other gate is waived.
+- Events: `B3-LOW-LIMITED-RESUMPTION-20260926`, `B3-LOW-MOBILE-DIAGNOSTICS-DISCLOSED-20260926`, `B3-LOW-RESUMPTION-NONMOBILE-20260926`. tokens=unknown; sync_status=pending.
+- Original local Mobile failure and controlled A/B failures remain FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED. Instrumented BASE PASS is NOT_REPRODUCED_UNDER_INSTRUMENTATION, not candidate acceptance. A=1/B=1/TRACE=1 unchanged; no new local Mobile run.
+- Fresh same-input local non-Mobile results: Web389/shared377/PG184/demo23/authenticated51 and exact-title registry17 PASS with actual child exit0; lint/typecheck/build/deps PASS with existing warnings. Historical outer-wrapper exit0 did not establish Mobile success; npm reported failure1 and controlled runs captured actual child1.
+- Existing M04/M03 commits and M01 changes preserved. H01 original8 retained. Pending staged/public gates precede candidate commit/push; exact-head hosted CI9 and independent Opus delta review follow publication. No all-local-gates PASS claim.
+- B3 MERGED_WITH_DISCLOSED_LOW; M01/M03/M04 LOW OPEN; AC04 PARTIAL; F01/F43 NOT_RUN. Merge, canonical closure, promotion and later slices remain unauthorized.
+- Repository queue integration is candidate-local until publication/merge. External Google Sheets/Drive and OAuth/IAM writes=0; EXTERNAL_SYNC=PENDING. Previous queues are preserved rather than rewritten.

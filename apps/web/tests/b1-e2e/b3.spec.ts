@@ -308,3 +308,170 @@ for(const kind of ['property','unit'] as const){
   }
  }
 }
+
+
+for(const kind of ['property','unit'] as const){
+ test(`B3 LOW M01 ${kind}DirectDeniedLogout`,async({browser})=>{
+  for(const hidden of [false,true]){
+   const f=await fixtureB3Session(browser,'PROPERTY_STAFF',true);
+   try{
+    expect((await f.context.request.get('/api/v2/session')).status()).toBe(200);
+    const path=kind==='property'?propertiesPath(f):unitsPath(f);
+    const visible=await f.context.request.get(path);
+    expect(visible.status()).toBe(200);
+    expect(visible.headers()[`x-b3-can-create-${kind}`]).toBe('false');
+    if(hidden)await f.change("UPDATE app.organization_membership SET status='ENDED',ended_at=clock_timestamp() WHERE id=$1",[f.membershipId]);
+    expect((await f.context.request.get(path)).status()).toBe(hidden?404:200);
+    const before=await lowRegistrationSnapshot(f);
+    const page=await f.context.newPage();let posts=0;
+    page.on('request',request=>{if(request.method()==='POST'&&new URL(request.url()).pathname===path)posts++;});
+    await page.goto(lowRegistrationPath(f,kind));
+    await expect(page.locator('main p[role="alert"]')).toHaveText(kind==='property'?'건물을 등록할 권한이 없습니다.':'호실을 등록할 권한이 없습니다.');
+    await expect(page.getByRole('textbox')).toHaveCount(0);
+    await lowLogout(page,f);
+    expect(posts).toBe(0);
+    expect(await lowRegistrationSnapshot(f)).toEqual(before);
+   }finally{await f.close();}
+  }
+ });
+ test(`B3 LOW M01 ${kind}PostDeniedLogout`,async({browser})=>{
+  for(const status of [403,404]){
+   const f=await fixtureB3Session(browser,'ORG_ADMIN',true);
+   try{
+    const page=await f.context.newPage();let posts=0;
+    const path=kind==='property'?propertiesPath(f):unitsPath(f);
+    page.on('request',request=>{if(request.method()==='POST'&&new URL(request.url()).pathname===path)posts++;});
+    await page.goto(lowRegistrationPath(f,kind));
+    await page.getByRole('textbox').fill('SYNTHETIC-LOW-DENIED');
+    await expect(page.getByRole('button',{name:'로그아웃',exact:true})).toBeVisible();
+    const before=await lowRegistrationSnapshot(f);
+    if(status===403)await f.change("UPDATE app.organization_membership SET role='PROPERTY_STAFF' WHERE id=$1",[f.membershipId]);
+    else await f.change("UPDATE app.organization_membership SET status='ENDED',ended_at=clock_timestamp() WHERE id=$1",[f.membershipId]);
+    const response=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname===path);
+    await page.getByRole('button',{name:'등록',exact:true}).click();
+    expect((await response).status()).toBe(status);
+    await expect(page.locator('main p[role="alert"]')).toHaveText(kind==='property'?'건물을 등록할 권한이 없습니다.':'호실을 등록할 권한이 없습니다.');
+    await expect(page.getByRole('textbox')).toHaveCount(0);
+    await lowLogout(page,f);
+    expect(posts).toBe(1);
+    expect(await lowRegistrationSnapshot(f)).toEqual(before);
+   }finally{await f.close();}
+  }
+ });
+ test(`B3 LOW M01 ${kind}UnauthenticatedRegistration`,async({browser})=>{
+  for(const stage of ['initial','submit'] as const){
+   const f=await fixtureB3Session(browser);
+   try{
+    const page=await f.context.newPage();let posts=0;
+    const path=kind==='property'?propertiesPath(f):unitsPath(f);
+    page.on('request',request=>{if(request.method()==='POST'&&new URL(request.url()).pathname===path)posts++;});
+    expect((await f.context.request.get('/api/v2/session')).status()).toBe(200);
+    const before=await lowRegistrationSnapshot(f);
+    if(stage==='submit'){
+     await page.goto(lowRegistrationPath(f,kind));
+     await page.getByRole('textbox').fill('SYNTHETIC-LOW-401');
+     await expect(page.getByRole('button',{name:'로그아웃',exact:true})).toBeVisible();
+    }
+    await f.change("UPDATE app.app_user SET status='SUSPENDED' WHERE id=$1",[f.userId]);
+    expect((await f.context.request.get('/api/v2/session')).status()).toBe(401);
+    if(stage==='initial')await page.goto(lowRegistrationPath(f,kind));
+    else{
+     const response=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname===path);
+     await page.getByRole('button',{name:'등록',exact:true}).click();
+     expect((await response).status()).toBe(401);
+    }
+    await expect(page.locator('main p[role="alert"]')).toHaveText(kind==='property'?'건물을 등록할 권한이 없습니다.':'호실을 등록할 권한이 없습니다.');
+    await expect(page.getByRole('textbox')).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'로그아웃',exact:true})).toHaveCount(0);
+    await expect(page.locator('input[name="csrf"]')).toHaveCount(0);
+    expect(posts).toBe(stage==='initial'?0:1);
+    expect(await lowRegistrationSnapshot(f)).toEqual(before);
+   }finally{await f.close();}
+  }
+ });
+}
+
+function lowRegistrationPath(f:import('./b3-fixture').B3WebFixture,kind:'property'|'unit'){
+ return kind==='property'?`/workspace/organizations/${f.orgId}/properties/new`
+  :`/workspace/organizations/${f.orgId}/properties/${f.propertyId}/units/new`;
+}
+async function lowRegistrationSnapshot(f:import('./b3-fixture').B3WebFixture){
+ return {
+  properties:(await queryFixture(f,'SELECT id,org_id,address_reference,status FROM app.property WHERE org_id=$1 ORDER BY id',[f.orgId])).rows,
+  units:(await queryFixture(f,'SELECT id,org_id,property_id,label,status FROM app.unit WHERE org_id=$1 ORDER BY id',[f.orgId])).rows,
+ };
+}
+async function lowLogout(page:import('@playwright/test').Page,f:import('./b3-fixture').B3WebFixture){
+ expect((await f.context.request.get('/api/v2/session')).status()).toBe(200);
+ await expect(page.getByRole('button',{name:'등록',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'로그아웃',exact:true})).toBeVisible();
+ const oldCookies=await f.context.cookies();
+ const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v2/session/logout');
+ await page.getByRole('button',{name:'로그아웃',exact:true}).click();
+ expect((await response).status()).toBe(303);
+ await page.waitForURL(baseURL+'/');
+ expect((await f.context.request.get('/api/v2/session')).status()).toBe(401);
+ await f.context.addCookies(oldCookies); // Revocation must reject even the old cookie, not only a cleared browser.
+ expect((await f.context.request.get('/api/v2/session')).status()).toBe(401);
+}
+
+
+type LowSessionProbe={reached:boolean;status:number;signal?:AbortSignal|null;release?:()=>void};
+type LowSessionWindow=Window & typeof globalThis & {__b3LowSession:LowSessionProbe};
+for(const kind of ['property','unit'] as const){
+ test(`B3 LOW M01 ${kind}DeniedSessionRecheck`,async({browser})=>{
+  for(const outcome of ['navigation','revoked'] as const){
+   const f=await fixtureB3Session(browser,'ORG_ADMIN',true);
+   try{
+    const page=await f.context.newPage();
+    await page.addInitScript(({outcome})=>{
+     const probe:LowSessionProbe={reached:false,status:0};(window as LowSessionWindow).__b3LowSession=probe;
+     const original=window.fetch.bind(window);let sessions=0;
+     window.fetch=async(input,init)=>{
+      const path=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href).pathname;
+      if(path!=='/api/v2/session'||++sessions!==2)return original(input,init);
+      probe.signal=init?.signal;
+      const release=new Promise<void>(resolve=>{probe.release=resolve;});
+      if(outcome==='revoked'){
+       probe.reached=true;await release;
+       const response=await original(input,init);probe.status=response.status;return response;
+      }
+      const response=await original(input,init),body=await response.text();
+      probe.status=response.status;probe.reached=true;
+      await release;
+      // Deliver a real, already-buffered response despite abort, as in H01.
+      return new Response(body,{status:response.status,headers:response.headers});
+     };
+    },{outcome});
+    await page.goto(lowRegistrationPath(f,kind));
+    await page.getByRole('textbox').fill('SYNTHETIC-LOW-RECHECK');
+    const before=await lowRegistrationSnapshot(f);
+    await f.change("UPDATE app.organization_membership SET role='PROPERTY_STAFF' WHERE id=$1",[f.membershipId]);
+    await page.getByRole('button',{name:'등록',exact:true}).click();
+    await page.waitForFunction(()=>(window as LowSessionWindow).__b3LowSession.reached);
+    await expect(page.getByRole('textbox')).toHaveCount(0);
+    if(outcome==='navigation'){
+     expect(await page.evaluate(()=>(window as LowSessionWindow).__b3LowSession.status)).toBe(200);
+     await page.getByRole('link',{name:kind==='property'?'건물 목록':'건물 상세',exact:true}).click();
+     const destination=kind==='property'?`/workspace/organizations/${f.orgId}`:`/workspace/organizations/${f.orgId}/properties/${f.propertyId}`;
+     await expect(page).toHaveURL(baseURL+destination);
+     expect(await page.evaluate(()=>(window as LowSessionWindow).__b3LowSession.signal?.aborted)).toBe(true);
+     await page.evaluate(async()=>{
+      const p=(window as LowSessionWindow).__b3LowSession;
+      if(!p.release)throw new Error('LOW_SESSION_GATE_NOT_REACHED');p.release();
+      await new Promise<void>(resolve=>{const channel=new MessageChannel();channel.port1.onmessage=()=>{channel.port1.close();channel.port2.close();resolve();};channel.port2.postMessage(null);});
+     });
+     await expect(page).toHaveURL(baseURL+destination);
+     await expect(page.getByRole('heading',{name:kind==='property'?'내 조직의 건물':'건물 상세',exact:true})).toBeVisible();
+    }else{
+     await f.change("UPDATE app.app_user SET status='SUSPENDED' WHERE id=$1",[f.userId]);
+     await page.evaluate(()=>{const p=(window as LowSessionWindow).__b3LowSession;if(!p.release)throw new Error('LOW_SESSION_GATE_NOT_REACHED');p.release();});
+     await page.waitForFunction(()=>(window as LowSessionWindow).__b3LowSession.status===401);
+     await expect(page.getByRole('button',{name:'로그아웃',exact:true})).toHaveCount(0);
+     await expect(page.locator('input[name="csrf"]')).toHaveCount(0);
+    }
+    expect(await lowRegistrationSnapshot(f)).toEqual(before);
+   }finally{await f.close();}
+  }
+ });
+}

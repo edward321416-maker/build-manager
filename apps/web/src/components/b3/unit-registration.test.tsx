@@ -13,3 +13,25 @@ it('maps duplicate conflict without exposing row detail and derives validated un
  fetcher.mockReset().mockResolvedValueOnce(response({id:unit,orgId:org,propertyId:property,label:'101'},201,{Location:'https://evil.invalid/'}));
  await expect(submitUnitRegistration(fetcher,org,property,'1'.repeat(64),' 101 ')).resolves.toEqual({kind:'created',path:`/workspace/organizations/${org}/properties/${property}/units/${unit}`,unit:{id:unit,orgId:org,propertyId:property,label:'101'}});
 });
+
+it.each([403,404])('retains confirmed session logout data when resource returns %s',async status=>{
+ const fetcher=vi.fn().mockResolvedValueOnce(response({csrf:'e'.repeat(64)})).mockResolvedValueOnce(response({error:'DENIED'},status));
+ await expect(loadUnitRegistrationAccess(fetcher,org,property)).resolves.toEqual({csrf:'e'.repeat(64),canCreate:false});
+ expect(fetcher).toHaveBeenCalledTimes(2);
+});
+it('false create capability keeps csrf solely for logout',async()=>{
+ const fetcher=vi.fn().mockResolvedValueOnce(response({csrf:'e'.repeat(64)})).mockResolvedValueOnce(response({items:[],nextCursor:null},200,{'X-B3-Can-Create-Unit':'false'}));
+ await expect(loadUnitRegistrationAccess(fetcher,org,property)).resolves.toEqual({csrf:'e'.repeat(64),canCreate:false});
+});
+it.each(['session','resource'])('401 from %s never returns stale session csrf',async stage=>{
+ const fetcher=vi.fn();
+ if(stage==='resource')fetcher.mockResolvedValueOnce(response({csrf:'e'.repeat(64)}));
+ fetcher.mockResolvedValueOnce(response({error:'UNAUTHENTICATED'},401));
+ await expect(loadUnitRegistrationAccess(fetcher,org,property)).rejects.toThrow('401');
+ expect(fetcher).toHaveBeenCalledTimes(stage==='session'?1:2);
+});
+it('submit 401 is distinct from resource denial and is never retried',async()=>{
+ const fetcher=vi.fn().mockResolvedValue(response({error:'UNAUTHENTICATED'},401));
+ await expect(submitUnitRegistration(fetcher,org,property,'e'.repeat(64),'SYNTHETIC')).resolves.toEqual({kind:'unauthenticated'});
+ expect(fetcher).toHaveBeenCalledOnce();
+});
