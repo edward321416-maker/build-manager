@@ -29,6 +29,15 @@ const cases = [
   'B3 H01 unit navigation lateDenial',
   'B3 H01 unit logout late201',
   'B3 H01 unit logout lateDenial',
+  'B3 LOW M04 propertyUnicodeHttpBoundary',
+  'B3 LOW M01 propertyDeniedSessionRecheck',
+  'B3 LOW M01 unitDeniedSessionRecheck',
+  'B3 LOW M01 propertyDirectDeniedLogout',
+  'B3 LOW M01 propertyPostDeniedLogout',
+  'B3 LOW M01 propertyUnauthenticatedRegistration',
+  'B3 LOW M01 unitDirectDeniedLogout',
+  'B3 LOW M01 unitPostDeniedLogout',
+  'B3 LOW M01 unitUnauthenticatedRegistration',
 ];
 function collect(suite) {
   return [...(suite.specs ?? []), ...(suite.suites ?? []).flatMap(collect)];
@@ -55,6 +64,15 @@ const controls = [
   copy => { collect(copy)[0].tests[0].results[0].status = 'failed'; },
   copy => { collect(copy)[0].tests[0].results.push({ status: 'passed', retry: 1 }); },
   copy => { copy.errors = [{ message: 'synthetic report error' }]; },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 LOW M04 propertyUnicodeHttpBoundary'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 LOW M01 propertyDirectDeniedLogout'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 LOW M01 propertyPostDeniedLogout'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 LOW M01 propertyUnauthenticatedRegistration'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 LOW M01 unitDirectDeniedLogout'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 LOW M01 unitPostDeniedLogout'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 LOW M01 unitUnauthenticatedRegistration'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 LOW M01 propertyDeniedSessionRecheck'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
+  copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 LOW M01 unitDeniedSessionRecheck'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
 ];
 for (const mutate of controls) {
   const copy = JSON.parse(JSON.stringify(report));

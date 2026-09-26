@@ -31,6 +31,34 @@ it("AC17 exposes the exact B3 admin capability contract", async () => {
     { role_name: "bm_b1_web", execute: true },
     { role_name: "bm_pf02a_runtime", execute: false },
   ]);
+  // A NULL ACL means PostgreSQL's default function ACL (including PUBLIC EXECUTE),
+  // not an empty ACL. Owner-intrinsic privileges are distinct from these explicit entries.
+  const acl = await h.migration.query(`
+    SELECT p.proacl IS NULL AS default_acl,
+      CASE WHEN a.grantee=0 THEN 'PUBLIC' ELSE COALESCE(grantee.rolname,a.grantee::text) END AS grantee,
+      COALESCE(grantor.rolname,a.grantor::text) AS grantor,a.privilege_type,a.is_grantable
+    FROM pg_proc p
+    CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a
+    LEFT JOIN pg_roles grantee ON grantee.oid=a.grantee
+    LEFT JOIN pg_roles grantor ON grantor.oid=a.grantor
+    WHERE p.oid=to_regprocedure('authn.can_administer_org(bytea,uuid)')
+    ORDER BY grantee,grantor,a.privilege_type,a.is_grantable`);
+  // 0008 creates the function as capability owner, revokes PUBLIC and grants Web EXECUTE.
+  const expectedAcl = ["bm_b1_capability_owner", "bm_b1_web"].map(grantee => ({
+    default_acl: false, grantee, grantor: "bm_b1_capability_owner", privilege_type: "EXECUTE", is_grantable: false,
+  }));
+  const assertAcl = (rows: typeof acl.rows) => expect(rows).toEqual(expectedAcl);
+  assertAcl(acl.rows);
+  const extra = (grantee: string) => [...acl.rows, { ...acl.rows[1], grantee }];
+  for (const copy of [extra("bm_b1_login"), extra("PUBLIC"),
+    acl.rows.map((row, i) => i === 1 ? { ...row, is_grantable: true } : { ...row }),
+    acl.rows.filter(row => row.grantee !== "bm_b1_web"),
+    acl.rows.map(row => ({ ...row, default_acl: true })),
+    acl.rows.map((row, i) => i === 1 ? { ...row, grantor: "bm_b1_web" } : { ...row }),
+    acl.rows.map((row, i) => i === 1 ? { ...row, privilege_type: "UPDATE" } : { ...row }),
+  ]) expect(() => assertAcl(copy)).toThrowError(expect.objectContaining({ name: "AssertionError" }));
+  assertAcl(acl.rows);
+
 });
 
 it("AC17 installs exactly the three bm_b1_web restrictive B3 policies", async () => {
@@ -43,26 +71,48 @@ it("AC17 installs exactly the three bm_b1_web restrictive B3 policies", async ()
     JOIN pg_namespace n ON n.oid=c.relnamespace
     WHERE n.nspname='app' AND p.polname LIKE 'b3_%'
     ORDER BY p.polname`);
-  expect(policies.rows.map(row => ({
-    relname: row.relname,
-    polname: row.polname,
-    polcmd: row.polcmd,
-    polpermissive: row.polpermissive,
-    polroles: row.polroles,
-  }))).toEqual([
-    { relname: "property", polname: "b3_property_insert_ceiling", polcmd: "a", polpermissive: false, polroles: [webOid] },
-    { relname: "unit", polname: "b3_unit_insert_ceiling", polcmd: "a", polpermissive: false, polroles: [webOid] },
-    { relname: "unit", polname: "b3_unit_read_ceiling", polcmd: "r", polpermissive: false, polroles: [webOid] },
-  ]);
+  // Expected expressions are the frozen 0008 conjunctions in pg_get_expr display form.
+  // Preserve casts, literals, parentheses and AND/OR; collapse display whitespace only.
+  const normalize = (value: string | null) => value === null ? null : value.replace(/\s+/g, " ").trim();
+  const expected = [
+    { relname: "property", polname: "b3_property_insert_ceiling", polcmd: "a", polpermissive: false, polroles: [webOid],
+      using_expr: null,
+      check_expr: "((status = 'ACTIVE'::text) AND (org_id = app.current_org_id()) AND authn.can_administer_org(authn.context_session_digest(), org_id))" },
+    { relname: "unit", polname: "b3_unit_insert_ceiling", polcmd: "a", polpermissive: false, polroles: [webOid],
+      using_expr: null,
+      check_expr: "((status = 'ACTIVE'::text) AND (org_id = app.current_org_id()) AND authn.can_administer_org(authn.context_session_digest(), org_id) AND authn.can_read_property(authn.context_session_digest(), org_id, property_id))" },
+    { relname: "unit", polname: "b3_unit_read_ceiling", polcmd: "r", polpermissive: false, polroles: [webOid],
+      using_expr: "((status = 'ACTIVE'::text) AND authn.can_read_property(authn.context_session_digest(), org_id, property_id))",
+      check_expr: null },
+  ];
+  const assertPolicies = (rows: typeof policies.rows) => expect(rows.map(row => ({ ...row,
+    using_expr: normalize(row.using_expr), check_expr: normalize(row.check_expr),
+  }))).toEqual(expected);
+  assertPolicies(policies.rows);
+  // CATALOG_ASSERTION_MUTATION: each copy is checked by the same installed-object assertion.
+  for (const [index, row] of policies.rows.entries()) {
+    const field = row.polcmd === "r" ? "using_expr" : "check_expr";
+    const expression = row[field] as string;
+    const terms = ["(status = 'ACTIVE'::text)", "(org_id = app.current_org_id())",
+      "authn.can_administer_org(authn.context_session_digest(), org_id)",
+      "authn.can_read_property(authn.context_session_digest(), org_id, property_id)"];
+    const mutations = [
+      { ...row, [field]: `(${expression}) OR true` }, { ...row, [field]: null },
+      { ...row, polpermissive: true }, { ...row, polroles: [0] },
+      { ...row, polroles: [...row.polroles, 0] }, { ...row, polcmd: "*" },
+      { ...row, relname: "organization" }, { ...row, polname: row.polname + "_changed" },
+      { ...row, [field === "using_expr" ? "check_expr" : "using_expr"]: "true" },
+      ...terms.filter(term => expression.includes(term)).map(term => ({ ...row, [field]: expression.replace(term, "true") })),
+    ];
+    for (const mutated of mutations) {
+      const copy = policies.rows.map((original, i) => i === index ? mutated : { ...original });
+      expect(() => assertPolicies(copy)).toThrowError(expect.objectContaining({ name: "AssertionError" }));
+    }
+  }
+  for (const copy of [policies.rows.slice(1), [...policies.rows, { ...policies.rows[0] }]])
+    expect(() => assertPolicies(copy)).toThrowError(expect.objectContaining({ name: "AssertionError" }));
+  assertPolicies(policies.rows); // Observation and database remained unchanged.
 
-  const normalize = (value: string | null) => value?.replace(/::text/g, "").replace(/\s/g, "").toLowerCase() ?? null;
-  const byName = new Map(policies.rows.map(row => [row.polname, row]));
-  expect(normalize(byName.get("b3_property_insert_ceiling")?.check_expr ?? null))
-    .toContain("authn.can_administer_org(authn.context_session_digest(),org_id)");
-  expect(normalize(byName.get("b3_unit_read_ceiling")?.using_expr ?? null))
-    .toContain("authn.can_read_property(authn.context_session_digest(),org_id,property_id)");
-  expect(normalize(byName.get("b3_unit_insert_ceiling")?.check_expr ?? null))
-    .toContain("authn.can_read_property(authn.context_session_digest(),org_id,property_id)");
 });
 
 it("AC17 grants only the approved B3 Web columns and leaves owner CREATE revoked", async () => {

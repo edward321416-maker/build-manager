@@ -14,3 +14,25 @@ it('posts only the trimmed reference with csrf and derives validated detail path
 it.each([[403,'denied'],[404,'denied'],[503,'uncertain'],[400,'invalid']])('maps %s without automatic retry',async(status,kind)=>{
  const fetcher=vi.fn().mockResolvedValue(response({error:'X'},status));await expect(submitPropertyRegistration(fetcher,org,'d'.repeat(64),'SYNTHETIC')).resolves.toMatchObject({kind});expect(fetcher).toHaveBeenCalledOnce();
 });
+
+it.each([403,404])('retains confirmed session logout data when resource returns %s',async status=>{
+ const fetcher=vi.fn().mockResolvedValueOnce(response({csrf:'e'.repeat(64)})).mockResolvedValueOnce(response({error:'DENIED'},status));
+ await expect(loadPropertyRegistrationAccess(fetcher,org)).resolves.toEqual({csrf:'e'.repeat(64),canCreate:false});
+ expect(fetcher).toHaveBeenCalledTimes(2);
+});
+it('false create capability keeps csrf solely for logout',async()=>{
+ const fetcher=vi.fn().mockResolvedValueOnce(response({csrf:'e'.repeat(64)})).mockResolvedValueOnce(response({items:[],nextCursor:null},200,{'X-B3-Can-Create-Property':'false'}));
+ await expect(loadPropertyRegistrationAccess(fetcher,org)).resolves.toEqual({csrf:'e'.repeat(64),canCreate:false});
+});
+it.each(['session','resource'])('401 from %s never returns stale session csrf',async stage=>{
+ const fetcher=vi.fn();
+ if(stage==='resource')fetcher.mockResolvedValueOnce(response({csrf:'e'.repeat(64)}));
+ fetcher.mockResolvedValueOnce(response({error:'UNAUTHENTICATED'},401));
+ await expect(loadPropertyRegistrationAccess(fetcher,org)).rejects.toThrow('401');
+ expect(fetcher).toHaveBeenCalledTimes(stage==='session'?1:2);
+});
+it('submit 401 is distinct from resource denial and is never retried',async()=>{
+ const fetcher=vi.fn().mockResolvedValue(response({error:'UNAUTHENTICATED'},401));
+ await expect(submitPropertyRegistration(fetcher,org,'e'.repeat(64),'SYNTHETIC')).resolves.toEqual({kind:'unauthenticated'});
+ expect(fetcher).toHaveBeenCalledOnce();
+});
