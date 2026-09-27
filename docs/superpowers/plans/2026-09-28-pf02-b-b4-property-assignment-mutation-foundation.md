@@ -15,7 +15,7 @@
 - POLICY_REF for execution starts from live `main`; the approved spec is the B4 behavior authority. Do not silently retarget either ref.
 - B1/B2/B3 remain FROZEN except for the exact additive B4 integration points named in this plan.
 - Migrations `0001`–`0008` stay byte-identical. Add only `0009_b4_property_assignment_mutation.sql`.
-- No new business table/column/index, ORM, dependency, second DB pool, LOGIN role, credential, provider/IAM change, production hosting, or real tenant/landlord/address data.
+- No new business table/column/index, ORM, dependency, second DB pool, LOGIN role, credential, provider/IAM change, production hosting, or real tenant/landlord/address data. The only package-manifest change allowed is adding the `./b4` source subpath export to `packages/persistence-postgres/package.json`; no dependency/version/lockfile change.
 - `bm_b1_web` gets no direct `app.property_assignment` SELECT/INSERT/UPDATE/DELETE and cannot SET ROLE to `bm_b4_assignment_owner`.
 - `bm_b1_capability_owner` gets no B4 row-mutation privilege.
 - `bm_b4_assignment_owner` is NOLOGIN/NOSUPERUSER/NOCREATEDB/NOCREATEROLE/NOREPLICATION/NOBYPASSRLS/NOINHERIT. Only the migration role may hold non-inherited SET-only, non-admin membership for object creation/ownership.
@@ -223,11 +223,13 @@ git commit -m "feat: add B4 assignment command boundary"
 **Files:**
 - Create: `packages/persistence-postgres/src/b4/index.ts`
 - Create: `packages/persistence-postgres/src/b4/property-assignment.ts`
+- Modify: `packages/persistence-postgres/package.json` — add only `"./b4": "./src/b4/index.ts"` to exports
 - Create: `tests/postgres/helpers/b4-fixture.ts`
 - Create: `tests/postgres/b4-assignment.test.ts`
 
 **Interfaces:**
 - Produces `createPropertyAssignmentMutationPort(database: PostgresDatabase): PropertyAssignmentMutationPort`.
+- Makes that factory importable only through `@build-manager/persistence-postgres/b4`; do not widen the root export just to avoid the explicit B4 subpath.
 - Adapter always enters `withB1OrgTransaction(database,digest,orgId,...)`.
 - Adapter executes only the three B4 functions; no raw PropertyAssignment SQL in the production adapter.
 - Result mapping:
@@ -279,7 +281,7 @@ Expected: PASS.
 - [ ] **Step 4: Commit Task 3**
 
 ```bash
-git add packages/persistence-postgres/src/b4 tests/postgres/helpers/b4-fixture.ts tests/postgres/b4-assignment.test.ts
+git add packages/persistence-postgres/src/b4 packages/persistence-postgres/package.json   tests/postgres/helpers/b4-fixture.ts tests/postgres/b4-assignment.test.ts
 git commit -m "feat: add B4 assignment persistence"
 ```
 
@@ -510,7 +512,7 @@ Confirm:
 - migrations 0001–0008 byte-identical to approved baseline;
 - no Product/Occupancy/Ticket/Mobile/provider/hosting/credential files changed outside named B4 integration/test paths;
 - no staff roster/UI route;
-- no package/lock/workflow changes unless an earlier task discovered and separately escalated a blocker rather than silently widening scope.
+- no package/lock/workflow changes except the explicitly approved `packages/persistence-postgres/package.json` `./b4` export; no dependency/version/lockfile/workflow drift.
 
 - [ ] **Step 2: Run focused suites**
 
