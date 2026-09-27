@@ -211,3 +211,11 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Earlier uncommitted Web-test preparation was superseded by the operator's PostgreSQL-only instruction and restored to exact base bytes. Its separate local receipts are preserved; they are not final-candidate runtime evidence. No Web/API, product, migration, policy/grant, dependency or workflow change. No new local Mobile execution or diagnosis.
 - F01/F43 remain canonical NOT_RUN. This candidate supplies only the missing direct evidence; fixed-head evidence reconciliation and separate acceptance remain necessary. F43 search, B3 closure/VERIFIED/FROZEN, Mobile-risk resolution and later slices are not performed. Local Mobile remains FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED; existing operational/dependency risks remain open.
 - EXTERNAL_SYNC=PENDING. Google Sheets/Drive, account/OAuth/IAM and provider writes=0. Publication/CI events after candidate freeze go to the PR/private pending queue without a log-only candidate commit. Stop at OPEN / DRAFT / NOT_MERGED.
+
+## 2026-09-27 F01 canonical promotion documentation candidate
+
+- Event `F01-PROMOTION-DOCS-CANDIDATE-20260927` at `2026-09-27T10:00:12.870839+00:00`; sync_status=pending; tokens=unknown. POLICY_REF / DOCS_BASE `6706afe3a2cc5bdd2fd7204ce7944fafdd422065`.
+- [Promotion receipt](pf02_b_f01_promotion_acceptance.md) links the directly verified Opus fixed-head reconciliation (11,968 bytes; SHA-256 `257b33138247049937d5ae5814f68ad7329d53a37e9deeb7453fffa6b0fb03dd`), PR47 merged evidence and its push/main CI 9/9. Candidate registry changes F01 status/evidence only; F43 and all other F-cases are preserved.
+- PR46 documentation and PR47 direct evidence are completed history. Current additional product task NONE_AUTHORIZED; B3 MERGED_WITH_DISCLOSED_LOW and Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED remain unchanged. No local runtime rerun, B3 closure or merge.
+- Documentation validation, commit/push, Draft PR and exact-head CI results are recorded after execution in the PR/private receipt. Stop OPEN / DRAFT / NOT_MERGED / INDEPENDENT_REVIEW_PENDING.
+- Google Sheets/Drive writes=0; OAuth/IAM/provider changes=0; EXTERNAL_SYNC=PENDING. No external account change.

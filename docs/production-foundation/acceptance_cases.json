@@ -274,7 +274,19 @@
     "action": "건물·호실 생성 후 다른 조직에서 조회",
     "expected": "자기 조직만 생성/조회, 다른 조직 응답에 없음",
     "planned_evidence": "real PostgreSQL/API evidence; client execution for UI cases; synchronized dual connections for races",
-    "status": "NOT_RUN"
+    "status": "PASS_POSTGRES_INTEGRATION",
+    "evidence": {
+      "record": "../../ops/pf02_b_f01_promotion_acceptance.md",
+      "classification": "PASS_POSTGRES_INTEGRATION",
+      "source_ref": "6706afe3a2cc5bdd2fd7204ce7944fafdd422065",
+      "accepted_head": "ae289c18cc716afee0a19a969fa4e929227494f4",
+      "app_run": 36308648939,
+      "repository_run": 36308648913,
+      "postgres_job": 108590150778,
+      "web_e2e_job": 108590150735,
+      "reconciliation_sha256": "257b33138247049937d5ae5814f68ad7329d53a37e9deeb7453fffa6b0fb03dd",
+      "note": "F01-only documentation promotion candidate: fixed-main Web/API/PostgreSQL creation/readback and cross-org isolation reconciled by Opus 5.5 as F01_PROMOTION_EVIDENCE_SUFFICIENT; PR47 adds direct denial for exact newly registered Properties in both directions. Independent review of this documentation candidate and merge remain pending. See receipt for evidence classes and limitations; no F43 or B3 closure promotion."
+    }
   },
   {
     "id": "F02",
