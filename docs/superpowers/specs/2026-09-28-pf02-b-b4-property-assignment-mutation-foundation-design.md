@@ -244,7 +244,7 @@ packages/persistence-postgres/migrations/0009_b4_property_assignment_mutation.sq
 Existing migrations `0001`–`0008` remain byte-frozen.
 
 The migration may:
-1. preflight `bm_b4_assignment_owner` attributes and allowed role membership;
+1. preflight `bm_b4_assignment_owner` attributes and role membership: only the migration role may hold SET-only, non-inherited, non-admin membership needed for object creation/ownership; Web/login/PF02-A runtime/capability roles must not be members;
 2. grant the owner the minimum schema/function/table/column privileges required by B4;
 3. add role-scoped RLS policies needed for that owner;
 4. create B4 SECURITY DEFINER routines under that owner;
@@ -335,8 +335,8 @@ Exact signatures become frozen only after written-spec approval and implementati
 
 Every B4 SECURITY DEFINER routine must:
 - be owned by `bm_b4_assignment_owner`;
-- use a secure fixed `search_path`, with untrusted temporary lookup not preceding trusted resolution;
-- schema-qualify all application/authn objects;
+- set exactly `search_path = pg_catalog, pg_temp`;
+- schema-qualify every `app` and `authn` object and avoid unqualified application objects;
 - use only parameterized values; no dynamic SQL;
 - revoke PUBLIC EXECUTE;
 - grant EXECUTE only to the intended Web runtime;
@@ -373,9 +373,9 @@ PUT means **ensure current relationship ACTIVE**, not “insert a row every requ
 The decisive SQL must use the frozen partial unique index as the ACTIVE relationship arbiter.
 
 Expected outcomes:
-- no eligible ACTIVE relationship → create one new ACTIVE history row → 201;
-- already ACTIVE → no duplicate row → 200;
-- only ENDED history → create a new ACTIVE row → 201;
+- no eligible ACTIVE relationship → create one new ACTIVE history row → 201 with `{"assigned":true}` and Location equal to the same composite resource;
+- already ACTIVE → no duplicate row → 200 with `{"assigned":true}`;
+- only ENDED history → create a new ACTIVE row → 201 with the same current-state body;
 - target/property/caller authority is ineligible at the decisive statement snapshot → no creation and non-disclosing classification.
 
 A valid implementation may use partial-index inference with `ON CONFLICT (org_id,membership_id,property_id) WHERE status='ACTIVE' DO NOTHING`. It must not reactivate an ENDED row.
@@ -405,7 +405,7 @@ A later re-assignment creates a new row and does not rewrite prior `id`, `create
 
 B4 uses the existing authenticated organization transaction boundary and READ COMMITTED unless a later approved plan proves a narrower change is necessary.
 
-The decisive B4 statement must re-evaluate current admin, Property and target-membership eligibility in the same statement/snapshot that decides the relationship mutation. Application/UI authority is advisory.
+The decisive B4 state-changing statement must include current `authn.can_administer_org`, current `authn.can_read_property`, and current same-org ACTIVE PROPERTY_STAFF target-membership eligibility in the same SQL statement/snapshot that decides the relationship mutation. Application/UI authority is advisory.
 
 Required concurrency evidence:
 
@@ -465,16 +465,27 @@ GET reconciliation is not a historical command receipt.
 
 ## 16. HTTP error precedence
 
-Recommended precedence:
+B4 preserves the frozen B3 transport precedence rather than inventing a new one.
 
-1. unsupported method → 405;
-2. malformed duplicate/unexpected query, malformed ids or invalid non-empty body → 400; oversized body may use the existing bounded 413 convention;
+For all methods:
+1. unsupported method → 405.
+
+For GET:
+2. duplicate/unexpected query or malformed path ids → 400 before business lookup;
 3. unauthenticated → 401;
-4. invisible/foreign/inactive organization → 404;
+4. invisible/foreign/inactive organization or Property → 404;
 5. visible organization but caller not current ORG_ADMIN → 403;
-6. foreign/inactive/hidden Property → 404;
-7. foreign/inactive/non-PROPERTY_STAFF target membership → 404;
-8. GET relationship absence → 404;
+6. foreign/inactive/non-PROPERTY_STAFF target membership or absent relationship → 404;
+7. active exact relationship → 200.
+
+For PUT/DELETE:
+2. Origin must exactly equal configured app base URL; mismatch/missing → 403 before session/body processing, matching frozen B3 mutation behavior;
+3. current session required → 401;
+4. session-bound CSRF required → 403;
+5. unexpected query, malformed ids or non-empty invalid body → 400; oversized body may use the existing bounded 413 convention;
+6. invisible/foreign/inactive organization or Property → 404;
+7. visible organization but caller not current ORG_ADMIN → 403;
+8. foreign/inactive/non-PROPERTY_STAFF target membership → 404;
 9. valid mutation → method-specific success;
 10. unexpected DB / commit ambiguity → sanitized 503.
 
