@@ -1,17 +1,17 @@
-# F01 canonical promotion — documentation acceptance candidate
+# F01 canonical promotion acceptance and evidence receipt
 
 Snapshot: 2026-09-27. POLICY_REF / DOCS_BASE / fixed implementation TARGET_REF: `6706afe3a2cc5bdd2fd7204ce7944fafdd422065`.
-Disposition: **F01_PROMOTION_CANDIDATE / INDEPENDENT_REVIEW_PENDING**. This receipt is a proposed registry update, not a merged publication or B3 closure.
+Canonical disposition: **F01 = PASS_POSTGRES_INTEGRATION; F43 = NOT_RUN**. B3 remains MERGED_WITH_DISCLOSED_LOW; B3 closure / VERIFIED/FROZEN = NOT_PERFORMED. The fixed evidence ref is provenance, not a permanent live-main pointer.
 
 ## Authority and exact scope
 
-[DECISION] The operator authorized only canonical F01 `NOT_RUN` → `PASS_POSTGRES_INTEGRATION`, evidence linkage, current-router correction, append-only operational records and one Draft PR with fresh exact-head CI. Review and merge of this documentation candidate are separate; merge is not authorized here. The current-session authorization names `CODEX_F01_CANONICAL_PROMOTION_CANDIDATE.md`; no separate copy was accessible to this executor, so no claim of reading that attachment is made. The explicit operator instructions supply this task's bounded authority.
+[DECISION] The operator authorized canonical F01 `NOT_RUN` → `PASS_POSTGRES_INTEGRATION` on the evidence reconciled below, with F01 requirement fields and all other F-cases preserved. This receipt records that F01-only disposition and its limits. The documentation publication/review/merge lifecycle is recorded in [PR48](https://github.com/edward321416-maker/build-manager/pull/48); it is not an additional product authorization or canonical current-state field.
 
 The [canonical registry](../docs/production-foundation/acceptance_cases.json) changes only F01 status and adds its evidence object. Its phase, requirement, precondition, action, expected and planned_evidence are unchanged. Every other case is unchanged, including F43 **NOT_RUN**. The [approved design §17](../docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md#17-canonical-f-case-mapping--ci--securityprivacy) supplies the promotion condition. This is the existing registry classification, not a claim that PostgreSQL alone establishes Web behavior.
 
 ## Independent reconciliation provenance
 
-[FACT] Original artifact `OPUS_F01_FIXED_HEAD_EVIDENCE_RECONCILIATION.md` was directly read by the executor and verified: **11,968 bytes**, SHA-256 `257b33138247049937d5ae5814f68ad7329d53a37e9deeb7453fffa6b0fb03dd`. Reviewer: Claude Opus 5.5. TARGET_REF: `6706afe3a2cc5bdd2fd7204ce7944fafdd422065`. Disposition: **F01_PROMOTION_EVIDENCE_SUFFICIENT**. This is INDEPENDENT_REVIEW plus hosted-evidence readback; reviewer local tests/builds/CI reruns were NOT_RUN. The operator separately authorized this F01-only promotion candidate after that sufficiency judgement.
+[FACT] Original artifact `OPUS_F01_FIXED_HEAD_EVIDENCE_RECONCILIATION.md` was directly read by the executor and verified: **11,968 bytes**, SHA-256 `257b33138247049937d5ae5814f68ad7329d53a37e9deeb7453fffa6b0fb03dd`. Reviewer: Claude Opus 5.5. TARGET_REF: `6706afe3a2cc5bdd2fd7204ce7944fafdd422065`. Disposition: **F01_PROMOTION_EVIDENCE_SUFFICIENT**. This is INDEPENDENT_REVIEW plus hosted-evidence readback; reviewer local tests/builds/CI reruns were NOT_RUN. The operator separately authorized F01-only canonical promotion on that sufficiency judgement.
 
 The private original is not copied into the public repository. Future readers without it should classify the original as UNAVAILABLE_LOCAL_ARTIFACT and use this provenance receipt and repository-addressable evidence, without inventing the report's contents. An operator-provided receipt is not the original; no substitute was used for the directly verified original here.
 
@@ -19,7 +19,7 @@ PR47's **DELTA_ACCEPTED**, 0/0/0/0 findings, concerns the test-only candidate. I
 
 ## Git and CI provenance
 
-- PR46 documentation was merged at `c9b8107e77163800b3d443d0e03620b79f1488e9`; its previously current open-candidate router wording is stale.
+- PR46 documentation was merged at `c9b8107e77163800b3d443d0e03620b79f1488e9`; the current routers reflect its completed publication.
 - [PR47](https://github.com/edward321416-maker/build-manager/pull/47) candidate: `ae289c18cc716afee0a19a969fa4e929227494f4`; actual merge: `6706afe3a2cc5bdd2fd7204ce7944fafdd422065`.
 - Ordered merge parents: `c9b8107e77163800b3d443d0e03620b79f1488e9`, then `ae289c18cc716afee0a19a969fa4e929227494f4`. Candidate and merge tree: `61437958ae6c13545ea5ac6f771604808337fc30`.
 - Candidate CI, separate evidence: [Repository 36307552033](https://github.com/edward321416-maker/build-manager/actions/runs/36307552033) / [App 36307552064](https://github.com/edward321416-maker/build-manager/actions/runs/36307552064), pull_request / attempt 1 / 9/9 SUCCESS, candidate head above.
@@ -42,7 +42,7 @@ The source links below are pinned to the reviewed main. [PostgreSQL job 10859015
 | AC19 Unit non-disclosure | [units:127](https://github.com/edward321416-maker/build-manager/blob/6706afe3a2cc5bdd2fd7204ce7944fafdd422065/tests/postgres/b3-units.test.ts#L127), full org/property/unit chain, generalized NOT_FOUND | PG units; named Web `B3 AC19 hiddenUnitPagination` |
 | PR47 last direct Property gap | [registration:59](https://github.com/edward321416-maker/build-manager/blob/6706afe3a2cc5bdd2fd7204ce7944fafdd422065/tests/postgres/b3-registration.test.ts#L59), `F01 newly registered Properties are unreadable across organizations in both directions`: A/B create via registration port, both own-org persisted readbacks, exact foreign IDs denied under both caller and owning org contexts | PG registration 10/10; real authorization-aware reader, not bypass SQL |
 
-The six named Web cases are in [b3.spec.ts](https://github.com/edward321416-maker/build-manager/blob/6706afe3a2cc5bdd2fd7204ce7944fafdd422065/apps/web/tests/b1-e2e/b3.spec.ts). Together these satisfy creation, own-org readback, and cross-org non-visibility under design §17. The private reconciliation explicitly maps the canonical clauses and finds no remaining F01 evidence gap. The operator authorizes the proposed registry change; independent review of this documentation diff is still pending.
+The six named Web cases are in [b3.spec.ts](https://github.com/edward321416-maker/build-manager/blob/6706afe3a2cc5bdd2fd7204ce7944fafdd422065/apps/web/tests/b1-e2e/b3.spec.ts). Together these satisfy creation, own-org readback, and cross-org non-visibility under design §17. The private reconciliation explicitly maps the canonical clauses and finds no remaining F01 evidence gap. The operator authorized the F01-only registry promotion on this reconciliation; documentation review and publication evidence are tracked in PR48 separately from the implementation evidence above.
 
 ## Evidence classes and limits
 
@@ -58,10 +58,10 @@ The six named Web cases are in [b3.spec.ts](https://github.com/edward321416-make
 
 B3 remains **MERGED_WITH_DISCLOSED_LOW**; PF02-B remains IN_PROGRESS; B1/B2 stay VERIFIED / FROZEN. Targeted M01/M03/M04 resolution and AC04 REQUIRED_EVIDENCE_SATISFIED with its separate PG-layer 513 rejection NOT_RUN remain as recorded in the [PR45 successor receipt](pf02_b_b3_low_remediation_acceptance.md). Local Mobile stays **FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED**; hosted passes neither replace the original failures nor establish their cause.
 
-[PF02-A](pf02_a_acceptance.md), [B3 implementation](pf02_b_b3_acceptance.md), [B3 LOW remediation](pf02_b_b3_low_remediation_acceptance.md), the design/plan and production-foundation README retain their historical F01 NOT_RUN text. It describes the earlier snapshot, not a contradiction. The production-foundation SHA256SUMS manifest is also untouched: it remains its historical snapshot, not a recomputed manifest of this new registry candidate. No other F-case is promoted or rewritten.
+[PF02-A](pf02_a_acceptance.md), [B3 implementation](pf02_b_b3_acceptance.md), [B3 LOW remediation](pf02_b_b3_low_remediation_acceptance.md), the design/plan and production-foundation README retain their historical F01 NOT_RUN text. It describes the earlier snapshot, not a contradiction. The production-foundation SHA256SUMS manifest is also untouched: it remains its historical snapshot, not a recomputed manifest of the F01-promoted registry. No other F-case is promoted or rewritten.
 
-## Documentation publication boundary
+## Publication provenance and next consequential gate
 
-This branch proposes F01 PASS_POSTGRES_INTEGRATION; base-main `6706afe3a2cc5bdd2fd7204ce7944fafdd422065` still records NOT_RUN. The candidate requires its own documentation checks, fresh exact-head hosted CI 9/9 and independent review. Candidate commit/PR/run IDs and actual verification results are recorded in the Draft PR/private execution receipt after they exist, not predicted here. Candidate CI does not replace the fixed implementation-main evidence above. No log-only follow-up commit is needed to insert future run IDs.
+The canonical registry records **F01 = PASS_POSTGRES_INTEGRATION**. Evidence main `6706afe3a2cc5bdd2fd7204ce7944fafdd422065` is the immutable implementation snapshot reconciled above; it is not a claim about the current live main or the current publication state. [PR48](https://github.com/edward321416-maker/build-manager/pull/48) holds the exact documentation commits, independent review, publication state and associated CI receipts. Documentation CI remains distinct from fixed implementation-main runtime evidence. Read live GitHub state when those publication facts are needed.
 
-Stop at **OPEN / DRAFT / NOT_MERGED / INDEPENDENT_REVIEW_PENDING**. No Ready conversion, merge, B3 closure/VERIFIED/FROZEN, F43 implementation/promotion, further product work or later slice is authorized. Product/source/test/migration/workflow/dependency changes = 0. Current additional product task = NONE_AUTHORIZED. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. EXTERNAL_SYNC = PENDING; Google Sheets/Drive and OAuth/IAM/provider changes = 0.
+The next consequential gate is a **separately authorized B3 closure/status decision**. It is not authorized or performed by this F01 promotion. B3 remains MERGED_WITH_DISCLOSED_LOW; PF02-B remains IN_PROGRESS. B3 closure / VERIFIED/FROZEN = NOT_PERFORMED. F43 remains NOT_RUN. Current additional product task = NONE_AUTHORIZED; no F43 implementation, additional product work or later slice is authorized. Product/source/test/migration/workflow/dependency changes = 0. Local Mobile remains FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. EXTERNAL_SYNC = PENDING; Google Sheets/Drive and OAuth/IAM/provider changes = 0.
