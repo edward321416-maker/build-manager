@@ -142,7 +142,8 @@ git commit -m "feat: define B4 assignment contracts"
 - `provisionB4TestRole(admin, migrationRole): Promise<void>` creates the exact NOLOGIN role and grants only `GRANT bm_b4_assignment_owner TO bm_pf02a_migrator WITH INHERIT FALSE, SET TRUE, ADMIN FALSE`.
 - Production migration **preflights** this role; it never CREATE ROLEs it.
 - Frozen helper grants to B4 owner are limited to exact EXECUTE needed for `app.current_org_id()`, `authn.can_administer_org(bytea,uuid)`, and `authn.can_read_property(bytea,uuid,uuid)`.
-- Frozen helper ownership/body stays unchanged.
+- Grant path is explicit: the migration owner grants `app.current_org_id()` plus schema USAGE it owns; then `SET LOCAL ROLE bm_b1_capability_owner` only to grant EXECUTE on the two frozen authn helpers to `bm_b4_assignment_owner`, then `RESET ROLE`. Frozen helper ownership/body stays unchanged.
+- Exact B4-owner PropertyAssignment raw ACL ceiling: SELECT(`org_id,membership_id,property_id,status`), INSERT(`org_id,membership_id,property_id,status`), UPDATE(`status,ended_at`), DELETE none. Omit `id` on INSERT so the frozen `uuidv7()` default generates row identity; production B4 routines never read assignment `id` or `ended_at`.
 - B4 function signatures are fixed:
   - `authn.b4_get_property_staff_assignment(bytea,uuid,uuid,uuid) RETURNS text`
   - `authn.b4_ensure_property_staff_assignment(bytea,uuid,uuid,uuid) RETURNS text`
@@ -159,7 +160,8 @@ In `b4-schema.test.ts` and `b4-capabilities.test.ts`, assert before implementati
 - synthetic all-role provisioning includes B4 owner but returns no B4 credential;
 - role attributes exactly match spec;
 - only migrator has SET-only non-inherited membership;
-- missing/incorrect B4 owner makes 0009 fail closed; fresh-chain single transaction does not leave partial B4 objects;
+- missing/incorrect B4 owner makes 0009 fail closed on a fresh chain; the single migration invocation leaves no partial B4 objects;
+- upgrade failure is separate evidence: start from a successfully committed 0001–0008 database, make the B4 role contract missing/invalid, run the next migration, assert 0009 rolls back while all pre-existing B1/B2/B3 schema/functions/history remain intact;
 - migrations 0001–0008 SHA-256 remain unchanged;
 - expected three functions/policies/grants do not yet exist.
 
@@ -184,14 +186,20 @@ Create `0009_b4_property_assignment_mutation.sql`.
 Migration must:
 - verify role attributes and exact allowed membership;
 - fail if Web/login/runtime/capability roles are members;
-- grant B4 owner minimum USAGE/EXECUTE/table-column privileges only;
-- add B4-owner-specific membership SELECT policies: same current org + ACTIVE + PROPERTY_STAFF;
-- add B4-owner-specific PropertyAssignment SELECT/INSERT/UPDATE policies scoped to current org; UPDATE only ACTIVE→ENDED with non-null DB-owned end time;
-- add no DELETE policy/grant;
+- grant `USAGE ON SCHEMA app, authn` to B4 owner;
+- grant `EXECUTE ON FUNCTION app.current_org_id()` to B4 owner under migration-owner authority;
+- `SET LOCAL ROLE bm_b1_capability_owner`, grant only `EXECUTE` on `authn.can_administer_org(bytea,uuid)` and `authn.can_read_property(bytea,uuid,uuid)` to B4 owner, then `RESET ROLE`; do not alter either frozen helper body/owner;
+- grant exact PropertyAssignment column ACL only: SELECT(`org_id,membership_id,property_id,status`), INSERT(`org_id,membership_id,property_id,status`), UPDATE(`status,ended_at`); grant no SELECT(`id,ended_at`), INSERT(`id`) or DELETE;
+- add `b4_member_target_ceiling` as RESTRICTIVE SELECT TO B4 owner with current-org + ACTIVE + PROPERTY_STAFF; rely on the existing PUBLIC permissive `organization_membership_org_scope` as the required permissive policy;
+- add `b4_assignment_command_scope` as PERMISSIVE ALL TO B4 owner with current-org USING/WITH CHECK;
+- add `b4_assignment_select_ceiling` as RESTRICTIVE SELECT TO B4 owner with `status='ACTIVE'`;
+- add `b4_assignment_insert_ceiling` as RESTRICTIVE INSERT TO B4 owner with `status='ACTIVE' AND ended_at IS NULL`;
+- add `b4_assignment_update_ceiling` as RESTRICTIVE UPDATE TO B4 owner with old-row `status='ACTIVE'` and new-row `status='ENDED' AND ended_at IS NOT NULL`;
+- add no DELETE policy/grant and do not add any PUBLIC B4 policy;
 - leave `bm_b1_web` with no raw assignment DML/read;
-- temporarily grant CREATE on authn to B4 owner, SET LOCAL ROLE, create functions, RESET ROLE, revoke CREATE;
-- revoke PUBLIC EXECUTE and grant exact function EXECUTE to Web;
-- keep PF02-A/B1/B2/B3 role ACL snapshots unchanged outside the explicit function EXECUTE additions.
+- temporarily grant CREATE on authn to B4 owner, `SET LOCAL ROLE bm_b4_assignment_owner`, create the three B4 functions, `RESET ROLE`, revoke CREATE;
+- revoke PUBLIC EXECUTE and grant exact B4-function EXECUTE to Web;
+- keep PF02-A/B1/B2/B3 role ACL/policy definitions unchanged outside the explicit helper EXECUTE grants to the new B4 owner.
 
 - [ ] **Step 4: Implement exact SECURITY DEFINER semantics**
 
@@ -209,7 +217,7 @@ Run:
 npm run test:postgres -- tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts
 ```
 
-Expected: PASS, including exact role attributes, function owner/config/ACL, RLS catalog, no raw Web assignment privilege, migration hash preservation and atomic missing-role failure.
+Expected: PASS, including exact role attributes/membership, helper grantors/ACL, exact column ACL, permissive/restrictive RLS catalog, no raw Web assignment privilege, migrations 0001–0008 hash preservation, fresh-chain rollback and upgrade-failure preservation.
 
 - [ ] **Step 6: Commit Task 2**
 
@@ -373,7 +381,7 @@ git commit -m "test: prove B4 assignment boundaries"
   - any actual body byte → INVALID_INPUT and cancel stream promptly;
   - malformed Content-Length → INVALID_INPUT.
 - Existing constant-time CSRF semantics are copied into B4 server boundary or factored only if B3 behavior remains byte/behavior compatible; do not refactor B3 merely for style.
-- Route sets `runtime="nodejs"`, `dynamic="force-dynamic"`, `Allow: GET, PUT, DELETE` on 405.
+- Route sets `runtime="nodejs"`, `dynamic="force-dynamic"`; it explicitly exports GET/PUT/DELETE **and** POST/PATCH dispatchers so unsupported POST/PATCH reach the B4 handler and receive deterministic custom 405 with exact `Allow: GET, PUT, DELETE` (matching the existing B3 route pattern).
 - Container adds one `assignments:createPropertyAssignmentMutationPort(database)` on the existing single B1 Web database handle; no B4 DATABASE_URL.
 
 - [ ] **Step 1: Write HTTP RED tests**
@@ -391,7 +399,7 @@ Pin:
 Run:
 
 ```bash
-npm run test:web -- apps/web/src/server/b4/http.test.ts
+npm --workspace @build-manager/web run test -- src/server/b4/http.test.ts
 ```
 
 Expected: FAIL because B4 server module does not exist.
@@ -416,7 +424,7 @@ Create exact route file. Modify container type to satisfy both existing B3 handl
 Run:
 
 ```bash
-npm run test:web -- apps/web/src/server/b4/http.test.ts
+npm --workspace @build-manager/web run test -- src/server/b4/http.test.ts
 npm run test:shared -- tests/architecture/b4-boundary.test.ts tests/architecture/b3-boundary.test.ts tests/architecture/import-boundaries.test.ts
 ```
 
@@ -445,7 +453,6 @@ git commit -m "feat: expose B4 assignment API"
 - Produce `createB4StaffSession(browser, adminFixture): Promise<B4StaffFixture>` inside `b4-fixture.ts`; it may use the existing test-only login role/session-cookie mechanism but must not modify production roster/profile APIs.
 - Produce `assignmentPath(f, membershipId, propertyId?, orgId?)` for only the exact composite resource.
 - Mutating helpers call PUT/DELETE with exact Origin + `x-b1-csrf` and no business body.
-- Mutations use exact Origin + `x-b1-csrf`; no business body.
 
 - [ ] **Step 1: Write E2E RED tests for API state transitions**
 
@@ -460,7 +467,7 @@ Required cases:
 Run:
 
 ```bash
-npm run test:e2e:b1 -- b4.spec.ts
+npm --workspace @build-manager/web run test:e2e:b1 -- b4.spec.ts
 ```
 
 Expected: FAIL until route/container/fixtures are complete.
@@ -519,7 +526,7 @@ Confirm:
 ```bash
 npm run test:shared -- packages/api-contracts/src/b4.test.ts packages/application/src/b4/property-assignment.test.ts   tests/architecture/b4-boundary.test.ts tests/architecture/b3-boundary.test.ts tests/architecture/import-boundaries.test.ts
 npm run test:postgres -- tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts   tests/postgres/b4-assignment.test.ts tests/postgres/b4-concurrency.test.ts tests/postgres/b4-revocation.test.ts
-npm run test:web -- apps/web/src/server/b4/http.test.ts
+npm --workspace @build-manager/web run test -- src/server/b4/http.test.ts
 npm run test:e2e:b1
 ```
 
