@@ -94,7 +94,7 @@ Re-run the same command. Expected: PASS.
 - [ ] **Step 3: Write application RED tests**
 
 In `property-assignment.test.ts`, use fake sessions/port and assert:
-- invalid digest or UUID → `B4Error("INVALID_INPUT")` / unauthenticated digest handling per validator;
+- malformed/invalid internal session digest → `B4Error("UNAUTHENTICATED")`; malformed org/property/membership UUID → `B4Error("INVALID_INPUT")`;
 - missing current actor → `UNAUTHENTICATED`;
 - valid input delegates exact digest/org/property/membership without client authority fields;
 - ensure preserves `created`; get returns `{assigned:true}`; end returns void;
@@ -298,7 +298,7 @@ git commit -m "feat: add B4 assignment persistence"
 - [ ] **Step 1: Write PUT/PUT and DELETE/DELETE RED tests**
 
 Use two distinct Web DB connections and deterministic gates:
-- simultaneous PUT same relation → exactly one ACTIVE row; results are one CREATED plus one CREATED/EXISTS outcome that normalizes at API layer without duplicate history;
+- simultaneous PUT same relation → exactly one ACTIVE row; exactly one call returns CREATED and the other converges to EXISTS after unique-index contention, with no duplicate history row;
 - simultaneous DELETE same current row → exactly one ENDED history transition; both calls succeed idempotently.
 
 Run:
@@ -440,7 +440,9 @@ git commit -m "feat: expose B4 assignment API"
   - one second synthetic staff identity/session joined to the admin's same organization as PROPERTY_STAFF;
   - known membershipId and two Properties;
   - no email/name projection and no real provider identity.
-- Helper paths construct only the exact staff-assignment resource.
+- Produce `createB4StaffSession(browser, adminFixture): Promise<B4StaffFixture>` inside `b4-fixture.ts`; it may use the existing test-only login role/session-cookie mechanism but must not modify production roster/profile APIs.
+- Produce `assignmentPath(f, membershipId, propertyId?, orgId?)` for only the exact composite resource.
+- Mutating helpers call PUT/DELETE with exact Origin + `x-b1-csrf` and no business body.
 - Mutations use exact Origin + `x-b1-csrf`; no business body.
 
 - [ ] **Step 1: Write E2E RED tests for API state transitions**
