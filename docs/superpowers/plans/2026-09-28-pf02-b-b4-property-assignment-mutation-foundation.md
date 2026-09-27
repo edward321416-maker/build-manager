@@ -187,6 +187,8 @@ git commit -m "feat: define B4 assignment contracts"
 - Create: `packages/persistence-postgres/migrations/0009_b4_property_assignment_mutation.sql`
 - Create: `tests/postgres/b4-schema.test.ts`
 - Create: `tests/postgres/b4-capabilities.test.ts`
+- Modify: `tests/postgres/b1-capabilities.test.ts` — keep the frozen B1 authn-function owner assertion scoped to non-B4 functions; B4 function owner/ACL is asserted exactly in `b4-capabilities.test.ts`
+- Modify: `tests/postgres/b2-capabilities.test.ts` — keep frozen B1/B2 membership/policy inventory scoped away from exact `bm_b4_assignment_owner` / `b4_*` additions; B4 membership/policies are asserted exactly in `b4-capabilities.test.ts`
 
 **Interfaces:**
 - `B4_ASSIGNMENT_OWNER = "bm_b4_assignment_owner"`.
@@ -262,7 +264,14 @@ Within 0009:
 - END: same precedence; decisive UPDATE includes frozen helper + eligible membership predicates and changes only ACTIVE→ENDED with `ended_at=clock_timestamp()`; if no row changed, classify eligible ABSENT vs changed authority without retrying.
 - Never reactivate an ENDED row.
 
-- [ ] **Step 5: Verify migration/catalog tests GREEN**
+- [ ] **Step 5: Reconcile frozen B1/B2 catalog test scope without weakening it**
+
+Update only the additive-slice boundaries:
+- in `b1-capabilities.test.ts`, exclude only `authn.b4_*` functions from the historical B1 owner/config loop; do not change any B1 function expectation;
+- in `b2-capabilities.test.ts`, exclude only the exact `bm_b4_assignment_owner` membership row from the historical B1/B2 membership equality and exclude only `b4_*` policies from the historical B1/B2 policy inventory;
+- add comments routing those exclusions to `b4-capabilities.test.ts`; do not relax any privilege/role/policy assertion for existing B1/B2 objects.
+
+- [ ] **Step 6: Verify migration/catalog tests GREEN**
 
 Run:
 
@@ -272,10 +281,10 @@ npm run test:postgres -- tests/postgres/b4-schema.test.ts tests/postgres/b4-capa
 
 Expected: PASS, including exact role attributes/membership, helper grantors/ACL, exact target-membership and assignment column ACLs (including denied user_id/assignment id reads), permissive/restrictive RLS catalog, no raw Web assignment privilege, migrations 0001–0008 hash preservation, fresh-chain rollback, upgrade-failure preservation, and existing PF02-A/B1/B2/B3 schema/capability regressions.
 
-- [ ] **Step 6: Commit Task 2**
+- [ ] **Step 7: Commit Task 2**
 
 ```bash
-git add packages/persistence-postgres/src/testing/b4-roles.ts   packages/persistence-postgres/src/testing/roles.ts packages/persistence-postgres/src/testing/index.ts   packages/persistence-postgres/migrations/0009_b4_property_assignment_mutation.sql   tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts
+git add packages/persistence-postgres/src/testing/b4-roles.ts   packages/persistence-postgres/src/testing/roles.ts packages/persistence-postgres/src/testing/index.ts   packages/persistence-postgres/migrations/0009_b4_property_assignment_mutation.sql   tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts   tests/postgres/b1-capabilities.test.ts tests/postgres/b2-capabilities.test.ts
 git commit -m "feat: add B4 assignment command boundary"
 ```
 
