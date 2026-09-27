@@ -64,7 +64,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B | IN_PROGRESS | — |
 | PF02-B / B1 | VERIFIED / FROZEN | `ops/pf02_b_b1_acceptance.md` |
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
-| PF02-B / B3 | MERGED_WITH_DISCLOSED_LOW | [Implementation acceptance and actual-main publication](pf02_b_b3_acceptance.md); PR #42 MERGED; [PR45 follow-up receipt](pf02_b_b3_low_remediation_acceptance.md): targeted M01/M03/M04 RESOLVED and AC04 required evidence satisfied with stated limits; formal slice closure/VERIFIED/FROZEN not performed |
+| PF02-B / B3 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b3_closure.md); implementation/remediation/F01 evidence accepted and published; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed |
 | Beyond B3 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
@@ -87,7 +87,7 @@ Closed. Do not re-derive, re-propose or re-ask these. Each is evidenced by the r
 - Existing `/api/v2` URLs are reused. No staff-specific duplicate API.
 - No assignment mutation API or UI in B2.
 - Modular Monolith, explicit SQL, application ports. No ORM.
-- B3's approved design/plan remain its implementation boundary; migrations 0001–0007 remain byte-frozen. The historical READY_FOR_ACCEPTANCE/open-PR gate was followed by independent review, explicit operator acceptance and PR #42 merge. See the [implementation receipt](pf02_b_b3_acceptance.md); this does not authorize B3 canonical closure or further product work.
+- B3 Building Registration Foundation is VERIFIED / FROZEN at the approved design/plan and accepted implementation boundary. Retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed; none authorizes reopening or later product work.
 
 ## Do not reopen without new evidence
 
@@ -189,11 +189,11 @@ current canonical documents.
 
 **CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED.**
 
-PF02-B / B3 — ORG_ADMIN Building Registration Foundation is MERGED_WITH_DISCLOSED_LOW. The [implementation acceptance receipt](pf02_b_b3_acceptance.md) routes to the independent full/delta review, exact-head operator approval, PR #42 merge and actual-main CI. The [plan authorization receipt](pf02_b_b3_plan_acceptance.md) remains the historical authorization record, not an instruction to restart Tasks 1–10.
+PF02-B / B3 — ORG_ADMIN Building Registration Foundation is **VERIFIED / FROZEN**. The [canonical closure receipt](pf02_b_b3_closure.md) routes to the accepted implementation, targeted remediation, F01 evidence/promotion and retained risks. Historical implementation/remediation/plan receipts retain their own snapshots; do not rewrite or restart them.
 
-**F01 = PASS_POSTGRES_INTEGRATION; F43 = NOT_RUN.** The [F01 canonical promotion receipt](pf02_b_f01_promotion_acceptance.md) links PR47 merged evidence and the verified Opus 5.5 fixed-head reconciliation, distinct from PR47 DELTA_ACCEPTED. The evidence ref is `6706afe3a2cc5bdd2fd7204ce7944fafdd422065`; the bootstrap baseline above remains provenance. PR46 reconciliation is MERGED at `c9b8107e77163800b3d443d0e03620b79f1488e9`; PR47 direct evidence is MERGED at the evidence ref. The next consequential gate is a separately authorized B3 closure/status decision. This F01 promotion does not authorize or perform that decision.
+**F01 = PASS_POSTGRES_INTEGRATION; F43 = NOT_RUN.** F43 requires address/reference search not implemented by B3, so its NOT_RUN status is compatible with B3 closure. B3D-L01/L02, the separate AC04 PG-layer 513-code-point rejection NOT_RUN, Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED and broader operational/security/privacy backlog remain disclosed. These are retained risks/limits, not authorization to reopen the frozen slice.
 
-The [PR45 follow-up receipt](pf02_b_b3_low_remediation_acceptance.md) still records M01/M03/M04 RESOLVED and AC04 REQUIRED_EVIDENCE_SATISFIED with the separate PG-layer 513-code-point rejection NOT_RUN. Do not repeat completed remediation, Mobile diagnostics or merges. Local Mobile remains FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED; hosted passes do not resolve it. B3 remains MERGED_WITH_DISCLOSED_LOW. Formal B3 closure, VERIFIED/FROZEN, further implementation/planning and later slices remain unauthorized. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. B3 closure / VERIFIED/FROZEN = NOT_PERFORMED. PR publication and review state are tracked in [PR48](https://github.com/edward321416-maker/build-manager/pull/48), not as canonical milestone state.
+No later PF02-B slice is currently scoped, planned or implementation-authorized. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. The next consequential product action requires separate operator scope and approval; do not infer B4/PF02-C, F43 search or any other follow-on implementation from B3 closure.
 
 ## Private artifact rule
 

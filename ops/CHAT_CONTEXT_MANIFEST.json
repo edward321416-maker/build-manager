@@ -39,7 +39,7 @@
       "present_at_baseline": true
     },
     "PF02-B/B3": {
-      "state": "MERGED_WITH_DISCLOSED_LOW",
+      "state": "VERIFIED_FROZEN",
       "approved_spec": "docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md",
       "approved_plan": "docs/superpowers/plans/2026-09-25-pf02-b-b3-building-registration-foundation.md",
       "sha256": "5ac8d8bb24197f655993507ffc97cc93fa38ffc23c0555306b8756788bb933e1",
@@ -69,9 +69,10 @@
       "implementation_delta_review": "DELTA_ACCEPTED",
       "review_and_operator_approval": "https://github.com/edward321416-maker/build-manager/pull/42#issuecomment-5831953075",
       "publication_receipt": "https://github.com/edward321416-maker/build-manager/pull/42#issuecomment-5832041814",
-      "authorization_note": "The following true fields preserve the completed plan/implementation authorization history. They do not authorize additional work; current_product_task controls that. MERGED_WITH_DISCLOSED_LOW records integration, not canonical closure or VERIFIED/FROZEN.",
+      "authorization_note": "Historical plan/implementation authorization fields preserve completed authority only. B3 is canonically VERIFIED/FROZEN with retained disclosed risks; current_product_task remains the only current product-work authority.",
       "implementation_authorized": true,
-      "implementation_plan_authorized": true
+      "implementation_plan_authorized": true,
+      "canonical_closure_receipt": "ops/pf02_b_b3_closure.md"
     },
     "PF02-B/later_slices": "BEYOND_B3_NOT_STARTED_NOT_YET_SCOPED",
     "D01": "RESOLVED_FOR_B1_ONLY",
@@ -79,16 +80,61 @@
     "B1I-M02": "DOCUMENT_RECONCILED"
   },
   "acceptance_receipts": [
-    { "milestone": "PF00-A/B", "path": "ops/pf00_ab_acceptance.md", "present_at_baseline": true },
-    { "milestone": "PF00-C", "path": "ops/pf00_c_acceptance.md", "present_at_baseline": true },
-    { "milestone": "PF00-D", "path": "ops/pf00_d_acceptance.md", "present_at_baseline": true },
-    { "milestone": "PF02-A", "path": "ops/pf02_a_acceptance.md", "present_at_baseline": true },
-    { "milestone": "PF02-B/B1", "path": "ops/pf02_b_b1_acceptance.md", "present_at_baseline": true },
-    { "milestone": "PF02-B/B2", "path": "ops/pf02_b_b2_acceptance.md", "present_at_baseline": true },
-    { "milestone": "PF02-B/B3 plan authorization", "path": "ops/pf02_b_b3_plan_acceptance.md", "present_at_baseline": false },
-    { "milestone": "PF02-B/B3 implementation acceptance with disclosed limitations", "path": "ops/pf02_b_b3_acceptance.md", "present_at_baseline": false },
-    { "milestone": "PF02-B/B3 PR45 LOW remediation acceptance and integration", "path": "ops/pf02_b_b3_low_remediation_acceptance.md", "present_at_baseline": false },
-    { "milestone": "F01 canonical promotion and fixed-head evidence reconciliation", "path": "ops/pf02_b_f01_promotion_acceptance.md", "present_at_baseline": false }
+    {
+      "milestone": "PF00-A/B",
+      "path": "ops/pf00_ab_acceptance.md",
+      "present_at_baseline": true
+    },
+    {
+      "milestone": "PF00-C",
+      "path": "ops/pf00_c_acceptance.md",
+      "present_at_baseline": true
+    },
+    {
+      "milestone": "PF00-D",
+      "path": "ops/pf00_d_acceptance.md",
+      "present_at_baseline": true
+    },
+    {
+      "milestone": "PF02-A",
+      "path": "ops/pf02_a_acceptance.md",
+      "present_at_baseline": true
+    },
+    {
+      "milestone": "PF02-B/B1",
+      "path": "ops/pf02_b_b1_acceptance.md",
+      "present_at_baseline": true
+    },
+    {
+      "milestone": "PF02-B/B2",
+      "path": "ops/pf02_b_b2_acceptance.md",
+      "present_at_baseline": true
+    },
+    {
+      "milestone": "PF02-B/B3 plan authorization",
+      "path": "ops/pf02_b_b3_plan_acceptance.md",
+      "present_at_baseline": false
+    },
+    {
+      "milestone": "PF02-B/B3 implementation acceptance with disclosed limitations",
+      "path": "ops/pf02_b_b3_acceptance.md",
+      "present_at_baseline": false
+    },
+    {
+      "milestone": "PF02-B/B3 PR45 LOW remediation acceptance and integration",
+      "path": "ops/pf02_b_b3_low_remediation_acceptance.md",
+      "present_at_baseline": false
+    },
+    {
+      "milestone": "F01 canonical promotion and fixed-head evidence reconciliation",
+      "path": "ops/pf02_b_f01_promotion_acceptance.md",
+      "present_at_baseline": false
+    },
+    {
+      "milestone": "PF02-B/B3 canonical closure and freeze",
+      "path": "ops/pf02_b_b3_closure.md",
+      "present_at_baseline": false
+    }
   ],
   "supporting_design_documents": [
     "docs/production-foundation/README.md",
@@ -141,7 +187,7 @@
     "Existing /api/v2 URLs are reused; no staff-specific duplicate API.",
     "No assignment mutation API or UI in B2.",
     "Modular Monolith with explicit SQL and application ports; no ORM.",
-    "B3 approved design and independently reviewed implementation plan remain the B3 implementation boundary. That authorization was executed and PR42 was accepted/merged with disclosed limitations; it does not authorize additional product work or canonical closure."
+    "B3 Building Registration Foundation is VERIFIED / FROZEN at the accepted design/plan and integrated implementation boundary; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk do not authorize reopening or later work."
   ],
   "do_not_reopen_without_new_evidence": {
     "rule": "Reopen a frozen decision only on new, specific, reproducible evidence: a demonstrated security or data-isolation defect, a contradiction proven against an exact ref, or an explicit operator instruction.",
@@ -167,18 +213,66 @@
     "completion of privacy and security work"
   ],
   "open_risks": [
-    { "id": "dependency-security-triage", "source": "STATUS.md" },
-    { "id": "ci-supply-chain-maintenance", "source": "STATUS.md" },
-    { "id": "mobile-windows-mount-timeout", "state": "ROOT_CAUSE_NOT_ESTABLISHED", "source": "STATUS.md" },
-    { "id": "auth0-entitlement-not-verified", "source": "ops/pf02_b_b1_acceptance.md" },
-    { "id": "live-auth0-independent-repro", "state": "NOT_RUN", "source": "ops/pf02_b_b1_acceptance.md" },
-    { "id": "live-auth0-b2", "state": "NOT_RUN", "source": "ops/pf02_b_b2_acceptance.md" },
-    { "id": "deferred-low-findings", "source": "ops/pf02_b_b1_acceptance.md, ops/pf02_b_b2_acceptance.md", "note": "B1 LOW findings and B2 B2I-L01..L04 remain non-blocking; read each receipt for current disposition." },
-    { "id": "b3-local-mobile-timeout", "state": "FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED", "exception": "LOCAL_MOBILE_FAILED_DISCLOSED_EXCEPTION", "source": "ops/pf02_b_b3_low_remediation_acceptance.md", "note": "Native Windows A/B and instrumented BASE are separate from the historical Windows-mounted Ubuntu risk; PR45 risk acceptance is completed exact-candidate history, not a future waiver." },
-    { "id": "B3-AC04-PG-513-rejection", "state": "NOT_RUN", "source": "ops/pf02_b_b3_low_remediation_acceptance.md", "note": "Residual evidence limit; accepted required evidence is satisfied, not an unremediated finding or authorized new test task." },
-    { "id": "B3D-L01/L02", "state": "DEFERRED", "source": "ops/pf02_b_b3_acceptance.md" },
-    { "id": "canonical-f-cases-mostly-not-run", "source": "docs/production-foundation/acceptance_cases.json" },
-    { "id": "external-sync-partial", "state": "PARTIAL_SYNC", "source": "ops/pending_external_sync.md", "note": "PR48 correction/sync/cache events have verified Google write/readback; historical pending queue remains unresolved." }
+    {
+      "id": "dependency-security-triage",
+      "source": "STATUS.md"
+    },
+    {
+      "id": "ci-supply-chain-maintenance",
+      "source": "STATUS.md"
+    },
+    {
+      "id": "mobile-windows-mount-timeout",
+      "state": "ROOT_CAUSE_NOT_ESTABLISHED",
+      "source": "STATUS.md"
+    },
+    {
+      "id": "auth0-entitlement-not-verified",
+      "source": "ops/pf02_b_b1_acceptance.md"
+    },
+    {
+      "id": "live-auth0-independent-repro",
+      "state": "NOT_RUN",
+      "source": "ops/pf02_b_b1_acceptance.md"
+    },
+    {
+      "id": "live-auth0-b2",
+      "state": "NOT_RUN",
+      "source": "ops/pf02_b_b2_acceptance.md"
+    },
+    {
+      "id": "deferred-low-findings",
+      "source": "ops/pf02_b_b1_acceptance.md, ops/pf02_b_b2_acceptance.md",
+      "note": "B1 LOW findings and B2 B2I-L01..L04 remain non-blocking; read each receipt for current disposition."
+    },
+    {
+      "id": "b3-local-mobile-timeout",
+      "state": "FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED",
+      "exception": "LOCAL_MOBILE_FAILED_DISCLOSED_EXCEPTION",
+      "source": "ops/pf02_b_b3_low_remediation_acceptance.md",
+      "note": "Native Windows A/B and instrumented BASE are separate from the historical Windows-mounted Ubuntu risk; PR45 risk acceptance is completed exact-candidate history, not a future waiver."
+    },
+    {
+      "id": "B3-AC04-PG-513-rejection",
+      "state": "NOT_RUN",
+      "source": "ops/pf02_b_b3_low_remediation_acceptance.md",
+      "note": "Residual evidence limit; accepted required evidence is satisfied, not an unremediated finding or authorized new test task."
+    },
+    {
+      "id": "B3D-L01/L02",
+      "state": "DEFERRED",
+      "source": "ops/pf02_b_b3_acceptance.md"
+    },
+    {
+      "id": "canonical-f-cases-mostly-not-run",
+      "source": "docs/production-foundation/acceptance_cases.json"
+    },
+    {
+      "id": "external-sync-partial",
+      "state": "PARTIAL_SYNC",
+      "source": "ops/pending_external_sync.md",
+      "note": "PR48 correction/sync/cache events have verified Google write/readback; historical pending queue remains unresolved."
+    }
   ],
   "resolved_findings": [
     {
@@ -206,33 +300,200 @@
       "accepted_pr": 45
     }
   ],
-  "acceptance_evidence": { "B3-AC04": { "evidence_status": "REQUIRED_EVIDENCE_SATISFIED", "basis": "accepted independent review and execution evidence from PR45", "historical_status": "PARTIAL", "historical_source": "ops/pf02_b_b3_acceptance.md", "source": "ops/pf02_b_b3_low_remediation_acceptance.md", "limit": "Separate PostgreSQL-layer 513-code-point rejection NOT_RUN; no new runtime reproduction or F-case promotion" } },
+  "acceptance_evidence": {
+    "B3-AC04": {
+      "evidence_status": "REQUIRED_EVIDENCE_SATISFIED",
+      "basis": "accepted independent review and execution evidence from PR45",
+      "historical_status": "PARTIAL",
+      "historical_source": "ops/pf02_b_b3_acceptance.md",
+      "source": "ops/pf02_b_b3_low_remediation_acceptance.md",
+      "limit": "Separate PostgreSQL-layer 513-code-point rejection NOT_RUN; no new runtime reproduction or F-case promotion"
+    }
+  },
   "active_or_historical_prs": [
-    { "number": 45, "state": "MERGED", "merged": true, "merge_commit": "baf60a1f31326cb8c6ce469a6a366dc91301cf47", "accepted_head": "738c061a9e5396fb9a8f39e477e3cc706f330d3e", "role": "B3 targeted LOW remediation accepted with local Mobile risk OPEN; not slice closure" },
-    { "number": 42, "state": "MERGED", "merged": true, "merge_commit": "741997d93015991c1c89716a3ca93b662a8be0d8", "accepted_head": "2252929b56f375a4fe8f19858c23b8d2e92c7845", "role": "B3 implementation accepted and merged with disclosed LOW; not canonical closure" },
-    { "number": 40, "title": "docs: plan PF02-B B3 building registration", "state": "MERGED", "merged": true, "merge_commit": "425fb71441b03d3fcc94492c69ebfcf36787bdf9", "role": "B3 approved implementation plan" },
-    { "number": 39, "title": "docs: authorize PF02-B B3 implementation planning", "state": "MERGED", "merged": true, "merge_commit": "9d2916b037a7d421fd60650ffcab18c566df13f2", "role": "B3 planning authorization" },
-    { "number": 37, "title": "docs: design PF02-B B3 building registration foundation", "state": "MERGED", "merged": true, "merge_commit": "38164591ab5ed2bbbbbf39f9e454f164db8c5548", "role": "B3 approved design publication" },
-    { "number": 35, "title": "docs: close PF02-B B2 acceptance and publication", "state": "MERGED", "merged": true, "merge_commit": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d", "role": "B2 canonical closure" },
-    { "number": 34, "title": "feat: add B2 property staff scope", "state": "MERGED", "merged": true, "merge_commit": "f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1", "role": "B2 implementation" },
-    { "number": 33, "title": "docs: design PF02-B B2 property staff scope", "state": "CLOSED", "merged": false, "disposition": "SUPERSEDED_BY_CANONICAL_SPEC_IN_MAIN", "role": "approved B2 design source", "note": "Supersession, not rejection: the approved exact spec is canonical in main; PR branch/history preserved." },
-    { "number": 32, "title": "docs: close PF02-B B1 acceptance and publication", "state": "MERGED", "merged": true, "role": "B1 closure" },
-    { "number": 31, "title": "feat: add PF02-B B1 auth and organization read", "state": "MERGED", "merged": true, "role": "B1 implementation" },
-    { "number": 30, "title": "docs: register B1 Astra Opus coordination", "state": "OPEN_DRAFT", "merged": false, "disposition": "HISTORICAL_NOT_CANONICAL", "role": "B1 coordination-document registration", "note": "Do not merge or close as part of unrelated work." }
+    {
+      "number": 45,
+      "state": "MERGED",
+      "merged": true,
+      "merge_commit": "baf60a1f31326cb8c6ce469a6a366dc91301cf47",
+      "accepted_head": "738c061a9e5396fb9a8f39e477e3cc706f330d3e",
+      "role": "B3 targeted LOW remediation accepted with local Mobile risk OPEN; not slice closure"
+    },
+    {
+      "number": 42,
+      "state": "MERGED",
+      "merged": true,
+      "merge_commit": "741997d93015991c1c89716a3ca93b662a8be0d8",
+      "accepted_head": "2252929b56f375a4fe8f19858c23b8d2e92c7845",
+      "role": "B3 implementation accepted and merged with disclosed LOW; not canonical closure"
+    },
+    {
+      "number": 40,
+      "title": "docs: plan PF02-B B3 building registration",
+      "state": "MERGED",
+      "merged": true,
+      "merge_commit": "425fb71441b03d3fcc94492c69ebfcf36787bdf9",
+      "role": "B3 approved implementation plan"
+    },
+    {
+      "number": 39,
+      "title": "docs: authorize PF02-B B3 implementation planning",
+      "state": "MERGED",
+      "merged": true,
+      "merge_commit": "9d2916b037a7d421fd60650ffcab18c566df13f2",
+      "role": "B3 planning authorization"
+    },
+    {
+      "number": 37,
+      "title": "docs: design PF02-B B3 building registration foundation",
+      "state": "MERGED",
+      "merged": true,
+      "merge_commit": "38164591ab5ed2bbbbbf39f9e454f164db8c5548",
+      "role": "B3 approved design publication"
+    },
+    {
+      "number": 35,
+      "title": "docs: close PF02-B B2 acceptance and publication",
+      "state": "MERGED",
+      "merged": true,
+      "merge_commit": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d",
+      "role": "B2 canonical closure"
+    },
+    {
+      "number": 34,
+      "title": "feat: add B2 property staff scope",
+      "state": "MERGED",
+      "merged": true,
+      "merge_commit": "f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1",
+      "role": "B2 implementation"
+    },
+    {
+      "number": 33,
+      "title": "docs: design PF02-B B2 property staff scope",
+      "state": "CLOSED",
+      "merged": false,
+      "disposition": "SUPERSEDED_BY_CANONICAL_SPEC_IN_MAIN",
+      "role": "approved B2 design source",
+      "note": "Supersession, not rejection: the approved exact spec is canonical in main; PR branch/history preserved."
+    },
+    {
+      "number": 32,
+      "title": "docs: close PF02-B B1 acceptance and publication",
+      "state": "MERGED",
+      "merged": true,
+      "role": "B1 closure"
+    },
+    {
+      "number": 31,
+      "title": "feat: add PF02-B B1 auth and organization read",
+      "state": "MERGED",
+      "merged": true,
+      "role": "B1 implementation"
+    },
+    {
+      "number": 30,
+      "title": "docs: register B1 Astra Opus coordination",
+      "state": "OPEN_DRAFT",
+      "merged": false,
+      "disposition": "HISTORICAL_NOT_CANONICAL",
+      "role": "B1 coordination-document registration",
+      "note": "Do not merge or close as part of unrelated work."
+    }
   ],
   "ci_evidence": {
     "rule": "Candidate, implementation-main and closure-main CI are distinct generations and are not interchangeable. A docs-only closure run is publication evidence, not product re-verification.",
-    "b2_implementation_main": { "head": "f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1", "event": "push", "app_run": "35944851872", "repository_run": "35944851923", "required": "9/9 SUCCESS" },
-    "b2_closure_main": { "head": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d", "event": "push", "app_run": "35947253215", "repository_run": "35947253217", "required": "9/9 SUCCESS" },
-    "b3_plan_candidate": { "head": "6cd63e0843937443b8850e2ff86da3302140d7f4", "event": "pull_request", "app_run": "36100925800", "repository_run": "36100925799", "required": "9/9 SUCCESS" },
-    "b3_plan_main": { "head": "425fb71441b03d3fcc94492c69ebfcf36787bdf9", "event": "push", "app_run": "36101754840", "repository_run": "36101754775", "required": "9/9 SUCCESS" },
-    "b3_implementation_candidate": { "head": "2252929b56f375a4fe8f19858c23b8d2e92c7845", "event": "pull_request", "attempt": 1, "app_run": "36128243625", "repository_run": "36128244741", "required": "9/9 SUCCESS" },
-    "b3_implementation_main": { "head": "741997d93015991c1c89716a3ca93b662a8be0d8", "event": "push", "branch": "main", "attempt": 1, "app_run": "36132125715", "repository_run": "36132125772", "required": "9/9 SUCCESS" },
-    "b3_low_candidate": { "head": "738c061a9e5396fb9a8f39e477e3cc706f330d3e", "event": "pull_request", "attempt": 1, "repository_run": "36214923529", "app_run": "36214923536", "required": "9/9 SUCCESS" },
-    "b3_low_main": { "head": "baf60a1f31326cb8c6ce469a6a366dc91301cf47", "event": "push", "branch": "main", "attempt": 1, "repository_run": "36255034896", "app_run": "36255034880", "required": "9/9 SUCCESS" },
-    "required_checks": ["verify", "repository-safety", "apps", "mobile-cold-linux", "install-mobile-windows", "web-e2e", "mobile-health", "postgres-integration", "foundation-gate"]
+    "b2_implementation_main": {
+      "head": "f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1",
+      "event": "push",
+      "app_run": "35944851872",
+      "repository_run": "35944851923",
+      "required": "9/9 SUCCESS"
+    },
+    "b2_closure_main": {
+      "head": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d",
+      "event": "push",
+      "app_run": "35947253215",
+      "repository_run": "35947253217",
+      "required": "9/9 SUCCESS"
+    },
+    "b3_plan_candidate": {
+      "head": "6cd63e0843937443b8850e2ff86da3302140d7f4",
+      "event": "pull_request",
+      "app_run": "36100925800",
+      "repository_run": "36100925799",
+      "required": "9/9 SUCCESS"
+    },
+    "b3_plan_main": {
+      "head": "425fb71441b03d3fcc94492c69ebfcf36787bdf9",
+      "event": "push",
+      "app_run": "36101754840",
+      "repository_run": "36101754775",
+      "required": "9/9 SUCCESS"
+    },
+    "b3_implementation_candidate": {
+      "head": "2252929b56f375a4fe8f19858c23b8d2e92c7845",
+      "event": "pull_request",
+      "attempt": 1,
+      "app_run": "36128243625",
+      "repository_run": "36128244741",
+      "required": "9/9 SUCCESS"
+    },
+    "b3_implementation_main": {
+      "head": "741997d93015991c1c89716a3ca93b662a8be0d8",
+      "event": "push",
+      "branch": "main",
+      "attempt": 1,
+      "app_run": "36132125715",
+      "repository_run": "36132125772",
+      "required": "9/9 SUCCESS"
+    },
+    "b3_low_candidate": {
+      "head": "738c061a9e5396fb9a8f39e477e3cc706f330d3e",
+      "event": "pull_request",
+      "attempt": 1,
+      "repository_run": "36214923529",
+      "app_run": "36214923536",
+      "required": "9/9 SUCCESS"
+    },
+    "b3_low_main": {
+      "head": "baf60a1f31326cb8c6ce469a6a366dc91301cf47",
+      "event": "push",
+      "branch": "main",
+      "attempt": 1,
+      "repository_run": "36255034896",
+      "app_run": "36255034880",
+      "required": "9/9 SUCCESS"
+    },
+    "required_checks": [
+      "verify",
+      "repository-safety",
+      "apps",
+      "mobile-cold-linux",
+      "install-mobile-windows",
+      "web-e2e",
+      "mobile-health",
+      "postgres-integration",
+      "foundation-gate"
+    ],
+    "b3_post_f01_main": {
+      "head": "42a7d2ce02a51b6f71ad47d9274bb5c3d7ab5ab3",
+      "event": "push",
+      "branch": "main",
+      "attempt": 1,
+      "repository_run": "36321288154",
+      "app_run": "36321288172",
+      "required": "9/9 SUCCESS",
+      "note": "Fresh current-main regression after F01 publication; product suites execute the integrated B3 tree but are not an independent local reproduction."
+    }
   },
-  "f01_promotion": {"evidence_ref": "6706afe3a2cc5bdd2fd7204ce7944fafdd422065", "status": "PASS_POSTGRES_INTEGRATION", "receipt": "ops/pf02_b_f01_promotion_acceptance.md", "f43_status": "NOT_RUN", "reconciliation_sha256": "257b33138247049937d5ae5814f68ad7329d53a37e9deeb7453fffa6b0fb03dd", "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"},
+  "f01_promotion": {
+    "evidence_ref": "6706afe3a2cc5bdd2fd7204ce7944fafdd422065",
+    "status": "PASS_POSTGRES_INTEGRATION",
+    "receipt": "ops/pf02_b_f01_promotion_acceptance.md",
+    "f43_status": "NOT_RUN",
+    "reconciliation_sha256": "257b33138247049937d5ae5814f68ad7329d53a37e9deeb7453fffa6b0fb03dd",
+    "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"
+  },
   "current_product_task": {
     "status": "NONE_AUTHORIZED",
     "slice": "PF02-B/B3",
@@ -240,8 +501,8 @@
     "approved_plan": "docs/superpowers/plans/2026-09-25-pf02-b-b3-building-registration-foundation.md",
     "implementation_plan_authorized": false,
     "implementation_authorized": false,
-    "next_gate": "separately authorized B3 closure/status decision; not authorized or performed by F01 promotion",
-    "note": "PR42 implementation, PR45 remediation, PR46 documentation and PR47 direct evidence are accepted and merged; do not restart them or Mobile diagnostics. F01=PASS_POSTGRES_INTEGRATION; F43=NOT_RUN. See ops/pf02_b_f01_promotion_acceptance.md for fixed-main evidence and independent reconciliation. Targeted M01/M03/M04 remain RESOLVED; AC04 required evidence satisfied with separate PG-layer 513 rejection NOT_RUN. Local Mobile remains FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED. B3 remains MERGED_WITH_DISCLOSED_LOW; B3 closure and VERIFIED/FROZEN are NOT_PERFORMED. The next consequential gate is a separately authorized B3 closure/status decision. Additional product work/planning and later slices are not authorized. Historical true fields are completed approvals, not current permissions. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED."
+    "next_gate": "operator must separately scope and approve any later PF02-B slice; none is currently scoped or authorized",
+    "note": "B3 is VERIFIED/FROZEN after accepted PR42 implementation, PR45 remediation, F01 direct evidence and PR48 canonical publication. F01=PASS_POSTGRES_INTEGRATION; F43=NOT_RUN. B3D-L01/L02, separate PG-layer 513 rejection NOT_RUN and Local Mobile FAILED/OPEN/ROOT_CAUSE_NOT_ESTABLISHED remain retained risks/limits. No B3 restart, F43 search, additional planning/implementation, real tenant data or production hosting is authorized."
   },
   "design_approval": {
     "slice": "PF02-B/B3",
@@ -257,11 +518,36 @@
     "implementation_authorization_basis": "ops/pf02_b_b3_plan_acceptance.md"
   },
   "private_artifacts": [
-    { "id": "b2_implementation_plan", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b2_acceptance.md" },
-    { "id": "b2_independent_implementation_review", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b2_acceptance.md" },
-    { "id": "b1_planning_and_review_artifacts", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b1_acceptance.md" },
-    { "id": "b3_independent_plan_review", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "superseded_by": "ops/pf02_b_b3_plan_acceptance.md" },
-    { "id": "b3_independent_full_and_m02_delta_reviews", "location": "not repository-addressable", "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT", "receipt": "ops/pf02_b_b3_acceptance.md" }
+    {
+      "id": "b2_implementation_plan",
+      "location": "not repository-addressable",
+      "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT",
+      "superseded_by": "ops/pf02_b_b2_acceptance.md"
+    },
+    {
+      "id": "b2_independent_implementation_review",
+      "location": "not repository-addressable",
+      "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT",
+      "superseded_by": "ops/pf02_b_b2_acceptance.md"
+    },
+    {
+      "id": "b1_planning_and_review_artifacts",
+      "location": "not repository-addressable",
+      "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT",
+      "superseded_by": "ops/pf02_b_b1_acceptance.md"
+    },
+    {
+      "id": "b3_independent_plan_review",
+      "location": "not repository-addressable",
+      "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT",
+      "superseded_by": "ops/pf02_b_b3_plan_acceptance.md"
+    },
+    {
+      "id": "b3_independent_full_and_m02_delta_reviews",
+      "location": "not repository-addressable",
+      "on_unavailable": "UNAVAILABLE_LOCAL_ARTIFACT",
+      "receipt": "ops/pf02_b_b3_acceptance.md"
+    }
   ],
   "evidence_rules": {
     "authority_order": [
@@ -292,5 +578,19 @@
       "state explicitly which document is stale and why",
       "do not silently edit either document as part of an unrelated task"
     ]
+  },
+  "b3_closure": {
+    "state": "VERIFIED_FROZEN",
+    "receipt": "ops/pf02_b_b3_closure.md",
+    "evidence_main": "42a7d2ce02a51b6f71ad47d9274bb5c3d7ab5ab3",
+    "f01": "PASS_POSTGRES_INTEGRATION",
+    "f43": "NOT_RUN",
+    "retained_limits": [
+      "B3D-L01",
+      "B3D-L02",
+      "B3-AC04-PG-513-rejection",
+      "b3-local-mobile-timeout"
+    ],
+    "later_slice": "NOT_STARTED / NOT_YET_SCOPED"
   }
 }
