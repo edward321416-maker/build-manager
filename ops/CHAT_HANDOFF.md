@@ -64,7 +64,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B | IN_PROGRESS | — |
 | PF02-B / B1 | VERIFIED / FROZEN | `ops/pf02_b_b1_acceptance.md` |
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
-| PF02-B / B3 | MERGED_WITH_DISCLOSED_LOW | [Implementation acceptance and actual-main publication](pf02_b_b3_acceptance.md); PR #42 MERGED; LOW3 OPEN / AC04 PARTIAL; canonical closure and VERIFIED/FROZEN not authorized |
+| PF02-B / B3 | MERGED_WITH_DISCLOSED_LOW | [Implementation acceptance and actual-main publication](pf02_b_b3_acceptance.md); PR #42 MERGED; [PR45 follow-up receipt](pf02_b_b3_low_remediation_acceptance.md): targeted M01/M03/M04 RESOLVED and AC04 required evidence satisfied with stated limits; formal slice closure/VERIFIED/FROZEN not performed |
 | Beyond B3 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
@@ -150,7 +150,8 @@ Summarized by link only. Read the cited file for the current wording.
   `ops/pf02_b_b1_acceptance.md`, `ops/pf02_b_b2_acceptance.md`.
 - Deferred findings — B1 LOW findings and B2 `B2I-L01`–`L04` remain non-blocking and deferred.
   See each receipt for current disposition.
-- B3 M01/M03/M04 LOW / OPEN, AC04 PARTIAL and retained B3D-L01/L02 — [B3 implementation receipt](pf02_b_b3_acceptance.md).
+- B3 local Mobile: FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED; original/native Windows A/B failures remain distinct from instrumented BASE and hosted passes, and from the earlier Windows-mounted Ubuntu risk — [PR45 follow-up receipt](pf02_b_b3_low_remediation_acceptance.md).
+- Retained B3D-L01/L02 and AC04 separate PG-layer 513-code-point rejection NOT_RUN — [historical B3 receipt](pf02_b_b3_acceptance.md) and [current follow-up](pf02_b_b3_low_remediation_acceptance.md). Targeted M01/M03/M04 are resolved, not open risks.
 - Canonical acceptance cases — most `F` cases remain `NOT_RUN`.
   `docs/production-foundation/acceptance_cases.json`.
 - External sync — `EXTERNAL_SYNC = PENDING`. `ops/pending_external_sync.md`.
@@ -159,7 +160,7 @@ Summarized by link only. Read the cited file for the current wording.
 
 `B1I-M01` is recorded as open hardening backlog in the **B1** receipt (true at B1 closure) and as
 `CLOSED_BY_B2` in the **B2** receipt and `STATUS.md` (true now). That is succession. Never edit a
-past receipt to match today's status.
+past receipt to match today's status. Likewise, PR42's LOW OPEN / AC04 PARTIAL snapshot is preserved; the [PR45 successor receipt](pf02_b_b3_low_remediation_acceptance.md) records accepted targeted resolution and required evidence satisfied. This documentation candidate does not retroactively change earlier authorization or claim its edits are already merged.
 
 ## Baseline Git state
 
@@ -190,7 +191,7 @@ current canonical documents.
 
 PF02-B / B3 — ORG_ADMIN Building Registration Foundation is MERGED_WITH_DISCLOSED_LOW. The [implementation acceptance receipt](pf02_b_b3_acceptance.md) routes to the independent full/delta review, exact-head operator approval, PR #42 merge and actual-main CI. The [plan authorization receipt](pf02_b_b3_plan_acceptance.md) remains the historical authorization record, not an instruction to restart Tasks 1–10.
 
-Only this documentation reconciliation and its candidate submission are authorized; next gate is documentation-candidate review with its PR OPEN / DRAFT / NOT_MERGED. Codex writes/publishes, Opus independently reviews, and the coordinator mediates operator approval/scope; recording received reviews is not independent re-review. M01/M03/M04 remain LOW / OPEN, AC04 PARTIAL and F01/F43 NOT_RUN. LOW fixes, formal B3 closure, VERIFIED/FROZEN promotion, additional implementation/planning and later slices need separate authorization. Slices beyond B3 remain NOT_STARTED / NOT_YET_SCOPED. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED.
+Only the PR45 follow-up documentation reconciliation and its candidate submission/CI are authorized; next gate is review of that documentation candidate with its PR OPEN / DRAFT / NOT_MERGED. Recorded against main `baf60a1f31326cb8c6ce469a6a366dc91301cf47`; the bootstrap baseline above remains provenance. The [PR45 follow-up receipt](pf02_b_b3_low_remediation_acceptance.md) records M01/M03/M04 RESOLVED and AC04 REQUIRED_EVIDENCE_SATISFIED with remaining limits, including PG-layer 513-code-point rejection NOT_RUN. Do not repeat completed remediation, Mobile diagnostics or PR45 merge. Local Mobile remains FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED; the exact-candidate acceptance exception is not a general waiver. Codex records received reviews, not an independent re-review. F01/F43 remain NOT_RUN. Formal B3 closure, VERIFIED/FROZEN promotion, further implementation/planning and later slices require separate authorization. Slices beyond B3 remain NOT_STARTED / NOT_YET_SCOPED. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. These state-router edits are a documentation candidate, not an already merged state change.
 
 ## Private artifact rule
 
