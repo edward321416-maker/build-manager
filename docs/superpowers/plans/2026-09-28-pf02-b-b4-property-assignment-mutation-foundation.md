@@ -189,6 +189,7 @@ Migration must:
 - grant `USAGE ON SCHEMA app, authn` to B4 owner;
 - grant `EXECUTE ON FUNCTION app.current_org_id()` to B4 owner under migration-owner authority;
 - `SET LOCAL ROLE bm_b1_capability_owner`, grant only `EXECUTE` on `authn.can_administer_org(bytea,uuid)` and `authn.can_read_property(bytea,uuid,uuid)` to B4 owner, then `RESET ROLE`; do not alter either frozen helper body/owner;
+- grant exact target-membership ACL: SELECT(`id,org_id,role,status`) ON `app.organization_membership`; grant no B4-owner SELECT on `user_id` or identity/profile data;
 - grant exact PropertyAssignment column ACL only: SELECT(`org_id,membership_id,property_id,status`), INSERT(`org_id,membership_id,property_id,status`), UPDATE(`status,ended_at`); grant no SELECT(`id,ended_at`), INSERT(`id`) or DELETE;
 - add `b4_member_target_ceiling` as RESTRICTIVE SELECT TO B4 owner with current-org + ACTIVE + PROPERTY_STAFF; rely on the existing PUBLIC permissive `organization_membership_org_scope` as the required permissive policy;
 - add `b4_assignment_command_scope` as PERMISSIVE ALL TO B4 owner with current-org USING/WITH CHECK;
@@ -217,7 +218,7 @@ Run:
 npm run test:postgres -- tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts
 ```
 
-Expected: PASS, including exact role attributes/membership, helper grantors/ACL, exact column ACL, permissive/restrictive RLS catalog, no raw Web assignment privilege, migrations 0001–0008 hash preservation, fresh-chain rollback and upgrade-failure preservation.
+Expected: PASS, including exact role attributes/membership, helper grantors/ACL, exact target-membership and assignment column ACLs (including denied user_id/assignment id reads), permissive/restrictive RLS catalog, no raw Web assignment privilege, migrations 0001–0008 hash preservation, fresh-chain rollback and upgrade-failure preservation.
 
 - [ ] **Step 6: Commit Task 2**
 
