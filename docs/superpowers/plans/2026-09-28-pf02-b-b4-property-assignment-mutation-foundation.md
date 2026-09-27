@@ -243,11 +243,13 @@ Migration must:
 - grant exact target-membership ACL: SELECT(`id,org_id,role,status`) ON `app.organization_membership`; grant no B4-owner SELECT on `user_id` or identity/profile data;
 - grant exact PropertyAssignment column ACL only: SELECT(`org_id,membership_id,property_id,status`), INSERT(`org_id,membership_id,property_id,status`), UPDATE(`status,ended_at`); grant no SELECT(`id,ended_at`), INSERT(`id`) or DELETE;
 - add `b4_member_target_ceiling` as RESTRICTIVE SELECT TO B4 owner with current-org + ACTIVE + PROPERTY_STAFF; rely on the existing PUBLIC permissive `organization_membership_org_scope` as the required permissive policy;
-- add `b4_assignment_command_scope` as PERMISSIVE ALL TO B4 owner with current-org USING/WITH CHECK;
+- add `b4_assignment_select_scope` as PERMISSIVE SELECT TO B4 owner with current-org USING;
+- add `b4_assignment_insert_scope` as PERMISSIVE INSERT TO B4 owner with current-org WITH CHECK;
+- add `b4_assignment_update_scope` as PERMISSIVE UPDATE TO B4 owner with current-org USING/WITH CHECK;
 - add `b4_assignment_select_ceiling` as RESTRICTIVE SELECT TO B4 owner with `status='ACTIVE'`;
 - add `b4_assignment_insert_ceiling` as RESTRICTIVE INSERT TO B4 owner with `status='ACTIVE' AND ended_at IS NULL`;
 - add `b4_assignment_update_ceiling` as RESTRICTIVE UPDATE TO B4 owner with old-row `status='ACTIVE'` and new-row `status='ENDED' AND ended_at IS NOT NULL`;
-- add no DELETE policy/grant and do not add any PUBLIC B4 policy;
+- add **no DELETE policy of any kind**, no DELETE grant, and no PUBLIC B4 policy;
 - leave `bm_b1_web` with no raw assignment DML/read;
 - temporarily grant CREATE on authn to B4 owner, `SET LOCAL ROLE bm_b4_assignment_owner`, create the three B4 functions, immediately REVOKE PUBLIC EXECUTE and GRANT exact B4-function EXECUTE to `bm_b1_web` while the function owner role is current, then `RESET ROLE` and revoke temporary CREATE;
 - keep PF02-A/B1/B2/B3 role ACL/policy definitions unchanged outside the explicit helper EXECUTE grants to the new B4 owner.
