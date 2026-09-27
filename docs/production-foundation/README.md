@@ -1,15 +1,15 @@
 # 출시 기반 기획 (production foundation)
 
-Revision: **1.2 (F01 canonical promotion; supersedes 1.1)**
+Revision: **1.3 (PF02-B B3 canonical closure; supersedes 1.2)**
 Snapshot: 2026-09-27
-F01 evidence ref: `main@6706afe3a2cc5bdd2fd7204ce7944fafdd422065`
-B2 closure provenance: `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`
+B3 closure evidence main: `main@42a7d2ce02a51b6f71ad47d9274bb5c3d7ab5ab3`
+F01 evidence provenance: `6706afe3a2cc5bdd2fd7204ce7944fafdd422065`
 B2 implementation main: `f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1`
-상태: **PF00 = FROZEN; PF02-A = VERIFIED / FROZEN; PF02-B = IN_PROGRESS; B1 = VERIFIED / FROZEN; B2 = VERIFIED / FROZEN; B3 = MERGED_WITH_DISCLOSED_LOW; F01 = PASS_POSTGRES_INTEGRATION; F43 = NOT_RUN**. PF01 = REVIEW_DRAFT.
+상태: **PF00 = FROZEN; PF02-A = VERIFIED / FROZEN; PF02-B = IN_PROGRESS; B1 = VERIFIED / FROZEN; B2 = VERIFIED / FROZEN; B3 = VERIFIED / FROZEN; F01 = PASS_POSTGRES_INTEGRATION; F43 = NOT_RUN**. PF01 = REVIEW_DRAFT.
 
-F01은 PR #47 merge main `6706afe3a2cc5bdd2fd7204ce7944fafdd422065`의 Web/API/PostgreSQL 생성·readback·cross-org isolation 증거와 고정 HEAD 독립 reconciliation을 근거로 [F01 promotion receipt](../../ops/pf02_b_f01_promotion_acceptance.md)에 따라 `PASS_POSTGRES_INTEGRATION`으로 승격됐다. 이 승격은 F43, B3 formal closure, VERIFIED/FROZEN 또는 후속 product scope를 포함하지 않는다.
+F01은 PR #47 merge main `6706afe3a2cc5bdd2fd7204ce7944fafdd422065`의 Web/API/PostgreSQL 생성·readback·cross-org isolation 증거와 고정 HEAD 독립 reconciliation을 근거로 [F01 promotion receipt](../../ops/pf02_b_f01_promotion_acceptance.md)에 따라 `PASS_POSTGRES_INTEGRATION`으로 승격됐다. 이후 [B3 closure receipt](../../ops/pf02_b_b3_closure.md)가 accepted implementation/remediation/F01 evidence를 종합해 B3를 `VERIFIED / FROZEN`으로 닫는다. F43 search, later slice, real data/hosting은 이 closure에 포함되지 않는다.
 
-PR #34 후보 `d074741e8212ebb2fdb8d0ea7f46a100fd58f24a`는 독립 Opus 구현 검토 NO_BLOCKING_FINDINGS (BLOCKER/HIGH/MEDIUM 0, LOW4 deferred)를 받았고 `f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1`로 실제 merge됐다. 리뷰 SHA-256은 `5b830146be30e3a05675537d35bfe1a85f1b002ed5e804f777e7007abb1d2d32`다. 실제 main push [App 35944851872](https://github.com/edward321416-maker/build-manager/actions/runs/35944851872) / [Repository 35944851923](https://github.com/edward321416-maker/build-manager/actions/runs/35944851923)가 필수 9/9 SUCCESS다. [B2 인수 기록](../../ops/pf02_b_b2_acceptance.md)은 candidate CI, independent review, implementation-main CI, closure-main CI를 분리한다. canonical closure PR #35는 MERGED이며 closure main `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`의 push CI [App 35947253215](https://github.com/edward321416-maker/build-manager/actions/runs/35947253215) / [Repository 35947253217](https://github.com/edward321416-maker/build-manager/actions/runs/35947253217)가 필수 9/9 SUCCESS다. PF02-B 전체는 IN_PROGRESS이고 B3는 MERGED_WITH_DISCLOSED_LOW이며, B3 이후 slice는 NOT_STARTED / NOT_YET_SCOPED다.
+PR #34 후보 `d074741e8212ebb2fdb8d0ea7f46a100fd58f24a`는 독립 Opus 구현 검토 NO_BLOCKING_FINDINGS (BLOCKER/HIGH/MEDIUM 0, LOW4 deferred)를 받았고 `f0c6e80c9e1072f5b6a98bacc7697af01da9c7d1`로 실제 merge됐다. 리뷰 SHA-256은 `5b830146be30e3a05675537d35bfe1a85f1b002ed5e804f777e7007abb1d2d32`다. 실제 main push [App 35944851872](https://github.com/edward321416-maker/build-manager/actions/runs/35944851872) / [Repository 35944851923](https://github.com/edward321416-maker/build-manager/actions/runs/35944851923)가 필수 9/9 SUCCESS다. [B2 인수 기록](../../ops/pf02_b_b2_acceptance.md)은 candidate CI, independent review, implementation-main CI, closure-main CI를 분리한다. canonical closure PR #35는 MERGED이며 closure main `5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d`의 push CI [App 35947253215](https://github.com/edward321416-maker/build-manager/actions/runs/35947253215) / [Repository 35947253217](https://github.com/edward321416-maker/build-manager/actions/runs/35947253217)가 필수 9/9 SUCCESS다. PF02-B 전체는 IN_PROGRESS이고 B1/B2/B3는 VERIFIED / FROZEN이며, B3 이후 slice는 NOT_STARTED / NOT_YET_SCOPED다.
 
 [승인 A+ spec](../superpowers/specs/2026-09-23-pf02-b-b2-property-staff-scope-design.md)은 PR #33의 `1a056151d908a8d7bebb76100a2307e6555621b7`에서 exact32,600 bytes / SHA-256 `ec9fc095767624fdc4098447bd8b00bc65f90b5456f6570378d704fe41b63557`로 복사했고, 현재 main에 blob `b6fd0ce3c15d2255105434911889dd61693dbdb7`로 canonical하게 존재한다. PR #33은 **CLOSED / NOT_MERGED / SUPERSEDED_BY_CANONICAL_SPEC_IN_MAIN**이다. execution-log append overlap 때문에 직접 merge하지 않았을 뿐 설계가 거부된 것이 아니며, branch/history는 보존됐다. D01의 RESOLVED_FOR_B1 경계는 그대로다.
 
@@ -25,17 +25,17 @@ PR #34 후보 `d074741e8212ebb2fdb8d0ea7f46a100fd58f24a`는 독립 Opus 구현 �
 | PF00-D | ACCEPTED_AND_INTEGRATED | [독립 인수·freeze 기록](../../ops/pf00_d_acceptance.md) |
 | PF01 | REVIEW_DRAFT | [관계·권한 설계](PF01_data_authorization.md); PF02-A에 필요한 제약만 해당 범위에서 승인 |
 | PF02-A | VERIFIED / FROZEN | [구현 인수 기록](../../ops/pf02_a_acceptance.md); [PR #28](https://github.com/edward321416-maker/build-manager/pull/28) 독립 인수 완료 / MERGED; 아래 freeze main CI |
-| PF02-B | IN_PROGRESS | B1/B2 완료; B3 MERGED_WITH_DISCLOSED_LOW; beyond B3 NOT_STARTED / NOT_YET_SCOPED |
+| PF02-B | IN_PROGRESS | B1/B2/B3 VERIFIED / FROZEN; beyond B3 NOT_STARTED / NOT_YET_SCOPED |
 | PF02-B / B1 | VERIFIED / FROZEN | [PR #31 인수 기록](../../ops/pf02_b_b1_acceptance.md); 실제 main CI 9/9 SUCCESS |
 | PF02-B / B2 | VERIFIED / FROZEN | [인수 기록](../../ops/pf02_b_b2_acceptance.md); implementation-main CI9/9; closure PR #35 MERGED, closure-main CI9/9 |
-| PF02-B / B3 | MERGED_WITH_DISCLOSED_LOW | [implementation receipt](../../ops/pf02_b_b3_acceptance.md), [LOW remediation receipt](../../ops/pf02_b_b3_low_remediation_acceptance.md), [F01 promotion receipt](../../ops/pf02_b_f01_promotion_acceptance.md); formal closure NOT_PERFORMED |
+| PF02-B / B3 | VERIFIED / FROZEN | [closure receipt](../../ops/pf02_b_b3_closure.md); prior [implementation](../../ops/pf02_b_b3_acceptance.md), [LOW remediation](../../ops/pf02_b_b3_low_remediation_acceptance.md), [F01 promotion](../../ops/pf02_b_f01_promotion_acceptance.md) evidence retained; disclosed risks remain open |
 | D01 | RESOLVED_FOR_B1 | Auth0 선택과 Database-only Web identity 한정 |
 
 Node **24.21.0 / npm 11.19.0**, PostgreSQL **18.6**, pg **8.23.0**, @types/pg **8.23.1**, Testcontainers **12.1.0**, node-pg-migrate **9.0.0**을 유지한다. PostgreSQL adapter는 explicit SQL과 application ports를 사용하며 ORM을 도입하지 않았다. 보호 대상 플랫폼 lock key는 실제 집합 비교에서 67/67, 누락 0이었다. 숫자는 영구 계약이 아니다.
 
 ## 읽는 순서
 
-1. [현재 상태](../../STATUS.md), [F01 promotion receipt](../../ops/pf02_b_f01_promotion_acceptance.md), [B3 LOW remediation receipt](../../ops/pf02_b_b3_low_remediation_acceptance.md), [B3 implementation receipt](../../ops/pf02_b_b3_acceptance.md) — 현재 B3/F01 disposition과 고정 evidence provenance.
+1. [현재 상태](../../STATUS.md), [B3 closure receipt](../../ops/pf02_b_b3_closure.md), [F01 promotion receipt](../../ops/pf02_b_f01_promotion_acceptance.md), [B3 LOW remediation receipt](../../ops/pf02_b_b3_low_remediation_acceptance.md), [B3 implementation receipt](../../ops/pf02_b_b3_acceptance.md) — 현재 B3/F01 disposition과 고정 evidence provenance.
 2. [현재 검증표](acceptance_cases.json) — C01–C12 출처 유지; F01/F18/F19/F23 `PASS_POSTGRES_INTEGRATION`, 나머지 40개 F-case `NOT_RUN`.
 3. [revision 1.1 감사 기록](AUDIT_REPORT.md)과 [B2 인수 기록](../../ops/pf02_b_b2_acceptance.md) — B2 closure 시점과 그대로 보존한 B1/이전 감사.
 4. [승인된 PF02-A spec](../superpowers/specs/2026-09-19-pf02-a-postgres-foundation-design.md), [계획](../superpowers/plans/2026-09-19-pf02-a-postgres-foundation.md) — Separate Acceptance/Publication Phase 및 범위 경계.
@@ -69,7 +69,7 @@ CodeRabbit은 **SUCCESS_STATUS / REVIEW_SKIPPED**이며 독립 검토 증거가 
 
 ## 경계와 남은 위험
 
-PF02-A는 합성·폐기 가능한 PostgreSQL 환경에서 승인된 7개 테이블, migration owner/runtime role 분리, transaction/RLS/FK/concurrency 기반을 검증했다. 서비스의 production-ready, launch-ready, real-user-ready, 보안·개인정보 검토 완료를 의미하지 않는다. Production DB hosting과 실제 tenant data는 NOT_AUTHORIZED다. B1의 Database-only Web identity/session 및 ORG_ADMIN 조회 API는 검증됐지만 production identity 운영, real-data pilot, 최종 운영 session/retention, 실제 property/unit/occupancy 운영은 미완료다. B2의 PROPERTY_STAFF assignment read scope는 완료됐으며 current exact app table inventory는 property_assignment를 포함한8개다. B3의 synthetic Property/Unit registration foundation은 MERGED_WITH_DISCLOSED_LOW이고 formal closure는 수행되지 않았다. 기존7개 semantics/runtime matrix와 migration0001–0006 bytes는 보존된다. Staff invitation/assignment mutation·management UI, resident/ticket, Kakao/account linking/Mobile auth는 미완료 범위다.
+PF02-A는 합성·폐기 가능한 PostgreSQL 환경에서 승인된 7개 테이블, migration owner/runtime role 분리, transaction/RLS/FK/concurrency 기반을 검증했다. 서비스의 production-ready, launch-ready, real-user-ready, 보안·개인정보 검토 완료를 의미하지 않는다. Production DB hosting과 실제 tenant data는 NOT_AUTHORIZED다. B1의 Database-only Web identity/session 및 ORG_ADMIN 조회 API는 검증됐지만 production identity 운영, real-data pilot, 최종 운영 session/retention, 실제 property/unit/occupancy 운영은 미완료다. B2의 PROPERTY_STAFF assignment read scope는 완료됐으며 current exact app table inventory는 property_assignment를 포함한8개다. B3의 synthetic Property/Unit registration foundation은 VERIFIED / FROZEN이다. B3D-L01/L02, separate PG513 evidence limit, Local Mobile OPEN risk를 closure receipt에 보존하며 production/real-user readiness로 확대하지 않는다. 기존7개 semantics/runtime matrix와 migration0001–0006 bytes는 보존된다. Staff invitation/assignment mutation·management UI, resident/ticket, Kakao/account linking/Mobile auth는 미완료 범위다.
 
 - **OPEN_RISK / dependency-security-triage:** npm 14 moderate vulnerabilities, unrs-resolver install-script 경고 및 기존 PF02-A dependency hook/optional build 제한을 인수 기록에 유지한다. audit fix나 script 승인을 하지 않는다.
 - **OPEN_RISK / ci-supply-chain-maintenance:** pinned v4 Actions의 오래된 내부 runtime 및 hosted Node24 forcing 경고. major upgrade는 별도 범위다.
@@ -78,8 +78,8 @@ PF02-A는 합성·폐기 가능한 PostgreSQL 환경에서 승인된 7개 테이
 
 ## 무결성과 다음 gate
 
-[SHA256SUMS.json](SHA256SUMS.json)은 기존 **12개** 항목을 final UTF-8 bytes에서 다시 읽어 SHA-256/길이를 계산한 revision **1.2** manifest다. F01-promoted `acceptance_cases.json`과 이 README를 포함해 전12개를 재계산했으며, 항목 집합과 자기 자신 제외 설계는 유지한다. 역사적 감사는 그대로 보존했다.
+[SHA256SUMS.json](SHA256SUMS.json)은 기존 **12개** 항목을 final UTF-8 bytes에서 다시 읽어 SHA-256/길이를 계산한 revision **1.3** manifest다. B3-closure README와 unchanged F01 registry를 포함해 전12개를 다시 확인했으며, 항목 집합과 자기 자신 제외 설계는 유지한다. 역사적 감사는 그대로 보존했다.
 
 원본 ZIP/raw receipt/log/로컬 절대경로/인증값/외부 Google 목적지는 공개하지 않는다. Google Sheets/Drive는 **PARTIAL_SYNC**다: 이번 PR48 correction/sync/cache 이벤트는 검증된 write/readback이 있고, 역사적 pending queue는 그대로 남아 있다. [대기·sync 기록](../../ops/pending_external_sync.md)을 따른다.
 
-PR #42 B3 implementation, PR #45 LOW remediation, PR #46 status reconciliation과 PR #47 F01 direct-evidence test는 모두 MERGED다. B1/B2는 VERIFIED / FROZEN, B3는 MERGED_WITH_DISCLOSED_LOW, PF02-B 전체는 IN_PROGRESS다. F01=`PASS_POSTGRES_INTEGRATION`, F43=`NOT_RUN`. **현재 승인된 추가 제품 task는 없다.** 다음 consequential gate는 별도 승인된 B3 closure/status decision이며, 이 README나 F01 승격이 그 결정을 자동 승인하지 않는다. B1I-M01=CLOSED_BY_B2; 역사적 B1 receipt의 OPEN_HARDENING_BACKLOG는 수정하지 않는다. B1I-M02는 DOCUMENT_RECONCILED; B1 LOW6/B2 LOW4와 B3D-L01/L02는 retained/deferred다. Local Mobile은 FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED이고, Auth0 entitlement, operational session/retention, real-data pilot, production hosting/credentials 및 complete security/privacy review는 계속 미검증/미완료다.
+PR #42 B3 implementation, PR #45 LOW remediation, PR #46 status reconciliation, PR #47 F01 direct-evidence test와 PR #48 F01 canonical publication은 모두 MERGED다. B1/B2/B3는 VERIFIED / FROZEN, PF02-B 전체는 IN_PROGRESS다. F01=`PASS_POSTGRES_INTEGRATION`, F43=`NOT_RUN`. **현재 승인된 추가 제품 task는 없다.** B3 이후 slice는 별도 operator scope/approval 전에는 시작하지 않는다. B1I-M01=CLOSED_BY_B2; 역사적 B1 receipt의 OPEN_HARDENING_BACKLOG는 수정하지 않는다. B1I-M02는 DOCUMENT_RECONCILED; B1 LOW6/B2 LOW4와 B3D-L01/L02는 retained/deferred다. B3 AC04 separate PG513 rejection과 Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED도 retained limit/risk다. Auth0 entitlement, operational session/retention, real-data pilot, production hosting/credentials 및 complete security/privacy review는 계속 미검증/미완료다.
