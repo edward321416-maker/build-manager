@@ -285,7 +285,7 @@
       "postgres_job": 108590150778,
       "web_e2e_job": 108590150735,
       "reconciliation_sha256": "257b33138247049937d5ae5814f68ad7329d53a37e9deeb7453fffa6b0fb03dd",
-      "note": "F01-only documentation promotion candidate: fixed-main Web/API/PostgreSQL creation/readback and cross-org isolation reconciled by Opus 5.5 as F01_PROMOTION_EVIDENCE_SUFFICIENT; PR47 adds direct denial for exact newly registered Properties in both directions. Independent review of this documentation candidate and merge remain pending. See receipt for evidence classes and limitations; no F43 or B3 closure promotion."
+      "note": "Fixed-main Web/API/PostgreSQL creation/readback and cross-org isolation were reconciled as F01_PROMOTION_EVIDENCE_SUFFICIENT; PR47 adds direct denial for exact newly registered Properties in both directions. Publication provenance is tracked in the linked receipt and PR48. F43 and B3 closure are not promoted."
     }
   },
   {

@@ -219,3 +219,11 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - PR46 documentation and PR47 direct evidence are completed history. Current additional product task NONE_AUTHORIZED; B3 MERGED_WITH_DISCLOSED_LOW and Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED remain unchanged. No local runtime rerun, B3 closure or merge.
 - Documentation validation, commit/push, Draft PR and exact-head CI results are recorded after execution in the PR/private receipt. Stop OPEN / DRAFT / NOT_MERGED / INDEPENDENT_REVIEW_PENDING.
 - Google Sheets/Drive writes=0; OAuth/IAM/provider changes=0; EXTERNAL_SYNC=PENDING. No external account change.
+
+## 2026-09-27 PR48 F01 canonical consistency correction
+
+- Event `PR48-F01-CANONICAL-CONSISTENCY-FIX-20260927` at `2026-09-27T11:37:38.546Z`; sync_status=pending; tokens=unknown.
+- Independent review of PR48 HEAD `ec3f12834b1caa4c76d085ea5bc9d29e350b4180` found two HIGH documentation consistency issues only: the F01 registry note retained temporary candidate/review language, and the current-facing production-foundation README/SHA256 manifest still described the pre-F01 snapshot.
+- Correction removes lifecycle status from canonical F01 evidence text, advances the production-foundation README/SHA256 manifest to revision 1.2, freshly hashes all 12 governed UTF-8 files, and updates the F01 receipt. F01 evidence itself is unchanged; F43 NOT_RUN, B3 MERGED_WITH_DISCLOSED_LOW, local Mobile OPEN, current product task NONE_AUTHORIZED.
+- Product/source/SQL/migration/test/workflow/dependency/provider changes=0; product runtime rerun=0. PR publication/CI and delta-review results follow on the PR/private receipt.
+- Google Sheets/Drive write is not yet claimed here; OAuth/IAM/provider changes=0; EXTERNAL_SYNC=PENDING until a verified external write/readback occurs.

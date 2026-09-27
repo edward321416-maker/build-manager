@@ -58,7 +58,7 @@ The six named Web cases are in [b3.spec.ts](https://github.com/edward321416-make
 
 B3 remains **MERGED_WITH_DISCLOSED_LOW**; PF02-B remains IN_PROGRESS; B1/B2 stay VERIFIED / FROZEN. Targeted M01/M03/M04 resolution and AC04 REQUIRED_EVIDENCE_SATISFIED with its separate PG-layer 513 rejection NOT_RUN remain as recorded in the [PR45 successor receipt](pf02_b_b3_low_remediation_acceptance.md). Local Mobile stays **FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED**; hosted passes neither replace the original failures nor establish their cause.
 
-[PF02-A](pf02_a_acceptance.md), [B3 implementation](pf02_b_b3_acceptance.md), [B3 LOW remediation](pf02_b_b3_low_remediation_acceptance.md), the design/plan and production-foundation README retain their historical F01 NOT_RUN text. It describes the earlier snapshot, not a contradiction. The production-foundation SHA256SUMS manifest is also untouched: it remains its historical snapshot, not a recomputed manifest of the F01-promoted registry. No other F-case is promoted or rewritten.
+[PF02-A](pf02_a_acceptance.md), [B3 implementation](pf02_b_b3_acceptance.md), [B3 LOW remediation](pf02_b_b3_low_remediation_acceptance.md), the approved design/plan and `AUDIT_REPORT.md` retain their historical F01 NOT_RUN snapshots; those earlier records are not rewritten. The current-facing [production-foundation README](../docs/production-foundation/README.md) is revision 1.2 and now reflects F01 PASS / F43 NOT_RUN. [SHA256SUMS.json](../docs/production-foundation/SHA256SUMS.json) is likewise revision 1.2 with all 12 governed UTF-8 byte streams freshly recomputed, including the promoted registry and README. No other F-case is promoted or rewritten.
 
 ## Publication provenance and next consequential gate
 

@@ -1,8 +1,8 @@
 {
-  "revision": "1.1",
-  "generated_for": "docs/production-foundation PF02-B B2 post-closure finalization",
-  "baseline": "main@5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d",
-  "note": "Revision 1.1: PF02-B B2 canonical closure published (PR35 merged at 5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d, closure-main CI9of9 SUCCESS); B1/B2 VERIFIED/FROZEN, PF02-B overall IN_PROGRESS, no later slice scoped or implementation-authorized. PR33 CLOSED/NOT_MERGED/SUPERSEDED_BY_CANONICAL_SPEC_IN_MAIN. All12 final UTF-8 byte streams freshly hashed; entry set/self-exclusion and canonical F-case content unchanged; historical audits retained; prior 1.0 values not reused as evidence.",
+  "revision": "1.2",
+  "generated_for": "docs/production-foundation F01 canonical promotion",
+  "baseline": "main@6706afe3a2cc5bdd2fd7204ce7944fafdd422065",
+  "note": "Revision 1.2: F01 canonical promotion recorded from fixed implementation evidence at 6706afe3a2cc5bdd2fd7204ce7944fafdd422065 after PR47 direct cross-org Property evidence and fixed-head reconciliation. F01/F18/F19/F23 are PASS_POSTGRES_INTEGRATION; F43 and 39 other F-cases remain NOT_RUN. B3 remains MERGED_WITH_DISCLOSED_LOW with formal closure NOT_PERFORMED. All 12 final UTF-8 byte streams were freshly hashed; entry set and self-exclusion are preserved; historical audits remain unchanged.",
   "files": {
     "00_foundation_blueprint.md": {
       "sha256": "ee47013f395d34d9435d7cfb201dc403dff4d89eb9a55d5d77a46c7ff76af999",
@@ -29,12 +29,12 @@
       "bytes": 26785
     },
     "README.md": {
-      "sha256": "d2bc8d82f785fe776fb0e55a72f63a2d4e5ab85b8be18be890740b151e066fd3",
-      "bytes": 12551
+      "sha256": "e4df016701067e98ed5ab4e85d1ae9016bc523aa64d95a90080e95467cd096bb",
+      "bytes": 14672
     },
     "acceptance_cases.json": {
-      "sha256": "8750571f5db4e9b04d4e90085df2fd40d7651f96b6ee71b453cdec8d8c8026c1",
-      "bytes": 32765
+      "sha256": "a5af0f6b3c58d63bfec6b25a9eea592b738593de2e92de411834816510db925b",
+      "bytes": 33620
     },
     "phase_dependencies.json": {
       "sha256": "92a78c98a1c252d5277e310cd4bac37f8e9f63e12e44ab7638dc4345798f0276",
@@ -53,5 +53,5 @@
       "bytes": 6961
     }
   },
-  "supersedes": "1.0"
+  "supersedes": "1.1"
 }
