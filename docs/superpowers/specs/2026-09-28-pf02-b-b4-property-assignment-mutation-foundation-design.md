@@ -360,8 +360,8 @@ Results:
 - ACTIVE exact assignment exists → 200 `{"assigned":true}`;
 - eligible target but no ACTIVE assignment → 404;
 - target membership foreign/ended/wrong-role/hidden → 404;
-- Property foreign/inactive/hidden → 404;
-- visible org but caller not current ORG_ADMIN → 403;
+- Property foreign/inactive/hidden to the current caller → 404;
+- Property is visible to the caller but caller is not current ORG_ADMIN → 403;
 - unauthenticated → 401.
 
 No assignment id/history is exposed.
@@ -387,6 +387,7 @@ DELETE means **ensure current relationship not ACTIVE**.
 Database behavior:
 - matching ACTIVE row → UPDATE to `status='ENDED'` and DB-owned `ended_at`;
 - no ACTIVE row for an otherwise eligible target → no-op;
+- if the target membership is no longer current ACTIVE PROPERTY_STAFF, the command is 404 and B4 does not rewrite a stale assignment row; current B2 access is already denied and lifecycle cleanup belongs to the later membership/authorization slice;
 - row/history retained;
 - no physical DELETE;
 - no ENDED→ACTIVE reuse.
@@ -473,21 +474,23 @@ For all methods:
 For GET:
 2. duplicate/unexpected query or malformed path ids → 400 before business lookup;
 3. unauthenticated → 401;
-4. invisible/foreign/inactive organization or Property → 404;
-5. visible organization but caller not current ORG_ADMIN → 403;
-6. foreign/inactive/non-PROPERTY_STAFF target membership or absent relationship → 404;
-7. active exact relationship → 200.
+4. invisible/foreign/inactive organization → 404;
+5. Property not visible through frozen `can_read_property` → 404;
+6. Property is visible but caller is not current ORG_ADMIN → 403;
+7. foreign/inactive/non-PROPERTY_STAFF target membership or absent relationship → 404;
+8. active exact relationship → 200.
 
 For PUT/DELETE:
 2. Origin must exactly equal configured app base URL; mismatch/missing → 403 before session/body processing, matching frozen B3 mutation behavior;
 3. current session required → 401;
 4. session-bound CSRF required → 403;
 5. unexpected query, malformed ids or non-empty invalid body → 400; oversized body may use the existing bounded 413 convention;
-6. invisible/foreign/inactive organization or Property → 404;
-7. visible organization but caller not current ORG_ADMIN → 403;
-8. foreign/inactive/non-PROPERTY_STAFF target membership → 404;
-9. valid mutation → method-specific success;
-10. unexpected DB / commit ambiguity → sanitized 503.
+6. invisible/foreign/inactive organization → 404;
+7. Property not visible through frozen `can_read_property` → 404;
+8. Property is visible but caller is not current ORG_ADMIN → 403;
+9. foreign/inactive/non-PROPERTY_STAFF target membership → 404;
+10. valid mutation → method-specific success;
+11. unexpected DB / commit ambiguity → sanitized 503.
 
 A race invalidating an earlier precheck must never be misreported as success. Fresh read-only classification may occur after a denied decisive statement, but it must not retry the write.
 
