@@ -178,7 +178,7 @@
     { "id": "B3-AC04-PG-513-rejection", "state": "NOT_RUN", "source": "ops/pf02_b_b3_low_remediation_acceptance.md", "note": "Residual evidence limit; accepted required evidence is satisfied, not an unremediated finding or authorized new test task." },
     { "id": "B3D-L01/L02", "state": "DEFERRED", "source": "ops/pf02_b_b3_acceptance.md" },
     { "id": "canonical-f-cases-mostly-not-run", "source": "docs/production-foundation/acceptance_cases.json" },
-    { "id": "external-sync-pending", "source": "ops/pending_external_sync.md" }
+    { "id": "external-sync-partial", "state": "PARTIAL_SYNC", "source": "ops/pending_external_sync.md", "note": "PR48 correction/sync/cache events have verified Google write/readback; historical pending queue remains unresolved." }
   ],
   "resolved_findings": [
     {

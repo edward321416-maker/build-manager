@@ -1,8 +1,8 @@
 # Pending external sync
 
-Status: **PENDING**. No callable Google Sheets/Drive integration or designated spreadsheet/folder was available at bootstrap. Environment-variable-name inspection found no GOOGLE_APPLICATION_CREDENTIALS, GOOGLE_SHEET_ID, or GOOGLE_DRIVE_FOLDER_ID; credential values and browser stores were not accessed. This is not proof that the operator has no Google account or credentials elsewhere.
+Status: **PARTIAL_SYNC**. Bootstrap originally had no callable Google Sheets/Drive integration, but the current session now has a connected Google Drive/Sheets transport. Verified PR48 correction/sync/cache events were written and read back; historical rows that still carry `sync_status=pending` remain queued. No credential values or browser stores were accessed.
 
-The append-only [local execution log](AI_Execution_Log.csv) is the durable source. Every row with `sync_status=pending` is queued by event_id. No Google synchronization is claimed. No custom plugin schema was downloaded.
+The append-only [local execution log](AI_Execution_Log.csv) remains the repository source. Rows with `sync_status=pending` remain queued unless a later append-only successor receipt marks that event synchronized. Current PR48 successor rows record verified Google synchronization; older pending rows are not retroactively rewritten. Sanitized tool/schema cache synchronization for the current task is verified separately below.
 
 To enable sync, the operator must provide an approved existing connection and designated sheet/folder access. A service account is one possible method, not a requirement; do not create credentials, connect accounts, expand scopes, or change IAM automatically. Keep destination configuration and authentication outside this public repository.
 
@@ -227,3 +227,11 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Correction removes lifecycle status from canonical F01 evidence text, advances the production-foundation README/SHA256 manifest to revision 1.2, freshly hashes all 12 governed UTF-8 files, and updates the F01 receipt. F01 evidence itself is unchanged; F43 NOT_RUN, B3 MERGED_WITH_DISCLOSED_LOW, local Mobile OPEN, current product task NONE_AUTHORIZED.
 - Product/source/SQL/migration/test/workflow/dependency/provider changes=0; product runtime rerun=0. PR publication/CI and delta-review results follow on the PR/private receipt.
 - Google Sheets/Drive write is not yet claimed here; OAuth/IAM/provider changes=0; EXTERNAL_SYNC=PENDING until a verified external write/readback occurs.
+
+## 2026-09-27 PR48 verified external synchronization
+
+- `PR48-F01-CANONICAL-CONSISTENCY-FIX-20260927` was written to the configured Google execution log and read back at row 7.
+- Successor `PR48-F01-CANONICAL-CONSISTENCY-FIX-SYNC-20260927` was written/read back at row 8 and marks the predecessor's sync as verified without rewriting its historical repository row.
+- `PR48-F01-SCHEMA-CACHE-SYNC-20260927` was written/read back at row 9. The sanitized `build-manager_tool_schema_cache_2026-09-27` document was created, moved into the configured Drive cache folder, content-read back, and folder-list read back. No secrets, tokens, cookies, credentials or personal data are present.
+- `PR48-COORDINATOR-DELTA-REVIEW-SKILL-20260927` was written/read back at row 10 after loading the code-review skill and confirming that no independent reviewer subagent dispatch tool is available in this session.
+- These verified writes change current external-sync state to PARTIAL_SYNC only. Historical rows still marked pending remain queued; no bulk backfill is claimed. OAuth/IAM/provider changes=0.

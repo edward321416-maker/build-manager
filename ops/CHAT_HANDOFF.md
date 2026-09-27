@@ -154,7 +154,7 @@ Summarized by link only. Read the cited file for the current wording.
 - Retained B3D-L01/L02 and AC04 separate PG-layer 513-code-point rejection NOT_RUN — [historical B3 receipt](pf02_b_b3_acceptance.md) and [current follow-up](pf02_b_b3_low_remediation_acceptance.md). Targeted M01/M03/M04 are resolved, not open risks.
 - Canonical acceptance cases — most `F` cases remain `NOT_RUN`.
   `docs/production-foundation/acceptance_cases.json`.
-- External sync — `EXTERNAL_SYNC = PENDING`. `ops/pending_external_sync.md`.
+- External sync — `EXTERNAL_SYNC = PARTIAL_SYNC`: PR48 correction/sync/cache events have verified Google write/readback; historical queued events remain pending. `ops/pending_external_sync.md`.
 
 ### Succession, not contradiction
 

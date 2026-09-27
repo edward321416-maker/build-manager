@@ -80,6 +80,6 @@ PF02-A는 합성·폐기 가능한 PostgreSQL 환경에서 승인된 7개 테이
 
 [SHA256SUMS.json](SHA256SUMS.json)은 기존 **12개** 항목을 final UTF-8 bytes에서 다시 읽어 SHA-256/길이를 계산한 revision **1.2** manifest다. F01-promoted `acceptance_cases.json`과 이 README를 포함해 전12개를 재계산했으며, 항목 집합과 자기 자신 제외 설계는 유지한다. 역사적 감사는 그대로 보존했다.
 
-원본 ZIP/raw receipt/log/로컬 절대경로/인증값/외부 Google 목적지는 공개하지 않는다. Google Sheets/Drive는 **PENDING**이고 [기존 대기 큐](../../ops/pending_external_sync.md)를 유지한다.
+원본 ZIP/raw receipt/log/로컬 절대경로/인증값/외부 Google 목적지는 공개하지 않는다. Google Sheets/Drive는 **PARTIAL_SYNC**다: 이번 PR48 correction/sync/cache 이벤트는 검증된 write/readback이 있고, 역사적 pending queue는 그대로 남아 있다. [대기·sync 기록](../../ops/pending_external_sync.md)을 따른다.
 
 PR #42 B3 implementation, PR #45 LOW remediation, PR #46 status reconciliation과 PR #47 F01 direct-evidence test는 모두 MERGED다. B1/B2는 VERIFIED / FROZEN, B3는 MERGED_WITH_DISCLOSED_LOW, PF02-B 전체는 IN_PROGRESS다. F01=`PASS_POSTGRES_INTEGRATION`, F43=`NOT_RUN`. **현재 승인된 추가 제품 task는 없다.** 다음 consequential gate는 별도 승인된 B3 closure/status decision이며, 이 README나 F01 승격이 그 결정을 자동 승인하지 않는다. B1I-M01=CLOSED_BY_B2; 역사적 B1 receipt의 OPEN_HARDENING_BACKLOG는 수정하지 않는다. B1I-M02는 DOCUMENT_RECONCILED; B1 LOW6/B2 LOW4와 B3D-L01/L02는 retained/deferred다. Local Mobile은 FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED이고, Auth0 entitlement, operational session/retention, real-data pilot, production hosting/credentials 및 complete security/privacy review는 계속 미검증/미완료다.
