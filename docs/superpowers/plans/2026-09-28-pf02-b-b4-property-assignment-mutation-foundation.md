@@ -46,9 +46,10 @@ This document being reviewable or operator-approved does **not** authorize Task 
 Before any product implementation:
 1. the operator must approve the exact fixed plan HEAD;
 2. a separate fixed-head independent plan review must return no unresolved BLOCKER/HIGH finding, and any accepted MEDIUM/LOW must be explicitly reconciled or retained;
-3. the operator must separately choose/authorize the execution method and B4 product implementation boundary.
+3. the approved spec/plan documentation must receive a separate publication decision, merge with expected-head protection, and complete fresh actual-main required CI before it is treated as canonical implementation authority;
+4. only after that publication evidence may the operator separately choose/authorize the execution method and B4 product implementation boundary.
 
-PR #50/#51 Ready conversion or merge is a separate publication decision and never substitutes for product implementation authorization.
+PR #50/#51 merge is necessary for canonical publication after review but never substitutes for the separate product implementation authorization.
 
 ## Spec Acceptance Ownership
 
