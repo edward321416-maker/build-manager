@@ -206,7 +206,7 @@ git commit -m "feat: define B4 assignment contracts"
   - get: `ACTIVE | ABSENT | NOT_FOUND | FORBIDDEN`
   - ensure: `CREATED | EXISTS | NOT_FOUND | FORBIDDEN`
   - end: `ENDED | ABSENT | NOT_FOUND | FORBIDDEN`
-- All three functions owned by `bm_b4_assignment_owner`, SECURITY DEFINER, `search_path=pg_catalog, pg_temp`, PUBLIC EXECUTE false, Web EXECUTE true.
+- Function execution contract: all three are `LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog, pg_temp`; GET is `STABLE`; ENSURE and END are `VOLATILE` because they mutate state. PUBLIC EXECUTE is false and Web EXECUTE true. `b4-capabilities.test.ts` asserts owner, language, volatility, SECURITY DEFINER flag, exact proconfig and ACL.
 
 - [ ] **Step 1: Write role/migration RED tests**
 
