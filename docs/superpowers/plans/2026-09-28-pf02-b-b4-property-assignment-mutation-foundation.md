@@ -15,6 +15,15 @@
 - POLICY_REF for execution starts from live `main`; the approved spec is the B4 behavior authority. Do not silently retarget either ref.
 - B1/B2/B3 remain FROZEN except for the exact additive B4 integration points named in this plan.
 - Migrations `0001`–`0008` stay byte-identical. Add only `0009_b4_property_assignment_mutation.sql`.
+- Frozen migration SHA-256 preconditions:
+  - `0001_core_identity_organization.sql` = `e10a8d4acd3d11fb3bf90b05d3f123081f6ee4a29d325b0b669a56f819b261f1`
+  - `0002_property_unit_occupancy.sql` = `1733fbaf57a93e8d8eafc98207700f198a3b67ddfd022058b2aa09c3630aa77a`
+  - `0003_runtime_isolation.sql` = `649a0519aa94e2bde319d4eac936dc9c8955739d92ff934211fa2f9d54213cf6`
+  - `0004_b1_identity_sessions.sql` = `2ab71a55851cc37e34e62a5ce7b81c03983b95c67e2e15127e7e31edbe79220a`
+  - `0005_b1_auth_capabilities.sql` = `22aea03a276673ca9e0e6929cc0193b83463b890845b5551d485100ce572ed33`
+  - `0006_b1_organization_access.sql` = `a3dc5101aa69cb3fa65499573fd331273cd311c1349b1a62d38d267b4931a8fe`
+  - `0007_b2_property_assignment_scope.sql` = `4b6e9e27dbc87142ad8d9d5f0dce37a57b97b2374ba41c2b9f7d4433183b2ac2`
+  - `0008_b3_building_registration.sql` = `c91f02d91f05090e4cd4b03f8a9dd83f6770163830b0a9618bef5d6fc16a2986`.
 - No new business table/column/index, ORM, dependency, second DB pool, LOGIN role, credential, provider/IAM change, production hosting, or real tenant/landlord/address data. The only package-manifest change allowed is adding the `./b4` source subpath export to `packages/persistence-postgres/package.json`; no dependency/version/lockfile change.
 - `bm_b1_web` gets no direct `app.property_assignment` SELECT/INSERT/UPDATE/DELETE and cannot SET ROLE to `bm_b4_assignment_owner`.
 - `bm_b1_capability_owner` gets no B4 row-mutation privilege.
@@ -29,6 +38,17 @@
 - B4 does not automatically promote F15/F25/F39/F43 or any other canonical F-case.
 - B4D-L01/L02/L03 remain disclosed design boundaries; do not claim universal lifecycle serialization, human-facing target discovery, or CommandReceipt exactly-once semantics.
 - Required hosted checks remain: verify, repository-safety, apps, mobile-cold-linux, install-mobile-windows, web-e2e, mobile-health, postgres-integration, foundation-gate.
+
+## Execution Authorization Gate
+
+This document being reviewable or operator-approved does **not** authorize Task 1 execution.
+
+Before any product implementation:
+1. the operator must approve the exact fixed plan HEAD;
+2. a separate fixed-head independent plan review must return no unresolved BLOCKER/HIGH finding, and any accepted MEDIUM/LOW must be explicitly reconciled or retained;
+3. the operator must separately choose/authorize the execution method and B4 product implementation boundary.
+
+PR #50/#51 Ready conversion or merge is a separate publication decision and never substitutes for product implementation authorization.
 
 ## Review Focus
 
@@ -372,6 +392,7 @@ git commit -m "test: prove B4 assignment boundaries"
 - Create: `apps/web/src/app/api/v2/organizations/[orgId]/properties/[propertyId]/staff-assignments/[membershipId]/route.ts`
 - Modify: `apps/web/src/server/b1/container.ts`
 - Create: `tests/architecture/b4-boundary.test.ts`
+- Modify: `tests/architecture/b1-boundary.test.ts` — add the exact B4 route to the v2 route list and change the literal inventory expectation/title from eight to nine
 
 **Interfaces:**
 - `B4HTTPDependencies = B4Dependencies & { readSession(request): Promise<SessionData|null>; appBaseUrl:string }`.
@@ -384,6 +405,7 @@ git commit -m "test: prove B4 assignment boundaries"
 - Existing constant-time CSRF semantics are copied into B4 server boundary or factored only if B3 behavior remains byte/behavior compatible; do not refactor B3 merely for style.
 - Route sets `runtime="nodejs"`, `dynamic="force-dynamic"`; it explicitly exports GET/PUT/DELETE **and** POST/PATCH dispatchers so unsupported POST/PATCH reach the B4 handler and receive deterministic custom 405 with exact `Allow: GET, PUT, DELETE` (matching the existing B3 route pattern).
 - Container adds one `assignments:createPropertyAssignmentMutationPort(database)` on the existing single B1 Web database handle; no B4 DATABASE_URL.
+- Existing architecture route inventory must contain exactly nine v2 route files after B4; the ninth is `organizations/[orgId]/properties/[propertyId]/staff-assignments/[membershipId]`.
 
 - [ ] **Step 1: Write HTTP RED tests**
 
@@ -418,6 +440,7 @@ Create exact route file. Modify container type to satisfy both existing B3 handl
 `b4-boundary.test.ts` must assert:
 - B4 server modules do not import `pg`, SQLite/demo persistence, fixtures, or Auth0 test utilities;
 - route/component layers contain no raw `property_assignment` SQL;
+- `b1-boundary.test.ts` discovers exactly nine actual v2 handlers and includes the B4 route in both literal-runtime and literal-dynamic negative controls;
 - container creates one DB pool and no B4 database env;
 - no B4 UI/page directory or roster route is introduced;
 - application/api/persistence import directions remain valid.
@@ -434,7 +457,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit Task 5**
 
 ```bash
-git add apps/web/src/server/b4   "apps/web/src/app/api/v2/organizations/[orgId]/properties/[propertyId]/staff-assignments/[membershipId]/route.ts"   apps/web/src/server/b1/container.ts tests/architecture/b4-boundary.test.ts
+git add apps/web/src/server/b4   "apps/web/src/app/api/v2/organizations/[orgId]/properties/[propertyId]/staff-assignments/[membershipId]/route.ts"   apps/web/src/server/b1/container.ts tests/architecture/b4-boundary.test.ts tests/architecture/b1-boundary.test.ts
 git commit -m "feat: expose B4 assignment API"
 ```
 
@@ -443,7 +466,7 @@ git commit -m "feat: expose B4 assignment API"
 **Files:**
 - Create: `apps/web/tests/b1-e2e/b4-fixture.ts`
 - Create: `apps/web/tests/b1-e2e/b4.spec.ts`
-- Modify only if the existing result gate requires an explicit expected test classification/count: the narrow E2E result-gate file; do not lower existing assertions.
+- Modify: `apps/web/tests/b1-e2e/check-results.mjs` — extend the existing exact 51-case gate with the six B4 titles below, preserving all existing assertions/negative controls and adding one B4 removal negative control.
 
 **Interfaces:**
 - B4 E2E fixture creates:
@@ -454,16 +477,23 @@ git commit -m "feat: expose B4 assignment API"
 - Produce `createB4StaffSession(browser, adminFixture): Promise<B4StaffFixture>` inside `b4-fixture.ts`; it may use the existing test-only login role/session-cookie mechanism but must not modify production roster/profile APIs.
 - Produce `assignmentPath(f, membershipId, propertyId?, orgId?)` for only the exact composite resource.
 - Mutating helpers call PUT/DELETE with exact Origin + `x-b1-csrf` and no business body.
+- `b4.spec.ts` contains exactly six Playwright tests with these exact titles:
+  1. `B4 AC05-09 adminAssignmentLifecycle`
+  2. `B4 AC03 targetMembershipBoundary`
+  3. `B4 AC04 propertyBoundary`
+  4. `B4 AC02 staffVisibilityPrecedence`
+  5. `B4 AC13-14 staffReadThroughScope`
+  6. `B4 AC20 transportAndMethodBoundaries`
+- `check-results.mjs` appends those six titles to the existing 51-title required list (57 total required specs), keeps failed/skipped/retry/error rejection intact, and adds a negative control that removes `B4 AC05-09 adminAssignmentLifecycle` and must be rejected. The 57 count is a required-test inventory, not a coverage claim.
 
 - [ ] **Step 1: Write E2E RED tests for API state transitions**
 
-Required cases:
-- admin GET absent 404 → PUT 201/body → GET 200 → repeated PUT 200 → DELETE 204 → GET 404 → repeated DELETE 204;
-- DB readback proves one ACTIVE max and ENDED history retained;
-- reassignment creates new row id and preserves previous history bytes;
-- ORG_ADMIN/ENDED/foreign target membership 404;
-- foreign/archived Property 404;
-- assigned staff caller exact resource 403 only when Property is visible; unassigned peer Property 404.
+Required mapping:
+- `B4 AC05-09 adminAssignmentLifecycle`: admin GET absent 404 → PUT 201/body → GET 200 → repeated PUT 200 → DELETE 204 → GET 404 → repeated DELETE 204;
+  DB readback proves one ACTIVE max and ENDED history retained; reassignment creates a new row id and preserves previous history bytes.
+- `B4 AC03 targetMembershipBoundary`: ORG_ADMIN/ENDED/foreign target membership 404 with no mutation.
+- `B4 AC04 propertyBoundary`: foreign/archived Property 404 with no mutation.
+- `B4 AC02 staffVisibilityPrecedence`: assigned staff caller exact resource 403 only when Property is visible; unassigned peer Property 404.
 
 Run:
 
@@ -475,7 +505,7 @@ Expected: FAIL until route/container/fixtures are complete.
 
 - [ ] **Step 2: Add B2 read-through E2E**
 
-With the same target staff session:
+Implement `B4 AC13-14 staffReadThroughScope` with the same target staff session:
 - before B4 PUT, property list/detail denied/absent;
 - after admin PUT, exact Property and its Unit become visible through frozen B2/B3 reads;
 - peer Property stays denied;
@@ -484,7 +514,7 @@ With the same target staff session:
 
 - [ ] **Step 3: Add transport/negative E2E**
 
-Assert:
+Implement `B4 AC20 transportAndMethodBoundaries` and assert:
 - anonymous, bad Origin, missing/bad CSRF, malformed ids/query/body, POST/PATCH;
 - response/error body never includes staff user id, raw membership attributes, assignment row id or SQL;
 - no new UI link/page/roster appears.
@@ -495,12 +525,12 @@ Assert:
 npm run test:e2e:b1
 ```
 
-Expected: all B1/B2/B3/B4 cases PASS, failed=0, skipped=0, retries=0. Record actual counts; do not predeclare them as coverage.
+Expected: exact required inventory = 57 specs (existing 51 + six B4), all PASS, failed=0, skipped=0, retries=0; gate negative controls including the B4-removal control all reject. This count is not a coverage percentage.
 
 - [ ] **Step 5: Commit Task 6**
 
 ```bash
-git add apps/web/tests/b1-e2e/b4-fixture.ts apps/web/tests/b1-e2e/b4.spec.ts
+git add apps/web/tests/b1-e2e/b4-fixture.ts apps/web/tests/b1-e2e/b4.spec.ts apps/web/tests/b1-e2e/check-results.mjs
 git commit -m "test: cover B4 web postgres assignment flow"
 ```
 
