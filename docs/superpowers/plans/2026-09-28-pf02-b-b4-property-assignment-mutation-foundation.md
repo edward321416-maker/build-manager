@@ -219,7 +219,9 @@ In `b4-schema.test.ts` and `b4-capabilities.test.ts`, assert before implementati
 - missing/incorrect B4 owner makes 0009 fail closed on a fresh chain; the single migration invocation leaves no partial B4 objects;
 - upgrade failure is separate evidence: start from a successfully committed 0001–0008 database, make the B4 role contract missing/invalid, run the next migration, assert 0009 rolls back while all pre-existing B1/B2/B3 schema/functions/history remain intact;
 - migrations 0001–0008 SHA-256 remain unchanged;
-- expected three functions/policies/grants do not yet exist.
+- expected three functions/policies/grants do not yet exist;
+- the eventual GREEN catalog assertions inspect `pg_get_functiondef` for all three B4 routines and reject dynamic SQL (`EXECUTE` statements) or unqualified application-object references; helper/table references must remain schema-qualified;
+- the eventual GREEN catalog assertions prove the temporary B4-owner `CREATE` privilege on `authn` is revoked after function creation and no `CREATE` privilege on `app` is introduced.
 
 Run:
 
@@ -284,7 +286,7 @@ Run:
 npm run test:postgres -- tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts   tests/postgres/foundation.test.ts tests/postgres/b1-capabilities.test.ts   tests/postgres/b2-schema.test.ts tests/postgres/b2-capabilities.test.ts   tests/postgres/b3-schema.test.ts tests/postgres/b3-capabilities.test.ts
 ```
 
-Expected: PASS, including exact role attributes/membership, helper grantors/ACL, exact target-membership and assignment column ACLs (including denied user_id/assignment id reads), permissive/restrictive RLS catalog, no raw Web assignment privilege, migrations 0001–0008 hash preservation, fresh-chain rollback, upgrade-failure preservation, and existing PF02-A/B1/B2/B3 schema/capability regressions.
+Expected: PASS, including exact role attributes/membership, helper grantors/ACL, exact target-membership and assignment column ACLs (including denied user_id/assignment id reads), permissive/restrictive RLS catalog, no raw Web assignment privilege, no retained B4-owner schema CREATE privilege, SECURITY DEFINER bodies with schema-qualified application references and no dynamic SQL, migrations 0001–0008 hash preservation, fresh-chain rollback, upgrade-failure preservation, and existing PF02-A/B1/B2/B3 schema/capability regressions.
 
 - [ ] **Step 7: Commit Task 2**
 
@@ -464,6 +466,7 @@ Pin:
 - GET active 200 exact body; PUT created 201 + same-resource Location; PUT existing 200; DELETE 204 empty;
 - unsupported POST/PATCH/HEAD/OPTIONS →405 and exact `Allow: GET, PUT, DELETE`;
 - no error leaks SQL/target identity;
+- every success and error response, including 405/413/503 and DELETE 204, preserves the frozen private-cache contract: `Cache-Control: private, no-store, max-age=0` and `Vary: Cookie`;
 - injected `DEPENDENCY_UNAVAILABLE` from the B4 application/port maps to sanitized private 503 without automatic retry.
 
 Run:
@@ -487,6 +490,7 @@ Create exact route file. Modify container type to satisfy both existing B3 handl
 `b4-boundary.test.ts` must assert:
 - B4 server modules do not import `pg`, SQLite/demo persistence, fixtures, or Auth0 test utilities;
 - route/component layers contain no raw `property_assignment` SQL;
+- the production B4 persistence adapter is statically pinned to the three approved `authn.b4_*` function calls and contains no raw `app.property_assignment`, direct INSERT/UPDATE/DELETE, or alternate assignment query path;
 - `b1-boundary.test.ts` discovers exactly nine actual v2 handlers and includes the B4 route in both literal-runtime and literal-dynamic negative controls;
 - container creates one DB pool and no B4 database env;
 - no B4 UI/page directory or roster route is introduced;
