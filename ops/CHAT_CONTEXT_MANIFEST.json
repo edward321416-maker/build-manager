@@ -62,7 +62,7 @@
         "receipt": "ops/pf02_b_b3_low_remediation_acceptance.md",
         "review": "DELTA_ACCEPTED",
         "state": "ACCEPTED_AND_MERGED",
-        "note": "Targeted three findings resolved; retained MERGED_WITH_DISCLOSED_LOW describes PR42 integration plus PR45 remediation, not three still-open findings. Formal slice closure not performed."
+        "note": "Historical pre-closure state: targeted three findings resolved; MERGED_WITH_DISCLOSED_LOW described PR42 integration plus PR45 remediation before the later canonical B3 closure."
       },
       "accepted_candidate_head": "2252929b56f375a4fe8f19858c23b8d2e92c7845",
       "implementation_review": "NO_BLOCKING_FINDINGS",
