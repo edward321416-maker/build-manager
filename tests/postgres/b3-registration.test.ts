@@ -56,6 +56,30 @@ describe("B3 registration adapter", { concurrent: false }, () => {
     expect(meta.rows).toEqual([{ column_default: "transaction_timestamp()" }]);
   });
 
+  it("F01 newly registered Properties are unreadable across organizations in both directions", async () => {
+    const s = await seedB3Scope(h);
+    const propertyA = await h.registration.createProperty(s.adminA.digest, s.orgA, {
+      addressReference: "synthetic-f01-org-a",
+    });
+    const propertyB = await h.registration.createProperty(s.adminB.digest, s.orgB, {
+      addressReference: "synthetic-f01-org-b",
+    });
+
+    expect(propertyA.orgId).toBe(s.orgA);
+    expect(propertyB.orgId).toBe(s.orgB);
+    expect(propertyA.id).not.toBe(propertyB.id);
+    await expect(h.reader.getProperty(s.adminA.digest, s.orgA, propertyA.id)).resolves.toEqual(propertyA);
+    await expect(h.reader.getProperty(s.adminB.digest, s.orgB, propertyB.id)).resolves.toEqual(propertyB);
+
+    // Reject the exact new IDs under both the caller's org and the resource's owning org.
+    for (const orgId of [s.orgA, s.orgB]) {
+      await expect(h.reader.getProperty(s.adminB.digest, orgId, propertyA.id))
+        .rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(h.reader.getProperty(s.adminA.digest, orgId, propertyB.id))
+        .rejects.toMatchObject({ code: "NOT_FOUND" });
+    }
+  });
+
   it("AC02 staff cannot create Property in a visible organization", async () => {
     const s = await seedB3Scope(h);
     await expect(h.registration.createProperty(s.staffA.digest, s.orgA, { addressReference: "synthetic-staff-ref" }))
