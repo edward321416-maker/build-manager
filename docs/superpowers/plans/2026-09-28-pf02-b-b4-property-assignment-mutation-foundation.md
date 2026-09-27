@@ -218,8 +218,7 @@ Migration must:
 - add `b4_assignment_update_ceiling` as RESTRICTIVE UPDATE TO B4 owner with old-row `status='ACTIVE'` and new-row `status='ENDED' AND ended_at IS NOT NULL`;
 - add no DELETE policy/grant and do not add any PUBLIC B4 policy;
 - leave `bm_b1_web` with no raw assignment DML/read;
-- temporarily grant CREATE on authn to B4 owner, `SET LOCAL ROLE bm_b4_assignment_owner`, create the three B4 functions, `RESET ROLE`, revoke CREATE;
-- revoke PUBLIC EXECUTE and grant exact B4-function EXECUTE to Web;
+- temporarily grant CREATE on authn to B4 owner, `SET LOCAL ROLE bm_b4_assignment_owner`, create the three B4 functions, immediately REVOKE PUBLIC EXECUTE and GRANT exact B4-function EXECUTE to `bm_b1_web` while the function owner role is current, then `RESET ROLE` and revoke temporary CREATE;
 - keep PF02-A/B1/B2/B3 role ACL/policy definitions unchanged outside the explicit helper EXECUTE grants to the new B4 owner.
 
 - [ ] **Step 4: Implement exact SECURITY DEFINER semantics**
@@ -235,10 +234,10 @@ Within 0009:
 Run:
 
 ```bash
-npm run test:postgres -- tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts
+npm run test:postgres -- tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts   tests/postgres/foundation.test.ts tests/postgres/b1-capabilities.test.ts   tests/postgres/b2-schema.test.ts tests/postgres/b3-schema.test.ts tests/postgres/b3-capabilities.test.ts
 ```
 
-Expected: PASS, including exact role attributes/membership, helper grantors/ACL, exact target-membership and assignment column ACLs (including denied user_id/assignment id reads), permissive/restrictive RLS catalog, no raw Web assignment privilege, migrations 0001–0008 hash preservation, fresh-chain rollback and upgrade-failure preservation.
+Expected: PASS, including exact role attributes/membership, helper grantors/ACL, exact target-membership and assignment column ACLs (including denied user_id/assignment id reads), permissive/restrictive RLS catalog, no raw Web assignment privilege, migrations 0001–0008 hash preservation, fresh-chain rollback, upgrade-failure preservation, and existing PF02-A/B1/B2/B3 schema/capability regressions.
 
 - [ ] **Step 6: Commit Task 2**
 
@@ -417,7 +416,8 @@ Pin:
 - target membership 404 non-disclosure;
 - GET active 200 exact body; PUT created 201 + same-resource Location; PUT existing 200; DELETE 204 empty;
 - unsupported POST/PATCH→405 and Allow exact;
-- no error leaks SQL/target identity.
+- no error leaks SQL/target identity;
+- injected `DEPENDENCY_UNAVAILABLE` from the B4 application/port maps to sanitized private 503 without automatic retry.
 
 Run:
 
@@ -449,7 +449,7 @@ Run:
 
 ```bash
 npm --workspace @build-manager/web run test -- src/server/b4/http.test.ts
-npm run test:shared -- tests/architecture/b4-boundary.test.ts tests/architecture/b3-boundary.test.ts tests/architecture/import-boundaries.test.ts
+npm run test:shared -- tests/architecture/b4-boundary.test.ts tests/architecture/b1-boundary.test.ts   tests/architecture/b3-boundary.test.ts tests/architecture/import-boundaries.test.ts
 ```
 
 Expected: PASS.
@@ -519,10 +519,11 @@ Implement `B4 AC20 transportAndMethodBoundaries` and assert:
 - response/error body never includes staff user id, raw membership attributes, assignment row id or SQL;
 - no new UI link/page/roster appears.
 
-- [ ] **Step 4: Run full authenticated Web/PostgreSQL suite**
+- [ ] **Step 4: Run full authenticated Web/PostgreSQL suite and exact result gate**
 
 ```bash
 npm run test:e2e:b1
+node apps/web/tests/b1-e2e/check-results.mjs
 ```
 
 Expected: exact required inventory = 57 specs (existing 51 + six B4), all PASS, failed=0, skipped=0, retries=0; gate negative controls including the B4-removal control all reject. This count is not a coverage percentage.
@@ -555,10 +556,11 @@ Confirm:
 - [ ] **Step 2: Run focused suites**
 
 ```bash
-npm run test:shared -- packages/api-contracts/src/b4.test.ts packages/application/src/b4/property-assignment.test.ts   tests/architecture/b4-boundary.test.ts tests/architecture/b3-boundary.test.ts tests/architecture/import-boundaries.test.ts
+npm run test:shared -- packages/api-contracts/src/b4.test.ts packages/application/src/b4/property-assignment.test.ts   tests/architecture/b4-boundary.test.ts tests/architecture/b1-boundary.test.ts   tests/architecture/b3-boundary.test.ts tests/architecture/import-boundaries.test.ts
 npm run test:postgres -- tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts   tests/postgres/b4-assignment.test.ts tests/postgres/b4-concurrency.test.ts tests/postgres/b4-revocation.test.ts
 npm --workspace @build-manager/web run test -- src/server/b4/http.test.ts
 npm run test:e2e:b1
+node apps/web/tests/b1-e2e/check-results.mjs
 ```
 
 Expected: PASS.
@@ -576,6 +578,7 @@ npm run build:web
 npm run check:deps
 npm run test:e2e:web
 npm run test:e2e:b1
+node apps/web/tests/b1-e2e/check-results.mjs
 ```
 
 Expected: all applicable commands PASS. Preserve any pre-existing Local Mobile OPEN risk classification; do not reinterpret hosted green as root-cause resolution.
