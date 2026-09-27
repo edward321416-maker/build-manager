@@ -1,6 +1,6 @@
 # Pending external sync
 
-Status: **PARTIAL_SYNC**. Bootstrap originally had no callable Google Sheets/Drive integration, but the current session now has a connected Google Drive/Sheets transport. Verified PR48 correction/sync/cache events were written and read back; historical rows that still carry `sync_status=pending` remain queued. No credential values or browser stores were accessed.
+Status: **PARTIAL_SYNC**. On 2026-09-27, a connected Google Drive/Sheets transport was used for the verified PR48 correction/sync/cache events below. Historical rows that still carry `sync_status=pending` remain queued. Later tasks must verify their own authorized access before claiming sync. No credential values or browser stores were accessed.
 
 The append-only [local execution log](AI_Execution_Log.csv) remains the repository source. Rows with `sync_status=pending` remain queued unless a later append-only successor receipt marks that event synchronized. Current PR48 successor rows record verified Google synchronization; older pending rows are not retroactively rewritten. Sanitized tool/schema cache synchronization for the current task is verified separately below.
 
