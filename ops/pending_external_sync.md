@@ -4,7 +4,7 @@ Status: **PARTIAL_SYNC**. Bootstrap originally had no callable Google Sheets/Dri
 
 The append-only [local execution log](AI_Execution_Log.csv) remains the repository source. Rows with `sync_status=pending` remain queued unless a later append-only successor receipt marks that event synchronized. Current PR48 successor rows record verified Google synchronization; older pending rows are not retroactively rewritten. Sanitized tool/schema cache synchronization for the current task is verified separately below.
 
-To enable sync, the operator must provide an approved existing connection and designated sheet/folder access. A service account is one possible method, not a requirement; do not create credentials, connect accounts, expand scopes, or change IAM automatically. Keep destination configuration and authentication outside this public repository.
+For the remaining historical queue, use only the already approved connected transport and designated destinations when a later task explicitly reconciles those event IDs. Do not create credentials, connect additional accounts, expand scopes, or change IAM automatically. Keep destination configuration and authentication outside this public repository.
 
 When access exists: reconcile event_id before retrying uncertain appends, append sanitized rows to AI_Execution_Log using RAW cell input, verify the returned updated range, and record a receipt without rewriting historical rows. Store only reviewed non-secret custom schemas in the approved Drive folder; verify hash, version, and permissions. Never upload participant content, source logs, or credential-bearing configuration. Unknown acknowledgement remains pending until reconciled.
 
