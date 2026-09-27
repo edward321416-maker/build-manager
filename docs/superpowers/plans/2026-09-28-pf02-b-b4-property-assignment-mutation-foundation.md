@@ -50,6 +50,37 @@ Before any product implementation:
 
 PR #50/#51 Ready conversion or merge is a separate publication decision and never substitutes for product implementation authorization.
 
+## Spec Acceptance Ownership
+
+| Spec AC | Owning plan task(s) / evidence |
+| --- | --- |
+| AC01 | Task 1 contract; Task 5 HTTP/method/body tests; Task 6 actual route E2E |
+| AC02 | Task 3 adapter precedence; Task 5 HTTP auth precedence; Task 6 E2E |
+| AC03 | Task 2 membership RLS/ACL; Task 3 adapter; Task 6 targetMembershipBoundary |
+| AC04 | Task 3 adapter; Task 6 propertyBoundary |
+| AC05 | Task 3 state/history; Task 5 HTTP 201 body/Location; Task 6 lifecycle |
+| AC06 | Task 3 idempotency; Task 4 PUT/PUT; Task 6 lifecycle |
+| AC07 | Task 3 history; Task 6 lifecycle |
+| AC08 | Task 2 UPDATE boundary; Task 3 history; Task 4 DELETE/DELETE; Task 6 lifecycle |
+| AC09 | Task 3 adapter; Task 5 GET; Task 6 lifecycle |
+| AC10 | Task 4 real dual-connection PUT/PUT |
+| AC11 | Task 4 DELETE/DELETE + PUT/DELETE |
+| AC12 | Task 2 decisive SQL predicates; Task 4 revocation barriers |
+| AC13 | Task 4 B2 read revocation; Task 6 staffReadThroughScope |
+| AC14 | Task 6 staffReadThroughScope |
+| AC15 | Task 2 ACL/catalog; Task 5 architecture/container |
+| AC16 | Task 2 role provisioning/catalog |
+| AC17 | Task 2 function owner/config/ACL |
+| AC18 | Task 2 RLS/catalog regression |
+| AC19 | Task 2 frozen hashes + fresh/upgrade atomicity; Task 7 frozen-path verification |
+| AC20 | Task 5 HTTP transport/error tests; Task 6 transportAndMethodBoundaries |
+| AC21 | Task 5 architecture boundaries; Task 6 E2E gate; Task 7 full regression |
+| AC22 | Task 4 unknown-COMMIT/reconciliation; Task 5 sanitized 503 |
+| AC23 | Task 5 architecture test; Task 7 diff/security verification |
+| AC24 | Task 7 repository safety/public-history gates |
+
+The ownership table is traceability only. It does not mark any B4 runtime AC PASS before implementation evidence exists.
+
 ## Review Focus
 
 1. **Forged or stale target membership:** a valid UUID pointing to foreign, ENDED, or ORG_ADMIN membership must return 404 and never mutate. Task 2/3 tests pin this.
@@ -402,7 +433,7 @@ git commit -m "test: prove B4 assignment boundaries"
   - any actual body byte → INVALID_INPUT and cancel stream promptly;
   - malformed Content-Length → INVALID_INPUT.
 - Existing constant-time CSRF semantics are copied into B4 server boundary or factored only if B3 behavior remains byte/behavior compatible; do not refactor B3 merely for style.
-- Route sets `runtime="nodejs"`, `dynamic="force-dynamic"`; it explicitly exports GET/PUT/DELETE **and** POST/PATCH dispatchers so unsupported POST/PATCH reach the B4 handler and receive deterministic custom 405 with exact `Allow: GET, PUT, DELETE` (matching the existing B3 route pattern).
+- Route sets `runtime="nodejs"`, `dynamic="force-dynamic"`; it explicitly exports GET/PUT/DELETE and also POST/PATCH/HEAD/OPTIONS dispatchers so every unsupported method reaches the B4 handler and receives deterministic custom 405 with exact `Allow: GET, PUT, DELETE`. Do not rely on Next.js automatic OPTIONS handling for this exact-method contract.
 - Container adds one `assignments:createPropertyAssignmentMutationPort(database)` on the existing single B1 Web database handle; no B4 DATABASE_URL.
 - Existing architecture route inventory must contain exactly nine v2 route files after B4; the ninth is `organizations/[orgId]/properties/[propertyId]/staff-assignments/[membershipId]`.
 
@@ -415,7 +446,7 @@ Pin:
 - assigned staff visible Property→403; unassigned/foreign Property→404;
 - target membership 404 non-disclosure;
 - GET active 200 exact body; PUT created 201 + same-resource Location; PUT existing 200; DELETE 204 empty;
-- unsupported POST/PATCH→405 and Allow exact;
+- unsupported POST/PATCH/HEAD/OPTIONS →405 and exact `Allow: GET, PUT, DELETE`;
 - no error leaks SQL/target identity;
 - injected `DEPENDENCY_UNAVAILABLE` from the B4 application/port maps to sanitized private 503 without automatic retry.
 
@@ -515,7 +546,7 @@ Implement `B4 AC13-14 staffReadThroughScope` with the same target staff session:
 - [ ] **Step 3: Add transport/negative E2E**
 
 Implement `B4 AC20 transportAndMethodBoundaries` and assert:
-- anonymous, bad Origin, missing/bad CSRF, malformed ids/query/body, POST/PATCH;
+- anonymous, bad Origin, missing/bad CSRF, malformed ids/query/body, and unsupported POST/PATCH/HEAD/OPTIONS;
 - response/error body never includes staff user id, raw membership attributes, assignment row id or SQL;
 - no new UI link/page/roster appears.
 
