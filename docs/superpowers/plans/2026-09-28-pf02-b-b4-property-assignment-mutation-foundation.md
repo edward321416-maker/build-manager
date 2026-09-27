@@ -12,6 +12,7 @@
 
 ## Global Constraints
 
+- Current B4 product runtime = **NOT_RUN**. Plan/spec CI is documentation/regression evidence only and must not be represented as B4 runtime evidence.
 - POLICY_REF for execution starts from live `main`; the approved spec is the B4 behavior authority. Do not silently retarget either ref.
 - B1/B2/B3 remain FROZEN except for the exact additive B4 integration points named in this plan.
 - Migrations `0001`–`0008` stay byte-identical. Add only `0009_b4_property_assignment_mutation.sql`.
