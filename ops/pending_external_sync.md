@@ -1,10 +1,10 @@
 # Pending external sync
 
-Status: **PENDING**. No callable Google Sheets/Drive integration or designated spreadsheet/folder was available at bootstrap. Environment-variable-name inspection found no GOOGLE_APPLICATION_CREDENTIALS, GOOGLE_SHEET_ID, or GOOGLE_DRIVE_FOLDER_ID; credential values and browser stores were not accessed. This is not proof that the operator has no Google account or credentials elsewhere.
+Status: **PARTIAL_SYNC**. On 2026-09-27, a connected Google Drive/Sheets transport was used for the verified PR48 correction/sync/cache events below. Historical rows that still carry `sync_status=pending` remain queued. Later tasks must verify their own authorized access before claiming sync. No credential values or browser stores were accessed.
 
-The append-only [local execution log](AI_Execution_Log.csv) is the durable source. Every row with `sync_status=pending` is queued by event_id. No Google synchronization is claimed. No custom plugin schema was downloaded.
+The append-only [local execution log](AI_Execution_Log.csv) remains the repository source. Rows with `sync_status=pending` remain queued unless a later append-only successor receipt marks that event synchronized. Current PR48 successor rows record verified Google synchronization; older pending rows are not retroactively rewritten. Sanitized tool/schema cache synchronization for the current task is verified separately below.
 
-To enable sync, the operator must provide an approved existing connection and designated sheet/folder access. A service account is one possible method, not a requirement; do not create credentials, connect accounts, expand scopes, or change IAM automatically. Keep destination configuration and authentication outside this public repository.
+For the remaining historical queue, use only the already approved connected transport and designated destinations when a later task explicitly reconciles those event IDs. Do not create credentials, connect additional accounts, expand scopes, or change IAM automatically. Keep destination configuration and authentication outside this public repository.
 
 When access exists: reconcile event_id before retrying uncertain appends, append sanitized rows to AI_Execution_Log using RAW cell input, verify the returned updated range, and record a receipt without rewriting historical rows. Store only reviewed non-secret custom schemas in the approved Drive folder; verify hash, version, and permissions. Never upload participant content, source logs, or credential-bearing configuration. Unknown acknowledgement remains pending until reconciled.
 
@@ -211,3 +211,27 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Earlier uncommitted Web-test preparation was superseded by the operator's PostgreSQL-only instruction and restored to exact base bytes. Its separate local receipts are preserved; they are not final-candidate runtime evidence. No Web/API, product, migration, policy/grant, dependency or workflow change. No new local Mobile execution or diagnosis.
 - F01/F43 remain canonical NOT_RUN. This candidate supplies only the missing direct evidence; fixed-head evidence reconciliation and separate acceptance remain necessary. F43 search, B3 closure/VERIFIED/FROZEN, Mobile-risk resolution and later slices are not performed. Local Mobile remains FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED; existing operational/dependency risks remain open.
 - EXTERNAL_SYNC=PENDING. Google Sheets/Drive, account/OAuth/IAM and provider writes=0. Publication/CI events after candidate freeze go to the PR/private pending queue without a log-only candidate commit. Stop at OPEN / DRAFT / NOT_MERGED.
+
+## 2026-09-27 F01 canonical promotion documentation candidate
+
+- Event `F01-PROMOTION-DOCS-CANDIDATE-20260927` at `2026-09-27T10:00:12.870839+00:00`; sync_status=pending; tokens=unknown. POLICY_REF / DOCS_BASE `6706afe3a2cc5bdd2fd7204ce7944fafdd422065`.
+- [Promotion receipt](pf02_b_f01_promotion_acceptance.md) links the directly verified Opus fixed-head reconciliation (11,968 bytes; SHA-256 `257b33138247049937d5ae5814f68ad7329d53a37e9deeb7453fffa6b0fb03dd`), PR47 merged evidence and its push/main CI 9/9. Candidate registry changes F01 status/evidence only; F43 and all other F-cases are preserved.
+- PR46 documentation and PR47 direct evidence are completed history. Current additional product task NONE_AUTHORIZED; B3 MERGED_WITH_DISCLOSED_LOW and Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED remain unchanged. No local runtime rerun, B3 closure or merge.
+- Documentation validation, commit/push, Draft PR and exact-head CI results are recorded after execution in the PR/private receipt. Stop OPEN / DRAFT / NOT_MERGED / INDEPENDENT_REVIEW_PENDING.
+- Google Sheets/Drive writes=0; OAuth/IAM/provider changes=0; EXTERNAL_SYNC=PENDING. No external account change.
+
+## 2026-09-27 PR48 F01 canonical consistency correction
+
+- Event `PR48-F01-CANONICAL-CONSISTENCY-FIX-20260927` at `2026-09-27T11:37:38.546Z`; sync_status=pending; tokens=unknown.
+- Independent review of PR48 HEAD `ec3f12834b1caa4c76d085ea5bc9d29e350b4180` found two HIGH documentation consistency issues only: the F01 registry note retained temporary candidate/review language, and the current-facing production-foundation README/SHA256 manifest still described the pre-F01 snapshot.
+- Correction removes lifecycle status from canonical F01 evidence text, advances the production-foundation README/SHA256 manifest to revision 1.2, freshly hashes all 12 governed UTF-8 files, and updates the F01 receipt. F01 evidence itself is unchanged; F43 NOT_RUN, B3 MERGED_WITH_DISCLOSED_LOW, local Mobile OPEN, current product task NONE_AUTHORIZED.
+- Product/source/SQL/migration/test/workflow/dependency/provider changes=0; product runtime rerun=0. PR publication/CI and delta-review results follow on the PR/private receipt.
+- Google Sheets/Drive write is not yet claimed here; OAuth/IAM/provider changes=0; EXTERNAL_SYNC=PENDING until a verified external write/readback occurs.
+
+## 2026-09-27 PR48 verified external synchronization
+
+- `PR48-F01-CANONICAL-CONSISTENCY-FIX-20260927` was written to the configured Google execution log and read back at row 7.
+- Successor `PR48-F01-CANONICAL-CONSISTENCY-FIX-SYNC-20260927` was written/read back at row 8 and marks the predecessor's sync as verified without rewriting its historical repository row.
+- `PR48-F01-SCHEMA-CACHE-SYNC-20260927` was written/read back at row 9. The sanitized `build-manager_tool_schema_cache_2026-09-27` document was created, moved into the configured Drive cache folder, content-read back, and folder-list read back. No secrets, tokens, cookies, credentials or personal data are present.
+- `PR48-COORDINATOR-DELTA-REVIEW-SKILL-20260927` was written/read back at row 10 after loading the code-review skill and confirming that no independent reviewer subagent dispatch tool is available in this session.
+- These verified writes change current external-sync state to PARTIAL_SYNC only. Historical rows still marked pending remain queued; no bulk backfill is claimed. OAuth/IAM/provider changes=0.
