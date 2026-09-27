@@ -188,7 +188,8 @@ git commit -m "feat: define B4 assignment contracts"
 - Create: `tests/postgres/b4-schema.test.ts`
 - Create: `tests/postgres/b4-capabilities.test.ts`
 - Modify: `tests/postgres/b1-capabilities.test.ts` — keep the frozen B1 authn-function owner assertion scoped to non-B4 functions; B4 function owner/ACL is asserted exactly in `b4-capabilities.test.ts`
-- Modify: `tests/postgres/b2-capabilities.test.ts` — keep frozen B1/B2 membership/policy inventory scoped away from exact `bm_b4_assignment_owner` / `b4_*` additions; B4 membership/policies are asserted exactly in `b4-capabilities.test.ts`
+- Modify: `tests/postgres/b2-capabilities.test.ts` — keep frozen B1/B2 membership/policy inventory scoped away from exact `bm_b4_assignment_owner` / `b4_*` additions; for frozen `can_read_property`, allow exactly one new non-grantable EXECUTE grantee `bm_b4_assignment_owner`
+- Modify: `tests/postgres/b3-capabilities.test.ts` — preserve frozen `can_administer_org` owner/body/config/policies while allowing exactly one new non-grantable EXECUTE grantee `bm_b4_assignment_owner`
 
 **Interfaces:**
 - `B4_ASSIGNMENT_OWNER = "bm_b4_assignment_owner"`.
@@ -269,14 +270,16 @@ Within 0009:
 Update only the additive-slice boundaries:
 - in `b1-capabilities.test.ts`, exclude only `authn.b4_*` functions from the historical B1 owner/config loop; do not change any B1 function expectation;
 - in `b2-capabilities.test.ts`, exclude only the exact `bm_b4_assignment_owner` membership row from the historical B1/B2 membership equality and exclude only `b4_*` policies from the historical B1/B2 policy inventory;
-- add comments routing those exclusions to `b4-capabilities.test.ts`; do not relax any privilege/role/policy assertion for existing B1/B2 objects.
+- in the same B2 test, keep every frozen helper ACL exact and change only `can_read_property` executor expectation from `[bm_b1_capability_owner,bm_b1_web]` to `[bm_b1_capability_owner,bm_b1_web,bm_b4_assignment_owner]`, with the B4 grant non-grantable;
+- in `b3-capabilities.test.ts`, add B4 owner to the explicit privilege matrix for `can_administer_org` with EXECUTE=true and to the exact ACL rows with grantor=`bm_b1_capability_owner`, is_grantable=false; keep owner, volatility, SECURITY DEFINER config and all B3 policies unchanged;
+- add comments routing all B4 additions to `b4-capabilities.test.ts`; do not relax any privilege/role/policy assertion for existing B1/B2/B3 objects.
 
 - [ ] **Step 6: Verify migration/catalog tests GREEN**
 
 Run:
 
 ```bash
-npm run test:postgres -- tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts   tests/postgres/foundation.test.ts tests/postgres/b1-capabilities.test.ts   tests/postgres/b2-schema.test.ts tests/postgres/b3-schema.test.ts tests/postgres/b3-capabilities.test.ts
+npm run test:postgres -- tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts   tests/postgres/foundation.test.ts tests/postgres/b1-capabilities.test.ts   tests/postgres/b2-schema.test.ts tests/postgres/b2-capabilities.test.ts   tests/postgres/b3-schema.test.ts tests/postgres/b3-capabilities.test.ts
 ```
 
 Expected: PASS, including exact role attributes/membership, helper grantors/ACL, exact target-membership and assignment column ACLs (including denied user_id/assignment id reads), permissive/restrictive RLS catalog, no raw Web assignment privilege, migrations 0001–0008 hash preservation, fresh-chain rollback, upgrade-failure preservation, and existing PF02-A/B1/B2/B3 schema/capability regressions.
@@ -284,7 +287,7 @@ Expected: PASS, including exact role attributes/membership, helper grantors/ACL,
 - [ ] **Step 7: Commit Task 2**
 
 ```bash
-git add packages/persistence-postgres/src/testing/b4-roles.ts   packages/persistence-postgres/src/testing/roles.ts packages/persistence-postgres/src/testing/index.ts   packages/persistence-postgres/migrations/0009_b4_property_assignment_mutation.sql   tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts   tests/postgres/b1-capabilities.test.ts tests/postgres/b2-capabilities.test.ts
+git add packages/persistence-postgres/src/testing/b4-roles.ts   packages/persistence-postgres/src/testing/roles.ts packages/persistence-postgres/src/testing/index.ts   packages/persistence-postgres/migrations/0009_b4_property_assignment_mutation.sql   tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts   tests/postgres/b1-capabilities.test.ts tests/postgres/b2-capabilities.test.ts   tests/postgres/b3-capabilities.test.ts
 git commit -m "feat: add B4 assignment command boundary"
 ```
 
@@ -306,7 +309,7 @@ git commit -m "feat: add B4 assignment command boundary"
   - GET ACTIVE → `{assigned:true}`; ABSENT/NOT_FOUND → NOT_FOUND; FORBIDDEN → FORBIDDEN.
   - ENSURE CREATED → `{assigned:true,created:true}`; EXISTS → `{assigned:true,created:false}`; NOT_FOUND/FORBIDDEN map to B4 errors.
   - END ENDED/ABSENT → void; NOT_FOUND/FORBIDDEN map to B4 errors.
-- PostgreSQL `28000`/B1 unauthenticated maps to B4 UNAUTHENTICATED; unexpected errors map to DEPENDENCY_UNAVAILABLE.
+- B1 `UNAUTHENTICATED` and PostgreSQL `28000` map to B4 UNAUTHENTICATED; B1 `NOT_FOUND` from `withB1OrgTransaction` maps to B4 NOT_FOUND; fixed B4 function results map as above; all other unexpected database/transaction errors, including uncertain COMMIT cleanup aggregates, map to DEPENDENCY_UNAVAILABLE.
 
 - [ ] **Step 1: Create B4 fixture and adapter RED tests**
 
