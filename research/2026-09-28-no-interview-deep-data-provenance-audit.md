@@ -6,7 +6,7 @@ Can the S1–S6 no-interview evidence stack support the current architecture/wor
 
 ## Claims and types
 
-This audit registers CLM-015 through CLM-031. CLM-015, CLM-016, CLM-020, CLM-023 and CLM-027 through CLM-031 are factual statements about the inspected artifacts or cited literature. CLM-017 through CLM-019, CLM-021, CLM-022, CLM-024 and CLM-026 are research-boundary decisions. CLM-025 remains TO VERIFY.
+This audit registers CLM-015 through CLM-035. CLM-015, CLM-016, CLM-020, CLM-023, CLM-027 through CLM-034 are factual statements about the inspected artifacts or cited literature. CLM-017 through CLM-019, CLM-021, CLM-022, CLM-024, CLM-026 and CLM-035 are research-boundary decisions. CLM-025 remains TO VERIFY.
 
 ## Method and inclusion/exclusion criteria
 
