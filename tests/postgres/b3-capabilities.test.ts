@@ -23,12 +23,13 @@ it("AC17 exposes the exact B3 admin capability contract", async () => {
       CASE WHEN fn.oid IS NULL THEN false
            ELSE has_function_privilege(role_name,fn.oid,'EXECUTE') END AS execute
     FROM fn CROSS JOIN (VALUES
-      ('bm_b1_capability_owner'),('bm_b1_web'),('bm_b1_login'),('bm_pf02a_runtime')
+      ('bm_b1_capability_owner'),('bm_b1_web'),('bm_b1_login'),('bm_pf02a_runtime'),('bm_b4_assignment_owner')
     ) roles(role_name) ORDER BY role_name`);
   expect(privileges.rows).toEqual([
     { role_name: "bm_b1_capability_owner", execute: true },
     { role_name: "bm_b1_login", execute: false },
     { role_name: "bm_b1_web", execute: true },
+    { role_name: "bm_b4_assignment_owner", execute: true },
     { role_name: "bm_pf02a_runtime", execute: false },
   ]);
   // A NULL ACL means PostgreSQL's default function ACL (including PUBLIC EXECUTE),
@@ -44,7 +45,8 @@ it("AC17 exposes the exact B3 admin capability contract", async () => {
     WHERE p.oid=to_regprocedure('authn.can_administer_org(bytea,uuid)')
     ORDER BY grantee,grantor,a.privilege_type,a.is_grantable`);
   // 0008 creates the function as capability owner, revokes PUBLIC and grants Web EXECUTE.
-  const expectedAcl = ["bm_b1_capability_owner", "bm_b1_web"].map(grantee => ({
+  // B4 adds only this non-grantable helper EXECUTE; B4 catalog lives in b4-capabilities.test.ts.
+  const expectedAcl = ["bm_b1_capability_owner", "bm_b1_web", "bm_b4_assignment_owner"].map(grantee => ({
     default_acl: false, grantee, grantor: "bm_b1_capability_owner", privilege_type: "EXECUTE", is_grantable: false,
   }));
   const assertAcl = (rows: typeof acl.rows) => expect(rows).toEqual(expectedAcl);
