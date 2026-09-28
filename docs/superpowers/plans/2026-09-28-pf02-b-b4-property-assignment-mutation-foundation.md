@@ -14,7 +14,7 @@
 
 - Current B4 product runtime = **NOT_RUN**. Plan/spec CI is documentation/regression evidence only and must not be represented as B4 runtime evidence.
 - POLICY_REF for execution starts from live `main`; the approved spec is the B4 behavior authority. Do not silently retarget either ref.
-- B1/B2/B3 remain FROZEN except for the exact additive B4 integration points named in this plan.
+- B1/B2/B3 remain FROZEN except for the exact additive B4 integration points named in this plan. The shared `packages/persistence-postgres/src/transaction.ts` is frozen for B4; unknown-COMMIT fault injection must stay test-only in `tests/postgres/helpers/b4-fixture.ts`.
 - Migrations `0001`–`0008` stay byte-identical. Add only `0009_b4_property_assignment_mutation.sql`.
 - Frozen migration SHA-256 preconditions:
   - `0001_core_identity_organization.sql` = `e10a8d4acd3d11fb3bf90b05d3f123081f6ee4a29d325b0b669a56f819b261f1`
@@ -221,7 +221,8 @@ In `b4-schema.test.ts` and `b4-capabilities.test.ts`, assert before implementati
 - migrations 0001–0008 SHA-256 remain unchanged;
 - expected three functions/policies/grants do not yet exist;
 - the eventual GREEN catalog assertions inspect `pg_get_functiondef` for all three B4 routines and reject dynamic SQL (`EXECUTE` statements) or unqualified application-object references; helper/table references must remain schema-qualified;
-- the eventual GREEN catalog assertions prove the temporary B4-owner `CREATE` privilege on `authn` is revoked after function creation and no `CREATE` privilege on `app` is introduced.
+- the eventual GREEN catalog assertions prove the temporary B4-owner `CREATE` privilege on `authn` is revoked after function creation and no `CREATE` privilege on `app` is introduced;
+- the eventual GREEN catalog assertions prove there is **no status-based RESTRICTIVE SELECT ceiling** on `app.property_assignment` for the B4 owner. B4 assignment SELECT RLS is current-org scope only; ACTIVE-only business eligibility stays in the B4 function predicates and mutation ceilings.
 
 Run:
 
@@ -253,7 +254,7 @@ Migration must:
 - add `b4_assignment_select_scope` as PERMISSIVE SELECT TO B4 owner with current-org USING;
 - add `b4_assignment_insert_scope` as PERMISSIVE INSERT TO B4 owner with current-org WITH CHECK;
 - add `b4_assignment_update_scope` as PERMISSIVE UPDATE TO B4 owner with current-org USING/WITH CHECK;
-- add `b4_assignment_select_ceiling` as RESTRICTIVE SELECT TO B4 owner with `status='ACTIVE'`;
+- add **no status-based RESTRICTIVE SELECT policy** on `app.property_assignment` for the B4 owner; `b4_assignment_select_scope` is the B4 owner's assignment SELECT policy. This is intentional because PostgreSQL 18 applies required SELECT policies to the proposed new row of an UPDATE; a `status='ACTIVE'` SELECT ceiling would reject the approved ACTIVE→ENDED transition. ACTIVE-only eligibility is enforced by the B4 function predicates, while the UPDATE ceiling below enforces old ACTIVE → new ENDED;
 - add `b4_assignment_insert_ceiling` as RESTRICTIVE INSERT TO B4 owner with `status='ACTIVE' AND ended_at IS NULL`;
 - add `b4_assignment_update_ceiling` as RESTRICTIVE UPDATE TO B4 owner with old-row `status='ACTIVE'` and new-row `status='ENDED' AND ended_at IS NOT NULL`;
 - add **no DELETE policy of any kind**, no DELETE grant, and no PUBLIC B4 policy;
@@ -286,7 +287,7 @@ Run:
 npm run test:postgres -- tests/postgres/b4-schema.test.ts tests/postgres/b4-capabilities.test.ts   tests/postgres/foundation.test.ts tests/postgres/b1-capabilities.test.ts   tests/postgres/b2-schema.test.ts tests/postgres/b2-capabilities.test.ts   tests/postgres/b3-schema.test.ts tests/postgres/b3-capabilities.test.ts
 ```
 
-Expected: PASS, including exact role attributes/membership, helper grantors/ACL, exact target-membership and assignment column ACLs (including denied user_id/assignment id reads), permissive/restrictive RLS catalog, no raw Web assignment privilege, no retained B4-owner schema CREATE privilege, SECURITY DEFINER bodies with schema-qualified application references and no dynamic SQL, migrations 0001–0008 hash preservation, fresh-chain rollback, upgrade-failure preservation, and existing PF02-A/B1/B2/B3 schema/capability regressions.
+Expected: PASS, including exact role attributes/membership, helper grantors/ACL, exact target-membership and assignment column ACLs (including denied user_id/assignment id/ended_at reads), permissive/restrictive RLS catalog with **no status-based assignment SELECT ceiling**, hostile B4-owner probes proving ENDED→ACTIVE UPDATE and ENDED INSERT remain denied, no raw Web assignment privilege, no retained B4-owner schema CREATE privilege, SECURITY DEFINER bodies with schema-qualified application references and no dynamic SQL, migrations 0001–0008 hash preservation, fresh-chain rollback, upgrade-failure preservation, and existing PF02-A/B1/B2/B3 schema/capability regressions.
 
 - [ ] **Step 7: Commit Task 2**
 
@@ -327,7 +328,7 @@ git commit -m "feat: add B4 assignment command boundary"
 Tests must pin Review Focus #1/#2:
 - admin first PUT CREATED then repeated PUT EXISTS with one ACTIVE row;
 - GET ACTIVE vs ABSENT;
-- DELETE ENDED then repeated ABSENT/void; row retained and ended_at set;
+- DELETE ENDED then repeated ABSENT/void; row retained and ended_at set; this test must execute against the final exact 0009 RLS catalog and explicitly prove the ACTIVE→ENDED transition succeeds rather than failing a SELECT-policy new-row check;
 - reassignment after end creates a different row and preserves old bytes;
 - foreign/ended/admin target membership 404 with unchanged snapshot;
 - assigned staff on visible Property → 403; unassigned staff on hidden Property → 404;
@@ -368,7 +369,7 @@ git commit -m "feat: add B4 assignment persistence"
 - Create: `tests/postgres/b4-concurrency.test.ts`
 - Create: `tests/postgres/b4-revocation.test.ts`
 - Modify: `tests/postgres/helpers/b4-fixture.ts`
-- Modify only if needed for generic transaction failure observation: existing focused persistence transaction helper; do not change timeout/retry policy.
+- **Frozen / do not modify:** `packages/persistence-postgres/src/transaction.ts`. Unknown-COMMIT observation must use a test-only `Client.prototype.query` gate in `tests/postgres/helpers/b4-fixture.ts`, following the existing B3 `gateB3Query` pattern; do not change production transaction, timeout, retry, commit, rollback, or release semantics.
 
 **Interfaces:**
 - Reuse explicit two-connection/barrier style from B2/B3; no elapsed sleeps as correctness evidence.
@@ -415,7 +416,7 @@ Expected: PASS.
 
 - [ ] **Step 4: Add unknown-COMMIT RED/GREEN test**
 
-Instrument the same connection/transaction boundary used by B4 so COMMIT delivery becomes uncertain after the mutation command. Assert:
+Instrument the same connection/transaction boundary used by B4 with a **test-only gate in `b4-fixture.ts`** so COMMIT delivery becomes uncertain after the mutation command. Do not modify `packages/persistence-postgres/src/transaction.ts`. Assert:
 - adapter returns DEPENDENCY_UNAVAILABLE;
 - mutation is not automatically reissued;
 - no claim of rollback;
@@ -600,6 +601,7 @@ git commit -m "test: cover B4 web postgres assignment flow"
 
 Confirm:
 - migrations 0001–0008 byte-identical to approved baseline;
+- `packages/persistence-postgres/src/transaction.ts` byte-identical to the execution baseline;
 - no Product/Occupancy/Ticket/Mobile/provider/hosting/credential files changed outside named B4 integration/test paths;
 - no staff roster/UI route;
 - no package/lock/workflow changes except the explicitly approved `packages/persistence-postgres/package.json` `./b4` export; no dependency/version/lockfile/workflow drift.
