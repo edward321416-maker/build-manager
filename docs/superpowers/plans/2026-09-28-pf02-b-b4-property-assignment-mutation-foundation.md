@@ -468,7 +468,7 @@ Pin:
 - GET active 200 exact body; PUT created 201 + same-resource Location; PUT existing 200; DELETE 204 empty;
 - supported-but-disallowed POST/PATCH/HEAD/OPTIONS → custom 405 and exact `Allow: GET, PUT, DELETE`; one method outside Next.js's supported Route Handler set (for example TRACE sent with a raw Node HTTP request rather than Fetch) → framework 405 only, with no B4 custom-header claim;
 - no error leaks SQL/target identity;
-- every success and error response, including 405/413/503 and DELETE 204, preserves the frozen private-cache contract: `Cache-Control: private, no-store, max-age=0` and `Vary: Cookie`;
+- every **B4-handler** success and error response, including the custom supported-method 405 plus 413/503 and DELETE 204, preserves the frozen private-cache contract: `Cache-Control: private, no-store, max-age=0` and `Vary: Cookie`; the framework 405 for methods outside Next.js's supported Route Handler method set is only required to be 405 and is outside the B4 custom-header contract;
 - injected `DEPENDENCY_UNAVAILABLE` from the B4 application/port maps to sanitized private 503 without automatic retry.
 
 Run:
