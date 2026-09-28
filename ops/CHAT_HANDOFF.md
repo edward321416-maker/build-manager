@@ -65,7 +65,8 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B / B1 | VERIFIED / FROZEN | `ops/pf02_b_b1_acceptance.md` |
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
 | PF02-B / B3 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b3_closure.md); implementation/remediation/F01 evidence accepted and published; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed |
-| Beyond B3 | NOT_STARTED / NOT_YET_SCOPED | — |
+| PF02-B / B4 | IN_PROGRESS / IMPLEMENTATION AUTHORIZED | Written spec PR #50 and plan PR #51 are MERGED/CANONICAL on `b411affe30111ecc68c1d99f213f92d845492b96`; bounded product implementation authorized, runtime/acceptance NOT_RUN |
+| Beyond B4 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
 `docs/production-foundation/README.md`, `docs/production-foundation/00_foundation_blueprint.md`,
@@ -187,13 +188,13 @@ current canonical documents.
 
 ## Current authorized next task
 
-**CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED.**
+**CURRENT ADDITIONAL PRODUCT TASK = PF02-B/B4 PRODUCT IMPLEMENTATION EXECUTION — AUTHORIZED / IN_PROGRESS.**
 
-PF02-B / B3 — ORG_ADMIN Building Registration Foundation is **VERIFIED / FROZEN**. The [canonical closure receipt](pf02_b_b3_closure.md) routes to the accepted implementation, targeted remediation, F01 evidence/promotion and retained risks. Historical implementation/remediation/plan receipts retain their own snapshots; do not rewrite or restart them.
+PF02-B / B3 — ORG_ADMIN Building Registration Foundation remains **VERIFIED / FROZEN**. PF02-B / B4 — Property Assignment Mutation Foundation now has canonical written spec and implementation plan on `main` `b411affe30111ecc68c1d99f213f92d845492b96` after PR #50/#51 publication. Bounded B4 product implementation is operator-authorized against the canonical plan on execution branch `feat/pf02-b-b4-property-assignment-mutation`. This is implementation authority only: B4 runtime/acceptance remains NOT_RUN and Ready/merge/canonical B4 closure are not authorized.
 
 **F01 = PASS_POSTGRES_INTEGRATION; F43 = NOT_RUN.** F43 requires address/reference search not implemented by B3, so its NOT_RUN status is compatible with B3 closure. B3D-L01/L02, the separate AC04 PG-layer 513-code-point rejection NOT_RUN, Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED and broader operational/security/privacy backlog remain disclosed. These are retained risks/limits, not authorization to reopen the frozen slice.
 
-No later PF02-B slice is currently scoped, planned or implementation-authorized. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. The next consequential product action requires separate operator scope and approval; do not infer B4/PF02-C, F43 search or any other follow-on implementation from B3 closure.
+No slice beyond B4 is currently scoped, planned or implementation-authorized. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. PF02-C / Occupancy / Resident Invitation, F43 search, staff onboarding/roster/UI, membership mutation, provider/IAM and other follow-on work must not be inferred from B4 authorization. For current B4 implementation HEAD/runtime evidence, read the live execution branch/PR rather than this routing summary.
 
 ## Private artifact rule
 

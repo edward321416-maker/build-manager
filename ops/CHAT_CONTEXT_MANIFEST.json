@@ -74,7 +74,19 @@
       "implementation_authorized": true,
       "implementation_plan_authorized": true
     },
-    "PF02-B/later_slices": "BEYOND_B3_NOT_STARTED_NOT_YET_SCOPED",
+    "PF02-B/B4": {
+      "state": "IN_PROGRESS_IMPLEMENTATION_AUTHORIZED",
+      "canonical_main": "b411affe30111ecc68c1d99f213f92d845492b96",
+      "approved_spec": "docs/superpowers/specs/2026-09-28-pf02-b-b4-property-assignment-mutation-foundation-design.md",
+      "approved_plan": "docs/superpowers/plans/2026-09-28-pf02-b-b4-property-assignment-mutation-foundation.md",
+      "spec_pr": 50,
+      "plan_pr": 51,
+      "implementation_authorized": true,
+      "execution_branch": "feat/pf02-b-b4-property-assignment-mutation",
+      "runtime_status": "NOT_RUN",
+      "ready_or_merge_authorized": false
+    },
+    "PF02-B/later_slices": "B4_IN_PROGRESS_IMPLEMENTATION_AUTHORIZED; BEYOND_B4_NOT_STARTED_NOT_YET_SCOPED",
     "D01": "RESOLVED_FOR_B1_ONLY",
     "B1I-M01": "CLOSED_BY_B2",
     "B1I-M02": "DOCUMENT_RECONCILED"
@@ -210,6 +222,8 @@
   ],
   "acceptance_evidence": { "B3-AC04": { "evidence_status": "REQUIRED_EVIDENCE_SATISFIED", "basis": "accepted independent review and execution evidence from PR45", "historical_status": "PARTIAL", "historical_source": "ops/pf02_b_b3_acceptance.md", "source": "ops/pf02_b_b3_low_remediation_acceptance.md", "limit": "Separate PostgreSQL-layer 513-code-point rejection NOT_RUN; no new runtime reproduction or F-case promotion" } },
   "active_or_historical_prs": [
+    { "number": 51, "title": "docs: plan PF02-B B4 assignment mutation", "state": "MERGED", "merged": true, "merge_commit": "2af378d40dd5d5957182c31c66682e53e00cab3a", "accepted_head": "5d4f265b2bad6143e393cf7cc5303d5d7e7d7180", "role": "B4 canonical implementation plan; bounded product implementation subsequently authorized" },
+    { "number": 50, "title": "docs: design PF02-B B4 assignment mutation", "state": "MERGED", "merged": true, "merge_commit": "ec910b0f913ebe62703e4f7328754a42b1f859d0", "accepted_head": "087b80bda320593688660347a9099b8ef52f9159", "role": "B4 canonical written design/spec" },
     { "number": 45, "state": "MERGED", "merged": true, "merge_commit": "baf60a1f31326cb8c6ce469a6a366dc91301cf47", "accepted_head": "738c061a9e5396fb9a8f39e477e3cc706f330d3e", "role": "B3 targeted LOW remediation accepted with local Mobile risk OPEN; not slice closure" },
     { "number": 42, "state": "MERGED", "merged": true, "merge_commit": "741997d93015991c1c89716a3ca93b662a8be0d8", "accepted_head": "2252929b56f375a4fe8f19858c23b8d2e92c7845", "role": "B3 implementation accepted and merged with disclosed LOW; not canonical closure" },
     { "number": 40, "title": "docs: plan PF02-B B3 building registration", "state": "MERGED", "merged": true, "merge_commit": "425fb71441b03d3fcc94492c69ebfcf36787bdf9", "role": "B3 approved implementation plan" },
@@ -237,16 +251,21 @@
   },
   "f01_promotion": {"evidence_ref": "6706afe3a2cc5bdd2fd7204ce7944fafdd422065", "status": "PASS_POSTGRES_INTEGRATION", "receipt": "ops/pf02_b_f01_promotion_acceptance.md", "f43_status": "NOT_RUN", "reconciliation_sha256": "257b33138247049937d5ae5814f68ad7329d53a37e9deeb7453fffa6b0fb03dd", "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"},
   "current_product_task": {
-    "status": "NONE_AUTHORIZED",
-    "slice": "PF02-B/B3",
-    "title": "ORG_ADMIN Building Registration Foundation",
-    "approved_plan": "docs/superpowers/plans/2026-09-25-pf02-b-b3-building-registration-foundation.md",
-    "implementation_plan_authorized": false,
-    "implementation_authorized": false,
-    "next_gate": "operator must separately scope and approve any later PF02-B slice; none is currently scoped or authorized",
-    "note": "B3 is VERIFIED/FROZEN after accepted PR42 implementation, PR45 remediation, F01 direct evidence and PR48 canonical publication. F01=PASS_POSTGRES_INTEGRATION; F43=NOT_RUN. B3D-L01/L02, separate PG-layer 513 rejection NOT_RUN and Local Mobile FAILED/OPEN/ROOT_CAUSE_NOT_ESTABLISHED remain retained risks/limits. No B3 restart, F43 search, additional planning/implementation, real tenant data or production hosting is authorized."
+    "status": "IMPLEMENTATION_AUTHORIZED_IN_PROGRESS",
+    "slice": "PF02-B/B4",
+    "title": "Property Assignment Mutation Foundation",
+    "approved_spec": "docs/superpowers/specs/2026-09-28-pf02-b-b4-property-assignment-mutation-foundation-design.md",
+    "approved_plan": "docs/superpowers/plans/2026-09-28-pf02-b-b4-property-assignment-mutation-foundation.md",
+    "canonical_main": "b411affe30111ecc68c1d99f213f92d845492b96",
+    "execution_branch": "feat/pf02-b-b4-property-assignment-mutation",
+    "implementation_plan_authorized": true,
+    "implementation_authorized": true,
+    "runtime_status": "NOT_RUN",
+    "ready_or_merge_authorized": false,
+    "next_gate": "execute the canonical B4 plan to a fixed Draft implementation candidate, then coordinator intake and fresh independent implementation review",
+    "note": "B4 authorization is bounded to the canonical Property Assignment Mutation Foundation plan. No staff roster/onboarding/UI, membership mutation, PF02-C, F43 search, provider/IAM, real tenant data or production hosting is authorized."
   },
-  "b3_closure": { "state": "VERIFIED_FROZEN", "receipt": "ops/pf02_b_b3_closure.md", "evidence_main": "42a7d2ce02a51b6f71ad47d9274bb5c3d7ab5ab3", "f01": "PASS_POSTGRES_INTEGRATION", "f43": "NOT_RUN", "retained_limits": ["B3D-L01", "B3D-L02", "B3-AC04-PG-513-rejection", "b3-local-mobile-timeout"], "later_slice": "NOT_STARTED / NOT_YET_SCOPED" },
+  "b3_closure": { "state": "VERIFIED_FROZEN", "receipt": "ops/pf02_b_b3_closure.md", "evidence_main": "42a7d2ce02a51b6f71ad47d9274bb5c3d7ab5ab3", "f01": "PASS_POSTGRES_INTEGRATION", "f43": "NOT_RUN", "retained_limits": ["B3D-L01", "B3D-L02", "B3-AC04-PG-513-rejection", "b3-local-mobile-timeout"], "later_slice": "B4_IN_PROGRESS_IMPLEMENTATION_AUTHORIZED" },
   "design_approval": {
     "slice": "PF02-B/B3",
     "path": "docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md",
