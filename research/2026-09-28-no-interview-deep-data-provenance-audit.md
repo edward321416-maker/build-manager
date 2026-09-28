@@ -45,10 +45,14 @@ Private Google artifact identifiers and raw private storage paths are intentiona
 2. At least three explicit row pairs are same-speaker or same-review splits in the coded metadata. Therefore even the known minimum deduplication proves that 68 cannot be an independent-unit count. Full speaker/event identity normalization was not attempted.
 3. S1_Summary formulas count row-signal presence. The prior header term `case_count` was therefore semantically too strong even though the formulas themselves were functioning as written.
 4. The 68 behavioral/proxy rows are US/source-cluster biased. These row counts cannot estimate Korean prevalence, demand, or WTP.
-5. S2 uses 48 unique S1 grounding IDs across 48 designed operators and reuses grounding evidence repeatedly as a balanced coverage fixture. Among the 20 S1 behavioral rows not used in S2 grounding, 17 are SUPPORT and 3 are MIXED; no COUNTEREVIDENCE row was selectively omitted from grounding.
-6. Across all 288 S4 paired rows, the core arm introduced zero new flags within the registered seven-flag taxonomy, and the core failure total never exceeded baseline. This is expected from the closed taxonomy and monotonic core transform under IDEAL_CORRECT_STATE_UPDATES, so `core_worse_pairs=0` is not safety or superiority evidence.
-7. The private NoInterview_Program tracker had become stale relative to the long-form research record. It was reconciled to S5 PASS, S6 preregistered/entry-not-run semantics, and S7 gate-not-met semantics while preserving the native status vocabulary.
-8. The public repository source/claim registries had no S1–S6 provenance bridge. This audit adds stable source and claim identifiers without exposing private Google IDs or raw private artifacts.
+5. Direction strata are unevenly clustered: SUPPORT has 51 coded rows across 39 unique URLs, COUNTEREVIDENCE 9 across 7, and MIXED 8 across only 2. Raw direction counts are therefore not comparable evidence mass.
+6. All 6 Korean behavioral/proxy coded rows are SUPPORT. There is no Korean COUNTEREVIDENCE or MIXED row in S1, so Korean evidence does not test the program's counterconditions.
+7. S2 uses 48 unique S1 grounding IDs across 48 designed operators and reuses grounding evidence repeatedly as a balanced coverage fixture. Among the 20 S1 behavioral rows not used in S2 grounding, 17 are SUPPORT and 3 are MIXED; no COUNTEREVIDENCE row was selectively omitted from grounding.
+8. In S3, 40 of 150 runs contain at least one process-defect flag, but 35 of those later end RESOLVED and 5 end CLOSED_UNVERIFIED. A flagged run is therefore not synonymous with a terminal unresolved incident.
+9. S3 tracking-maturity groups have different scenario compositions, so maturity-level failure totals are compositionally confounded and cannot be read as effect sizes.
+10. Across all 288 S4 paired rows, the core arm introduced zero new flags within the registered seven-flag taxonomy, and the core failure total never exceeded baseline. This is expected from the closed taxonomy and monotonic core transform under IDEAL_CORRECT_STATE_UPDATES, so `core_worse_pairs=0` is not safety or superiority evidence.
+11. The private NoInterview_Program tracker had become stale relative to the long-form research record. It was reconciled to S5 PASS, S6 preregistered/entry-not-run semantics, and S7 gate-not-met semantics while preserving the native status vocabulary.
+12. The public repository source/claim registries had no S1–S6 provenance bridge. This audit adds stable source and claim identifiers without exposing private Google IDs or raw private artifacts.
 
 ## Interpretation
 
@@ -66,9 +70,10 @@ Counterevidence from low-frequency operators and mature-system operators remains
 
 Limitations remain material:
 - S1 speaker/event deduplication is incomplete and the independent evidence-unit count is NOT CERTIFIED.
-- S1 is heavily US/source-cluster biased.
+- S1 is heavily US/source-cluster biased; its direction strata have unequal source diversity.
+- All currently coded Korean behavioral/proxy rows are supportive, so Korean counter-condition evidence is absent.
 - Representative source spot checks are not a complete independent re-verification of every source URL.
-- S2/S3 remain researcher-authored synthetic structures.
+- S2/S3 remain researcher-authored synthetic structures. S3 process-defect flags are not terminal-failure outcomes, and tracking-maturity summaries are scenario-composition confounded.
 - S4 uses a closed failure taxonomy and ideal correct state updates.
 - S5 lacks human novice observation and independent multi-evaluator inspection.
 - S6 has no runnable target or scored run.
