@@ -452,7 +452,7 @@ git commit -m "test: prove B4 assignment boundaries"
   - any actual body byte → INVALID_INPUT and cancel stream promptly;
   - malformed Content-Length → INVALID_INPUT.
 - Existing constant-time CSRF semantics are copied into B4 server boundary or factored only if B3 behavior remains byte/behavior compatible; do not refactor B3 merely for style.
-- Route sets `runtime="nodejs"`, `dynamic="force-dynamic"`; it explicitly exports GET/PUT/DELETE and also POST/PATCH/HEAD/OPTIONS dispatchers so every unsupported method reaches the B4 handler and receives deterministic custom 405 with exact `Allow: GET, PUT, DELETE`. Do not rely on Next.js automatic OPTIONS handling for this exact-method contract.
+- Route sets `runtime="nodejs"`, `dynamic="force-dynamic"`; it explicitly exports GET/PUT/DELETE and also POST/PATCH/HEAD/OPTIONS dispatchers so every **Next.js-supported but B4-disallowed** method reaches the B4 handler and receives deterministic custom 405 with exact `Allow: GET, PUT, DELETE`. Methods outside Next.js's supported Route Handler method set use the framework 405 path and are not claimed to traverse the B4 handler or carry B4 custom headers. Do not rely on Next.js automatic OPTIONS handling for the supported-method custom-405 contract.
 - Container adds one `assignments:createPropertyAssignmentMutationPort(database)` on the existing single B1 Web database handle; no B4 DATABASE_URL.
 - Existing architecture route inventory must contain exactly nine v2 route files after B4; the ninth is `organizations/[orgId]/properties/[propertyId]/staff-assignments/[membershipId]`.
 
@@ -460,12 +460,13 @@ git commit -m "test: prove B4 assignment boundaries"
 
 Pin:
 - GET malformed path/query → 400; anonymous →401;
+- authenticated requests using valid canonical **foreign and inactive `orgId` values** → 404 for GET; PUT/DELETE with valid Origin+CSRF and those same orgIds → 404, with the actual-DB mutation snapshot pinned unchanged in Task 6;
 - PUT/DELETE missing/wrong Origin →403 before session/body; valid Origin anonymous→401; valid session wrong/missing CSRF→403;
 - valid auth/CSRF with non-empty body→400; Content-Length >8192→413; request reader stops/cancels;
 - assigned staff visible Property→403; unassigned/foreign Property→404;
 - target membership 404 non-disclosure;
 - GET active 200 exact body; PUT created 201 + same-resource Location; PUT existing 200; DELETE 204 empty;
-- unsupported POST/PATCH/HEAD/OPTIONS →405 and exact `Allow: GET, PUT, DELETE`;
+- supported-but-disallowed POST/PATCH/HEAD/OPTIONS → custom 405 and exact `Allow: GET, PUT, DELETE`; one method outside Next.js's supported Route Handler set (for example TRACE sent with a raw Node HTTP request rather than Fetch) → framework 405 only, with no B4 custom-header claim;
 - no error leaks SQL/target identity;
 - every success and error response, including 405/413/503 and DELETE 204, preserves the frozen private-cache contract: `Cache-Control: private, no-store, max-age=0` and `Vary: Cookie`;
 - injected `DEPENDENCY_UNAVAILABLE` from the B4 application/port maps to sanitized private 503 without automatic retry.
@@ -528,6 +529,7 @@ git commit -m "feat: expose B4 assignment API"
   - no email/name projection and no real provider identity.
 - Produce `createB4StaffSession(browser, adminFixture): Promise<B4StaffFixture>` inside `b4-fixture.ts`; it may use the existing test-only login role/session-cookie mechanism but must not modify production roster/profile APIs.
 - Produce `assignmentPath(f, membershipId, propertyId?, orgId?)` for only the exact composite resource.
+- Fixture setup also exposes one valid **foreign organization id** invisible to the actor and one valid **inactive organization id** for an otherwise related synthetic actor/context so AC02 can vary only `orgId` while keeping path syntax valid; no real identity/provider data.
 - Mutating helpers call PUT/DELETE with exact Origin + `x-b1-csrf` and no business body.
 - `b4.spec.ts` contains exactly six Playwright tests with these exact titles:
   1. `B4 AC05-09 adminAssignmentLifecycle`
@@ -545,7 +547,7 @@ Required mapping:
   DB readback proves one ACTIVE max and ENDED history retained; reassignment creates a new row id and preserves previous history bytes.
 - `B4 AC03 targetMembershipBoundary`: ORG_ADMIN/ENDED/foreign target membership 404 with no mutation.
 - `B4 AC04 propertyBoundary`: foreign/archived Property 404 with no mutation.
-- `B4 AC02 staffVisibilityPrecedence`: assigned staff caller exact resource 403 only when Property is visible; unassigned peer Property 404.
+- `B4 AC02 staffVisibilityPrecedence`: first, as authenticated admin, issue GET plus valid-Origin/CSRF PUT and DELETE against valid foreign and inactive `orgId` values and require 404 for each; prove PUT/DELETE leave the assignment/history snapshot byte-identical. Then prove assigned staff caller exact resource 403 only when Property is visible while an unassigned peer Property is 404.
 
 Run:
 
@@ -567,7 +569,7 @@ Implement `B4 AC13-14 staffReadThroughScope` with the same target staff session:
 - [ ] **Step 3: Add transport/negative E2E**
 
 Implement `B4 AC20 transportAndMethodBoundaries` and assert:
-- anonymous, bad Origin, missing/bad CSRF, malformed ids/query/body, and unsupported POST/PATCH/HEAD/OPTIONS;
+- anonymous, bad Origin, missing/bad CSRF, malformed ids/query/body, supported-but-disallowed POST/PATCH/HEAD/OPTIONS custom 405s, and one raw unsupported method outside the Next.js-supported Route Handler set returning framework 405;
 - response/error body never includes staff user id, raw membership attributes, assignment row id or SQL;
 - no new UI link/page/roster appears.
 
