@@ -9,3 +9,4 @@ export * from "./question";
 export * from "./ticket";
 export * from "./b1";
 export * from "./b3";
+export * from "./b4";
