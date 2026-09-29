@@ -1,5 +1,5 @@
 claim_id,claim,classification,source_ids,locator,verification_status,owner,next_action,submission_use
-CLM-001,Target landlords managing approximately 10-100 units and small or medium rental managers,DECISION,SRC-001,People and value,approved,project_owner,Validate segment through interviews,Historical bootstrap target only; superseded for current research framing by CLM-021
+CLM-001,Target landlords managing approximately 10-100 units and small or medium rental managers,DECISION,SRC-001,People and value,historical_approved_superseded,project_owner,See CLM-021 and validate current segment with direct Korean target-operator evidence,Historical bootstrap target only; superseded for current research framing by CLM-021
 CLM-002,Initial MVP consists of guided intake triage manager dashboard and unit history,DECISION,SRC-001,Initial scope,approved,project_owner,Define acceptance criteria and feasibility,Allowed as proposed scope
 CLM-003,Structured intake reduces clarification burden for landlords,HYPOTHESIS,,No observations collected,unverified,unassigned,Collect recent-event evidence with landlord guide,Only labeled hypothesis
 CLM-004,Guided reporting helps tenants communicate maintenance problems,HYPOTHESIS,,No observations collected,unverified,unassigned,Observe tenant reporting tasks and counterexamples,Only labeled hypothesis
