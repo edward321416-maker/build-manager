@@ -65,7 +65,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B / B1 | VERIFIED / FROZEN | `ops/pf02_b_b1_acceptance.md` |
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
 | PF02-B / B3 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b3_closure.md); implementation/remediation/F01 evidence accepted and published; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed |
-| PF02-B / B4 | IN_PROGRESS / IMPLEMENTATION AUTHORIZED | Written spec PR #50 and plan PR #51 are MERGED/CANONICAL on `b411affe30111ecc68c1d99f213f92d845492b96`; bounded product implementation authorized, runtime/acceptance NOT_RUN |
+| PF02-B / B4 | READY_FOR_RESUME_DECISION | B4D-L04 erratum CANONICAL; [publication evidence](pf02_b_b4_erratum_publication.md) verifies the exact blobs and actual-main CI 9/9 SUCCESS. Implementation resume is not authorized. |
 | Beyond B4 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
@@ -188,9 +188,9 @@ current canonical documents.
 
 ## Current authorized next task
 
-**CURRENT ADDITIONAL PRODUCT TASK = PF02-B/B4 PRODUCT IMPLEMENTATION EXECUTION — AUTHORIZED / IN_PROGRESS.**
+**CURRENT ADDITIONAL PRODUCT TASK = PF02-B/B4 — READY_FOR_RESUME_DECISION.**
 
-PF02-B / B3 — ORG_ADMIN Building Registration Foundation remains **VERIFIED / FROZEN**. PF02-B / B4 — Property Assignment Mutation Foundation now has canonical written spec and implementation plan on `main` `b411affe30111ecc68c1d99f213f92d845492b96` after PR #50/#51 publication. Bounded B4 product implementation is operator-authorized against the canonical plan on execution branch `feat/pf02-b-b4-property-assignment-mutation`. This is implementation authority only: B4 runtime/acceptance remains NOT_RUN and Ready/merge/canonical B4 closure are not authorized.
+PF02-B / B3 remains **VERIFIED / FROZEN**. `B4D-L04_ERRATUM = CANONICAL` and `B4_IMPLEMENTATION_RESUME_GATE = READY_FOR_RESUME_DECISION`. Read the [erratum publication receipt](pf02_b_b4_erratum_publication.md) for exact spec/plan blobs and fresh actual-main CI at `5cb12ece0670e36006e68f2ebaa533c414072d11`. The previous implementation authorization is historical; a new explicit resume instruction is required before changing the preserved local B4 implementation. Its partial runtime evidence remains unaccepted, including the historical TRACE assertion failure. The 51-case hosted suite verifies published main, not the unpublished B4 implementation. Implementation resume/push/Ready/merge/closure are not authorized by this handoff transition.
 
 **F01 = PASS_POSTGRES_INTEGRATION; F43 = NOT_RUN.** F43 requires address/reference search not implemented by B3, so its NOT_RUN status is compatible with B3 closure. B3D-L01/L02, the separate AC04 PG-layer 513-code-point rejection NOT_RUN, Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED and broader operational/security/privacy backlog remain disclosed. These are retained risks/limits, not authorization to reopen the frozen slice.
 
