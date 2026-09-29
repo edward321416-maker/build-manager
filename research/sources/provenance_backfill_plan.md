@@ -53,3 +53,11 @@ Independently reverified against current/official primary sources: SRC-014..023 
 The living research document's stale Commercial Act historical-version links were replaced with current-law links. Its PIPA/GOV.UK source-link region was repaired after audit found cross-paragraph hyperlink-range drift; source labels now map to the intended current sources.
 
 Batch 1 is not exhaustive for every official/standards source. NFPC/KGS/CPSC/DOE/LBNL/ISO/CSA and insurance-specific authorities remain later authoritative backfill items. The program-level provenance hold remains open.
+
+## Batch 2 progress — competitor/vendor primary sources
+
+Status: **CORE WORKFLOW COMPARATORS COMPLETE IN THIS CANDIDATE**
+
+Registered SRC-024..029 and CLM-032..037 for Property Meld, AppFolio, Buildium and Latchel. The competitor index is updated from bootstrap TO VERIFY-only status to a partial-verification model that records documented workflow/authority capabilities while explicitly excluding vendor efficacy, adoption, pricing and superiority claims from independent evidence.
+
+The current product-thesis-critical comparator set is now canonicalized. Optional/legacy competitor leads remain TO VERIFY and are not required for the present Coordination Core thesis.
