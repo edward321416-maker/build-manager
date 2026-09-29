@@ -235,3 +235,9 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - `PR48-F01-SCHEMA-CACHE-SYNC-20260927` was written/read back at row 9. The sanitized `build-manager_tool_schema_cache_2026-09-27` document was created, moved into the configured Drive cache folder, content-read back, and folder-list read back. No secrets, tokens, cookies, credentials or personal data are present.
 - `PR48-COORDINATOR-DELTA-REVIEW-SKILL-20260927` was written/read back at row 10 after loading the code-review skill and confirming that no independent reviewer subagent dispatch tool is available in this session.
 - These verified writes change current external-sync state to PARTIAL_SYNC only. Historical rows still marked pending remain queued; no bulk backfill is claimed. OAuth/IAM/provider changes=0.
+
+## 2026-09-29 B4 erratum canonical handoff
+
+- Event `PF02B-B4-ERRATUM-CANONICAL-HANDOFF-20260929`; sync_status=pending; tokens=unknown.
+- Exact canonical blobs and fresh actual-main CI verified at `5cb12ece0670e36006e68f2ebaa533c414072d11`; see [publication evidence](pf02_b_b4_erratum_publication.md).
+- No Google write/readback performed. This transition does not authorize B4 implementation resume.

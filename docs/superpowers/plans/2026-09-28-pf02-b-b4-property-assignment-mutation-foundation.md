@@ -38,7 +38,7 @@
 - B4 does not implement roster/onboarding/invitation/membership mutation/last-admin/PF02-C/F43/Mobile auth/Kakao/billing/security-completion.
 - B4 does not automatically promote F15/F25/F39/F43 or any other canonical F-case.
 - B4D-L01/L02/L03 remain disclosed design boundaries; do not claim universal lifecycle serialization, human-facing target discovery, or CommandReceipt exactly-once semantics.
-- **B4D-L04 framework-method boundary:** approved spec §16 says unsupported method → 405, but pinned Next.js `16.3.4` rejects methods outside its recognized `HTTP_METHODS` set (GET/HEAD/OPTIONS/POST/PUT/DELETE/PATCH) with framework-owned **400 and an empty body before the B4 handler runs**. B4 therefore owns exact custom 405 + `Allow: GET, PUT, DELETE` only for recognized-but-B4-disallowed POST/PATCH/HEAD/OPTIONS. This bounded framework deviation must remain explicit; it does not weaken the 405 contract inside Next.js's recognized method set and does not authorize proxy/router redesign.
+- **B4D-L04 framework-method boundary:** pinned Next.js `16.3.4` has distinct framework-owned method classes outside B4. B4 owns exact custom 405 + `Allow: GET, PUT, DELETE` only for recognized-but-B4-disallowed POST/PATCH/HEAD/OPTIONS. A Fetch-allowed but Next.js-unrecognized method such as `PROPFIND` is the required raw acceptance exemplar and is actual-runtime evidenced as framework-owned **400 with an empty body** and no B4 custom response contract. Fetch-forbidden `CONNECT`/`TRACE`/`TRACK` can fail while `NextRequest` is constructed before B4 route-module handling; pinned Node `24.14.0` + Next.js `16.3.4` production observed raw `TRACE` as generic **500 `Internal Server Error`**. That TRACE observation is diagnostic framework evidence, not a stable B4 response contract and not a required acceptance probe. No proxy/custom-server redesign is authorized.
 - Required hosted checks remain: verify, repository-safety, apps, mobile-cold-linux, install-mobile-windows, web-e2e, mobile-health, postgres-integration, foundation-gate.
 
 ## Execution Authorization Gate
@@ -453,7 +453,7 @@ git commit -m "test: prove B4 assignment boundaries"
   - any actual body byte → INVALID_INPUT and cancel stream promptly;
   - malformed Content-Length → INVALID_INPUT.
 - Existing constant-time CSRF semantics are copied into B4 server boundary or factored only if B3 behavior remains byte/behavior compatible; do not refactor B3 merely for style.
-- Route sets `runtime="nodejs"`, `dynamic="force-dynamic"`; it explicitly exports GET/PUT/DELETE and also POST/PATCH/HEAD/OPTIONS dispatchers so every **Next.js-recognized but B4-disallowed** method reaches the B4 handler and receives deterministic custom 405 with exact `Allow: GET, PUT, DELETE`. At pinned Next.js `16.3.4`, methods outside `HTTP_METHODS` are rejected by the framework before userland dispatch with **400 and an empty body**; B4 makes no custom body/header/Allow claim for that framework-owned response. Do not rely on Next.js automatic OPTIONS handling for the recognized-method custom-405 contract.
+- Route sets `runtime="nodejs"`, `dynamic="force-dynamic"`; it explicitly exports GET/PUT/DELETE and also POST/PATCH/HEAD/OPTIONS dispatchers so every **Next.js-recognized but B4-disallowed** method reaches the B4 handler and receives deterministic custom 405 with exact `Allow: GET, PUT, DELETE`. Outside that recognized set, do not collapse all methods into one contract: a Fetch-allowed but Next.js-unrecognized method such as `PROPFIND` is framework-owned and actual-runtime evidenced as **400 with an empty body**, while Fetch-forbidden `CONNECT`/`TRACE`/`TRACK` can fail during `NextRequest` construction before route-module handling. B4 makes no custom body/header/Allow claim for either framework-owned class. Do not rely on Next.js automatic OPTIONS handling for the recognized-method custom-405 contract.
 - Container adds one `assignments:createPropertyAssignmentMutationPort(database)` on the existing single B1 Web database handle; no B4 DATABASE_URL.
 - Existing architecture route inventory must contain exactly nine v2 route files after B4; the ninth is `organizations/[orgId]/properties/[propertyId]/staff-assignments/[membershipId]`.
 
@@ -467,9 +467,9 @@ Pin:
 - assigned staff visible Property→403; unassigned/foreign Property→404;
 - target membership 404 non-disclosure;
 - GET active 200 exact body; PUT created 201 + same-resource Location; PUT existing 200; DELETE 204 empty;
-- supported-but-disallowed POST/PATCH/HEAD/OPTIONS → custom 405 and exact `Allow: GET, PUT, DELETE`. **Do not** unit-test methods outside Next.js `HTTP_METHODS` through `handleB4Http`; they never reach that handler in the pinned framework and are verified only at Task 6 E2E;
+- supported-but-disallowed POST/PATCH/HEAD/OPTIONS → custom 405 and exact `Allow: GET, PUT, DELETE`. **Do not** unit-test framework-owned non-B4 method classes through `handleB4Http`. The required Task 6 raw-transport framework-400 acceptance probe is `PROPFIND`. Fetch-forbidden `CONNECT`/`TRACE`/`TRACK` are diagnostic framework-limit evidence only and must not be assigned a fixed B4 acceptance status/body;
 - no error leaks SQL/target identity;
-- every **B4-handler** success and error response, including the custom recognized-method 405 plus 413/503 and DELETE 204, preserves the frozen private-cache contract: `Cache-Control: private, no-store, max-age=0` and `Vary: Cookie`; the framework-owned 400 for methods outside Next.js `HTTP_METHODS` is outside the B4 body/header/cache/Allow contract;
+- every **B4-handler** success and error response, including the custom recognized-method 405 plus 413/503 and DELETE 204, preserves the frozen private-cache contract: `Cache-Control: private, no-store, max-age=0` and `Vary: Cookie`; framework-owned responses outside B4 dispatch — including `PROPFIND` 400 and Fetch-forbidden method failures such as the observed TRACE 500 — are outside the B4 body/header/cache/Allow contract;
 - injected `DEPENDENCY_UNAVAILABLE` from the B4 application/port maps to sanitized private 503 without automatic retry.
 
 Run:
@@ -570,7 +570,7 @@ Implement `B4 AC13-14 staffReadThroughScope` with the same target staff session:
 - [ ] **Step 3: Add transport/negative E2E**
 
 Implement `B4 AC20 transportAndMethodBoundaries` and assert:
-- anonymous, bad Origin, missing/bad CSRF, malformed ids/query/body, supported-but-disallowed POST/PATCH/HEAD/OPTIONS custom 405s, and one raw method outside Next.js `HTTP_METHODS` (for example TRACE) sent with raw Node HTTP and asserted to receive the pinned-framework **400 with empty body**, with no B4 error body or B4 custom `Allow`/private-cache-header claim;
+- anonymous, bad Origin, missing/bad CSRF, malformed ids/query/body, supported-but-disallowed POST/PATCH/HEAD/OPTIONS custom 405s, and raw Node HTTP `PROPFIND` as the required Fetch-allowed/Next.js-unrecognized framework probe asserted to receive **400 with empty body**, with no B4 error body or B4 custom `Allow`/private-cache-header claim. Do not use Fetch-forbidden `CONNECT`/`TRACE`/`TRACK` as the required 400 acceptance probe; the pinned-production TRACE→generic500 observation is retained diagnostic framework evidence only;
 - response/error body never includes staff user id, raw membership attributes, assignment row id or SQL;
 - no new UI link/page/roster appears.
 
@@ -669,7 +669,7 @@ The implementation PR must remain Draft/NOT_MERGED and request a fixed-head inde
 - focused + full regression results;
 - hosted CI run ids after they complete;
 - B4D-L01/L02/L03 retained;
-- B4D-L04 retained as the explicit pinned-Next.js framework-method deviation: recognized disallowed methods receive B4 custom 405; methods outside Next.js `HTTP_METHODS` are framework-owned 400 empty-body responses and do not authorize proxy/router scope expansion;
+- B4D-L04 retained as the explicit pinned-framework method boundary: recognized disallowed POST/PATCH/HEAD/OPTIONS receive B4 custom 405; Fetch-allowed Next.js-unrecognized `PROPFIND` is the required framework-owned 400-empty-body acceptance probe; Fetch-forbidden `CONNECT`/`TRACE`/`TRACK` may fail before B4 route-module handling and carry no stable B4 status/body contract; no proxy/custom-server scope expansion is authorized;
 - B4 product runtime evidence class;
 - F-case statuses unchanged unless separately authorized and directly evidenced.
 

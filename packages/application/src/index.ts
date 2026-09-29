@@ -24,3 +24,6 @@ export * from "./b1/organization-access";
 export * from "./b3/ports";
 export * from "./b3/errors";
 export * from "./b3/building-registration";
+export * from "./b4/ports";
+export * from "./b4/errors";
+export * from "./b4/property-assignment";
