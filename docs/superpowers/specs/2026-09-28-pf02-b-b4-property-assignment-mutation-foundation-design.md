@@ -468,8 +468,11 @@ GET reconciliation is not a historical command receipt.
 
 B4 preserves the frozen B3 transport precedence rather than inventing a new one.
 
-For all methods:
-1. unsupported method → 405.
+The method-boundary gate is step 1 for every request:
+- GET/PUT/DELETE are the supported B4 methods.
+- POST/PATCH/HEAD/OPTIONS are recognized by pinned Next.js `16.3.4` but are B4-disallowed; the B4 route explicitly dispatches them to a custom 405 with exact `Allow: GET, PUT, DELETE`.
+- A Fetch-allowed method that pinned Next.js does not recognize (required acceptance exemplar: `PROPFIND`) is framework-owned. In actual pinned production evidence it returns **400 with an empty body** before B4 response ownership, with no B4 custom body/`Allow`/private-cache contract.
+- Fetch-forbidden `CONNECT`/`TRACE`/`TRACK` can be rejected while `NextRequest` is constructed before B4 route-module handling. Under Node `24.14.0` + Next.js `16.3.4` production, raw `TRACE` was observed as generic **500 `Internal Server Error`**. That observation is framework/runtime limitation evidence, not a B4 product response contract and not a required acceptance probe. No proxy/custom-server workaround is authorized.
 
 For GET:
 2. duplicate/unexpected query or malformed path ids → 400 before business lookup;
@@ -638,6 +641,17 @@ Disposition: **LOW / intentional scope boundary**.
 GET + idempotent relationship methods improve unknown-outcome recovery but do not prove historical exactly-once command execution.
 
 Disposition: **LOW / intentional scope boundary**.
+
+### B4D-L04 — pinned framework method adaptation boundary
+
+Pinned Next.js `16.3.4` does not treat every method outside its recognized `HTTP_METHODS` set identically.
+
+- Fetch-allowed but Next.js-unrecognized methods such as `PROPFIND` are framework-owned; the required actual-runtime acceptance evidence is 400 with an empty body and no B4 custom response contract.
+- Fetch-forbidden `CONNECT`/`TRACE`/`TRACK` can fail during `NextRequest` construction before B4 route-module handling. Pinned production evidence observed `TRACE` as generic 500, but B4 does not claim that status/body as a stable product contract and does not use it as a required acceptance probe.
+- Next.js-recognized but B4-disallowed POST/PATCH/HEAD/OPTIONS remain explicit B4 custom 405 responses with exact `Allow: GET, PUT, DELETE`.
+- B4 does not add proxy/custom-server routing to normalize framework-owned method failures.
+
+Disposition: **LOW / retained framework boundary**, provided AC20 uses the Fetch-allowed `PROPFIND` exemplar for the required framework-400 probe and implementation makes no stronger claim about Fetch-forbidden methods.
 
 ## 24. Self-review checklist
 
