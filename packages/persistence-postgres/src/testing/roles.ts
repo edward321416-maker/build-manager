@@ -1,4 +1,5 @@
 import { provisionB1TestRoles, type B1RoleCredentials } from "./b1-roles";
+import { provisionB4TestRole } from "./b4-roles";
 import { randomBytes } from "node:crypto";
 import type { Client, ClientConfig } from "pg";
 
@@ -56,5 +57,6 @@ export async function provisionTestRoles(
   migrationConfig.password = migrationPassword;
   runtimeConfig.password = runtimePassword;
   const b1 = await provisionB1TestRoles(admin, base, TEST_MIGRATION_ROLE);
+  await provisionB4TestRole(admin, TEST_MIGRATION_ROLE);
   return { migrationConfig, runtimeConfig, b1 };
 }
