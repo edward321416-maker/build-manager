@@ -1,6 +1,6 @@
 # 출시 기반 기획 (production foundation)
 
-Revision: **1.4 (PF02-B B4 canonical closure candidate; supersedes 1.3)**
+Revision: **1.4 (PF02-B B4 canonical closure; supersedes 1.3)**
 Snapshot: 2026-09-29
 B4 closure evidence main: `main@6cf71049c479d100ec6e949002c2e30c8df81eba` (PR #58 merge; accepted HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307`)
 B3 closure evidence main: `main@42a7d2ce02a51b6f71ad47d9274bb5c3d7ab5ab3`
@@ -86,4 +86,4 @@ PF02-A는 합성·폐기 가능한 PostgreSQL 환경에서 승인된 7개 테이
 
 원본 ZIP/raw receipt/log/로컬 절대경로/인증값/외부 Google 목적지는 공개하지 않는다. Google Sheets/Drive는 **PARTIAL_SYNC**다: 이번 PR48 correction/sync/cache 이벤트는 검증된 write/readback이 있고, 역사적 pending queue는 그대로 남아 있다. [대기·sync 기록](../../ops/pending_external_sync.md)을 따른다.
 
-PR #42 B3 implementation, PR #45 LOW remediation, PR #46 status reconciliation, PR #47 F01 direct-evidence test와 PR #48 F01 canonical publication은 모두 MERGED다. PR #58 B4 implementation도 MERGED다. B1/B2/B3/B4는 VERIFIED / FROZEN, PF02-B 전체는 IN_PROGRESS다. F01=`PASS_POSTGRES_INTEGRATION`, F43=`NOT_RUN`. **현재 승인된 추가 제품 task는 없다.** B4 closure candidate의 다음 gate는 `FRESH_CLAUDE_OPUS_B4_CLOSURE_REVIEW`이며 제품 작업이 아니다. B4 이후 slice는 별도 operator scope/approval 전에는 시작하지 않는다. B1I-M01=CLOSED_BY_B2; 역사적 B1 receipt의 OPEN_HARDENING_BACKLOG는 수정하지 않는다. B1I-M02는 DOCUMENT_RECONCILED; B1 LOW6/B2 LOW4, B3D-L01/L02, B4I-L01/B4R-L01 및 B4D-L01..L04는 retained/deferred다. B3 AC04 separate PG513 rejection과 Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED도 retained limit/risk다. Auth0 entitlement, operational session/retention, real-data pilot, production hosting/credentials 및 complete security/privacy review는 계속 미검증/미완료다.
+PR #42 B3 implementation, PR #45 LOW remediation, PR #46 status reconciliation, PR #47 F01 direct-evidence test와 PR #48 F01 canonical publication은 모두 MERGED다. PR #58 B4 implementation도 MERGED다. B1/B2/B3/B4는 VERIFIED / FROZEN, PF02-B 전체는 IN_PROGRESS다. F01=`PASS_POSTGRES_INTEGRATION`, F43=`NOT_RUN`. **현재 승인된 추가 제품 task는 없다.** `CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED`. B4 이후 slice는 별도 operator scope/approval 전에는 시작하지 않는다. B1I-M01=CLOSED_BY_B2; 역사적 B1 receipt의 OPEN_HARDENING_BACKLOG는 수정하지 않는다. B1I-M02는 DOCUMENT_RECONCILED; B1 LOW6/B2 LOW4, B3D-L01/L02, B4I-L01/B4R-L01 및 B4D-L01..L04는 retained/deferred다. B3 AC04 separate PG513 rejection과 Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED도 retained limit/risk다. Auth0 entitlement, operational session/retention, real-data pilot, production hosting/credentials 및 complete security/privacy review는 계속 미검증/미완료다.

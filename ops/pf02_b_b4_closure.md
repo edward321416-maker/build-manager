@@ -94,6 +94,8 @@ EXTERNAL_SYNC remains PARTIAL_SYNC overall. This closure event is recorded in th
 
 ## Next gate
 
-**`FRESH_CLAUDE_OPUS_B4_CLOSURE_REVIEW`** of this docs/ops-only closure candidate.
+**`NEXT_GATE = separately scoped and operator-approved later PF02-B product decision`**.
+
+Any later PF02-B slice requires separate operator scope and approval.
 
 **CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED.** B4 closure does not scope, plan or authorize any later PF02-B slice. Do not infer PF02-C, F43 search, staff onboarding/roster/UI, membership mutation, provider/IAM, real-data or hosting work from this closure.

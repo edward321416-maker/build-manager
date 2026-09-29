@@ -277,11 +277,11 @@
     "implementation_plan_authorized": false,
     "implementation_authorized": false,
     "ready_or_merge_authorized": false,
-    "next_gate": "FRESH_CLAUDE_OPUS_B4_CLOSURE_REVIEW of the docs/ops-only B4 closure candidate; any later PF02-B slice requires separate operator scope and approval",
+    "next_gate": "NONE_AUTHORIZED; any later PF02-B slice requires separate operator scope and approval",
     "note": "B4 is VERIFIED/FROZEN after accepted PR58 implementation and implementation-main CI 9/9. No later PF02-B slice, PF02-C, F43 search, staff roster/search/onboarding/invitation, membership mutation, provider/IAM, real tenant data or production hosting is authorized."
   },
   "b3_closure": { "state": "VERIFIED_FROZEN", "receipt": "ops/pf02_b_b3_closure.md", "evidence_main": "42a7d2ce02a51b6f71ad47d9274bb5c3d7ab5ab3", "f01": "PASS_POSTGRES_INTEGRATION", "f43": "NOT_RUN", "retained_limits": ["B3D-L01", "B3D-L02", "B3-AC04-PG-513-rejection", "b3-local-mobile-timeout"], "later_slice": "B4_VERIFIED_FROZEN; BEYOND_B4_NOT_STARTED_NOT_YET_SCOPED" },
-  "b4_closure": { "state": "VERIFIED_FROZEN", "receipt": "ops/pf02_b_b4_closure.md", "evidence_main": "6cf71049c479d100ec6e949002c2e30c8df81eba", "accepted_candidate_head": "6f8d98e5abaf8edb68585f3029459c4df0d91307", "f01": "PASS_POSTGRES_INTEGRATION", "f43": "NOT_RUN", "retained_limits": ["B4I-L01/B4R-L01", "B4D-L01", "B4D-L02", "B4D-L03", "B4D-L04"], "next_gate": "FRESH_CLAUDE_OPUS_B4_CLOSURE_REVIEW", "later_slice": "NOT_STARTED / NOT_YET_SCOPED" },
+  "b4_closure": { "state": "VERIFIED_FROZEN", "receipt": "ops/pf02_b_b4_closure.md", "evidence_main": "6cf71049c479d100ec6e949002c2e30c8df81eba", "accepted_candidate_head": "6f8d98e5abaf8edb68585f3029459c4df0d91307", "f01": "PASS_POSTGRES_INTEGRATION", "f43": "NOT_RUN", "retained_limits": ["B4I-L01/B4R-L01", "B4D-L01", "B4D-L02", "B4D-L03", "B4D-L04"], "next_gate": "separately scoped and operator-approved later PF02-B product decision", "later_slice": "NOT_STARTED / NOT_YET_SCOPED" },
   "design_approval": {
     "slice": "PF02-B/B3",
     "path": "docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md",

@@ -195,7 +195,7 @@ current canonical documents.
 
 PF02-B / B4 is **VERIFIED / FROZEN** per the [B4 closure receipt](pf02_b_b4_closure.md). PR #58 accepted implementation HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307` and actual merge `6cf71049c479d100ec6e949002c2e30c8df81eba` are distinct refs; candidate PR CI and implementation-main push CI are separate evidence generations. The independent implementation review returned ACCEPTED (HIGH 0 / MEDIUM 0 / LOW 1). B4I-L01/B4R-L01 remains a retained non-blocking LOW; B4D-L01..L04 remain retained boundaries. The [erratum publication receipt](pf02_b_b4_erratum_publication.md) and its READY_FOR_RESUME_DECISION state are historical and are not rewritten.
 
-The closure candidate's next gate is `FRESH_CLAUDE_OPUS_B4_CLOSURE_REVIEW`. That review gate is not product work.
+**CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED.** Any later PF02-B slice requires separate operator scope and approval.
 
 **F01 = PASS_POSTGRES_INTEGRATION; F43 = NOT_RUN.** B4 closure promotes no F-case. B3D-L01/L02, the separate AC04 PG-layer 513-code-point rejection NOT_RUN, Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED and broader operational/security/privacy backlog remain disclosed. These are retained risks/limits, not authorization to reopen a frozen slice.
 
