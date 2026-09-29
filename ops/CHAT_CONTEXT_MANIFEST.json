@@ -75,22 +75,27 @@
       "implementation_plan_authorized": true
     },
     "PF02-B/B4": {
-      "state": "READY_FOR_RESUME_DECISION",
-      "canonical_main": "5cb12ece0670e36006e68f2ebaa533c414072d11",
+      "state": "VERIFIED_FROZEN",
       "approved_spec": "docs/superpowers/specs/2026-09-28-pf02-b-b4-property-assignment-mutation-foundation-design.md",
       "approved_plan": "docs/superpowers/plans/2026-09-28-pf02-b-b4-property-assignment-mutation-foundation.md",
+      "spec_blob": "7deef2c0ecc3ff085496cff6dc84e960edf46daf",
+      "plan_blob": "691f60b4f69e6cec0ae0f57f08bb8eea685f2337",
       "spec_pr": 50,
       "plan_pr": 51,
-      "implementation_authorized": false,
-      "execution_branch": "feat/pf02-b-b4-property-assignment-mutation",
-      "runtime_status": "PARTIAL_LOCAL_NOT_ACCEPTED",
-      "ready_or_merge_authorized": false,
-      "implementation_resume_authorized": false,
+      "erratum_pr": 55,
+      "erratum_main": "5cb12ece0670e36006e68f2ebaa533c414072d11",
       "B4D-L04_ERRATUM": "CANONICAL",
-      "B4_IMPLEMENTATION_RESUME_GATE": "READY_FOR_RESUME_DECISION",
-      "erratum_publication_receipt": "ops/pf02_b_b4_erratum_publication.md"
+      "erratum_publication_receipt": "ops/pf02_b_b4_erratum_publication.md",
+      "implementation_pr": 58,
+      "accepted_candidate_head": "6f8d98e5abaf8edb68585f3029459c4df0d91307",
+      "implementation_main": "6cf71049c479d100ec6e949002c2e30c8df81eba",
+      "implementation_review": "ACCEPTED",
+      "implementation_review_findings": { "HIGH": 0, "MEDIUM": 0, "LOW": 1 },
+      "retained_limits": ["B4I-L01/B4R-L01", "B4D-L01", "B4D-L02", "B4D-L03", "B4D-L04"],
+      "canonical_closure_receipt": "ops/pf02_b_b4_closure.md",
+      "authorization_note": "Historical B4 plan/implementation/resume authorization is completed history. The erratum receipt's READY_FOR_RESUME_DECISION and PARTIAL_LOCAL_NOT_ACCEPTED states are pre-implementation snapshots, not current state. B4 closure authorizes no later work; current_product_task remains the only current product-work authority."
     },
-    "PF02-B/later_slices": "B4_READY_FOR_RESUME_DECISION; BEYOND_B4_NOT_STARTED_NOT_YET_SCOPED",
+    "PF02-B/later_slices": "BEYOND_B4_NOT_STARTED_NOT_YET_SCOPED",
     "D01": "RESOLVED_FOR_B1_ONLY",
     "B1I-M01": "CLOSED_BY_B2",
     "B1I-M02": "DOCUMENT_RECONCILED"
@@ -106,7 +111,9 @@
     { "milestone": "PF02-B/B3 implementation acceptance with disclosed limitations", "path": "ops/pf02_b_b3_acceptance.md", "present_at_baseline": false },
     { "milestone": "PF02-B/B3 PR45 LOW remediation acceptance and integration", "path": "ops/pf02_b_b3_low_remediation_acceptance.md", "present_at_baseline": false },
     { "milestone": "F01 canonical promotion and fixed-head evidence reconciliation", "path": "ops/pf02_b_f01_promotion_acceptance.md", "present_at_baseline": false },
-    { "milestone": "PF02-B/B3 canonical closure and freeze", "path": "ops/pf02_b_b3_closure.md", "present_at_baseline": false }
+    { "milestone": "PF02-B/B3 canonical closure and freeze", "path": "ops/pf02_b_b3_closure.md", "present_at_baseline": false },
+    { "milestone": "PF02-B/B4 D-L04 erratum publication (historical pre-implementation snapshot)", "path": "ops/pf02_b_b4_erratum_publication.md", "present_at_baseline": false },
+    { "milestone": "PF02-B/B4 canonical closure and freeze", "path": "ops/pf02_b_b4_closure.md", "present_at_baseline": false }
   ],
   "supporting_design_documents": [
     "docs/production-foundation/README.md",
@@ -159,7 +166,8 @@
     "Existing /api/v2 URLs are reused; no staff-specific duplicate API.",
     "No assignment mutation API or UI in B2.",
     "Modular Monolith with explicit SQL and application ports; no ORM.",
-    "B3 Building Registration Foundation is VERIFIED / FROZEN at the accepted design/plan and integrated implementation boundary; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk do not authorize reopening or later work."
+    "B3 Building Registration Foundation is VERIFIED / FROZEN at the accepted design/plan and integrated implementation boundary; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk do not authorize reopening or later work.",
+    "B4 Property Assignment Mutation Foundation is VERIFIED / FROZEN at the canonical spec/plan/erratum and accepted PR58 implementation boundary; retained B4I-L01/B4R-L01 and B4D-L01..L04 do not authorize reopening or later work."
   ],
   "do_not_reopen_without_new_evidence": {
     "rule": "Reopen a frozen decision only on new, specific, reproducible evidence: a demonstrated security or data-isolation defect, a contradiction proven against an exact ref, or an explicit operator instruction.",
@@ -176,7 +184,8 @@
     "real tenant, landlord or address data (REAL_TENANT_DATA = NOT_AUTHORIZED)",
     "staff invitation and staff creation",
     "membership role mutation",
-    "assignment mutation API, UI or lifecycle",
+    "assignment management UI, assignment collection/list API, or lifecycle work beyond the frozen B4 exact-resource API",
+    "staff roster, staff search and staff onboarding",
     "resident / occupancy end-user flow",
     "ticket flow",
     "Mobile authentication",
@@ -195,6 +204,8 @@
     { "id": "b3-local-mobile-timeout", "state": "FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED", "exception": "LOCAL_MOBILE_FAILED_DISCLOSED_EXCEPTION", "source": "ops/pf02_b_b3_low_remediation_acceptance.md", "note": "Native Windows A/B and instrumented BASE are separate from the historical Windows-mounted Ubuntu risk; PR45 risk acceptance is completed exact-candidate history, not a future waiver." },
     { "id": "B3-AC04-PG-513-rejection", "state": "NOT_RUN", "source": "ops/pf02_b_b3_low_remediation_acceptance.md", "note": "Residual evidence limit; accepted required evidence is satisfied, not an unremediated finding or authorized new test task." },
     { "id": "B3D-L01/L02", "state": "DEFERRED", "source": "ops/pf02_b_b3_acceptance.md" },
+    { "id": "B4I-L01/B4R-L01", "state": "RETAINED_NON_BLOCKING_LOW", "source": "ops/pf02_b_b4_closure.md", "note": "Decisive-statement authority only; no global lifecycle serialization, exactly-once/CommandReceipt or request-arrival eligibility snapshot. Narrow PUT-vs-concurrent-DELETE window may classify an eligible PUT as 404; never false success or retry." },
+    { "id": "B4D-L01..L04", "state": "RETAINED", "source": "ops/pf02_b_b4_closure.md" },
     { "id": "canonical-f-cases-mostly-not-run", "source": "docs/production-foundation/acceptance_cases.json" },
     { "id": "external-sync-partial", "state": "PARTIAL_SYNC", "source": "ops/pending_external_sync.md", "note": "PR48 correction/sync/cache events have verified Google write/readback; historical pending queue remains unresolved." }
   ],
@@ -226,6 +237,8 @@
   ],
   "acceptance_evidence": { "B3-AC04": { "evidence_status": "REQUIRED_EVIDENCE_SATISFIED", "basis": "accepted independent review and execution evidence from PR45", "historical_status": "PARTIAL", "historical_source": "ops/pf02_b_b3_acceptance.md", "source": "ops/pf02_b_b3_low_remediation_acceptance.md", "limit": "Separate PostgreSQL-layer 513-code-point rejection NOT_RUN; no new runtime reproduction or F-case promotion" } },
   "active_or_historical_prs": [
+    { "number": 58, "title": "feat: implement PF02-B/B4 property assignment mutation", "state": "MERGED", "merged": true, "merge_commit": "6cf71049c479d100ec6e949002c2e30c8df81eba", "accepted_head": "6f8d98e5abaf8edb68585f3029459c4df0d91307", "role": "B4 implementation accepted (ACCEPTED H0/M0/L1) and merged" },
+    { "number": 55, "state": "MERGED", "merged": true, "merge_commit": "5cb12ece0670e36006e68f2ebaa533c414072d11", "accepted_head": "7e86e7e2a230850238128f6e8f80b2028142baa2", "role": "B4D-L04 canonical method-boundary erratum" },
     { "number": 51, "title": "docs: plan PF02-B B4 assignment mutation", "state": "MERGED", "merged": true, "merge_commit": "2af378d40dd5d5957182c31c66682e53e00cab3a", "accepted_head": "5d4f265b2bad6143e393cf7cc5303d5d7e7d7180", "role": "B4 canonical implementation plan; bounded product implementation subsequently authorized" },
     { "number": 50, "title": "docs: design PF02-B B4 assignment mutation", "state": "MERGED", "merged": true, "merge_commit": "ec910b0f913ebe62703e4f7328754a42b1f859d0", "accepted_head": "087b80bda320593688660347a9099b8ef52f9159", "role": "B4 canonical written design/spec" },
     { "number": 45, "state": "MERGED", "merged": true, "merge_commit": "baf60a1f31326cb8c6ce469a6a366dc91301cf47", "accepted_head": "738c061a9e5396fb9a8f39e477e3cc706f330d3e", "role": "B3 targeted LOW remediation accepted with local Mobile risk OPEN; not slice closure" },
@@ -252,29 +265,23 @@
     "b3_low_main": { "head": "baf60a1f31326cb8c6ce469a6a366dc91301cf47", "event": "push", "branch": "main", "attempt": 1, "repository_run": "36255034896", "app_run": "36255034880", "required": "9/9 SUCCESS" },
     "b3_post_f01_main": { "head": "42a7d2ce02a51b6f71ad47d9274bb5c3d7ab5ab3", "event": "push", "branch": "main", "attempt": 1, "repository_run": "36321288154", "app_run": "36321288172", "required": "9/9 SUCCESS", "note": "Fresh current-main regression after F01 publication; product suites execute the integrated B3 tree but are not an independent local reproduction." },
     "b4_erratum_main": {"head":"5cb12ece0670e36006e68f2ebaa533c414072d11","event":"push","branch":"main","attempt":1,"repository_run":"36530973760","app_run":"36530973834","required":"9/9 SUCCESS","receipt":"ops/pf02_b_b4_erratum_publication.md","note":"Erratum publication evidence only; 51-case authenticated main suite excludes unpublished B4 implementation."},
+    "b4_implementation_candidate": { "head": "6f8d98e5abaf8edb68585f3029459c4df0d91307", "event": "pull_request", "attempt": 1, "repository_run": "36539831868", "app_run": "36539832110", "required": "9/9 SUCCESS" },
+    "b4_implementation_main": { "head": "6cf71049c479d100ec6e949002c2e30c8df81eba", "event": "push", "branch": "main", "attempt": 1, "repository_run": "36557550998", "app_run": "36557551079", "required": "9/9 SUCCESS", "note": "PostgreSQL 217/217 including 32 B4 tests; authenticated Web/PostgreSQL 57/57 failed0 skipped0 retries0 negativeControls18; repository safety findings0." },
     "required_checks": ["verify", "repository-safety", "apps", "mobile-cold-linux", "install-mobile-windows", "web-e2e", "mobile-health", "postgres-integration", "foundation-gate"]
   },
   "f01_promotion": {"evidence_ref": "6706afe3a2cc5bdd2fd7204ce7944fafdd422065", "status": "PASS_POSTGRES_INTEGRATION", "receipt": "ops/pf02_b_f01_promotion_acceptance.md", "f43_status": "NOT_RUN", "reconciliation_sha256": "257b33138247049937d5ae5814f68ad7329d53a37e9deeb7453fffa6b0fb03dd", "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"},
   "current_product_task": {
-    "status": "READY_FOR_RESUME_DECISION",
-    "slice": "PF02-B/B4",
-    "title": "Property Assignment Mutation Foundation",
-    "approved_spec": "docs/superpowers/specs/2026-09-28-pf02-b-b4-property-assignment-mutation-foundation-design.md",
-    "approved_plan": "docs/superpowers/plans/2026-09-28-pf02-b-b4-property-assignment-mutation-foundation.md",
-    "canonical_main": "5cb12ece0670e36006e68f2ebaa533c414072d11",
-    "execution_branch": "feat/pf02-b-b4-property-assignment-mutation",
-    "implementation_plan_authorized": true,
+    "status": "NONE_AUTHORIZED",
+    "last_closed_slice": "PF02-B/B4",
+    "last_closure_receipt": "ops/pf02_b_b4_closure.md",
+    "implementation_plan_authorized": false,
     "implementation_authorized": false,
-    "runtime_status": "PARTIAL_LOCAL_NOT_ACCEPTED",
     "ready_or_merge_authorized": false,
-    "next_gate": "explicit operator/coordinator decision on resuming the preserved B4 implementation against the canonical erratum",
-    "note": "The earlier bounded implementation authorization is historical. Erratum publication and green main CI do not authorize implementation resume, push, Ready, merge, closure, or later-slice work.",
-    "implementation_resume_authorized": false,
-    "B4D-L04_ERRATUM": "CANONICAL",
-    "B4_IMPLEMENTATION_RESUME_GATE": "READY_FOR_RESUME_DECISION",
-    "erratum_publication_receipt": "ops/pf02_b_b4_erratum_publication.md"
+    "next_gate": "FRESH_CLAUDE_OPUS_B4_CLOSURE_REVIEW of the docs/ops-only B4 closure candidate; any later PF02-B slice requires separate operator scope and approval",
+    "note": "B4 is VERIFIED/FROZEN after accepted PR58 implementation and implementation-main CI 9/9. No later PF02-B slice, PF02-C, F43 search, staff roster/search/onboarding/invitation, membership mutation, provider/IAM, real tenant data or production hosting is authorized."
   },
-  "b3_closure": { "state": "VERIFIED_FROZEN", "receipt": "ops/pf02_b_b3_closure.md", "evidence_main": "42a7d2ce02a51b6f71ad47d9274bb5c3d7ab5ab3", "f01": "PASS_POSTGRES_INTEGRATION", "f43": "NOT_RUN", "retained_limits": ["B3D-L01", "B3D-L02", "B3-AC04-PG-513-rejection", "b3-local-mobile-timeout"], "later_slice": "B4_READY_FOR_RESUME_DECISION" },
+  "b3_closure": { "state": "VERIFIED_FROZEN", "receipt": "ops/pf02_b_b3_closure.md", "evidence_main": "42a7d2ce02a51b6f71ad47d9274bb5c3d7ab5ab3", "f01": "PASS_POSTGRES_INTEGRATION", "f43": "NOT_RUN", "retained_limits": ["B3D-L01", "B3D-L02", "B3-AC04-PG-513-rejection", "b3-local-mobile-timeout"], "later_slice": "B4_VERIFIED_FROZEN; BEYOND_B4_NOT_STARTED_NOT_YET_SCOPED" },
+  "b4_closure": { "state": "VERIFIED_FROZEN", "receipt": "ops/pf02_b_b4_closure.md", "evidence_main": "6cf71049c479d100ec6e949002c2e30c8df81eba", "accepted_candidate_head": "6f8d98e5abaf8edb68585f3029459c4df0d91307", "f01": "PASS_POSTGRES_INTEGRATION", "f43": "NOT_RUN", "retained_limits": ["B4I-L01/B4R-L01", "B4D-L01", "B4D-L02", "B4D-L03", "B4D-L04"], "next_gate": "FRESH_CLAUDE_OPUS_B4_CLOSURE_REVIEW", "later_slice": "NOT_STARTED / NOT_YET_SCOPED" },
   "design_approval": {
     "slice": "PF02-B/B3",
     "path": "docs/superpowers/specs/2026-09-25-pf02-b-b3-building-registration-foundation-design.md",
