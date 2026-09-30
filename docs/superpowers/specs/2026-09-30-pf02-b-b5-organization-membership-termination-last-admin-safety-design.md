@@ -2,15 +2,15 @@
 
 ## 1. Status / authority
 
-Date: **2026-09-30**. Revision: **0.2**.
+Date: **2026-09-30**. Revision: **0.3**.
 
-**SCOPE_APPROVED; INDEPENDENT_REVIEW_CHANGES_REQUIRED; WRITTEN_SPEC_CORRECTION_CANDIDATE; DESIGN_NOT_APPROVED; IMPLEMENTATION_PLAN_NOT_AUTHORIZED; PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED.**
+**SCOPE_APPROVED; SECOND_INDEPENDENT_REVIEW_CHANGES_REQUIRED; WRITTEN_SPEC_SECOND_CORRECTION_CANDIDATE; DESIGN_NOT_APPROVED; IMPLEMENTATION_PLAN_NOT_AUTHORIZED; PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED.**
 
 Repository: `edward321416-maker/build-manager`.
 
 `POLICY_REF = TARGET_REF = main@cfb7a34828c63933c0e9f12b45fa578cfd127cca`.
 
-This document records the operator-approved B5 scope and the corrected architecture candidate after fresh independent review of PR #63 at `ca53af17d084cbf159a8b707e403de6d057fd003`. The review returned **CHANGES_REQUIRED** with one HIGH, three MEDIUM and five LOW findings. This revision dispositions those findings in the written design only. It is still **not approved**.
+This document records the operator-approved B5 scope and the second corrected architecture candidate after two fresh independent reviews. The first review of PR #63 at `ca53af17d084cbf159a8b707e403de6d057fd003` returned **CHANGES_REQUIRED** with one HIGH, three MEDIUM and five LOW findings. The delta review of corrected HEAD `b9c69dfeb27bdf100658dff23faf2a9b0943da0a` returned **CHANGES_REQUIRED** with one new HIGH and three LOW findings: eight of the nine prior findings were resolved, while the M02 mechanism remained partially resolved because the proposed capability-owner helper could not see other administrators through frozen RLS. Revision 0.3 dispositions that second-review delta without changing the operator-approved functional scope. It is still **not approved**.
 
 This document does **not** authorize an implementation plan, product code, SQL migration, tests, dependency changes, provider/IAM changes, production hosting, real data, Ready conversion, or merge.
 
@@ -48,9 +48,9 @@ B5 may:
 - terminate one already-existing ACTIVE `OrganizationMembership`;
 - target either `PROPERTY_STAFF` or `ORG_ADMIN`;
 - require a current same-org ACTIVE `ORG_ADMIN` caller;
-- allow an admin to terminate their own membership only when another ACTIVE admin remains;
+- allow an admin to terminate their own membership only when another **effective administrator** remains;
 - preserve historical membership rows;
-- prove concurrent B5 termination requests cannot leave an organization with zero ACTIVE admins;
+- prove concurrent B5 termination requests cannot leave an organization with zero **effective administrators**, where effective means ACTIVE ORG_ADMIN membership referencing an ACTIVE User;
 - rely on the frozen current-state authorization model so an ENDED membership immediately stops conferring current organization/property/admin authority.
 
 B5 does **not** implement:
@@ -195,7 +195,12 @@ Frozen B3:
 - `authn.can_administer_org(bytea,uuid)` is the exact current admin capability;
 - it requires current session/actor, ACTIVE organization, ACTIVE membership and role exactly `ORG_ADMIN`.
 
-B5 reuses these frozen helpers. It does not rewrite them.
+B5 preserves and reuses the frozen B1-B4 authorization semantics where their current visibility is sufficient, but it does not pretend those frozen helpers can answer new cross-user B5 questions. The corrected B5 design therefore:
+- leaves frozen helper bodies and existing Web ACLs unchanged;
+- uses a new B5-specific capability-owned caller-classification helper only for the current caller, which the frozen RLS can see;
+- uses a separate B5 read-only probe owner/helper for the cross-user "other effective administrator" question.
+
+No frozen helper body is rewritten or widened.
 
 ### 6.3 B4 relationship behavior
 
@@ -256,35 +261,70 @@ PF01's generic order also names User before Organization. B5 deliberately does *
 
 `FOR NO KEY UPDATE` is selected instead of `FOR UPDATE` because B5 changes only non-key membership columns. It still conflicts with other B5 membership updates/locks while not unnecessarily conflicting with B4's foreign-key `FOR KEY SHARE` behavior.
 
-### 7.3 Effective-admin capability helper
+### 7.3 Effective-admin read-only probe boundary
 
-B5 must not count membership rows alone.
+The second independent review correctly found that `bm_b1_capability_owner` cannot implement the cross-user effective-admin helper: frozen `b1_member_ceiling` restricts that owner to the current actor's own membership.
 
-A new B5-specific **read-only** helper is proposed under the existing capability-owner trust boundary:
+B5 therefore does **not** alter `b1_member_discovery`, `b1_member_ceiling`, or any other frozen B1/B2 policy.
+
+Instead B5 proposes a second dedicated internal role:
+
+`bm_b5_effective_admin_probe_owner`
+
+Required attributes:
+
+`NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT`
+
+This role is read-only and separate from `bm_b5_membership_owner`.
+
+Raw privileges are limited to:
+
+On `app.organization_membership`, SELECT only:
+- `id`;
+- `org_id`;
+- `user_id`;
+- `role`;
+- `status`.
+
+On `app.app_user`, SELECT only:
+- `id`;
+- `status`.
+
+It receives no INSERT/UPDATE/DELETE on either table.
+
+For `organization_membership`, a B5-specific RESTRICTIVE SELECT ceiling for the probe owner requires:
+- `org_id = app.current_org_id()`;
+- `status='ACTIVE'`;
+- `role='ORG_ADMIN'`.
+
+The existing PUBLIC permissive `organization_membership_org_scope` supplies the permissive current-org side. The probe ceiling narrows it to current ACTIVE admins.
+
+`app.app_user` currently has no RLS. Therefore the probe owner can technically raw-read only the granted `id,status` columns across app_user rows. This is an explicit internal trust boundary. It is contained by:
+- NOLOGIN/NOINHERIT;
+- exact preflighted role membership;
+- no Web or B5 command-owner SET ROLE path;
+- fixed SECURITY DEFINER helper code that joins only user ids reached through current-org visible ACTIVE admin membership rows;
+- no user row or status returned to the caller.
+
+The effective-admin helper becomes:
 
 `authn.b5_has_other_effective_admin(p_org uuid,p_target uuid) RETURNS boolean`
 
 Properties:
-- owner = `bm_b1_capability_owner`;
+- owner = `bm_b5_effective_admin_probe_owner`;
 - SECURITY DEFINER;
-- secure `search_path = pg_catalog`;
+- secure `search_path = pg_catalog, pg_temp`;
 - PUBLIC EXECUTE revoked;
-- executable by `bm_b5_membership_owner` only, not directly by Web;
-- checks `p_org = app.current_org_id()`;
-- checks ACTIVE organization;
-- returns true only if there exists a different membership in that org with:
-  - `role='ORG_ADMIN'`;
-  - `status='ACTIVE'`;
-  - referenced `app.app_user.status='ACTIVE'`;
-- returns only a boolean, never user_id/profile/identity data.
+- EXECUTE granted only to `bm_b5_membership_owner`;
+- requires `p_org = app.current_org_id()`;
+- searches a different current-org ACTIVE ORG_ADMIN membership;
+- joins that membership's `user_id` to `app.app_user.id`;
+- requires `app_user.status='ACTIVE'`;
+- returns boolean only.
 
-This helper reuses reads already held by `bm_b1_capability_owner` and avoids granting the B5 command owner raw `app_user` or membership `user_id` visibility.
+Positive evidence must prove that two distinct ACTIVE Users with ACTIVE ORG_ADMIN memberships make the helper return true through the real probe-owner → command-owner execution path, while a suspended or deletion-pending second User returns false.
 
-A second B5-specific read-only capability helper may classify the caller after waits:
-
-`authn.b5_classify_caller(p_digest bytea,p_org uuid) RETURNS text`
-
-with an internal fixed vocabulary equivalent to `ALLOWED | NOT_FOUND | FORBIDDEN`. It is owned by `bm_b1_capability_owner`, executable only by the B5 owner, and preserves frozen B3/B4 public precedence without widening direct Web capability APIs.
+The caller-classification helper remains separate and may stay owned by `bm_b1_capability_owner` because it needs only the caller's own current membership, which frozen RLS already permits.
 
 PostgreSQL 18 basis:
 - RLS SELECT policies also affect UPDATE queries that require SELECT privileges;
@@ -401,9 +441,10 @@ All B5 responses use private/no-store cache behavior and preserve the existing C
 The B5 persistence adapter must set, inside the already-open transaction and **before** invoking the B5 command function:
 
 - `SET LOCAL lock_timeout = '2000ms'`;
-- `SET LOCAL statement_timeout = '5000ms'`.
+- `SET LOCAL statement_timeout = '5000ms'`;
+- `SET LOCAL transaction_timeout = '7000ms'`.
 
-These values are B5 design bounds, not platform-wide settings and not an SLA. The production Web pool remains the current max-5 pool; B5 does not change pool configuration.
+These values are B5 design bounds, not platform-wide settings and not an SLA. `transaction_timeout` bounds the full transaction lifetime, including a holder that stalls after the B5 function returns but before COMMIT. The production Web pool remains the current max-5 pool; B5 does not change pool configuration.
 
 ### 9.2 Sanitized SQLSTATE mapping
 
@@ -416,7 +457,7 @@ The implementation must treat the following as known pre-commit/transaction-abor
 - `23514 check_violation` — including a frozen membership status/time invariant failure;
 - `22003 numeric_value_out_of_range` — including version overflow.
 
-No raw SQLSTATE/constraint/error text reaches the client.
+No raw SQLSTATE/constraint/error text reaches the client. **Any unlisted PostgreSQL/driver error code also defaults to the same sanitized `DEPENDENCY_UNAVAILABLE` / HTTP 503 path unless it is one of the explicitly recognized B5 business results (`NOT_FOUND`, `FORBIDDEN`, `LAST_ADMIN`).**
 
 A failure returned before COMMIT is distinguishable from an unknown COMMIT outcome. The former is known rolled back/no mutation after transaction cleanup; the latter remains ambiguous and uses the existing transaction-helper rule: sanitized 503, destroy uncertain connection, no automatic command retry.
 
@@ -478,17 +519,18 @@ Proposed filename:
 Existing migrations 0001-0009 remain byte-frozen.
 
 The B5 migration may:
-1. preflight `bm_b5_membership_owner` attributes and role membership;
+1. preflight both `bm_b5_membership_owner` and `bm_b5_effective_admin_probe_owner` attributes and role membership;
 2. grant minimum schema/function/table/column privileges;
 3. create B5-specific **RESTRICTIVE** RLS ceilings on Organization and OrganizationMembership;
 4. create the B5 SECURITY DEFINER command routine;
-5. create B5-specific read-only capability helpers under `bm_b1_capability_owner` for caller classification/effective-admin existence;
-6. revoke PUBLIC EXECUTE on all new helpers;
-7. grant new capability-helper EXECUTE only to `bm_b5_membership_owner`;
-8. grant only exact B5 command EXECUTE to `bm_b1_web`;
-9. revoke temporary CREATE authority before commit;
-10. verify no raw Web membership or Organization UPDATE surface;
-11. verify no unintended role membership/inheritance remains.
+5. create the B5 caller-classification helper under `bm_b1_capability_owner` and the other-effective-admin helper under `bm_b5_effective_admin_probe_owner`;
+6. add the probe owner's RESTRICTIVE membership SELECT ceiling and exact read-only column grants;
+7. revoke PUBLIC EXECUTE on all new helpers;
+8. grant both B5 helper EXECUTEs only to `bm_b5_membership_owner`;
+9. grant only exact B5 command EXECUTE to `bm_b1_web`;
+10. revoke temporary CREATE authority before commit;
+11. verify no raw Web membership or Organization UPDATE surface;
+12. verify no unintended role membership/inheritance remains.
 
 The migration may **not**:
 - add a business table or column;
@@ -501,16 +543,16 @@ The migration may **not**:
 
 ### 11.1 Synthetic role provisioning boundary
 
-Production migration **preflights** `bm_b5_membership_owner`; it does not create a production login or credential.
+Production migration **preflights** both B5 NOLOGIN roles; it does not create a production login or credential.
 
-Only disposable test infrastructure may provision the synthetic NOLOGIN role and the migrator's non-inherited SET-only membership required to create/own B5 functions, following the established B4 testing pattern. This is not production IAM evidence.
+Only disposable test infrastructure may provision the synthetic `bm_b5_membership_owner` and `bm_b5_effective_admin_probe_owner` roles and the migrator's non-inherited SET-only memberships required to create/own B5 functions, following the established B4 testing pattern. This is not production IAM evidence.
 
 ### 11.2 Pre-declared frozen-test expectation updates
 
 B5 is additive, but current frozen capability tests use exact inventories. A future implementation plan must therefore predeclare and limit the following test expectation changes:
 
 - `tests/postgres/b2-capabilities.test.ts` must extend its frozen policy-inventory scoping to exclude `b5_*` from the B1/B2 exact list, exactly as it already separates B3/B4 additions; the B5 policies are then asserted in B5-owned tests;
-- that same B2 frozen role-membership inventory must exclude the dedicated B5 owner/migrator provisioning relationship from the B1/B2 list while B5-owned tests assert the exact B5 membership/options;
+- that same B2 frozen role-membership inventory must exclude both dedicated B5 owner/probe-owner migrator provisioning relationships from the B1/B2 list while B5-owned tests assert both exact membership/options;
 - `tests/postgres/b3-capabilities.test.ts` keeps the existing `can_administer_org` ACL unchanged: B5 does **not** gain EXECUTE on that frozen helper directly because caller classification is provided by a new B5-specific capability-owned helper;
 - existing exact executor inventories may add only new B5 helper entries where a new helper is actually introduced and must retain every prior expected row;
 - new B5 catalog tests own the exact B5 role, policy, helper, ACL and negative behavior assertions.
@@ -566,9 +608,11 @@ Required behavioral negative evidence must prove an attempted id change is block
 
 ### 12.3 Effective-admin visibility
 
-The B5 owner gets **no raw app_user SELECT** and no raw membership user_id SELECT.
+The B5 command owner gets **no raw app_user SELECT** and no raw membership user_id SELECT.
 
-Instead it receives EXECUTE only on the B5-specific capability-owned boolean helper that checks for another effective admin.
+Instead it receives EXECUTE only on the B5-specific boolean helper owned by `bm_b5_effective_admin_probe_owner`.
+
+The probe owner receives only the exact read-only columns defined in §7.3 and no mutation privilege.
 
 ### 12.4 property_assignment
 
@@ -622,13 +666,24 @@ WITH CHECK:
 
 The owner lacks UPDATE on id/org_id/user_id/role/created_at, so those cannot be changed by the B5 role.
 
-### 13.5 Required final policy behavior
+### 13.5 Effective-admin probe membership SELECT ceiling — RESTRICTIVE
+
+For `bm_b5_effective_admin_probe_owner`:
+- `org_id = app.current_org_id()`;
+- `status='ACTIVE'`;
+- `role='ORG_ADMIN'`.
+
+No B5 probe policy is added to app_user because app_user currently has no RLS. The probe's app_user boundary is the exact SELECT(id,status) column grant plus NOLOGIN isolation and fixed SECURITY DEFINER helper code.
+
+### 13.6 Required final policy behavior
 
 Final catalog/behavior evidence must prove:
 - no B5 policy is PUBLIC;
 - no B5 policy is permissive-only;
 - Web still has no raw membership/Organization UPDATE;
 - capability/B4/PF02-A roles gain no B5 mutation authority;
+- the command owner gains no raw user_id/app_user visibility;
+- the probe owner gains no mutation authority and sees membership rows only through its current-org ACTIVE-ORG_ADMIN RESTRICTIVE ceiling;
 - missing org context yields zero B5 row visibility/mutation;
 - an actual ACTIVE→ENDED UPDATE executes successfully under the final B5 owner + final RLS;
 - ENDED→ACTIVE is denied;
@@ -689,17 +744,22 @@ Proposed read-only helper:
 
 `authn.b5_has_other_effective_admin(p_org uuid,p_target uuid) RETURNS boolean`
 
-- owner = `bm_b1_capability_owner`;
+- owner = `bm_b5_effective_admin_probe_owner`;
 - SECURITY DEFINER;
-- secure `search_path = pg_catalog`;
+- secure `search_path = pg_catalog, pg_temp`;
 - PUBLIC EXECUTE revoked;
-- EXECUTE only to B5 owner;
+- EXECUTE only to `bm_b5_membership_owner`;
+- no direct Web EXECUTE;
 - current org only;
-- checks a different ACTIVE ORG_ADMIN membership joined to ACTIVE `app_user`;
+- reads only probe-visible ACTIVE ORG_ADMIN memberships;
+- joins only referenced `app_user.id,status`;
+- requires a different membership and ACTIVE User;
 - returns boolean only;
 - never returns user_id/status rows.
 
-These helpers are B5-specific additive capability objects; they do not modify the bodies or direct Web ACLs of frozen B1-B4 helpers.
+The caller-classification helper remains capability-owned; the cross-user effective-admin helper does not.
+
+These B5-specific additive helpers do not modify frozen B1-B4 helper bodies or their existing direct Web ACLs.
 
 ---
 
@@ -779,13 +839,17 @@ Required properties:
 - mapped database failures roll back and return sanitized 503;
 - unknown COMMIT outcome remains distinct from known pre-commit rollback.
 
-### 16.1 Known pre-commit failures
+### 16.1 Routine exception discipline
+
+The B5 SECURITY DEFINER command and its helpers must not use a catch-all `EXCEPTION WHEN OTHERS` that swallows database failures, converts them to a business result, or attempts an internal retry. Expected business branches use ordinary SQL/PLpgSQL control flow. Unexpected database exceptions propagate to the persistence adapter for rollback and sanitized mapping.
+
+### 16.2 Known pre-commit failures
 
 The adapter maps SQLSTATE `55P03`, `57014`, `40P01`, `40001`, `23514`, and `22003` to internal B5 `DEPENDENCY_UNAVAILABLE`, rolls back, and exposes only HTTP 503.
 
 No internal retry is performed. PF01 allows either bounded internal retry or a retryable error; B5 chooses the latter.
 
-### 16.2 Check/time/version edge cases
+### 16.3 Check/time/version edge cases
 
 B5 does not expand raw owner SELECT merely to clamp `ended_at` against `created_at`. If the frozen status/time CHECK rejects the DB-owned timestamp shape with 23514, the whole transaction rolls back and returns sanitized 503.
 
@@ -793,7 +857,7 @@ If `version + 1` overflows and PostgreSQL reports 22003, the whole transaction r
 
 These are dependency/invariant failures, not public client conflicts.
 
-### 16.3 Unknown COMMIT outcome
+### 16.4 Unknown COMMIT outcome
 
 If COMMIT itself fails/has unknown outcome:
 - return sanitized 503;
@@ -898,6 +962,8 @@ Errors reveal no:
 Foreign, absent and ENDED target membership cases share 404.
 
 Last-admin receives the generic public `CONFLICT` code. The API does not disclose how many admins exist.
+
+**Accepted residual inference — B5D2-L02:** on self-termination, a current admin who already knows that a co-admin membership exists can distinguish success from `CONFLICT` and may therefore infer that no *other effective* admin exists; because effective-admin status includes `app_user.status='ACTIVE'`, this can indirectly reveal that the known co-admin is not currently effective. B5 does not reveal which underlying condition failed, does not expose the other User row/status, and limits this inference to an already-authorized current admin. This residual is accepted as LOW unless a later product/privacy review requires a different last-admin UX/error contract.
 
 No logs/public evidence may include real identity data, request cookies, CSRF material, raw provider subject, or production identifiers.
 
@@ -1014,10 +1080,13 @@ Catalog evidence proves:
 - dedicated NOLOGIN B5 owner;
 - exact Organization SELECT + UPDATE(id)-only lock privilege;
 - exact membership SELECT/UPDATE column ceiling;
+- dedicated NOLOGIN effective-admin probe owner with membership SELECT(id,org_id,user_id,role,status) and app_user SELECT(id,status) only;
 - no member INSERT/DELETE;
 - new B5 policies are RESTRICTIVE;
 - secure SECURITY DEFINER ownership/search_path/ACL;
-- B5 capability helpers are not directly Web-executable;
+- caller helper and probe helper are not directly Web-executable;
+- probe helper positive case with two distinct ACTIVE admin Users returns true through the real probe-owner → command-owner path;
+- suspended/deletion-pending second User returns false;
 - no unintended role inheritance/membership.
 
 ### AC15 — Owner-role behavioral negatives
@@ -1094,9 +1163,9 @@ A later implementation plan, if separately authorized, must:
 5. implement the corrected Organization→membership lock order;
 6. put the membership union `ORDER BY id` at the actual locking-query level;
 7. use `FOR NO KEY UPDATE` unless a later review proves stronger locking is required;
-8. implement capability-owned caller/effective-admin helpers without public/identity projection;
-9. set transaction-local lock_timeout=2000ms and statement_timeout=5000ms before the B5 function call;
-10. map 55P03/57014/40P01/40001/23514/22003 to sanitized 503 with no automatic retry;
+8. implement the capability-owned caller helper plus dedicated probe-owned effective-admin helper without public identity projection;
+9. set transaction-local lock_timeout=2000ms, statement_timeout=5000ms and transaction_timeout=7000ms before the B5 function call;
+10. map 55P03/57014/40P01/40001/23514/22003 and all unlisted database/driver failures to sanitized 503 with no automatic retry, except explicit B5 business results;
 11. include strict RED→GREEN tests for AC01-AC19;
 12. include distinct-backend `pg_blocking_pids`/activity evidence for all AC07 variants;
 13. include owner-role behavioral RLS/privilege negatives, not catalog snapshots only;
@@ -1167,13 +1236,13 @@ Independent delta review must specifically challenge:
 4. Does Organization-level `FOR NO KEY UPDATE` align with PF01 last-admin serialization without unnecessary B4 blocking?
 5. Does the one-query admin∪target lock use actual top-level `ORDER BY id ... FOR NO KEY UPDATE`?
 6. Can any two B5 variants in AC07 deadlock?
-7. Is "effective admin" correctly defined as ACTIVE membership + ACTIVE app_user?
+7. Is "effective admin" correctly defined as ACTIVE membership + ACTIVE app_user, and can the dedicated probe owner actually observe the positive cross-user case under frozen B1/B2 policies?
 8. Can a security suspension race still create an outcome incorrectly attributed to voluntary B5?
 9. Are post-wait 404-vs-403 classifications consistent with B3/B4?
-10. Are timeout values/mappings sufficient to protect the max-5 Web pool?
+10. Are lock/statement/transaction timeout values and default-unlisted-error mapping sufficient to protect the max-5 Web pool, including a stall after function return but before COMMIT?
 11. Are 23514/22003 safely mapped without raw leak or partial mutation?
 12. Does FOR NO KEY UPDATE leave the acknowledged B4 PUT race authority-safe?
-13. Are owner-role behavioral negatives sufficient to prove least privilege?
+13. Are command-owner and probe-owner behavioral negatives/positive helper cases sufficient to prove least privilege?
 14. Are frozen capability inventory updates bounded rather than weakened?
 15. Are F15/F25/F39 correctly left NOT_RUN?
 16. Does the design still avoid any role mutation, roster, onboarding, PF02-C or provider scope?
@@ -1183,29 +1252,33 @@ Independent delta review must specifically challenge:
 
 ## 30. Review finding disposition / handoff state
 
-Fresh independent review at prior HEAD `ca53af17d084cbf159a8b707e403de6d057fd003` returned CHANGES_REQUIRED: BLOCKER0 / HIGH1 / MEDIUM3 / LOW5.
+First independent review at `ca53af17d084cbf159a8b707e403de6d057fd003`: CHANGES_REQUIRED, B0/H1/M3/L5.
 
-This correction candidate dispositions:
+First delta review at `b9c69dfeb27bdf100658dff23faf2a9b0943da0a`: CHANGES_REQUIRED, B0/H1/M0/L3. Eight of the nine prior findings were RESOLVED. B5D-M02 was PARTIALLY_RESOLVED because the effective-admin definition was correct but its capability-owner helper could not see other administrators through frozen B1/B2 RLS.
 
-- **B5D-H01 — FIXED IN DESIGN:** membership SELECT RLS changed from ACTIVE-only to current-org only; all B5 ceilings declared RESTRICTIVE; real owner-role UPDATE added to acceptance; historical execution-log claim is superseded by append-only correction, not rewritten.
-- **B5D-M01 — FIXED IN DESIGN:** adopt PF01 Organization-level serialization; membership admin∪target locked in one id-ordered statement.
-- **B5D-M02 — FIXED IN DESIGN:** last-admin invariant uses effective admin = ACTIVE membership + ACTIVE User through a capability-owned boolean helper.
-- **B5D-M03 — FIXED IN DESIGN:** transaction-local lock/statement timeouts and fixed sanitized SQLSTATE mappings are specified.
-- **B5D-L01 — FIXED IN DESIGN:** post-wait org visibility then admin authority reclassification; AC08 names the blocked window and expected codes.
-- **B5D-L02 — FIXED IN DESIGN:** use FOR NO KEY UPDATE; B4 PUT×B5 race is disclosed and added to AC10.
-- **B5D-L03 — FIXED IN DESIGN:** owner behavioral negatives plus explicit concurrency observation primitives/variants added.
-- **B5D-L04 — FIXED IN DESIGN:** bounded frozen inventory expectation updates and disposable test-only role provisioning predeclared.
-- **B5D-L05 — FIXED IN DESIGN:** STATUS/manifest reconciliation is explicitly deferred to a separately authorized post-review publication step.
+Revision 0.3 dispositions the delta-review findings:
+
+- **B5D2-H01 — FIXED IN DESIGN:** move the cross-user effective-admin read to a separate NOLOGIN `bm_b5_effective_admin_probe_owner`; do not alter frozen `b1_member_*` policies; add current-org ACTIVE-ORG_ADMIN RESTRICTIVE probe policy; grant only membership id/org/user_id/role/status and app_user id/status reads; helper is probe-owned and returns boolean to command owner only; add positive/negative real-role AC evidence.
+- **B5D2-L01 — FIXED IN DESIGN:** add transaction_timeout=7000ms, default all unlisted DB/driver errors to sanitized 503, and forbid catch-all exception swallowing/retry in B5 routines.
+- **B5D2-L02 — ACCEPTED_LOW_RESIDUAL:** document the limited self-termination 409 inference about whether another effective administrator exists.
+- **B5D2-L03 — FIXED IN DESIGN:** align approved-scope wording to effective-administrator terminology and distinguish frozen-helper reuse from B5-specific helper additions.
+
+Prior findings remain dispositioned:
+- B5D-H01 = RESOLVED
+- B5D-M01 = RESOLVED
+- B5D-M02 = superseded by B5D2-H01 correction above
+- B5D-M03 = RESOLVED
+- B5D-L01..L05 = RESOLVED
 
 Current authority:
-- PASS: operator-approved B5 functional scope unchanged;
-- COMPLETE: first independent design review received;
-- CURRENT: corrected written-design candidate awaits fresh delta review;
+- PASS: operator-approved functional scope unchanged;
+- COMPLETE: two independent design review generations received;
+- CURRENT: revision 0.3 second-correction candidate awaits fresh independent delta review;
 - NOT_APPROVED: written design/spec;
 - NOT_AUTHORIZED: implementation plan;
 - NOT_AUTHORIZED: product implementation;
 - NOT_AUTHORIZED: Ready/merge.
 
-**NEXT_GATE = FRESH_CLAUDE_OPUS_B5_DESIGN_DELTA_REVIEW** after the corrected exact HEAD receives fresh candidate CI.
+**NEXT_GATE = FRESH_CLAUDE_OPUS_B5_DESIGN_SECOND_DELTA_REVIEW** after the corrected exact HEAD receives fresh candidate CI.
 
-Do not implement or publish B5 from this correction candidate until fresh independent delta review is accepted and the operator separately approves the written design.
+Do not implement or publish B5 until the fresh second delta review is accepted and the operator separately approves the written design.
