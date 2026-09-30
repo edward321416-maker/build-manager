@@ -282,3 +282,10 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Historical event `PF02B-B5-DESIGN-LEAST-PRIVILEGE-CORRECTION-20260930` is not rewritten. Its statement that ENDED membership history is not raw-visible to the B5 owner is superseded by the H01 correction above. The corrected design states that current-org ENDED rows may be RLS-visible to the NOLOGIN owner only for the narrow granted columns, while public non-disclosure is enforced by the fixed function and absence of a member projection.
 - B5 design remains NOT_APPROVED. Implementation plan/product implementation/Ready/merge remain NOT_AUTHORIZED. External synchronization is not claimed; these events remain queued.
 - Event `PF02B-B5-DESIGN-BOUNDARY-CLARIFICATION-20260930`; sync_status=pending; tokens=unknown. Pre-delta-review clarification records the bounded PF01 User-lock exception for security suspension and the exact frozen-test inventory impact. Functional scope is unchanged; design remains NOT_APPROVED; implementation remains NOT_AUTHORIZED.
+
+## 2026-09-30 PF02-B/B5 second design delta review and correction
+
+- Event `PF02B-B5-DESIGN-SECOND-DELTA-REVIEW-CHANGES-20260930`; sync_status=pending; tokens=unknown. Fresh Claude Opus 5.5 delta review of PR #63 HEAD `b9c69dfeb27bdf100658dff23faf2a9b0943da0a` returned CHANGES_REQUIRED, BLOCKER0/HIGH1/MEDIUM0/LOW3, publication recommendation NOT_READY.
+- Event `PF02B-B5-DESIGN-SECOND-DELTA-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Revision 0.3 preserves frozen B1/B2 policies and introduces a dedicated NOLOGIN read-only effective-admin probe owner instead of widening the capability owner. It also adds transaction_timeout, default-unlisted-error sanitization, catch-all exception prohibition, the limited 409 inference residual, and wording alignment.
+- The operator-approved B5 functional scope is unchanged. Design remains NOT_APPROVED; implementation plan/product implementation/Ready/merge remain NOT_AUTHORIZED.
+- External synchronization is not claimed; these events remain queued.
