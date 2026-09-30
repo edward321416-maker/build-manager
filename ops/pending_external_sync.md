@@ -241,3 +241,16 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event `PF02B-B4-ERRATUM-CANONICAL-HANDOFF-20260929`; sync_status=pending; tokens=unknown.
 - Exact canonical blobs and fresh actual-main CI verified at `5cb12ece0670e36006e68f2ebaa533c414072d11`; see [publication evidence](pf02_b_b4_erratum_publication.md).
 - No Google write/readback performed. This transition does not authorize B4 implementation resume.
+
+## 2026-09-30 Expo SDK 57 patch maintenance preflight
+
+- Event `EXPO57-PATCH-COMPAT-PREFLIGHT-20260930`; sync_status=pending; tokens=unknown. POLICY_REF / BASE `6cf71049c479d100ec6e949002c2e30c8df81eba`.
+- Separate maintenance candidate; the four authorized patches were independently confirmed by Doctor 1.20.4 and the official Expo compatibility check. No Google write/readback performed.
+- Deferred event `PF02B-B4-CLOSURE-CANDIDATE-20260929` remains pending external synchronization. Its source execution-log row is on PR #59, not yet published on this main base; queued here without importing or rewriting that historical row. PR #59 remains outside this maintenance branch.
+
+## 2026-09-30 Expo SDK 57 patch maintenance candidate
+
+- Event `EXPO57-PATCH-COMPAT-MAINTENANCE-20260930`; sync_status=pending; tokens=unknown. Four direct patch alignments and the required expo-modules-core transitive patch only; package key set unchanged.
+- Doctor 1.20.4 = 21/21, compatibility check up to date, fresh-cache Mobile = 133/133 on its first run, and lint/typecheck/Web build/dependency checks/Android and iOS JS-assets exports passed. Native binary builds NOT_RUN. Existing 14 moderate advisories and lint warnings remain outside scope.
+- Public-tree/history validation and exact-head hosted CI receipts will be recorded in the maintenance PR and private evidence after execution; candidate-time logging does not claim them complete. Stop at OPEN / DRAFT / NOT_MERGED for INDEPENDENT_EXPO57_MAINTENANCE_REVIEW.
+- Google Sheets/Drive writes=0; EXTERNAL_SYNC=PENDING. Historical pending rows are preserved. PR #59 branch and its closure artifacts are unchanged.
