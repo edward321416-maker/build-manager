@@ -2,15 +2,15 @@
 
 ## 1. Status / authority
 
-Date: **2026-09-30**. Revision: **0.3**.
+Date: **2026-09-30**. Revision: **0.4**.
 
-**SCOPE_APPROVED; SECOND_INDEPENDENT_REVIEW_CHANGES_REQUIRED; WRITTEN_SPEC_SECOND_CORRECTION_CANDIDATE; DESIGN_NOT_APPROVED; IMPLEMENTATION_PLAN_NOT_AUTHORIZED; PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED.**
+**SCOPE_APPROVED; SECOND_DELTA_REVIEW_CHANGES_REQUIRED; WRITTEN_SPEC_THIRD_CORRECTION_CANDIDATE; DESIGN_NOT_APPROVED; IMPLEMENTATION_PLAN_NOT_AUTHORIZED; PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED.**
 
 Repository: `edward321416-maker/build-manager`.
 
 `POLICY_REF = TARGET_REF = main@cfb7a34828c63933c0e9f12b45fa578cfd127cca`.
 
-This document records the operator-approved B5 scope and the second corrected architecture candidate after two fresh independent reviews. The first review of PR #63 at `ca53af17d084cbf159a8b707e403de6d057fd003` returned **CHANGES_REQUIRED** with one HIGH, three MEDIUM and five LOW findings. The delta review of corrected HEAD `b9c69dfeb27bdf100658dff23faf2a9b0943da0a` returned **CHANGES_REQUIRED** with one new HIGH and three LOW findings: eight of the nine prior findings were resolved, while the M02 mechanism remained partially resolved because the proposed capability-owner helper could not see other administrators through frozen RLS. Revision 0.3 dispositions that second-review delta without changing the operator-approved functional scope. It is still **not approved**.
+This document records the operator-approved B5 scope and the second corrected architecture candidate after two fresh independent reviews. The first review of PR #63 at `ca53af17d084cbf159a8b707e403de6d057fd003` returned **CHANGES_REQUIRED** with one HIGH, three MEDIUM and five LOW findings. The delta review of corrected HEAD `b9c69dfeb27bdf100658dff23faf2a9b0943da0a` returned **CHANGES_REQUIRED** with one new HIGH and three LOW findings: eight of the nine prior findings were resolved, while the M02 mechanism remained partially resolved because the proposed capability-owner helper could not see other administrators through frozen RLS. Revision 0.3 dispositioned that second-review delta without changing the operator-approved functional scope. A fresh second-delta review of revision 0.3 then returned **CHANGES_REQUIRED** with BLOCKER0/HIGH0/MEDIUM0/LOW3: the probe-owner architecture was accepted, and only normative text/evidence gaps remained. Revision 0.4 addresses those LOW findings only. It is still **not approved**.
 
 This document does **not** authorize an implementation plan, product code, SQL migration, tests, dependency changes, provider/IAM changes, production hosting, real data, Ready conversion, or merge.
 
@@ -121,7 +121,7 @@ The command must:
 9. leave PropertyAssignment history untouched;
 10. expose no User identity/profile/email/provider data;
 11. fail closed if current authority or target eligibility changes;
-12. bound lock/statement waits so one stalled command cannot indefinitely consume the five-connection Web pool;
+12. bound lock, statement, and transaction lifetime from the first post-BEGIN B5 statement so one stalled command cannot indefinitely consume the five-connection Web pool;
 13. keep canonical F15/F25/F39 statuses unchanged unless their complete acceptance semantics are later evidenced.
 
 Security suspension remains a separate out-of-scope command. PF01 explicitly allows security suspension to leave an organization with no effective administrator and then requires organization work to lock pending recovery. B5 must not misclassify that security exception as voluntary last-admin safety.
@@ -257,7 +257,7 @@ Corrected architecture:
 
 The one-statement membership union fixes the prior admin-first/target-second ordering problem. A staff target with a lower UUID is locked in the same id order as every admin membership.
 
-PF01's generic order also names User before Organization. B5 deliberately does **not** row-lock `app_user`: User security suspension is a separate security command that PF01 says must not be prevented by last-admin protection. Instead B5 re-evaluates referenced User ACTIVE state through the capability-owned effective-admin helper in the decisive UPDATE snapshot. This is a bounded B5 security-suspension exception, not a claim that B5 serializes User lifecycle commands.
+PF01's generic order also names User before Organization. B5 deliberately does **not** row-lock `app_user`: User security suspension is a separate security command that PF01 says must not be prevented by last-admin protection. Instead B5 re-evaluates referenced User ACTIVE state through the **probe-owned** effective-admin helper in the decisive UPDATE snapshot. This is a bounded B5 security-suspension exception, not a claim that B5 serializes User lifecycle commands.
 
 `FOR NO KEY UPDATE` is selected instead of `FOR UPDATE` because B5 changes only non-key membership columns. It still conflicts with other B5 membership updates/locks while not unnecessarily conflicting with B4's foreign-key `FOR KEY SHARE` behavior.
 
@@ -318,6 +318,7 @@ The effective-admin helper becomes:
 
 Properties:
 - owner = `bm_b5_effective_admin_probe_owner`;
+- `STABLE`;
 - SECURITY DEFINER;
 - secure `search_path = pg_catalog, pg_temp`;
 - PUBLIC EXECUTE revoked;
@@ -450,7 +451,15 @@ The B5 persistence adapter must set, inside the already-open transaction and **b
 - `SET LOCAL statement_timeout = '5000ms'`;
 - `SET LOCAL transaction_timeout = '7000ms'`.
 
-These values are B5 design bounds, not platform-wide settings and not an SLA. `transaction_timeout` bounds the full transaction lifetime, including a holder that stalls after the B5 function returns but before COMMIT. The production Web pool remains the current max-5 pool; B5 does not change pool configuration.
+These values are B5 design bounds, not platform-wide settings and not an SLA.
+
+For B5, the three `SET LOCAL` statements must be the **first SQL statements after BEGIN**, before current_actor / authorize_org / org-context establishment. The existing frozen `withB1OrgTransaction` helper sets org context before the B5 operation callback and therefore must **not** be reused unchanged for B5. A future B5-specific transaction wrapper may reuse the frozen `withTransaction` BEGIN/COMMIT/cleanup semantics, but its order is:
+
+`BEGIN → SET LOCAL lock_timeout → SET LOCAL statement_timeout → SET LOCAL transaction_timeout → current_actor → authorize_org → set_config org/session context → B5 command → COMMIT`.
+
+`transaction_timeout` is a PostgreSQL **session-terminating** safety backstop, not an ordinary statement error that leaves the same checked-out client reusable. If it fires, PostgreSQL terminates the session (SQLSTATE `25P04`). The B5 persistence layer must treat that connection as destroyed and must never return it to the pool. The implementation plan must prove how the node-postgres checked-out-client error path is handled so a server-side session termination cannot surface as an unhandled process error.
+
+The production Web pool remains the current max-5 pool; B5 does not change pool configuration.
 
 ### 9.2 Sanitized SQLSTATE mapping
 
@@ -461,7 +470,8 @@ The implementation must treat the following as known pre-commit/transaction-abor
 - `40P01 deadlock_detected`;
 - `40001 serialization_failure` if ever surfaced despite the READ COMMITTED contract;
 - `23514 check_violation` — including a frozen membership status/time invariant failure;
-- `22003 numeric_value_out_of_range` — including version overflow.
+- `22003 numeric_value_out_of_range` — including version overflow;
+- `25P04 transaction_timeout` — session termination, client must be discarded/destroyed.
 
 No raw SQLSTATE/constraint/error text reaches the client. **Any unlisted PostgreSQL/driver error code also defaults to the same sanitized `DEPENDENCY_UNAVAILABLE` / HTTP 503 path unless it is one of the explicitly recognized B5 business results (`NOT_FOUND`, `FORBIDDEN`, `LAST_ADMIN`).**
 
@@ -740,6 +750,7 @@ Proposed read-only helper:
 `authn.b5_classify_caller(p_digest bytea,p_org uuid) RETURNS text`
 
 - owner = `bm_b1_capability_owner`;
+- `STABLE`;
 - SECURITY DEFINER;
 - secure `search_path = pg_catalog`;
 - PUBLIC EXECUTE revoked;
@@ -856,11 +867,11 @@ Required properties:
 
 ### 16.1 Routine exception discipline
 
-The B5 SECURITY DEFINER command and its helpers must not use a catch-all `EXCEPTION WHEN OTHERS` that swallows database failures, converts them to a business result, or attempts an internal retry. Expected business branches use ordinary SQL/PLpgSQL control flow. Unexpected database exceptions propagate to the persistence adapter for rollback and sanitized mapping.
+The B5 SECURITY DEFINER command and its helpers must not use a catch-all `EXCEPTION WHEN OTHERS` that swallows database failures, converts them to a business result, or attempts an internal retry. Expected business branches use ordinary SQL/PLpgSQL control flow. Unexpected database exceptions propagate to the persistence adapter for rollback/sanitized mapping when the session is still alive. A session-terminating `25P04` path must be treated separately as connection loss: no attempt to reuse the client, no return to the pool, sanitized 503 at the request boundary, and process survival.
 
 ### 16.2 Known pre-commit failures
 
-The adapter maps SQLSTATE `55P03`, `57014`, `40P01`, `40001`, `23514`, and `22003` to internal B5 `DEPENDENCY_UNAVAILABLE`, rolls back, and exposes only HTTP 503.
+The adapter maps SQLSTATE `55P03`, `57014`, `40P01`, `40001`, `23514`, and `22003` to internal B5 `DEPENDENCY_UNAVAILABLE`, rolls back while the session remains usable, and exposes only HTTP 503. SQLSTATE `25P04` is also sanitized to HTTP 503 but is **session-terminating**: the client is discarded rather than treated as a normal rollback/reuse path.
 
 No internal retry is performed. PF01 allows either bounded internal retry or a retryable error; B5 chooses the latter.
 
@@ -1090,8 +1101,8 @@ The same authenticated User may retain unrelated organization access; B5 does no
 ### AC13 — Transport boundaries
 Method/Origin/session/CSRF/query/path/body-size precedence produces fixed sanitized errors and zero mutation on failure.
 
-### AC14 — Catalog least privilege
-Catalog evidence proves:
+### AC14 — Catalog / helper least privilege
+Catalog and helper-level evidence proves:
 - dedicated NOLOGIN B5 owner;
 - exact Organization SELECT + UPDATE(id)-only lock privilege;
 - exact membership SELECT/UPDATE column ceiling;
@@ -1100,12 +1111,17 @@ Catalog evidence proves:
 - new B5 policies are RESTRICTIVE;
 - secure SECURITY DEFINER ownership/search_path/ACL;
 - caller helper and probe helper are not directly Web-executable;
+- both B5 helpers are catalog-pinned as `STABLE`;
 - probe helper positive case with two distinct ACTIVE admin Users returns true through the real probe-owner → command-owner path;
-- suspended/deletion-pending second User returns false;
+- second User SUSPENDED → false;
+- second User DELETION_PENDING → false;
+- second membership ENDED → false;
+- second membership PROPERTY_STAFF → false;
+- foreign org / missing current-org context → no positive visibility/result;
 - no unintended role inheritance/membership.
 
-### AC15 — Owner-role behavioral negatives
-Using the disposable synthetic B5 owner under final policies:
+### AC15 — Command-owner and probe-owner behavioral negatives
+Using the disposable synthetic B5 command owner under final policies:
 - actual ACTIVE→ENDED UPDATE succeeds;
 - ENDED→ACTIVE denied;
 - role/org/user update denied;
@@ -1115,8 +1131,34 @@ Using the disposable synthetic B5 owner under final policies:
 - Organization id change denied by RLS/FK;
 - missing org context sees/mutates zero B5 rows.
 
-### AC16 — Bounded wait / SQLSTATE mapping
-Induce lock_timeout, statement_timeout/cancel, and deadlock paths without production config changes. Prove fixed sanitized 503, transaction rollback/no partial mutation, and no raw SQLSTATE/SQL text in HTTP output. Separately verify 23514 and 22003 mapping with synthetic negative controls where practical.
+Using the disposable synthetic B5 effective-admin probe owner under final policies:
+- INSERT/UPDATE/DELETE on organization_membership denied;
+- INSERT/UPDATE/DELETE on app_user denied;
+- ungranted membership columns denied outside the granted set;
+- ungranted app_user columns such as session_epoch denied;
+- ENDED membership rows not visible through the probe policy;
+- PROPERTY_STAFF membership rows not visible through the probe policy;
+- foreign-org admin membership rows not visible through the probe policy;
+- missing current-org context yields zero probe-visible membership rows.
+
+### AC16 — Bounded wait / timeout / SQLSTATE mapping
+Induce, without production config changes:
+- lock_timeout;
+- statement_timeout / cancel;
+- deadlock;
+- transaction_timeout while a statement is active;
+- transaction_timeout while idle in transaction after the B5 command returns but before COMMIT.
+
+For lock/statement/deadlock and other non-session-terminating failures, prove fixed sanitized 503, rollback/no partial mutation, and no raw SQLSTATE/SQL text in HTTP output.
+
+For transaction_timeout, prove:
+- PostgreSQL terminates the session with the expected transaction-timeout class;
+- request result is sanitized 503;
+- no B5 mutation is committed;
+- checked-out client is discarded/destroyed and never returned to the pool;
+- the Web process survives without an unhandled node-postgres error event.
+
+Separately verify 23514 and 22003 mapping with synthetic negative controls where practical.
 
 ### AC17 — Frozen inventory additive expectations
 Predeclared B1/B2/B3/B4 catalog tests are updated only to recognize the bounded B5 role/policies/helpers. Existing frozen assertions are not deleted/weakened.
@@ -1179,8 +1221,8 @@ A later implementation plan, if separately authorized, must:
 6. put the membership union `ORDER BY id` at the actual locking-query level;
 7. use `FOR NO KEY UPDATE` unless a later review proves stronger locking is required;
 8. implement the capability-owned caller helper plus dedicated probe-owned effective-admin helper without public identity projection;
-9. set transaction-local lock_timeout=2000ms, statement_timeout=5000ms and transaction_timeout=7000ms before the B5 function call;
-10. map 55P03/57014/40P01/40001/23514/22003 and all unlisted database/driver failures to sanitized 503 with no automatic retry, except explicit B5 business results;
+9. use a B5-specific transaction wrapper so lock_timeout=2000ms, statement_timeout=5000ms and transaction_timeout=7000ms are the first SQL statements after BEGIN, before current_actor/authorize_org/context establishment;
+10. map 55P03/57014/40P01/40001/23514/22003 and all unlisted database/driver failures to sanitized 503 with no automatic retry, except explicit B5 business results; handle 25P04 as session termination with mandatory client discard and process-survival evidence;
 11. include strict RED→GREEN tests for AC01-AC19;
 12. include distinct-backend `pg_blocking_pids`/activity evidence for all AC07 variants;
 13. include owner-role behavioral RLS/privilege negatives, not catalog snapshots only;
@@ -1254,10 +1296,10 @@ Independent delta review must specifically challenge:
 7. Is "effective admin" correctly defined as ACTIVE membership + ACTIVE app_user, and can the dedicated probe owner actually observe the positive cross-user case under frozen B1/B2 policies?
 8. Can a security suspension race still create an outcome incorrectly attributed to voluntary B5?
 9. Are post-wait 404-vs-403 classifications consistent with B3/B4?
-10. Are lock/statement/transaction timeout values and default-unlisted-error mapping sufficient to protect the max-5 Web pool, including a stall after function return but before COMMIT?
+10. Are the first-post-BEGIN lock/statement/transaction timeout settings, 25P04 client-discard semantics, default-unlisted-error mapping, and process-survival evidence sufficient to protect the max-5 Web pool, including a stall after function return but before COMMIT?
 11. Are 23514/22003 safely mapped without raw leak or partial mutation?
 12. Does FOR NO KEY UPDATE leave the acknowledged B4 PUT race authority-safe?
-13. Are command-owner and probe-owner behavioral negatives/positive helper cases sufficient to prove least privilege?
+13. Are helper STABLE volatility, command-owner/probe-owner behavioral negatives, and all positive/negative effective-admin helper cases sufficient to prove least privilege and the decisive-statement snapshot claim?
 14. Are frozen capability inventory updates bounded rather than weakened?
 15. Are F15/F25/F39 correctly left NOT_RUN?
 16. Does the design still avoid any role mutation, roster, onboarding, PF02-C or provider scope?
@@ -1269,32 +1311,28 @@ Independent delta review must specifically challenge:
 
 First independent review at `ca53af17d084cbf159a8b707e403de6d057fd003`: CHANGES_REQUIRED, B0/H1/M3/L5.
 
-First delta review at `b9c69dfeb27bdf100658dff23faf2a9b0943da0a`: CHANGES_REQUIRED, B0/H1/M0/L3. Eight of the nine prior findings were RESOLVED. B5D-M02 was PARTIALLY_RESOLVED because the effective-admin definition was correct but its capability-owner helper could not see other administrators through frozen B1/B2 RLS.
+First delta review at `b9c69dfeb27bdf100658dff23faf2a9b0943da0a`: CHANGES_REQUIRED, B0/H1/M0/L3.
 
-Revision 0.3 dispositions the delta-review findings:
+Second delta review at `f98cab2a0350536b55e94d80eaa92863cdff237e`: CHANGES_REQUIRED, B0/H0/M0/L3. The probe-owner architecture was accepted and B5D2-H01 was RESOLVED. Only text/evidence-contract LOW findings remained.
 
-- **B5D2-H01 — FIXED IN DESIGN:** move the cross-user effective-admin read to a separate NOLOGIN `bm_b5_effective_admin_probe_owner`; do not alter frozen `b1_member_*` policies; add current-org ACTIVE-ORG_ADMIN RESTRICTIVE probe policy; grant only membership id/org/user_id/role/status and app_user id/status reads; helper is probe-owned and returns boolean to command owner only; add positive/negative real-role AC evidence.
-- **B5D2-L01 — FIXED IN DESIGN:** add transaction_timeout=7000ms, default all unlisted DB/driver errors to sanitized 503, and forbid catch-all exception swallowing/retry in B5 routines.
-- **B5D2-L02 — ACCEPTED_LOW_RESIDUAL:** document the limited self-termination 409 inference about whether another effective administrator exists.
-- **B5D2-L03 — FIXED IN DESIGN:** align approved-scope wording to effective-administrator terminology and distinguish frozen-helper reuse from B5-specific helper additions.
-- **SELF-AUDIT ACL CLARIFICATION — FIXED IN DESIGN:** explicitly grant both B5 NOLOGIN roles only the schema USAGE and `app.current_org_id()` EXECUTE required by their RLS/helper predicates.
+Revision 0.4 dispositions the second-delta findings:
 
-Prior findings remain dispositioned:
-- B5D-H01 = RESOLVED
-- B5D-M01 = RESOLVED
-- B5D-M02 = superseded by B5D2-H01 correction above
-- B5D-M03 = RESOLVED
-- B5D-L01..L05 = RESOLVED
+- **B5D3-L01 — FIXED IN DESIGN:** transaction_timeout is listed consistently; it is described as session-terminating SQLSTATE 25P04, not an ordinary reusable rollback path; the B5-specific transaction wrapper must issue all three SET LOCALs first after BEGIN; AC16 now includes active-statement and idle-in-transaction transaction_timeout cases and requires sanitized503, no mutation, client discard, and Web-process survival.
+- **B5D3-L02 — FIXED IN DESIGN:** both helpers are pinned STABLE; AC14 enumerates ENDED, PROPERTY_STAFF and foreign/missing-context helper negatives; AC15 adds full probe-owner mutation/column/visibility behavioral negatives.
+- **B5D3-L03 — FIXED IN DESIGN:** stale "capability-owned effective-admin helper" wording is replaced with "probe-owned".
+- **B5D2-L02 — remains ACCEPTED_LOW_RESIDUAL.**
+
+All HIGH/MEDIUM architectural findings remain resolved.
 
 Current authority:
 - PASS: operator-approved functional scope unchanged;
-- COMPLETE: two independent design review generations received;
-- CURRENT: revision 0.3 second-correction candidate awaits fresh independent delta review;
+- COMPLETE: three independent review generations received;
+- CURRENT: revision 0.4 third-correction candidate awaits a narrowly scoped fresh delta review;
 - NOT_APPROVED: written design/spec;
 - NOT_AUTHORIZED: implementation plan;
 - NOT_AUTHORIZED: product implementation;
 - NOT_AUTHORIZED: Ready/merge.
 
-**NEXT_GATE = FRESH_CLAUDE_OPUS_B5_DESIGN_SECOND_DELTA_REVIEW** after the corrected exact HEAD receives fresh candidate CI.
+**NEXT_GATE = FRESH_CLAUDE_OPUS_B5_DESIGN_THIRD_DELTA_REVIEW** after the corrected exact HEAD receives fresh candidate CI.
 
-Do not implement or publish B5 until the fresh second delta review is accepted and the operator separately approves the written design.
+Do not implement or publish B5 until the fresh third delta review is accepted and the operator separately approves the written design.
