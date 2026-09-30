@@ -2,15 +2,17 @@
 
 ## 1. Status / authority
 
-Date: **2026-09-30**. Revision: **0.1**.
+Date: **2026-09-30**. Revision: **0.2**.
 
-**SCOPE_APPROVED; WRITTEN_SPEC_CANDIDATE; ARCHITECTURE_PROPOSED; INDEPENDENT_REVIEW_NOT_RUN; DESIGN_NOT_APPROVED; IMPLEMENTATION_PLAN_NOT_AUTHORIZED; PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED.**
+**SCOPE_APPROVED; INDEPENDENT_REVIEW_CHANGES_REQUIRED; WRITTEN_SPEC_CORRECTION_CANDIDATE; DESIGN_NOT_APPROVED; IMPLEMENTATION_PLAN_NOT_AUTHORIZED; PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED.**
 
 Repository: `edward321416-maker/build-manager`.
 
 `POLICY_REF = TARGET_REF = main@cfb7a34828c63933c0e9f12b45fa578cfd127cca`.
 
-This document records the operator-approved B5 scope and a proposed architecture for independent review. It is a **design/specification candidate only**. It does **not** authorize an implementation plan, product code, SQL migration, tests, dependency changes, provider/IAM changes, production hosting, real data, Ready conversion, or merge.
+This document records the operator-approved B5 scope and the corrected architecture candidate after fresh independent review of PR #63 at `ca53af17d084cbf159a8b707e403de6d057fd003`. The review returned **CHANGES_REQUIRED** with one HIGH, three MEDIUM and five LOW findings. This revision dispositions those findings in the written design only. It is still **not approved**.
+
+This document does **not** authorize an implementation plan, product code, SQL migration, tests, dependency changes, provider/IAM changes, production hosting, real data, Ready conversion, or merge.
 
 Canonical baseline at TARGET_REF:
 - PF00 = FROZEN.
@@ -22,14 +24,15 @@ Canonical baseline at TARGET_REF:
 - F25 = NOT_RUN.
 - F39 = NOT_RUN.
 - F43 = NOT_RUN.
-- CURRENT ADDITIONAL PRODUCT TASK before this scope decision = NONE_AUTHORIZED.
-- B5 scope is now operator-approved; only design/spec drafting is authorized.
+- B5 scope is operator-approved; the written architecture is still under review.
 - REAL_TENANT_DATA = NOT_AUTHORIZED.
 - PRODUCTION_DB_HOSTING = NOT_AUTHORIZED.
 
 Authority sources: [AGENTS](../../../AGENTS.md), [AI delivery rules](../../../governance/ai_delivery_rules.md), [project policy](../../../governance/project_policy.md), [STATUS](../../../STATUS.md), [manifest](../../../ops/CHAT_CONTEXT_MANIFEST.json), [handoff](../../../ops/CHAT_HANDOFF.md), [PF01 authorization model](../../production-foundation/PF01_data_authorization.md), [acceptance cases](../../production-foundation/acceptance_cases.json), [B4 closure](../../../ops/pf02_b_b4_closure.md), frozen B1-B4 design/implementation receipts, and the operator's explicit B5 scope approval.
 
 Historical B1-B4 receipts remain immutable snapshots. Nothing in B5 reopens their frozen contracts.
+
+The repository `STATUS.md` and `ops/CHAT_CONTEXT_MANIFEST.json` on main still say no later slice is authorized. They remain truthful for published main because PR #63 is not merged. If and only if the written B5 design is independently accepted and the operator separately approves publication, a bounded status/manifest reconciliation must be separately authorized and published; this PR does not silently change those canonical routing files.
 
 ---
 
@@ -109,13 +112,19 @@ The command must:
 3. set database-owned `ended_at`;
 4. increment `version`;
 5. never physically delete or reactivate a membership row;
-6. prevent a B5 command from leaving the organization with zero ACTIVE `ORG_ADMIN` memberships;
-7. serialize concurrent B5 admin-termination decisions for the same organization;
+6. prevent a voluntary B5 termination from leaving zero **effective administrators**, where an effective administrator means:
+   - membership is ACTIVE;
+   - membership role is ORG_ADMIN;
+   - referenced `app_user.status = 'ACTIVE'`;
+7. serialize B5 last-admin changes at Organization level and use the PF01-compatible Organization→Membership lock discipline;
 8. preserve all existing B1-B4 authorization semantics;
 9. leave PropertyAssignment history untouched;
 10. expose no User identity/profile/email/provider data;
 11. fail closed if current authority or target eligibility changes;
-12. keep canonical F15/F25/F39 statuses unchanged unless their complete acceptance semantics are later evidenced.
+12. bound lock/statement waits so one stalled command cannot indefinitely consume the five-connection Web pool;
+13. keep canonical F15/F25/F39 statuses unchanged unless their complete acceptance semantics are later evidenced.
+
+Security suspension remains a separate out-of-scope command. PF01 explicitly allows security suspension to leave an organization with no effective administrator and then requires organization work to lock pending recovery. B5 must not misclassify that security exception as voluntary last-admin safety.
 
 ---
 
@@ -212,11 +221,11 @@ Existing tests directly mutate membership rows through migration/test privileges
 | Alternative | Decision |
 | --- | --- |
 | A. Give `bm_b1_web` raw UPDATE on `organization_membership` plus RLS | **Rejected.** This widens the frozen Web role to raw membership mutation and couples last-admin correctness to direct table access. |
-| B. Reuse `bm_b1_capability_owner` | **Rejected.** That NOLOGIN role is the frozen B1/B2/B3 read/capability owner. Business mutation rights would enlarge its trust boundary. |
-| C. Reuse `bm_b4_assignment_owner` | **Rejected.** B4 ownership is intentionally assignment-specific. Membership mutation and assignment mutation must remain separate authorities. |
+| B. Reuse `bm_b1_capability_owner` as the mutation owner | **Rejected.** That NOLOGIN role is the frozen B1/B2/B3 read/capability owner. Business-row mutation rights would enlarge its trust boundary. |
+| C. Reuse `bm_b4_assignment_owner` | **Rejected.** B4 ownership is assignment-specific. Membership mutation and assignment mutation remain separate authorities. |
 | D. Use migration/table owner SECURITY DEFINER | **Rejected.** The migration owner has substantially broader authority than B5 needs. |
 | E. New LOGIN role / pool / credential | **Rejected.** Adds hosting/IAM/credential lifecycle for no product need. |
-| **F. Dedicated NOLOGIN B5 command owner + SECURITY DEFINER + Web EXECUTE-only** | **Selected architecture candidate.** Narrowly isolates membership termination without raw Web UPDATE or a new credential. |
+| **F. Dedicated NOLOGIN B5 command owner + SECURITY DEFINER + Web EXECUTE-only** | **Selected correction candidate.** Narrowly isolates membership termination without raw Web membership UPDATE or a new credential. |
 
 Proposed internal role:
 
@@ -228,27 +237,66 @@ Required attributes:
 
 This role is not a credential and is never a product login role.
 
-### 7.2 Last-admin concurrency
+### 7.2 Last-admin serialization
 
-| Alternative | Decision |
-| --- | --- |
-| App-layer count then UPDATE | **Rejected.** Two concurrent transactions can both observe two admins and both terminate, leaving zero. |
-| Table-wide lock on membership table | **Rejected.** Correct but unnecessarily broad and harmful to unrelated organizations. |
-| Transaction advisory lock derived from org id | **Rejected.** Cooperative/hash-namespace locking introduces a second lock authority and collision/discipline concerns not needed for rows that already represent the invariant. |
-| Organization-row `FOR UPDATE` | **Not selected.** It would require mutation-level privilege on the organization relation solely to use a row lock and couples B5 to a parent row that B5 never changes. |
-| **Deterministic `FOR UPDATE` locking of the organization's current ACTIVE admin membership rows, then the target row** | **Selected architecture candidate.** Locks exactly the rows whose cardinality defines the invariant and uses the same membership relation B5 already updates. |
+The first design candidate rejected an Organization-row lock and locked ACTIVE admin memberships before the exact target. Independent review correctly found that this diverged from canonical PF01 §8.2 and could compose badly with a future PF01-order command.
 
-PostgreSQL 18 reference behavior used by this design:
-- `SELECT ... FOR UPDATE` locks selected rows against concurrent updates;
-- locking clauses require SELECT plus UPDATE privilege on at least one selected table column;
-- consistency-sensitive transactions should acquire locks in a consistent order;
-- READ COMMITTED waits on conflicting row updates and proceeds against the current committed row version after the wait.
+Corrected architecture:
+
+1. **Organization-level serialization is required.**
+2. The B5 owner receives the minimum lock-enabling privilege on `app.organization`: `SELECT(id,status)` plus `UPDATE(id)`.
+3. A B5-specific RESTRICTIVE Organization SELECT/UPDATE ceiling limits the owner to the current ACTIVE organization and requires the post-operation id to remain exactly `app.current_org_id()`. The B5 function never executes an Organization UPDATE; `UPDATE(id)` exists only because PostgreSQL locking clauses require UPDATE privilege on at least one column.
+4. B5 acquires the current Organization row with `FOR NO KEY UPDATE` before membership locks.
+5. B5 then locks the set **(all current ACTIVE ORG_ADMIN memberships ∪ exact target membership)** in one top-level query ordered by immutable membership `id`, using `FOR NO KEY UPDATE`.
+6. Current target/admin facts are derived from that locking query's returned rows; no separate stale application count is authoritative.
+
+The one-statement membership union fixes the prior admin-first/target-second ordering problem. A staff target with a lower UUID is locked in the same id order as every admin membership.
+
+`FOR NO KEY UPDATE` is selected instead of `FOR UPDATE` because B5 changes only non-key membership columns. It still conflicts with other B5 membership updates/locks while not unnecessarily conflicting with B4's foreign-key `FOR KEY SHARE` behavior.
+
+### 7.3 Effective-admin capability helper
+
+B5 must not count membership rows alone.
+
+A new B5-specific **read-only** helper is proposed under the existing capability-owner trust boundary:
+
+`authn.b5_has_other_effective_admin(p_org uuid,p_target uuid) RETURNS boolean`
+
+Properties:
+- owner = `bm_b1_capability_owner`;
+- SECURITY DEFINER;
+- secure `search_path = pg_catalog`;
+- PUBLIC EXECUTE revoked;
+- executable by `bm_b5_membership_owner` only, not directly by Web;
+- checks `p_org = app.current_org_id()`;
+- checks ACTIVE organization;
+- returns true only if there exists a different membership in that org with:
+  - `role='ORG_ADMIN'`;
+  - `status='ACTIVE'`;
+  - referenced `app.app_user.status='ACTIVE'`;
+- returns only a boolean, never user_id/profile/identity data.
+
+This helper reuses reads already held by `bm_b1_capability_owner` and avoids granting the B5 command owner raw `app_user` or membership `user_id` visibility.
+
+A second B5-specific read-only capability helper may classify the caller after waits:
+
+`authn.b5_classify_caller(p_digest bytea,p_org uuid) RETURNS text`
+
+with an internal fixed vocabulary equivalent to `ALLOWED | NOT_FOUND | FORBIDDEN`. It is owned by `bm_b1_capability_owner`, executable only by the B5 owner, and preserves frozen B3/B4 public precedence without widening direct Web capability APIs.
+
+PostgreSQL 18 basis:
+- RLS SELECT policies also affect UPDATE queries that require SELECT privileges;
+- restrictive policies are ANDed with applicable permissive policies;
+- row-locking clauses require SELECT plus UPDATE privilege on at least one selected table column;
+- `FOR NO KEY UPDATE` conflicts with writers/`FOR NO KEY UPDATE` but not `FOR KEY SHARE`;
+- consistency-sensitive transactions should acquire locks in a common order.
 
 References:
-- https://www.postgresql.org/docs/18/sql-select.html
-- https://www.postgresql.org/docs/18/applevel-consistency.html
-- https://www.postgresql.org/docs/18/sql-update.html
 - https://www.postgresql.org/docs/18/ddl-rowsecurity.html
+- https://www.postgresql.org/docs/18/sql-select.html
+- https://www.postgresql.org/docs/18/explicit-locking.html
+- https://www.postgresql.org/docs/18/sql-update.html
+- https://www.postgresql.org/docs/18/runtime-config-client.html
 
 ---
 
@@ -283,27 +331,28 @@ Eligible ACTIVE target successfully transitions to ENDED:
 
 ### 8.2 Already ended / missing / foreign
 
-A target that is:
-- absent;
-- foreign;
-- already ENDED;
+A target that is absent, foreign, or already ENDED returns the same non-disclosing 404.
 
-returns the same non-disclosing 404.
+A repeated DELETE after a successful prior termination therefore has no additional effect but may return 404. The effect remains idempotent; B5 does not add a historical membership-discovery API merely to make repeated response codes identical.
 
-A repeated DELETE after a successful prior termination therefore has no additional effect but may return 404. HTTP effect remains idempotent; B5 does not create a historical membership-discovery API to make repeated response codes identical.
+### 8.3 Last effective admin
 
-### 8.3 Last admin
-
-If the target is an ACTIVE `ORG_ADMIN` and terminating it would leave zero ACTIVE admins:
+If the target is an ACTIVE `ORG_ADMIN` and there is no **other effective administrator** (ACTIVE ORG_ADMIN membership whose referenced User is ACTIVE):
 
 - no row is changed;
 - HTTP 409;
 - public error `CONFLICT`;
-- no admin count, target role, user identity, or raw constraint detail is exposed.
+- no admin count, User state, target role, identity, or raw constraint detail is exposed.
+
+A suspended/deletion-pending User does not satisfy the "other effective administrator" condition.
+
+### 8.4 Known transient database contention
+
+A bounded lock wait, deadlock, statement timeout, or other mapped pre-commit database failure returns sanitized 503 `DEPENDENCY_UNAVAILABLE`. It does not become 409 and does not expose SQLSTATE publicly.
 
 ---
 
-## 9. Request and transport contract
+## 9. Request, transport, and database-error contract
 
 The B5 DELETE accepts:
 - path `orgId`;
@@ -311,16 +360,7 @@ The B5 DELETE accepts:
 - no query parameters;
 - no business body.
 
-It must reject any attempt to supply:
-- role;
-- userId;
-- status;
-- version;
-- endedAt;
-- caller identity;
-- authority flags;
-- replacement membership;
-- assignment data.
+It must reject any attempt to supply role, userId, status, version, endedAt, caller identity, authority flags, replacement membership, or assignment data.
 
 Mutating request precedence follows the frozen B3/B4 convention:
 
@@ -348,11 +388,35 @@ Expected public errors:
 | 503 | `DEPENDENCY_UNAVAILABLE` |
 | 405 | `METHOD_NOT_ALLOWED` |
 
-The public error body stays flat: `{"error":"CODE"}`.
+The public body stays flat: `{"error":"CODE"}`.
 
-For recognized-but-disallowed HTTP methods, the B5 route owns a narrow 405 with `Allow: DELETE`. Framework-owned unknown-method behavior outside the Next.js route contract remains framework-owned, following the B4 boundary; the implementation plan must use a Fetch-allowed diagnostic method such as PROPFIND rather than invent a TRACE contract.
+For recognized-but-disallowed HTTP methods, the B5 route owns a narrow 405 with `Allow: DELETE`. Framework-owned unknown-method behavior remains framework-owned, following B4; the implementation plan must verify a Fetch-allowed diagnostic such as PROPFIND rather than invent a TRACE contract.
 
 All B5 responses use private/no-store cache behavior and preserve the existing Cookie cache dimension.
+
+### 9.1 Transaction-local timeout contract
+
+The B5 persistence adapter must set, inside the already-open transaction and **before** invoking the B5 command function:
+
+- `SET LOCAL lock_timeout = '2000ms'`;
+- `SET LOCAL statement_timeout = '5000ms'`.
+
+These values are B5 design bounds, not platform-wide settings and not an SLA. The production Web pool remains the current max-5 pool; B5 does not change pool configuration.
+
+### 9.2 Sanitized SQLSTATE mapping
+
+The implementation must treat the following as known pre-commit/transaction-aborting failures, rollback, and return B5 `DEPENDENCY_UNAVAILABLE` / HTTP 503 without automatic retry:
+
+- `55P03 lock_not_available` — including lock_timeout expiration;
+- `57014 query_canceled` — statement timeout/cancel;
+- `40P01 deadlock_detected`;
+- `40001 serialization_failure` if ever surfaced despite the READ COMMITTED contract;
+- `23514 check_violation` — including a frozen membership status/time invariant failure;
+- `22003 numeric_value_out_of_range` — including version overflow.
+
+No raw SQLSTATE/constraint/error text reaches the client.
+
+A failure returned before COMMIT is distinguishable from an unknown COMMIT outcome. The former is known rolled back/no mutation after transaction cleanup; the latter remains ambiguous and uses the existing transaction-helper rule: sanitized 503, destroy uncertain connection, no automatic command retry.
 
 ---
 
@@ -365,30 +429,39 @@ The outer Web transaction may reuse the frozen B1 organization-context establish
 - current organization context via `authorize_org`;
 - transaction-local `app.org_id` and session digest.
 
-This means:
+Thus:
 - current admin can enter context;
-- current staff can enter context but is not thereby authorized to terminate membership;
-- foreign/inactive/hidden organization remains 404.
+- current staff can enter context but is not authorized to terminate membership;
+- foreign/inactive/hidden organization is 404.
 
-### 10.2 Admin action authority
+### 10.2 Post-wait caller classification
 
-Inside the B5 command boundary:
-- current `authn.can_administer_org(p_digest,p_org)` must be true before locking work proceeds;
-- it must be re-evaluated after B5 admin locks are acquired and again at the decisive mutation predicate.
+Inside the B5 command:
 
-An application-layer precheck may improve error classification but is never the decisive authority.
+1. a fast current-admin check may reject obvious unauthorized calls before locking;
+2. acquire the Organization-level lock;
+3. acquire the ordered membership-union locks;
+4. **after any lock wait**, re-evaluate organization visibility first;
+5. if organization context is no longer visible/current → internal NOT_FOUND → public 404;
+6. if context is still visible but caller is no longer current ORG_ADMIN → internal FORBIDDEN → public 403;
+7. repeat the same current-state authority requirement in the decisive UPDATE predicate.
 
-A PROPERTY_STAFF caller in an otherwise visible organization receives 403 and cannot lock/mutate membership rows through the B5 product path.
+This preserves frozen B3/B4 precedence.
+
+A caller whose membership is ended while the B5 request is blocked on the Organization or membership lock must not be classified from the stale pre-lock check.
+
+Once the caller's current admin membership row has itself been acquired by the B5 membership-union lock, another in-scope B5 termination cannot change that row until the transaction completes. Out-of-scope security/lifecycle commands are not claimed globally serialized by B5.
 
 ### 10.3 Target eligibility
 
-The target must be:
-- exact `membershipId`;
+The exact target must be:
 - same `orgId`;
 - status ACTIVE;
 - role currently `ORG_ADMIN` or `PROPERTY_STAFF`.
 
-B5 returns no target `user_id`, role, version, timestamps, identity or profile data to the caller.
+The target is included in the same deterministic membership lock query as all current admin memberships.
+
+B5 returns no target user_id, role, version, timestamps, identity or profile data to the public caller.
 
 ---
 
@@ -405,28 +478,44 @@ Existing migrations 0001-0009 remain byte-frozen.
 The B5 migration may:
 1. preflight `bm_b5_membership_owner` attributes and role membership;
 2. grant minimum schema/function/table/column privileges;
-3. create role-scoped B5 RLS policies;
-4. create B5 SECURITY DEFINER command routine(s);
-5. revoke PUBLIC EXECUTE;
-6. grant only exact B5 EXECUTE to `bm_b1_web`;
-7. grant the B5 owner only the frozen helper EXECUTE it needs;
-8. revoke any temporary CREATE authority before commit;
-9. verify no new raw Web membership UPDATE/SELECT surface;
-10. verify no unintended role membership/inheritance remains.
+3. create B5-specific **RESTRICTIVE** RLS ceilings on Organization and OrganizationMembership;
+4. create the B5 SECURITY DEFINER command routine;
+5. create B5-specific read-only capability helpers under `bm_b1_capability_owner` for caller classification/effective-admin existence;
+6. revoke PUBLIC EXECUTE on all new helpers;
+7. grant new capability-helper EXECUTE only to `bm_b5_membership_owner`;
+8. grant only exact B5 command EXECUTE to `bm_b1_web`;
+9. revoke temporary CREATE authority before commit;
+10. verify no raw Web membership or Organization UPDATE surface;
+11. verify no unintended role membership/inheritance remains.
 
 The migration may **not**:
-- add a new business table;
-- add a new membership column;
+- add a business table or column;
 - modify old migrations;
 - create a LOGIN role;
 - provision a credential;
 - change provider/IAM;
-- change B1/B2/B3/B4 helper bodies;
+- change frozen B1/B2/B3/B4 helper bodies;
 - change PropertyAssignment schema.
+
+### 11.1 Synthetic role provisioning boundary
+
+Production migration **preflights** `bm_b5_membership_owner`; it does not create a production login or credential.
+
+Only disposable test infrastructure may provision the synthetic NOLOGIN role and the migrator's non-inherited SET-only membership required to create/own B5 functions, following the established B4 testing pattern. This is not production IAM evidence.
+
+### 11.2 Pre-declared frozen-test expectation updates
+
+B5 is additive, but current frozen capability tests use exact inventories. A future implementation plan must therefore predeclare and limit the following test expectation changes:
+
+- B1/B2 catalog-policy inventory excludes/asserts `b5_*` additions in the same bounded way it already handles B3/B4 additions;
+- existing exact role/executor inventories may add only the specifically approved B5 owner/new-helper entries and must retain all prior rows;
+- new B5 catalog tests own the exact B5 role, policy, helper, ACL and negative behavior assertions.
+
+These expectation updates are not product-semantic changes and must not delete/weaken existing B1-B4 assertions.
 
 ---
 
-## 12. Least-privilege table surface
+## 12. Least-privilege surface
 
 ### 12.1 organization_membership
 
@@ -439,93 +528,130 @@ SELECT:
 - `status`;
 - `version`.
 
-B5 needs no raw SELECT of `ended_at`: the SELECT/RLS surface is restricted to ACTIVE memberships, for which the frozen status/time CHECK already requires `ended_at IS NULL`.
-
 UPDATE:
 - `status`;
 - `version`;
 - `ended_at`.
 
-Explicitly no B5-owner SELECT on:
+Explicitly no B5-owner raw SELECT on:
 - `user_id`;
-- external identity tables;
-- issuer/subject;
-- email/profile data.
+- `created_at`;
+- `ended_at`;
+- external identity/profile/contact data.
 
 Explicitly no B5-owner INSERT or DELETE on `organization_membership`.
 
-Because locking clauses require update privilege, the owner already has the minimum UPDATE privilege needed for `SELECT ... FOR UPDATE`; B5 does not grant extra dummy mutation rights solely for locking.
+**RLS correction:** B5 membership SELECT cannot be ACTIVE-only. PostgreSQL applies applicable SELECT policy visibility to UPDATE queries that require SELECT privileges, and B5's guarded UPDATE reads `id/org_id/status/version`. An ACTIVE-only SELECT policy would reject the resulting ENDED row. Therefore the B5-owner SELECT ceiling is current-org only.
 
-### 12.2 organization
+This means ENDED membership rows in the current org are RLS-visible to the NOLOGIN B5 owner for only the granted columns above. Public non-disclosure is enforced by fixed function predicates, the absence of any member projection/GET surface, and the absence of Web raw table privilege.
 
-B5 should not require raw mutation privilege on `app.organization`.
+### 12.2 organization lock surface
 
-Current organization ACTIVE/admin authority is consumed through frozen capability helpers.
+The B5 owner receives:
 
-### 12.3 property_assignment
+SELECT:
+- `id`;
+- `status`.
 
-B5 receives **no** new B5-owner raw privilege on `app.property_assignment`.
+UPDATE:
+- `id` only.
 
-Membership termination revokes current authority through the frozen B2/B4 predicates. Assignment history stays untouched.
+`UPDATE(id)` is a PostgreSQL lock-enabling privilege, not an authorized business mutation. B5-specific RESTRICTIVE UPDATE RLS requires both old and new `id = app.current_org_id()` and `status='ACTIVE'`; the owner has no UPDATE privilege on status/display_name/created_at. The B5 function performs no Organization UPDATE.
+
+Required behavioral negative evidence must prove an attempted id change is blocked by the B5 RLS/FK boundary and that status/display_name/created_at updates are privilege-denied.
+
+### 12.3 Effective-admin visibility
+
+The B5 owner gets **no raw app_user SELECT** and no raw membership user_id SELECT.
+
+Instead it receives EXECUTE only on the B5-specific capability-owned boolean helper that checks for another effective admin.
+
+### 12.4 property_assignment
+
+B5 receives no new raw privilege on `app.property_assignment`.
+
+Membership termination revokes current authority through frozen B2/B4 predicates. Assignment history stays untouched.
 
 ---
 
 ## 13. B5 RLS intent
 
-The dedicated B5 owner is neither a table owner nor BYPASSRLS. FORCE RLS remains effective.
+The dedicated B5 owner is neither a table owner nor BYPASSRLS. FORCE RLS remains effective on Organization and OrganizationMembership.
 
-B5 may add role-scoped policies only for `bm_b5_membership_owner`.
+The existing `organization_org_scope` and `organization_membership_org_scope` are PUBLIC permissive policies. Therefore all B5 ceilings described here must be **RESTRICTIVE**; a new permissive policy alone cannot narrow those PUBLIC policies.
 
-Design intent:
+### 13.1 Organization SELECT ceiling — RESTRICTIVE
 
-### SELECT policy
-- current org only;
-- status ACTIVE only;
-- enough visibility to lock current ACTIVE admin rows and the exact ACTIVE target;
-- ENDED membership history is not raw-visible to the B5 owner;
-- no PUBLIC or `bm_b1_web` raw expansion.
+For `bm_b5_membership_owner`:
+- `id = app.current_org_id()`;
+- `status = 'ACTIVE'`.
 
-### UPDATE policy
+### 13.2 Organization UPDATE ceiling — RESTRICTIVE
+
 USING:
-- current org only;
-- existing row status ACTIVE.
+- `id = app.current_org_id()`;
+- `status='ACTIVE'`.
 
 WITH CHECK:
-- same current org;
+- `id = app.current_org_id()`;
+- `status='ACTIVE'`.
+
+The owner can UPDATE only `id`, so this ceiling makes the privilege usable for a row-locking clause without authorizing an actual id transition.
+
+### 13.3 Membership SELECT ceiling — RESTRICTIVE
+
+For `bm_b5_membership_owner`:
+- `org_id = app.current_org_id()`.
+
+There is deliberately **no status filter** on this SELECT ceiling after the H01 correction.
+
+### 13.4 Membership UPDATE ceiling — RESTRICTIVE
+
+USING:
+- current org only;
+- old row status ACTIVE.
+
+WITH CHECK:
+- current org only;
 - resulting status ENDED;
-- resulting `ended_at` non-null;
-- role/org/user/id remain unchanged structurally because the owner lacks UPDATE privilege on those columns.
+- resulting ended_at non-null.
 
-The frozen membership status/time CHECK remains final shape authority.
+The owner lacks UPDATE on id/org_id/user_id/role/created_at, so those cannot be changed by the B5 role.
 
-The exact permissive/restrictive split is implementation-plan detail, but final catalog evidence must prove:
-- Web still has no raw membership UPDATE;
-- B1 capability owner gained no mutation authority;
-- B4 owner gained no membership mutation authority;
-- PF02-A runtime gained no membership mutation authority;
-- missing org context yields zero B5 row visibility/mutation.
+### 13.5 Required final policy behavior
+
+Final catalog/behavior evidence must prove:
+- no B5 policy is PUBLIC;
+- no B5 policy is permissive-only;
+- Web still has no raw membership/Organization UPDATE;
+- capability/B4/PF02-A roles gain no B5 mutation authority;
+- missing org context yields zero B5 row visibility/mutation;
+- an actual ACTIVE→ENDED UPDATE executes successfully under the final B5 owner + final RLS;
+- ENDED→ACTIVE is denied;
+- role/org/user mutation is denied;
+- INSERT/DELETE membership is denied.
 
 ---
 
-## 14. SECURITY DEFINER command boundary
+## 14. SECURITY DEFINER and capability boundary
 
-Proposed internal function:
+### 14.1 B5 command
+
+Proposed internal command:
 
 `authn.b5_end_organization_membership(p_digest bytea,p_org uuid,p_membership uuid) RETURNS text`
 
-Exact signature/result vocabulary freezes only after written design approval and implementation-plan review.
-
-Required function properties:
+Required properties:
 - owner = `bm_b5_membership_owner`;
-- `SECURITY DEFINER`;
-- exact secure search path `pg_catalog, pg_temp`;
+- SECURITY DEFINER;
+- secure `search_path = pg_catalog, pg_temp`;
 - all app/authn objects schema-qualified;
 - no dynamic SQL;
 - PUBLIC EXECUTE revoked;
-- Web receives only EXECUTE;
+- Web receives only EXECUTE on this command;
 - no identity/profile return;
-- no raw DB errors to public HTTP;
-- no internal retry of an unknown commit outcome.
+- no raw DB error detail;
+- no automatic retry of unknown COMMIT outcome.
 
 Possible internal result vocabulary:
 - `ENDED`;
@@ -533,74 +659,143 @@ Possible internal result vocabulary:
 - `FORBIDDEN`;
 - `LAST_ADMIN`.
 
-The result vocabulary is internal and must not become a richer public member DTO.
+### 14.2 Caller classification helper
+
+Proposed read-only helper:
+
+`authn.b5_classify_caller(p_digest bytea,p_org uuid) RETURNS text`
+
+- owner = `bm_b1_capability_owner`;
+- SECURITY DEFINER;
+- secure `search_path = pg_catalog`;
+- PUBLIC EXECUTE revoked;
+- EXECUTE only to `bm_b5_membership_owner`;
+- internal vocabulary `ALLOWED | NOT_FOUND | FORBIDDEN`;
+- no direct Web EXECUTE;
+- no identity projection.
+
+It implements the frozen precedence:
+- organization/session relationship no longer visible/current → NOT_FOUND;
+- context visible but caller not current ORG_ADMIN → FORBIDDEN;
+- current active admin → ALLOWED.
+
+### 14.3 Other-effective-admin helper
+
+Proposed read-only helper:
+
+`authn.b5_has_other_effective_admin(p_org uuid,p_target uuid) RETURNS boolean`
+
+- owner = `bm_b1_capability_owner`;
+- SECURITY DEFINER;
+- secure `search_path = pg_catalog`;
+- PUBLIC EXECUTE revoked;
+- EXECUTE only to B5 owner;
+- current org only;
+- checks a different ACTIVE ORG_ADMIN membership joined to ACTIVE `app_user`;
+- returns boolean only;
+- never returns user_id/status rows.
+
+These helpers are B5-specific additive capability objects; they do not modify the bodies or direct Web ACLs of frozen B1-B4 helpers.
 
 ---
 
-## 15. Last-admin algorithm
+## 15. Corrected last-admin algorithm
 
-The command must acquire locks in one consistent order for every B5 request in an organization.
+Every B5 command in an organization uses the same lock discipline.
 
-Proposed order:
+1. Outer Web boundary validates method/Origin/session/CSRF/input and establishes current organization context.
+2. Optional fast caller classification rejects obvious NOT_FOUND/FORBIDDEN before lock work.
+3. Persistence sets B5 transaction-local timeouts.
+4. Lock the current ACTIVE Organization row with `FOR NO KEY UPDATE`.
+5. After the Organization lock wait, re-run caller classification: visibility first, then admin authority.
+6. Lock **all current ACTIVE ORG_ADMIN memberships plus the exact ACTIVE target** in one top-level query:
+   - same org;
+   - `status='ACTIVE'`;
+   - predicate `role='ORG_ADMIN' OR id=p_target`;
+   - `ORDER BY id`;
+   - `FOR NO KEY UPDATE`.
+7. Derive the exact target from the rows returned by that locking query. If the target is absent, return NOT_FOUND.
+8. After membership-lock wait, re-run caller classification again.
+9. If target role is ORG_ADMIN, require `b5_has_other_effective_admin(p_org,p_target)=true`; otherwise LAST_ADMIN.
+10. Execute exactly one guarded ACTIVE→ENDED UPDATE:
+    - exact org/id;
+    - status ACTIVE;
+    - caller classification still ALLOWED in the decisive statement snapshot;
+    - if target role is ORG_ADMIN, another effective admin still exists in the decisive statement snapshot;
+    - SET status='ENDED', ended_at=clock_timestamp(), version=version+1.
+11. Success only if exactly one row changes.
+12. If zero rows change, classify current state without another mutation: caller visibility/admin first, target state second, last-effective-admin third.
+13. COMMIT once. No automatic mutation retry.
 
-1. fast current-admin capability check;
-2. lock all current ACTIVE `ORG_ADMIN` membership rows in the target organization in deterministic `id` order using `FOR UPDATE`;
-3. re-evaluate current caller admin authority after the lock wait;
-4. lock/read the exact target membership if it was not already one of the locked admin rows;
-5. classify target ACTIVE/role state;
-6. if target role is ORG_ADMIN, compute active-admin count from the locked current rows;
-7. if count <= 1, return `LAST_ADMIN` with no mutation;
-8. execute one guarded ACTIVE→ENDED UPDATE that also rechecks current admin authority;
-9. increment version and set database-owned ended_at;
-10. return ENDED only if exactly one row changed.
+### 15.1 Deterministic membership lock evidence
 
-All B5 requests use the same admin-lock-first order, so two concurrent admin termination requests for the same org serialize instead of each acting on a stale count.
+The `ORDER BY id` must be at the same locking-query level that carries `FOR NO KEY UPDATE`. The design does not rely on an outer ORDER BY around an already-locking subquery.
 
-### 15.1 Two-admin concurrent self-termination
+The admin/current-target facts used before UPDATE come from this returned locked row set, not a separate unlocked count query.
 
-Initial state:
+### 15.2 Two-admin concurrent termination
 
-- Admin A ACTIVE
-- Admin B ACTIVE
+With Admin A and Admin B effective and ACTIVE:
+- both commands contend first at Organization level;
+- one proceeds;
+- the second waits;
+- after wake-up, fresh caller/effective-admin checks use the committed state;
+- both voluntary B5 commands cannot commit a zero-effective-admin outcome.
 
-Two independent transactions issue B5 DELETE concurrently.
+### 15.3 Effective-admin User state
 
-Required observable result:
-- one command may succeed;
-- the other waits on the same admin rows;
-- after wake-up it observes current committed membership state;
-- the remaining admin cannot be terminated by B5;
-- final ACTIVE admin count >= 1.
+The decisive last-admin predicate is membership ACTIVE + role ORG_ADMIN + referenced User ACTIVE.
 
-The test must use distinct PostgreSQL backends and explicit lock observation/barriers. Sequential commands are not concurrency evidence.
+If the other admin's User is already SUSPENDED/DELETION_PENDING before the decisive UPDATE snapshot, that admin does not satisfy the guard.
 
-### 15.2 Staff termination
+If an out-of-scope security suspension commits after B5's decisive snapshot, security suspension may subsequently leave zero effective admins. That is PF01's explicit security exception and must lead to organization operational lock/recovery in the future lifecycle design; B5 does not block that security command.
 
-Terminating a PROPERTY_STAFF membership still follows the common admin-lock-first order. This intentionally serializes B5 termination commands within an organization. The expected operator scale is small, and correctness is preferred over introducing separate lock protocols in this foundation.
+### 15.4 Staff termination
 
-The design makes no throughput/SLA claim.
+Staff target termination uses the same Organization lock and membership-union lock discipline for compositional simplicity. B5 makes no throughput/SLA claim.
 
 ---
 
-## 16. Transaction/isolation contract
+## 16. Transaction, timeout, and failure contract
 
-B5 reuses the existing authenticated organization transaction boundary and READ COMMITTED unless a later independently reviewed implementation plan proves a narrower change is necessary.
+B5 reuses the existing authenticated organization transaction boundary and READ COMMITTED. It does not switch the application to SERIALIZABLE.
 
-B5 does not switch the whole application to SERIALIZABLE.
+The command is one database transaction.
 
-The command must be one database transaction.
+Before calling the B5 command function, the persistence adapter must execute transaction-local:
+- `SET LOCAL lock_timeout = '2000ms'`;
+- `SET LOCAL statement_timeout = '5000ms'`.
 
 Required properties:
-- lock wait is part of the command;
-- last-admin decision is made only after acquiring the B5 admin row locks;
-- target state is not accepted from an earlier application read;
+- lock wait is bounded;
+- Organization last-admin serialization occurs before membership mutation;
+- membership target state is never trusted from an earlier application read;
 - no client-side count decides the invariant;
-- no automatic retry after an ambiguous COMMIT outcome.
+- no automatic retry for lock timeout/deadlock/statement timeout;
+- mapped database failures roll back and return sanitized 503;
+- unknown COMMIT outcome remains distinct from known pre-commit rollback.
 
-If COMMIT outcome is unknown:
-- return sanitized dependency failure;
-- do not issue a second termination command automatically;
-- future current-state product surfaces may reconcile state, but B5 does not add a roster/detail API merely for reconciliation.
+### 16.1 Known pre-commit failures
+
+The adapter maps SQLSTATE `55P03`, `57014`, `40P01`, `40001`, `23514`, and `22003` to internal B5 `DEPENDENCY_UNAVAILABLE`, rolls back, and exposes only HTTP 503.
+
+No internal retry is performed. PF01 allows either bounded internal retry or a retryable error; B5 chooses the latter.
+
+### 16.2 Check/time/version edge cases
+
+B5 does not expand raw owner SELECT merely to clamp `ended_at` against `created_at`. If the frozen status/time CHECK rejects the DB-owned timestamp shape with 23514, the whole transaction rolls back and returns sanitized 503.
+
+If `version + 1` overflows and PostgreSQL reports 22003, the whole transaction rolls back and returns sanitized 503.
+
+These are dependency/invariant failures, not public client conflicts.
+
+### 16.3 Unknown COMMIT outcome
+
+If COMMIT itself fails/has unknown outcome:
+- return sanitized 503;
+- destroy/release the uncertain connection according to the frozen transaction helper;
+- do not automatically issue a second termination command;
+- do not claim no mutation occurred.
 
 ---
 
@@ -646,9 +841,19 @@ If a PROPERTY_STAFF membership has ACTIVE PropertyAssignment rows and B5 ends th
 - frozen B4 exact relationship target becomes ineligible;
 - B4 does not reactivate or rewrite assignments for an ended membership.
 
-Required B5 regression evidence must prove this without changing B4 code.
+### 18.1 B4 PUT × B5 termination race
 
-B5 does not claim that all future membership creation/role-transition commands use the same locks. Such future commands must explicitly adopt a compatible invariant/lock order before F39 can be fully promoted.
+B5 uses `FOR NO KEY UPDATE`, which does not conflict with PostgreSQL `FOR KEY SHARE`. A B4 PUT whose decisive statement snapshot predates B5's commit can therefore still finish an ACTIVE PropertyAssignment insert for a membership that is ENDED by the time both transactions are committed.
+
+This is an accepted history-only race aligned with the retained B4 lifecycle limitation:
+- it does **not** restore authority;
+- frozen B2 requires the membership itself to remain ACTIVE;
+- frozen B4 later treats the ended target as ineligible;
+- B5 does not clean up or rewrite the assignment row.
+
+B5 acceptance evidence must reproduce both commit orders and prove final authorization is denied after membership termination even if an ACTIVE assignment history row exists.
+
+B5 does not claim that future membership creation/role-transition commands use the same locks. Such future commands must explicitly adopt a compatible PF01 last-admin/invariant protocol before full F39 semantics can be claimed.
 
 ---
 
@@ -757,31 +962,39 @@ These are B5 slice criteria, not automatic canonical F-case promotions.
 Only the exact organization-membership termination resource is added. No roster, profile, create, role mutation, invitation, assignment UI, PF02-C or F43 surface appears.
 
 ### AC02 — Current admin authority
-A current same-org ACTIVE ORG_ADMIN can terminate an eligible ACTIVE target. Current PROPERTY_STAFF cannot.
+A current same-org effective ORG_ADMIN can terminate an eligible ACTIVE target. Current PROPERTY_STAFF cannot.
 
 ### AC03 — Hidden target non-disclosure
 Foreign, missing or already ENDED target returns the same 404 and mutates nothing.
 
-### AC04 — Staff termination
+### AC04 — Staff termination / history
 ACTIVE PROPERTY_STAFF transitions to ENDED, sets DB-owned ended_at, increments version exactly once, retains id/org/user/role/created_at.
 
-### AC05 — Admin termination
-An ACTIVE ORG_ADMIN may terminate another/current admin membership only when at least one other ACTIVE admin remains.
+### AC05 — Admin termination / effective-admin definition
+An ACTIVE ORG_ADMIN target may be terminated only when at least one **other** ACTIVE ORG_ADMIN membership references an ACTIVE User at the decisive statement snapshot.
 
-### AC06 — Last-admin denial
-The sole ACTIVE ORG_ADMIN cannot be terminated through B5; returns sanitized 409 CONFLICT; row bytes/version remain unchanged.
+### AC06 — Last-effective-admin denial
+If no other effective admin exists, B5 returns sanitized 409 CONFLICT and target row bytes/version are unchanged. Include the case where another admin membership is ACTIVE but its User is SUSPENDED or DELETION_PENDING.
 
-### AC07 — Concurrent last-admin safety
-With two ACTIVE admins and two distinct database backends issuing concurrent terminations, explicit lock evidence proves final ACTIVE admin count >= 1. No repeat-until-green or sequential substitute.
+### AC07 — Organization-level concurrency
+Actual product-function calls through `bm_b1_web`, with distinct backend PIDs, prove blocking using `pg_blocking_pids` and/or `pg_stat_activity`. Required variants:
+- two admins self/self;
+- cross A terminates B while B terminates A;
+- same target;
+- three-admin case.
+All variants prove final voluntary B5 outcome retains >=1 effective admin and no repeat-until-green occurs.
 
-### AC08 — Current authority race
-If caller admin authority is removed before the decisive mutation snapshot, the B5 command fails without changing target state.
+### AC08 — Caller authority race / precedence
+Create an evidenced window where the caller loses its organization membership while the B5 request is blocked before acquiring the relevant membership locks. After wake-up B5 rechecks:
+- no longer visible/current org context → 404 NOT_FOUND;
+- still visible but no longer admin → 403 FORBIDDEN.
+Target remains unchanged.
 
 ### AC09 — Target race
-If target membership becomes ENDED before the decisive mutation, B5 does not rewrite it or increment version again.
+If target becomes ENDED before B5 acquires/classifies its membership lock, B5 returns non-disclosing 404, does not rewrite it, and does not increment version again.
 
-### AC10 — Assignment preservation
-Ending a PROPERTY_STAFF membership leaves PropertyAssignment history unchanged while frozen B2/B4 current authorization denies through the ended membership.
+### AC10 — Assignment preservation and B4 race
+Ending a PROPERTY_STAFF membership leaves PropertyAssignment history unchanged while frozen B2/B4 current authorization denies. Also reproduce B4 PUT × B5 termination in both controlled commit orders and prove no authority revival even if an ACTIVE assignment row is committed after the membership-ending snapshot.
 
 ### AC11 — Multi-org isolation
 Ending one membership changes no membership, assignment or authority in another organization.
@@ -792,17 +1005,39 @@ The same authenticated User may retain unrelated organization access; B5 does no
 ### AC13 — Transport boundaries
 Method/Origin/session/CSRF/query/path/body-size precedence produces fixed sanitized errors and zero mutation on failure.
 
-### AC14 — DB privilege / RLS boundary
+### AC14 — Catalog least privilege
 Catalog evidence proves:
 - dedicated NOLOGIN B5 owner;
-- no raw Web membership UPDATE;
-- exact owner SELECT/UPDATE column ceiling;
-- no INSERT/DELETE membership privilege;
+- exact Organization SELECT + UPDATE(id)-only lock privilege;
+- exact membership SELECT/UPDATE column ceiling;
+- no member INSERT/DELETE;
+- new B5 policies are RESTRICTIVE;
 - secure SECURITY DEFINER ownership/search_path/ACL;
-- no B1/B2/B3/B4 privilege widening.
+- B5 capability helpers are not directly Web-executable;
+- no unintended role inheritance/membership.
 
-### AC15 — Frozen regression
-B1/B2/B3/B4 and current PostgreSQL/Web/Mobile repository gates remain green; no existing frozen migration changes.
+### AC15 — Owner-role behavioral negatives
+Using the disposable synthetic B5 owner under final policies:
+- actual ACTIVE→ENDED UPDATE succeeds;
+- ENDED→ACTIVE denied;
+- role/org/user update denied;
+- membership INSERT denied;
+- membership DELETE denied;
+- Organization status/display_name/created_at update denied;
+- Organization id change denied by RLS/FK;
+- missing org context sees/mutates zero B5 rows.
+
+### AC16 — Bounded wait / SQLSTATE mapping
+Induce lock_timeout, statement_timeout/cancel, and deadlock paths without production config changes. Prove fixed sanitized 503, transaction rollback/no partial mutation, and no raw SQLSTATE/SQL text in HTTP output. Separately verify 23514 and 22003 mapping with synthetic negative controls where practical.
+
+### AC17 — Frozen inventory additive expectations
+Predeclared B1/B2/B3/B4 catalog tests are updated only to recognize the bounded B5 role/policies/helpers. Existing frozen assertions are not deleted/weakened.
+
+### AC18 — Frozen regression
+B1/B2/B3/B4 and current PostgreSQL/Web/Mobile repository gates remain green; migrations 0001-0009 are byte-frozen.
+
+### AC19 — Publication/status boundary
+The design candidate itself changes only design/ops bookkeeping. Canonical STATUS/manifest routing is reconciled only after independent design acceptance plus explicit operator publication authorization; no candidate text is treated as published main authority before then.
 
 ---
 
@@ -811,10 +1046,12 @@ B1/B2/B3/B4 and current PostgreSQL/Web/Mobile repository gates remain green; no 
 B5 does **not** automatically promote F15, F25 or F39.
 
 ### F15 — remains NOT_RUN
-F15 requires the later ticket read/reply surface. B5 may provide prerequisite evidence that membership termination immediately removes current B1-B4 organization/property/admin authority, but it cannot prove ticket behavior before PF02-D exists.
+F15 requires later ticket read/reply behavior. B5 may provide future supporting revocation evidence for current B1-B4 organization/property/admin paths, but it cannot prove ticket behavior before PF02-D exists.
 
 ### F39 — remains NOT_RUN
-F39 includes concurrent voluntary leave/**demotion** and the distinction from security account suspension. B5 only covers concurrent membership termination. It can provide prerequisite last-admin evidence but not full F39 semantics.
+F39's canonical expected behavior includes organization-level last-admin serialization, voluntary leave/**demotion**, and the security-suspension exception. The corrected B5 architecture now aligns its **termination** path with Organization-level serialization, but role demotion and complete security lifecycle semantics remain outside B5.
+
+Therefore B5 evidence may be cited later as **partial termination-path evidence**, not as complete F39 prerequisite satisfaction or PASS.
 
 ### F25 — remains NOT_RUN
 F25 includes User suspension, Organization suspension and Property/Unit lifecycle changes. Those are outside B5.
@@ -825,18 +1062,20 @@ B5 closure, if later accepted, must state these statuses explicitly and must not
 
 ## 25. Concurrency boundaries not claimed
 
+B5 guarantees the corrected Organization→Membership serialization protocol only for B5 product termination commands.
+
 B5 does not claim universal serialization against:
 - future role-mutation commands;
 - future membership creation/reactivation;
-- User suspension;
+- User security suspension;
 - Organization suspension/archive;
 - direct privileged/migration-owner maintenance;
-- future provider/IAM operations;
+- provider/IAM operations;
 - Property lifecycle commands.
 
-B5 only guarantees the invariant among B5 product termination commands using the approved lock order, plus decisive current-state rechecks against frozen helpers.
+The deliberate User-security exception is important: B5 checks current User ACTIVE state when deciding whether another effective admin exists, but it does not claim to prevent an authorized security suspension from committing later and leaving zero effective admins. That outcome belongs to PF01's security-recovery rule, not voluntary B5 last-admin safety.
 
-Future membership creation/role-transition slices must adopt compatible last-admin/invariant locking before they can claim compositional safety.
+Future membership creation/role-transition commands that can affect last-admin invariants must adopt the same Organization-level serialization and compatible membership ID-order locking before compositional F39 safety can be claimed.
 
 ---
 
@@ -847,16 +1086,24 @@ A later implementation plan, if separately authorized, must:
 1. derive exact paths/symbols from the then-current main;
 2. preserve migrations 0001-0009 byte-for-byte;
 3. use an additive B5 migration only;
-4. prove the B5 role preflight and final catalog;
-5. include strict RED→GREEN tests for every AC;
-6. include actual distinct-backend PostgreSQL concurrency barriers for AC07;
-7. include B4 assignment-history byte/snapshot regression for AC10;
-8. include authenticated Web/API/PostgreSQL evidence for transport and revocation;
-9. keep all test identities/data synthetic;
-10. preserve current required CI without weakening Doctor/timeouts/test configs;
-11. make no dependency/lockfile/provider/IAM change unless separately authorized;
-12. keep F15/F25/F39 statuses unchanged unless a separate canonical evidence decision is made;
-13. stop before Ready/merge until fixed-head independent implementation review.
+4. prove B5 role preflight/final catalog and synthetic test-only role provisioning;
+5. implement the corrected Organization→membership lock order;
+6. put the membership union `ORDER BY id` at the actual locking-query level;
+7. use `FOR NO KEY UPDATE` unless a later review proves stronger locking is required;
+8. implement capability-owned caller/effective-admin helpers without public/identity projection;
+9. set transaction-local lock_timeout=2000ms and statement_timeout=5000ms before the B5 function call;
+10. map 55P03/57014/40P01/40001/23514/22003 to sanitized 503 with no automatic retry;
+11. include strict RED→GREEN tests for AC01-AC19;
+12. include distinct-backend `pg_blocking_pids`/activity evidence for all AC07 variants;
+13. include owner-role behavioral RLS/privilege negatives, not catalog snapshots only;
+14. include B4 PUT × B5 commit-order evidence;
+15. include authenticated Web/API/PostgreSQL transport/revocation evidence;
+16. predeclare only the bounded exact-inventory test changes required for B5 additions;
+17. keep all test identities/data synthetic;
+18. preserve current CI without weakening Doctor/timeouts/Jest/workflows;
+19. make no dependency/lockfile/provider/IAM change unless separately authorized;
+20. keep F15/F25/F39 NOT_RUN unless separately promoted by complete canonical evidence;
+21. stop before Ready/merge until fixed-head independent implementation review.
 
 No implementation plan is authorized by this document.
 
@@ -906,59 +1153,55 @@ PRODUCTION_DB_HOSTING = NOT_AUTHORIZED.
 
 ---
 
-## 29. Design-review questions
+## 29. Design-review questions for delta review
 
-Independent review must specifically challenge:
+Independent delta review must specifically challenge:
 
-1. Is B5 correctly separated from role mutation and staff discovery?
-2. Does the proposed active-admin row lock order actually prevent zero-admin outcomes under READ COMMITTED?
-3. Can any two B5 commands deadlock because lock order differs?
-4. Does the B5 owner receive more raw membership authority than necessary?
-5. Can Web or B4/B1 capability roles obtain membership UPDATE by role membership or grant leakage?
-6. Does any RLS policy accidentally broaden current raw membership visibility?
-7. Is caller authority rechecked after lock wait and at the decisive mutation?
-8. Can target state change after classification but before UPDATE?
-9. Does self-termination behave correctly with one vs two admins?
-10. Does version/ended_at mutate exactly once?
-11. Are PropertyAssignment rows untouched?
-12. Does B5 accidentally disclose historical membership existence?
-13. Is the 409 last-admin response acceptably non-sensitive?
-14. Are F15/F25/F39 correctly left NOT_RUN?
-15. Does the command remain useful as a foundation despite no roster/UI?
-16. Does the design avoid claiming universal cross-lifecycle serialization?
+1. Does current-org-only membership SELECT RLS now permit the real ACTIVE→ENDED UPDATE while preserving public non-disclosure?
+2. Are all B5 ceilings correctly RESTRICTIVE given the existing PUBLIC permissive org-scope policies?
+3. Is UPDATE(id)-only Organization privilege acceptably contained by RLS/FK and fixed function code?
+4. Does Organization-level `FOR NO KEY UPDATE` align with PF01 last-admin serialization without unnecessary B4 blocking?
+5. Does the one-query admin∪target lock use actual top-level `ORDER BY id ... FOR NO KEY UPDATE`?
+6. Can any two B5 variants in AC07 deadlock?
+7. Is "effective admin" correctly defined as ACTIVE membership + ACTIVE app_user?
+8. Can a security suspension race still create an outcome incorrectly attributed to voluntary B5?
+9. Are post-wait 404-vs-403 classifications consistent with B3/B4?
+10. Are timeout values/mappings sufficient to protect the max-5 Web pool?
+11. Are 23514/22003 safely mapped without raw leak or partial mutation?
+12. Does FOR NO KEY UPDATE leave the acknowledged B4 PUT race authority-safe?
+13. Are owner-role behavioral negatives sufficient to prove least privilege?
+14. Are frozen capability inventory updates bounded rather than weakened?
+15. Are F15/F25/F39 correctly left NOT_RUN?
+16. Does the design still avoid any role mutation, roster, onboarding, PF02-C or provider scope?
+17. Does canonical status reconciliation remain a separately authorized publication step?
 
 ---
 
-## 30. Self-audit / handoff state
+## 30. Review finding disposition / handoff state
 
-Scope:
-- PASS: membership termination only;
-- PASS: last-admin safety included;
-- PASS: concurrent B5 termination included;
-- PASS: role mutation excluded;
-- PASS: roster/search/profile excluded;
-- PASS: invitation/onboarding excluded;
-- PASS: assignments untouched;
-- PASS: PF02-C/F43 excluded.
+Fresh independent review at prior HEAD `ca53af17d084cbf159a8b707e403de6d057fd003` returned CHANGES_REQUIRED: BLOCKER0 / HIGH1 / MEDIUM3 / LOW5.
 
-Data/privacy:
-- PASS: no new PII field;
-- PASS: no user/profile DTO;
-- PASS: no real data.
+This correction candidate dispositions:
 
-Frozen boundaries:
-- PASS: B1-B4 helpers are reused, not rewritten;
-- PASS: no old migration modification authorized;
-- PASS: no existing F-case status changed.
+- **B5D-H01 — FIXED IN DESIGN:** membership SELECT RLS changed from ACTIVE-only to current-org only; all B5 ceilings declared RESTRICTIVE; real owner-role UPDATE added to acceptance; historical execution-log claim is superseded by append-only correction, not rewritten.
+- **B5D-M01 — FIXED IN DESIGN:** adopt PF01 Organization-level serialization; membership admin∪target locked in one id-ordered statement.
+- **B5D-M02 — FIXED IN DESIGN:** last-admin invariant uses effective admin = ACTIVE membership + ACTIVE User through a capability-owned boolean helper.
+- **B5D-M03 — FIXED IN DESIGN:** transaction-local lock/statement timeouts and fixed sanitized SQLSTATE mappings are specified.
+- **B5D-L01 — FIXED IN DESIGN:** post-wait org visibility then admin authority reclassification; AC08 names the blocked window and expected codes.
+- **B5D-L02 — FIXED IN DESIGN:** use FOR NO KEY UPDATE; B4 PUT×B5 race is disclosed and added to AC10.
+- **B5D-L03 — FIXED IN DESIGN:** owner behavioral negatives plus explicit concurrency observation primitives/variants added.
+- **B5D-L04 — FIXED IN DESIGN:** bounded frozen inventory expectation updates and disposable test-only role provisioning predeclared.
+- **B5D-L05 — FIXED IN DESIGN:** STATUS/manifest reconciliation is explicitly deferred to a separately authorized post-review publication step.
 
-Authorization:
-- PASS: scope approved;
-- NOT_RUN: independent written-design review;
+Current authority:
+- PASS: operator-approved B5 functional scope unchanged;
+- COMPLETE: first independent design review received;
+- CURRENT: corrected written-design candidate awaits fresh delta review;
 - NOT_APPROVED: written design/spec;
 - NOT_AUTHORIZED: implementation plan;
 - NOT_AUTHORIZED: product implementation;
 - NOT_AUTHORIZED: Ready/merge.
 
-**NEXT_GATE = FRESH_CLAUDE_OPUS_B5_DESIGN_REVIEW** after this exact design candidate is published to a Draft PR and fixed-head CI/readback is available.
+**NEXT_GATE = FRESH_CLAUDE_OPUS_B5_DESIGN_DELTA_REVIEW** after the corrected exact HEAD receives fresh candidate CI.
 
-Do not implement B5 from this candidate until the written design is independently reviewed, findings are dispositioned, and the operator separately approves the design.
+Do not implement or publish B5 from this correction candidate until fresh independent delta review is accepted and the operator separately approves the written design.
