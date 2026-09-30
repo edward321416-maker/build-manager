@@ -263,3 +263,12 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event `PF02B-B4-CLOSURE-MAIN-PUBLICATION-20260930`; sync_status=pending; tokens=unknown. PR #59 reviewed HEAD `92fff275875fbdf7a3fa09775f1ee26094c813df` merged to main `9565a15e6f14b1806b2daa3b96b0da6faa54c1e6`; fresh push Repository `36677033496` and App `36677033545` completed required 9/9 SUCCESS. Hosted Expo Doctor 1.20.4 = 21/21; Linux and Windows Mobile each 133/133. This is closure-publication evidence, not new B4 product verification.
 - Event `PF02B-B4-B4C-L02-OPS-QUEUE-RECONCILIATION-20260930`; sync_status=pending; tokens=unknown. This ops-only follow-up reconciles queue coverage for the omitted pending events and records the closure-main publication event. It does not reopen B4 or authorize later PF02-B work.
 - No external synchronization of these repository events is claimed by this follow-up. EXTERNAL_SYNC remains PARTIAL_SYNC overall, and these named events remain queued until a later verified write/readback records their synchronization without rewriting historical rows.
+
+## 2026-09-30 PF02-B/B5 design candidate
+
+- Event `PF02B-B5-DESIGN-CANDIDATE-20260930`; sync_status=pending; tokens=unknown.
+- Operator-approved scope: `PF02-B/B5 — Organization Membership Termination & Last-Admin Safety Foundation`.
+- Written design candidate only. Role mutation/demotion/promotion, membership creation/reactivation, staff roster/search/profile, onboarding/invitation, assignment UI/cleanup, PF02-C, F43, provider/IAM, real data and production hosting remain excluded.
+- F15/F25/F39 remain NOT_RUN. The design may produce prerequisite evidence only after future implementation; it does not promote those canonical cases.
+- No product implementation, SQL migration, test, dependency, workflow, provider or Ready/merge action is authorized by this event.
+- Independent B5 written-design review is NOT_RUN. External synchronization is not claimed; EXTERNAL_SYNC remains PENDING for this event.
