@@ -252,6 +252,8 @@ Corrected architecture:
 
 The one-statement membership union fixes the prior admin-first/target-second ordering problem. A staff target with a lower UUID is locked in the same id order as every admin membership.
 
+PF01's generic order also names User before Organization. B5 deliberately does **not** row-lock `app_user`: User security suspension is a separate security command that PF01 says must not be prevented by last-admin protection. Instead B5 re-evaluates referenced User ACTIVE state through the capability-owned effective-admin helper in the decisive UPDATE snapshot. This is a bounded B5 security-suspension exception, not a claim that B5 serializes User lifecycle commands.
+
 `FOR NO KEY UPDATE` is selected instead of `FOR UPDATE` because B5 changes only non-key membership columns. It still conflicts with other B5 membership updates/locks while not unnecessarily conflicting with B4's foreign-key `FOR KEY SHARE` behavior.
 
 ### 7.3 Effective-admin capability helper
@@ -507,8 +509,10 @@ Only disposable test infrastructure may provision the synthetic NOLOGIN role and
 
 B5 is additive, but current frozen capability tests use exact inventories. A future implementation plan must therefore predeclare and limit the following test expectation changes:
 
-- B1/B2 catalog-policy inventory excludes/asserts `b5_*` additions in the same bounded way it already handles B3/B4 additions;
-- existing exact role/executor inventories may add only the specifically approved B5 owner/new-helper entries and must retain all prior rows;
+- `tests/postgres/b2-capabilities.test.ts` must extend its frozen policy-inventory scoping to exclude `b5_*` from the B1/B2 exact list, exactly as it already separates B3/B4 additions; the B5 policies are then asserted in B5-owned tests;
+- that same B2 frozen role-membership inventory must exclude the dedicated B5 owner/migrator provisioning relationship from the B1/B2 list while B5-owned tests assert the exact B5 membership/options;
+- `tests/postgres/b3-capabilities.test.ts` keeps the existing `can_administer_org` ACL unchanged: B5 does **not** gain EXECUTE on that frozen helper directly because caller classification is provided by a new B5-specific capability-owned helper;
+- existing exact executor inventories may add only new B5 helper entries where a new helper is actually introduced and must retain every prior expected row;
 - new B5 catalog tests own the exact B5 role, policy, helper, ACL and negative behavior assertions.
 
 These expectation updates are not product-semantic changes and must not delete/weaken existing B1-B4 assertions.
