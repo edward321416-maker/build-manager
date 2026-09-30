@@ -263,3 +263,45 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event `PF02B-B4-CLOSURE-MAIN-PUBLICATION-20260930`; sync_status=pending; tokens=unknown. PR #59 reviewed HEAD `92fff275875fbdf7a3fa09775f1ee26094c813df` merged to main `9565a15e6f14b1806b2daa3b96b0da6faa54c1e6`; fresh push Repository `36677033496` and App `36677033545` completed required 9/9 SUCCESS. Hosted Expo Doctor 1.20.4 = 21/21; Linux and Windows Mobile each 133/133. This is closure-publication evidence, not new B4 product verification.
 - Event `PF02B-B4-B4C-L02-OPS-QUEUE-RECONCILIATION-20260930`; sync_status=pending; tokens=unknown. This ops-only follow-up reconciles queue coverage for the omitted pending events and records the closure-main publication event. It does not reopen B4 or authorize later PF02-B work.
 - No external synchronization of these repository events is claimed by this follow-up. EXTERNAL_SYNC remains PARTIAL_SYNC overall, and these named events remain queued until a later verified write/readback records their synchronization without rewriting historical rows.
+
+## 2026-09-30 PF02-B/B5 design candidate
+
+- Event `PF02B-B5-DESIGN-CANDIDATE-20260930`; sync_status=pending; tokens=unknown.
+- Operator-approved scope: `PF02-B/B5 — Organization Membership Termination & Last-Admin Safety Foundation`.
+- Written design candidate only. Role mutation/demotion/promotion, membership creation/reactivation, staff roster/search/profile, onboarding/invitation, assignment UI/cleanup, PF02-C, F43, provider/IAM, real data and production hosting remain excluded.
+- F15/F25/F39 remain NOT_RUN. The design may produce prerequisite evidence only after future implementation; it does not promote those canonical cases.
+- No product implementation, SQL migration, test, dependency, workflow, provider or Ready/merge action is authorized by this event.
+- Independent B5 written-design review is NOT_RUN. External synchronization is not claimed; EXTERNAL_SYNC remains PENDING for this event.
+
+- Event `PF02B-B5-DESIGN-LEAST-PRIVILEGE-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Pre-independent-review self-audit narrows the proposed B5 owner SELECT surface to current-org ACTIVE memberships only and removes raw ended_at SELECT. Scope/public behavior/F-case status are unchanged; implementation remains unauthorized.
+
+## 2026-09-30 PF02-B/B5 design independent review and correction
+
+- Event `PF02B-B5-DESIGN-INDEPENDENT-REVIEW-CHANGES-20260930`; sync_status=pending; tokens=unknown. Fresh Claude Opus 5.5 read-only review of PR #63 HEAD `ca53af17d084cbf159a8b707e403de6d057fd003` returned CHANGES_REQUIRED, BLOCKER0/HIGH1/MEDIUM3/LOW5, publication recommendation NOT_READY.
+- Event `PF02B-B5-DESIGN-REVIEW-FINDINGS-CORRECTION-20260930`; sync_status=pending; tokens=unknown. The written design was corrected without changing the operator-approved B5 functional scope: current-org RESTRICTIVE membership SELECT replaces the superseded ACTIVE-only claim; PF01 Organization-level serialization and one id-ordered admin∪target membership lock query are adopted; effective-admin checks include ACTIVE User state through a capability-owned boolean helper; bounded timeouts/SQLSTATE mappings and expanded acceptance evidence are specified.
+- Historical event `PF02B-B5-DESIGN-LEAST-PRIVILEGE-CORRECTION-20260930` is not rewritten. Its statement that ENDED membership history is not raw-visible to the B5 owner is superseded by the H01 correction above. The corrected design states that current-org ENDED rows may be RLS-visible to the NOLOGIN owner only for the narrow granted columns, while public non-disclosure is enforced by the fixed function and absence of a member projection.
+- B5 design remains NOT_APPROVED. Implementation plan/product implementation/Ready/merge remain NOT_AUTHORIZED. External synchronization is not claimed; these events remain queued.
+- Event `PF02B-B5-DESIGN-BOUNDARY-CLARIFICATION-20260930`; sync_status=pending; tokens=unknown. Pre-delta-review clarification records the bounded PF01 User-lock exception for security suspension and the exact frozen-test inventory impact. Functional scope is unchanged; design remains NOT_APPROVED; implementation remains NOT_AUTHORIZED.
+
+## 2026-09-30 PF02-B/B5 second design delta review and correction
+
+- Event `PF02B-B5-DESIGN-SECOND-DELTA-REVIEW-CHANGES-20260930`; sync_status=pending; tokens=unknown. Fresh Claude Opus 5.5 delta review of PR #63 HEAD `b9c69dfeb27bdf100658dff23faf2a9b0943da0a` returned CHANGES_REQUIRED, BLOCKER0/HIGH1/MEDIUM0/LOW3, publication recommendation NOT_READY.
+- Event `PF02B-B5-DESIGN-SECOND-DELTA-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Revision 0.3 preserves frozen B1/B2 policies and introduces a dedicated NOLOGIN read-only effective-admin probe owner instead of widening the capability owner. It also adds transaction_timeout, default-unlisted-error sanitization, catch-all exception prohibition, the limited 409 inference residual, and wording alignment.
+- The operator-approved B5 functional scope is unchanged. Design remains NOT_APPROVED; implementation plan/product implementation/Ready/merge remain NOT_AUTHORIZED.
+- External synchronization is not claimed; these events remain queued.
+- Event `PF02B-B5-DESIGN-PROBE-ACL-CLARIFICATION-20260930`; sync_status=pending; tokens=unknown. Pre-second-delta-review self-audit explicitly adds the minimum schema USAGE and app.current_org_id() EXECUTE needed by the two B5 NOLOGIN roles. Scope/design authorization state is unchanged.
+
+## 2026-09-30 PF02-B/B5 third design review lows and correction
+
+- Event `PF02B-B5-DESIGN-THIRD-REVIEW-LOWS-20260930`; sync_status=pending; tokens=unknown. Fresh Claude Opus 5.5 second-delta review of PR #63 HEAD `f98cab2a0350536b55e94d80eaa92863cdff237e` returned CHANGES_REQUIRED, BLOCKER0/HIGH0/MEDIUM0/LOW3, publication recommendation NOT_READY. The probe-owner architecture was accepted; only documentation/evidence-contract LOW findings remained.
+- Event `PF02B-B5-DESIGN-THIRD-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Revision 0.4 makes the three timeout SET LOCAL statements first after BEGIN, treats transaction_timeout as session-terminating SQLSTATE 25P04 with mandatory client discard/process-survival evidence, pins both B5 helpers STABLE, expands helper/probe-owner negative evidence, and corrects stale capability-owned wording to probe-owned.
+- B5D2-L02 remains an accepted LOW residual. Functional scope and architecture remain unchanged. Design remains NOT_APPROVED; implementation plan/product implementation/Ready/merge remain NOT_AUTHORIZED.
+- External synchronization is not claimed; these events remain queued.
+
+## 2026-09-30 PF02-B/B5 third-delta acceptance and pre-approval cleanup
+
+- Event `PF02B-B5-DESIGN-THIRD-DELTA-ACCEPTED-20260930`; sync_status=pending; tokens=unknown. Fresh Claude Opus 5.5 third-delta review of PR #63 HEAD `525bf34d1454832e24460617cd7e47bdfcb96238` returned THIRD_DELTA_DESIGN_ACCEPTED, BLOCKER0/HIGH0/MEDIUM0/LOW2, publication recommendation READY_FOR_OPERATOR_DESIGN_APPROVAL.
+- Event `PF02B-B5-DESIGN-LOG-TIMESTAMP-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Append-only chronology correction: the historical 20:14/20:16 timestamps for the second-delta review/correction rows are invalid metadata. Reviewed HEAD `f98cab2a...` existed from 20:38:05+09; the independent review receipt reports completion at 21:09+09; correction commit `7248bdf3...` committed at 21:14:57+09. Historical rows are not rewritten.
+- Event `PF02B-B5-DESIGN-POST-REVIEW-EDITORIAL-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Revision 0.5 aligns stale §15/§16 timeout ordering with already accepted §9.1/AC16: all three SET LOCAL bounds are first after BEGIN and frozen `withB1OrgTransaction` is not reused unchanged. Architecture and functional scope are unchanged.
+- B5 design remains NOT_APPROVED. Implementation plan/product implementation/Ready/merge remain NOT_AUTHORIZED pending exact-head post-review editorial verification and separate operator design approval.
+- External synchronization is not claimed; these events remain queued.
