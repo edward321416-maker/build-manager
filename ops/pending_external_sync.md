@@ -274,3 +274,10 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Independent B5 written-design review is NOT_RUN. External synchronization is not claimed; EXTERNAL_SYNC remains PENDING for this event.
 
 - Event `PF02B-B5-DESIGN-LEAST-PRIVILEGE-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Pre-independent-review self-audit narrows the proposed B5 owner SELECT surface to current-org ACTIVE memberships only and removes raw ended_at SELECT. Scope/public behavior/F-case status are unchanged; implementation remains unauthorized.
+
+## 2026-09-30 PF02-B/B5 design independent review and correction
+
+- Event `PF02B-B5-DESIGN-INDEPENDENT-REVIEW-CHANGES-20260930`; sync_status=pending; tokens=unknown. Fresh Claude Opus 5.5 read-only review of PR #63 HEAD `ca53af17d084cbf159a8b707e403de6d057fd003` returned CHANGES_REQUIRED, BLOCKER0/HIGH1/MEDIUM3/LOW5, publication recommendation NOT_READY.
+- Event `PF02B-B5-DESIGN-REVIEW-FINDINGS-CORRECTION-20260930`; sync_status=pending; tokens=unknown. The written design was corrected without changing the operator-approved B5 functional scope: current-org RESTRICTIVE membership SELECT replaces the superseded ACTIVE-only claim; PF01 Organization-level serialization and one id-ordered admin∪target membership lock query are adopted; effective-admin checks include ACTIVE User state through a capability-owned boolean helper; bounded timeouts/SQLSTATE mappings and expanded acceptance evidence are specified.
+- Historical event `PF02B-B5-DESIGN-LEAST-PRIVILEGE-CORRECTION-20260930` is not rewritten. Its statement that ENDED membership history is not raw-visible to the B5 owner is superseded by the H01 correction above. The corrected design states that current-org ENDED rows may be RLS-visible to the NOLOGIN owner only for the narrow granted columns, while public non-disclosure is enforced by the fixed function and absence of a member projection.
+- B5 design remains NOT_APPROVED. Implementation plan/product implementation/Ready/merge remain NOT_AUTHORIZED. External synchronization is not claimed; these events remain queued.
