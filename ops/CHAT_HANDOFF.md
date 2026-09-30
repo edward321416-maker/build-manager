@@ -66,7 +66,8 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
 | PF02-B / B3 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b3_closure.md); implementation/remediation/F01 evidence accepted and published; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed |
 | PF02-B / B4 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b4_closure.md); PR #58 accepted HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307` merged as `6cf71049c479d100ec6e949002c2e30c8df81eba`; retained B4I-L01/B4R-L01 LOW and B4D-L01..L04 boundaries remain disclosed. [Erratum publication](pf02_b_b4_erratum_publication.md) is a historical pre-implementation snapshot. |
-| Beyond B4 | NOT_STARTED / NOT_YET_SCOPED | — |
+| PF02-B / B5 | DESIGN_APPROVED / IMPLEMENTATION_NOT_AUTHORIZED | [Approved design](../docs/superpowers/specs/2026-09-30-pf02-b-b5-organization-membership-termination-last-admin-safety-design.md); PR #63 approved HEAD `279866e1adccd9b442b057e85e622eed85055f35` merged as `08fd7eb2ebd2aa3ba61efc089484b479c6f2b764`; final exact-head editorial check accepted; B5D2-L02 retained accepted LOW; implementation planning/product implementation remain separately unauthorized. |
+| Beyond B5 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
 `docs/production-foundation/README.md`, `docs/production-foundation/00_foundation_blueprint.md`,
@@ -90,6 +91,7 @@ Closed. Do not re-derive, re-propose or re-ask these. Each is evidenced by the r
 - Modular Monolith, explicit SQL, application ports. No ORM.
 - B3 Building Registration Foundation is VERIFIED / FROZEN at the approved design/plan and accepted implementation boundary. Retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed; none authorizes reopening or later product work.
 - B4 Property Assignment Mutation Foundation is VERIFIED / FROZEN: exact-resource GET/PUT/DELETE for an ORG_ADMIN on a current same-org ACTIVE PROPERTY_STAFF membership and ACTIVE Property, migration 0009, `bm_b4_assignment_owner` SECURITY DEFINER boundary and canonical B4D-L04 method boundary. Retained B4I-L01/B4R-L01 and B4D-L01..L04 do not authorize reopening or later work.
+- B5 Organization Membership Termination & Last-Admin Safety Foundation has an operator-approved, published written design at PR #63. That design is the canonical boundary for any future B5 planning, but it does **not** authorize implementation-plan drafting/review, SQL/test work, product implementation, Ready/merge of implementation work, PF02-C or later slices.
 
 ## Do not reopen without new evidence
 
@@ -156,6 +158,7 @@ Summarized by link only. Read the cited file for the current wording.
 - B3 local Mobile: FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED; original/native Windows A/B failures remain distinct from instrumented BASE and hosted passes, and from the earlier Windows-mounted Ubuntu risk — [PR45 follow-up receipt](pf02_b_b3_low_remediation_acceptance.md).
 - Retained B3D-L01/L02 and AC04 separate PG-layer 513-code-point rejection NOT_RUN — [historical B3 receipt](pf02_b_b3_acceptance.md) and [current follow-up](pf02_b_b3_low_remediation_acceptance.md). Targeted M01/M03/M04 are resolved, not open risks.
 - Retained B4I-L01/B4R-L01 (non-blocking LOW concurrent-lifecycle classification limitation) and B4D-L01..L04 boundaries — [B4 closure receipt](pf02_b_b4_closure.md). No global lifecycle serialization, exactly-once/CommandReceipt or request-arrival eligibility-snapshot claim.
+- B5D2-L02 = `ACCEPTED_LOW_RESIDUAL`: a self-termination 204/409 may reveal one bit about whether another effective administrator exists to an already-authorized admin; no User/status row or reason is publicly projected. See the approved B5 design.
 - Canonical acceptance cases — most `F` cases remain `NOT_RUN`.
   `docs/production-foundation/acceptance_cases.json`.
 - External sync — `EXTERNAL_SYNC = PARTIAL_SYNC`: PR48 correction/sync/cache events have verified Google write/readback; historical queued events remain pending. `ops/pending_external_sync.md`.
@@ -180,6 +183,7 @@ Pull requests:
 
 | PR | State | Role |
 | --- | --- | --- |
+| #63 | MERGED | B5 operator-approved written design publication; merge/main `08fd7eb2ebd2aa3ba61efc089484b479c6f2b764`; implementation planning/product implementation remain unauthorized |
 | #35 | MERGED | B2 canonical closure |
 | #34 | MERGED | B2 implementation |
 | #33 | CLOSED / NOT_MERGED / `SUPERSEDED_BY_CANONICAL_SPEC_IN_MAIN` | Approved B2 design source; spec canonicalized into `main`, branch/history preserved. Not a rejection. |
@@ -193,13 +197,13 @@ current canonical documents.
 
 **CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED.**
 
-PF02-B / B4 is **VERIFIED / FROZEN** per the [B4 closure receipt](pf02_b_b4_closure.md). PR #58 accepted implementation HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307` and actual merge `6cf71049c479d100ec6e949002c2e30c8df81eba` are distinct refs; candidate PR CI and implementation-main push CI are separate evidence generations. The independent implementation review returned ACCEPTED (HIGH 0 / MEDIUM 0 / LOW 1). B4I-L01/B4R-L01 remains a retained non-blocking LOW; B4D-L01..L04 remain retained boundaries. The [erratum publication receipt](pf02_b_b4_erratum_publication.md) and its READY_FOR_RESUME_DECISION state are historical and are not rewritten.
+PF02-B / B5 written design is **APPROVED / PUBLISHED**. Approved candidate HEAD `279866e1adccd9b442b057e85e622eed85055f35` was merged by PR #63 as main `08fd7eb2ebd2aa3ba61efc089484b479c6f2b764`. Publication-main push CI is Repository `36733611795` / App `36733611958`, 9/9 SUCCESS. This is design-publication evidence, not B5 runtime implementation evidence.
 
-**CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED.** Any later PF02-B slice requires separate operator scope and approval.
+B1/B2/B3/B4 remain VERIFIED / FROZEN. B5 implementation-plan drafting/review is **NOT_AUTHORIZED** and B5 product implementation is **NOT_AUTHORIZED**. The next consequential gate is an explicit operator **B5_IMPLEMENTATION_PLAN_AUTHORIZATION_DECISION**. Do not infer planning authorization from the approved design or its publication.
 
-**F01 = PASS_POSTGRES_INTEGRATION; F43 = NOT_RUN.** B4 closure promotes no F-case. B3D-L01/L02, the separate AC04 PG-layer 513-code-point rejection NOT_RUN, Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED and broader operational/security/privacy backlog remain disclosed. These are retained risks/limits, not authorization to reopen a frozen slice.
+**F01 = PASS_POSTGRES_INTEGRATION; F15/F25/F39/F43 remain NOT_RUN as applicable.** B5D2-L02 remains an accepted non-blocking LOW residual. Existing B3/B4 retained risks and broader operational/security/privacy backlog remain disclosed; none is authorization to reopen a frozen slice.
 
-No slice beyond B4 is currently scoped, planned or implementation-authorized. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. PF02-C / Occupancy / Resident Invitation, F43 search, staff onboarding/roster/search/UI, invitation, membership mutation, provider/IAM and other follow-on work must not be inferred from B4 closure.
+No slice beyond B5 is currently scoped, planned or implementation-authorized. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. PF02-C / Occupancy / Resident Invitation, F43 search, staff onboarding/roster/search/UI, invitation, membership role mutation, provider/IAM and other follow-on work must not be inferred from B5 design publication.
 
 ## Private artifact rule
 
