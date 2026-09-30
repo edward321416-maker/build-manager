@@ -305,3 +305,9 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event `PF02B-B5-DESIGN-POST-REVIEW-EDITORIAL-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Revision 0.5 aligns stale §15/§16 timeout ordering with already accepted §9.1/AC16: all three SET LOCAL bounds are first after BEGIN and frozen `withB1OrgTransaction` is not reused unchanged. Architecture and functional scope are unchanged.
 - B5 design remains NOT_APPROVED. Implementation plan/product implementation/Ready/merge remain NOT_AUTHORIZED pending exact-head post-review editorial verification and separate operator design approval.
 - External synchronization is not claimed; these events remain queued.
+
+## 2026-10-01 PF02-B/B5 design publication and canonical reconciliation
+
+- Event `PF02B-B5-DESIGN-PUBLICATION-MERGED-20261001`; sync_status=pending; tokens=unknown. Operator-approved B5 written design PR #63 merged at main `08fd7eb2ebd2aa3ba61efc089484b479c6f2b764`; fresh push/main Repository `36733611795` and App `36733611958` completed 9/9 SUCCESS. This is design-publication evidence only; implementation planning/product implementation remain NOT_AUTHORIZED.
+- Event `PF02B-B5-DESIGN-PUBLICATION-RECONCILIATION-CANDIDATE-20261001`; sync_status=pending; tokens=unknown. Bounded reconciliation scope is exactly `STATUS.md`, `ops/CHAT_CONTEXT_MANIFEST.json`, `ops/CHAT_HANDOFF.md`, `ops/AI_Execution_Log.csv`, and `ops/pending_external_sync.md`. Canonical target state is B5 DESIGN_APPROVED / IMPLEMENTATION_NOT_AUTHORIZED; current additional product task remains NONE_AUTHORIZED; next gate is B5_IMPLEMENTATION_PLAN_AUTHORIZATION_DECISION.
+- External synchronization is not claimed complete; these events remain queued.
