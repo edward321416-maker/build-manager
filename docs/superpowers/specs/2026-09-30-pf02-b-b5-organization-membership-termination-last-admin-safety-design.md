@@ -279,6 +279,12 @@ This role is read-only and separate from `bm_b5_membership_owner`.
 
 Raw privileges are limited to:
 
+Common lookup prerequisites:
+- `USAGE ON SCHEMA app, authn`;
+- `EXECUTE ON FUNCTION app.current_org_id()`.
+
+Table reads:
+
 On `app.organization_membership`, SELECT only:
 - `id`;
 - `org_id`;
@@ -520,7 +526,10 @@ Existing migrations 0001-0009 remain byte-frozen.
 
 The B5 migration may:
 1. preflight both `bm_b5_membership_owner` and `bm_b5_effective_admin_probe_owner` attributes and role membership;
-2. grant minimum schema/function/table/column privileges;
+2. grant minimum schema/function/table/column privileges, including:
+   - `USAGE ON SCHEMA app, authn` to both B5 NOLOGIN roles where required;
+   - `EXECUTE ON FUNCTION app.current_org_id()` to both `bm_b5_membership_owner` and `bm_b5_effective_admin_probe_owner`;
+   - no broader frozen-helper EXECUTE than the B5-specific helper graph requires;
 3. create B5-specific **RESTRICTIVE** RLS ceilings on Organization and OrganizationMembership;
 4. create the B5 SECURITY DEFINER command routine;
 5. create the B5 caller-classification helper under `bm_b1_capability_owner` and the other-effective-admin helper under `bm_b5_effective_admin_probe_owner`;
@@ -566,6 +575,12 @@ These expectation updates are not product-semantic changes and must not delete/w
 ### 12.1 organization_membership
 
 Proposed maximum B5-owner raw columns:
+
+Common lookup prerequisites:
+- `USAGE ON SCHEMA app, authn`;
+- `EXECUTE ON FUNCTION app.current_org_id()`.
+
+Table columns:
 
 SELECT:
 - `id`;
@@ -1262,6 +1277,7 @@ Revision 0.3 dispositions the delta-review findings:
 - **B5D2-L01 — FIXED IN DESIGN:** add transaction_timeout=7000ms, default all unlisted DB/driver errors to sanitized 503, and forbid catch-all exception swallowing/retry in B5 routines.
 - **B5D2-L02 — ACCEPTED_LOW_RESIDUAL:** document the limited self-termination 409 inference about whether another effective administrator exists.
 - **B5D2-L03 — FIXED IN DESIGN:** align approved-scope wording to effective-administrator terminology and distinguish frozen-helper reuse from B5-specific helper additions.
+- **SELF-AUDIT ACL CLARIFICATION — FIXED IN DESIGN:** explicitly grant both B5 NOLOGIN roles only the schema USAGE and `app.current_org_id()` EXECUTE required by their RLS/helper predicates.
 
 Prior findings remain dispositioned:
 - B5D-H01 = RESOLVED
