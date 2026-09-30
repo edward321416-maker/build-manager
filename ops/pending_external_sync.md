@@ -297,3 +297,11 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event `PF02B-B5-DESIGN-THIRD-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Revision 0.4 makes the three timeout SET LOCAL statements first after BEGIN, treats transaction_timeout as session-terminating SQLSTATE 25P04 with mandatory client discard/process-survival evidence, pins both B5 helpers STABLE, expands helper/probe-owner negative evidence, and corrects stale capability-owned wording to probe-owned.
 - B5D2-L02 remains an accepted LOW residual. Functional scope and architecture remain unchanged. Design remains NOT_APPROVED; implementation plan/product implementation/Ready/merge remain NOT_AUTHORIZED.
 - External synchronization is not claimed; these events remain queued.
+
+## 2026-09-30 PF02-B/B5 third-delta acceptance and pre-approval cleanup
+
+- Event `PF02B-B5-DESIGN-THIRD-DELTA-ACCEPTED-20260930`; sync_status=pending; tokens=unknown. Fresh Claude Opus 5.5 third-delta review of PR #63 HEAD `525bf34d1454832e24460617cd7e47bdfcb96238` returned THIRD_DELTA_DESIGN_ACCEPTED, BLOCKER0/HIGH0/MEDIUM0/LOW2, publication recommendation READY_FOR_OPERATOR_DESIGN_APPROVAL.
+- Event `PF02B-B5-DESIGN-LOG-TIMESTAMP-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Append-only chronology correction: the historical 20:14/20:16 timestamps for the second-delta review/correction rows are invalid metadata. Reviewed HEAD `f98cab2a...` existed from 20:38:05+09; the independent review receipt reports completion at 21:09+09; correction commit `7248bdf3...` committed at 21:14:57+09. Historical rows are not rewritten.
+- Event `PF02B-B5-DESIGN-POST-REVIEW-EDITORIAL-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Revision 0.5 aligns stale §15/§16 timeout ordering with already accepted §9.1/AC16: all three SET LOCAL bounds are first after BEGIN and frozen `withB1OrgTransaction` is not reused unchanged. Architecture and functional scope are unchanged.
+- B5 design remains NOT_APPROVED. Implementation plan/product implementation/Ready/merge remain NOT_AUTHORIZED pending exact-head post-review editorial verification and separate operator design approval.
+- External synchronization is not claimed; these events remain queued.
