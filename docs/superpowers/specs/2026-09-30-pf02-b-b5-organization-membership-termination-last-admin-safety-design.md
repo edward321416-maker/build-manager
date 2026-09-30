@@ -437,8 +437,9 @@ SELECT:
 - `org_id`;
 - `role`;
 - `status`;
-- `version`;
-- `ended_at`.
+- `version`.
+
+B5 needs no raw SELECT of `ended_at`: the SELECT/RLS surface is restricted to ACTIVE memberships, for which the frozen status/time CHECK already requires `ended_at IS NULL`.
 
 UPDATE:
 - `status`;
@@ -479,7 +480,9 @@ Design intent:
 
 ### SELECT policy
 - current org only;
-- enough visibility to lock current ACTIVE admin rows and the exact target;
+- status ACTIVE only;
+- enough visibility to lock current ACTIVE admin rows and the exact ACTIVE target;
+- ENDED membership history is not raw-visible to the B5 owner;
 - no PUBLIC or `bm_b1_web` raw expansion.
 
 ### UPDATE policy
