@@ -65,7 +65,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B / B1 | VERIFIED / FROZEN | `ops/pf02_b_b1_acceptance.md` |
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
 | PF02-B / B3 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b3_closure.md); implementation/remediation/F01 evidence accepted and published; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed |
-| PF02-B / B4 | READY_FOR_RESUME_DECISION | B4D-L04 erratum CANONICAL; [publication evidence](pf02_b_b4_erratum_publication.md) verifies the exact blobs and actual-main CI 9/9 SUCCESS. Implementation resume is not authorized. |
+| PF02-B / B4 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b4_closure.md); PR #58 accepted HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307` merged as `6cf71049c479d100ec6e949002c2e30c8df81eba`; retained B4I-L01/B4R-L01 LOW and B4D-L01..L04 boundaries remain disclosed. [Erratum publication](pf02_b_b4_erratum_publication.md) is a historical pre-implementation snapshot. |
 | Beyond B4 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
@@ -89,6 +89,7 @@ Closed. Do not re-derive, re-propose or re-ask these. Each is evidenced by the r
 - No assignment mutation API or UI in B2.
 - Modular Monolith, explicit SQL, application ports. No ORM.
 - B3 Building Registration Foundation is VERIFIED / FROZEN at the approved design/plan and accepted implementation boundary. Retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed; none authorizes reopening or later product work.
+- B4 Property Assignment Mutation Foundation is VERIFIED / FROZEN: exact-resource GET/PUT/DELETE for an ORG_ADMIN on a current same-org ACTIVE PROPERTY_STAFF membership and ACTIVE Property, migration 0009, `bm_b4_assignment_owner` SECURITY DEFINER boundary and canonical B4D-L04 method boundary. Retained B4I-L01/B4R-L01 and B4D-L01..L04 do not authorize reopening or later work.
 
 ## Do not reopen without new evidence
 
@@ -112,7 +113,8 @@ Not in scope. Do not implement, scaffold or "prepare" these:
 - Production DB hosting, credential/IAM provisioning
 - Real tenant / landlord / address data (`REAL_TENANT_DATA = NOT_AUTHORIZED`)
 - Staff invitation, staff creation, membership role mutation
-- Assignment mutation (API, UI, lifecycle)
+- Assignment management UI, assignment collection/list API, and lifecycle work beyond the frozen B4 exact-resource API
+- Staff roster, staff search, staff onboarding
 - Resident / occupancy end-user flow
 - Ticket flow
 - Mobile authentication
@@ -153,6 +155,7 @@ Summarized by link only. Read the cited file for the current wording.
   See each receipt for current disposition.
 - B3 local Mobile: FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED; original/native Windows A/B failures remain distinct from instrumented BASE and hosted passes, and from the earlier Windows-mounted Ubuntu risk — [PR45 follow-up receipt](pf02_b_b3_low_remediation_acceptance.md).
 - Retained B3D-L01/L02 and AC04 separate PG-layer 513-code-point rejection NOT_RUN — [historical B3 receipt](pf02_b_b3_acceptance.md) and [current follow-up](pf02_b_b3_low_remediation_acceptance.md). Targeted M01/M03/M04 are resolved, not open risks.
+- Retained B4I-L01/B4R-L01 (non-blocking LOW concurrent-lifecycle classification limitation) and B4D-L01..L04 boundaries — [B4 closure receipt](pf02_b_b4_closure.md). No global lifecycle serialization, exactly-once/CommandReceipt or request-arrival eligibility-snapshot claim.
 - Canonical acceptance cases — most `F` cases remain `NOT_RUN`.
   `docs/production-foundation/acceptance_cases.json`.
 - External sync — `EXTERNAL_SYNC = PARTIAL_SYNC`: PR48 correction/sync/cache events have verified Google write/readback; historical queued events remain pending. `ops/pending_external_sync.md`.
@@ -188,13 +191,15 @@ current canonical documents.
 
 ## Current authorized next task
 
-**CURRENT ADDITIONAL PRODUCT TASK = PF02-B/B4 — READY_FOR_RESUME_DECISION.**
+**CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED.**
 
-PF02-B / B3 remains **VERIFIED / FROZEN**. `B4D-L04_ERRATUM = CANONICAL` and `B4_IMPLEMENTATION_RESUME_GATE = READY_FOR_RESUME_DECISION`. Read the [erratum publication receipt](pf02_b_b4_erratum_publication.md) for exact spec/plan blobs and fresh actual-main CI at `5cb12ece0670e36006e68f2ebaa533c414072d11`. The previous implementation authorization is historical; a new explicit resume instruction is required before changing the preserved local B4 implementation. Its partial runtime evidence remains unaccepted, including the historical TRACE assertion failure. The 51-case hosted suite verifies published main, not the unpublished B4 implementation. Implementation resume/push/Ready/merge/closure are not authorized by this handoff transition.
+PF02-B / B4 is **VERIFIED / FROZEN** per the [B4 closure receipt](pf02_b_b4_closure.md). PR #58 accepted implementation HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307` and actual merge `6cf71049c479d100ec6e949002c2e30c8df81eba` are distinct refs; candidate PR CI and implementation-main push CI are separate evidence generations. The independent implementation review returned ACCEPTED (HIGH 0 / MEDIUM 0 / LOW 1). B4I-L01/B4R-L01 remains a retained non-blocking LOW; B4D-L01..L04 remain retained boundaries. The [erratum publication receipt](pf02_b_b4_erratum_publication.md) and its READY_FOR_RESUME_DECISION state are historical and are not rewritten.
 
-**F01 = PASS_POSTGRES_INTEGRATION; F43 = NOT_RUN.** F43 requires address/reference search not implemented by B3, so its NOT_RUN status is compatible with B3 closure. B3D-L01/L02, the separate AC04 PG-layer 513-code-point rejection NOT_RUN, Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED and broader operational/security/privacy backlog remain disclosed. These are retained risks/limits, not authorization to reopen the frozen slice.
+**CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED.** Any later PF02-B slice requires separate operator scope and approval.
 
-No slice beyond B4 is currently scoped, planned or implementation-authorized. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. PF02-C / Occupancy / Resident Invitation, F43 search, staff onboarding/roster/UI, membership mutation, provider/IAM and other follow-on work must not be inferred from B4 authorization. For current B4 implementation HEAD/runtime evidence, read the live execution branch/PR rather than this routing summary.
+**F01 = PASS_POSTGRES_INTEGRATION; F43 = NOT_RUN.** B4 closure promotes no F-case. B3D-L01/L02, the separate AC04 PG-layer 513-code-point rejection NOT_RUN, Local Mobile FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED and broader operational/security/privacy backlog remain disclosed. These are retained risks/limits, not authorization to reopen a frozen slice.
+
+No slice beyond B4 is currently scoped, planned or implementation-authorized. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. PF02-C / Occupancy / Resident Invitation, F43 search, staff onboarding/roster/search/UI, invitation, membership mutation, provider/IAM and other follow-on work must not be inferred from B4 closure.
 
 ## Private artifact rule
 
