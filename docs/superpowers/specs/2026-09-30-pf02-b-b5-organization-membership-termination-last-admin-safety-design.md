@@ -2,15 +2,15 @@
 
 ## 1. Status / authority
 
-Date: **2026-09-30**. Revision: **0.4**.
+Date: **2026-09-30**. Revision: **0.5**.
 
-**SCOPE_APPROVED; SECOND_DELTA_REVIEW_CHANGES_REQUIRED; WRITTEN_SPEC_THIRD_CORRECTION_CANDIDATE; DESIGN_NOT_APPROVED; IMPLEMENTATION_PLAN_NOT_AUTHORIZED; PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED.**
+**SCOPE_APPROVED; THIRD_DELTA_DESIGN_ACCEPTED; POST_REVIEW_EDITORIAL_CORRECTION_CANDIDATE; DESIGN_NOT_APPROVED; IMPLEMENTATION_PLAN_NOT_AUTHORIZED; PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED.**
 
 Repository: `edward321416-maker/build-manager`.
 
 `POLICY_REF = TARGET_REF = main@cfb7a34828c63933c0e9f12b45fa578cfd127cca`.
 
-This document records the operator-approved B5 scope and the second corrected architecture candidate after two fresh independent reviews. The first review of PR #63 at `ca53af17d084cbf159a8b707e403de6d057fd003` returned **CHANGES_REQUIRED** with one HIGH, three MEDIUM and five LOW findings. The delta review of corrected HEAD `b9c69dfeb27bdf100658dff23faf2a9b0943da0a` returned **CHANGES_REQUIRED** with one new HIGH and three LOW findings: eight of the nine prior findings were resolved, while the M02 mechanism remained partially resolved because the proposed capability-owner helper could not see other administrators through frozen RLS. Revision 0.3 dispositioned that second-review delta without changing the operator-approved functional scope. A fresh second-delta review of revision 0.3 then returned **CHANGES_REQUIRED** with BLOCKER0/HIGH0/MEDIUM0/LOW3: the probe-owner architecture was accepted, and only normative text/evidence gaps remained. Revision 0.4 addresses those LOW findings only. It is still **not approved**.
+This document records the operator-approved B5 scope and the second corrected architecture candidate after two fresh independent reviews. The first review of PR #63 at `ca53af17d084cbf159a8b707e403de6d057fd003` returned **CHANGES_REQUIRED** with one HIGH, three MEDIUM and five LOW findings. The delta review of corrected HEAD `b9c69dfeb27bdf100658dff23faf2a9b0943da0a` returned **CHANGES_REQUIRED** with one new HIGH and three LOW findings: eight of the nine prior findings were resolved, while the M02 mechanism remained partially resolved because the proposed capability-owner helper could not see other administrators through frozen RLS. Revision 0.3 dispositioned that second-review delta without changing the operator-approved functional scope. A fresh second-delta review of revision 0.3 then returned **CHANGES_REQUIRED** with BLOCKER0/HIGH0/MEDIUM0/LOW3: the probe-owner architecture was accepted, and only normative text/evidence gaps remained. Revision 0.4 addressed those LOW findings. A fresh third-delta review then returned **THIRD_DELTA_DESIGN_ACCEPTED**, BLOCKER0/HIGH0/MEDIUM0/LOW2, with publication recommendation **READY_FOR_OPERATOR_DESIGN_APPROVAL**. Revision 0.5 performs the two operator-selected non-architectural cleanup actions before approval: align stale §15/§16 normative timeout wording with the already accepted §9.1/AC16 contract, and record append-only timestamp correction bookkeeping. The architecture and functional scope are unchanged. The design is still **not approved** until the operator separately approves it.
 
 This document does **not** authorize an implementation plan, product code, SQL migration, tests, dependency changes, provider/IAM changes, production hosting, real data, Ready conversion, or merge.
 
@@ -793,9 +793,9 @@ These B5-specific additive helpers do not modify frozen B1-B4 helper bodies or t
 
 Every B5 command in an organization uses the same lock discipline.
 
-1. Outer Web boundary validates method/Origin/session/CSRF/input and establishes current organization context.
-2. Optional fast caller classification rejects obvious NOT_FOUND/FORBIDDEN before lock work.
-3. Persistence sets B5 transaction-local timeouts.
+1. The outer Web boundary validates method/Origin/session/CSRF/input that do not require the B5 database transaction.
+2. A B5-specific persistence transaction begins. Its **first SQL statements after BEGIN** set `lock_timeout=2000ms`, `statement_timeout=5000ms`, and `transaction_timeout=7000ms`.
+3. Still inside that bounded transaction, resolve current_actor, authorize the organization context, and set transaction-local org/session context. An optional fast caller classification may then reject obvious NOT_FOUND/FORBIDDEN before lock work.
 4. Lock the current ACTIVE Organization row with `FOR NO KEY UPDATE`.
 5. After the Organization lock wait, re-run caller classification: visibility first, then admin authority.
 6. Lock **all current ACTIVE ORG_ADMIN memberships plus the exact ACTIVE target** in one top-level query:
@@ -848,13 +848,16 @@ Staff target termination uses the same Organization lock and membership-union lo
 
 ## 16. Transaction, timeout, and failure contract
 
-B5 reuses the existing authenticated organization transaction boundary and READ COMMITTED. It does not switch the application to SERIALIZABLE.
+B5 keeps the existing **READ COMMITTED isolation semantics** and may reuse the frozen `withTransaction` BEGIN/COMMIT/cleanup mechanics, but it must **not reuse `withB1OrgTransaction` unchanged** because that helper performs context-establishment queries before the B5 operation callback.
 
-The command is one database transaction.
+The B5 command uses one database transaction through a B5-specific wrapper.
 
-Before calling the B5 command function, the persistence adapter must execute transaction-local:
+The first SQL statements after `BEGIN` must be:
 - `SET LOCAL lock_timeout = '2000ms'`;
-- `SET LOCAL statement_timeout = '5000ms'`.
+- `SET LOCAL statement_timeout = '5000ms'`;
+- `SET LOCAL transaction_timeout = '7000ms'`.
+
+Only after those bounds are armed may B5 run current_actor, authorize_org, transaction-local org/session context setup, and the command function.
 
 Required properties:
 - lock wait is bounded;
@@ -1317,7 +1320,7 @@ Second delta review at `f98cab2a0350536b55e94d80eaa92863cdff237e`: CHANGES_REQUI
 
 Revision 0.4 dispositions the second-delta findings:
 
-- **B5D3-L01 — FIXED IN DESIGN:** transaction_timeout is listed consistently; it is described as session-terminating SQLSTATE 25P04, not an ordinary reusable rollback path; the B5-specific transaction wrapper must issue all three SET LOCALs first after BEGIN; AC16 now includes active-statement and idle-in-transaction transaction_timeout cases and requires sanitized503, no mutation, client discard, and Web-process survival.
+- **B5D3-L01 — RESOLVED IN REVISION 0.5:** §15 steps 1–3 and §16 now use the same accepted first-post-BEGIN timeout ordering as §9.1/AC16; transaction_timeout is listed consistently and described as session-terminating SQLSTATE 25P04 with mandatory client discard/process-survival evidence.
 - **B5D3-L02 — FIXED IN DESIGN:** both helpers are pinned STABLE; AC14 enumerates ENDED, PROPERTY_STAFF and foreign/missing-context helper negatives; AC15 adds full probe-owner mutation/column/visibility behavioral negatives.
 - **B5D3-L03 — FIXED IN DESIGN:** stale "capability-owned effective-admin helper" wording is replaced with "probe-owned".
 - **B5D2-L02 — remains ACCEPTED_LOW_RESIDUAL.**
@@ -1326,13 +1329,13 @@ All HIGH/MEDIUM architectural findings remain resolved.
 
 Current authority:
 - PASS: operator-approved functional scope unchanged;
-- COMPLETE: three independent review generations received;
-- CURRENT: revision 0.4 third-correction candidate awaits a narrowly scoped fresh delta review;
+- COMPLETE: third-delta review accepted the design architecture at revision 0.4;
+- CURRENT: revision 0.5 contains only reviewer-requested editorial/bookkeeping cleanup before operator design approval;
 - NOT_APPROVED: written design/spec;
 - NOT_AUTHORIZED: implementation plan;
 - NOT_AUTHORIZED: product implementation;
 - NOT_AUTHORIZED: Ready/merge.
 
-**NEXT_GATE = FRESH_CLAUDE_OPUS_B5_DESIGN_THIRD_DELTA_REVIEW** after the corrected exact HEAD receives fresh candidate CI.
+**NEXT_GATE = FINAL_POST_REVIEW_EDITORIAL_CHECK** after revision 0.5 receives fresh exact-head CI. Because HEAD changes after the accepted third-delta review, the final check is limited to confirming the two reviewer-specified LOW cleanups and no architectural regression.
 
-Do not implement or publish B5 until the fresh third delta review is accepted and the operator separately approves the written design.
+Do not implement or publish B5 until that exact-head editorial check is accepted and the operator separately approves the written design.
