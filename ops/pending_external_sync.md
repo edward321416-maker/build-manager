@@ -254,3 +254,12 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Doctor 1.20.4 = 21/21, compatibility check up to date, fresh-cache Mobile = 133/133 on its first run, and lint/typecheck/Web build/dependency checks/Android and iOS JS-assets exports passed. Native binary builds NOT_RUN. Existing 14 moderate advisories and lint warnings remain outside scope.
 - Public-tree/history validation and exact-head hosted CI receipts will be recorded in the maintenance PR and private evidence after execution; candidate-time logging does not claim them complete. Stop at OPEN / DRAFT / NOT_MERGED for INDEPENDENT_EXPO57_MAINTENANCE_REVIEW.
 - Google Sheets/Drive writes=0; EXTERNAL_SYNC=PENDING. Historical pending rows are preserved. PR #59 branch and its closure artifacts are unchanged.
+
+## 2026-09-30 B4 closure publication and B4C-L02 queue reconciliation
+
+- `PF02B-B4-CLOSURE-CANDIDATE-20260929` is already queued above. Its earlier note that the source row was not yet published is now historical: PR #59 has since merged and the row is canonical on main `9565a15e6f14b1806b2daa3b96b0da6faa54c1e6`.
+- Event `PF02B-B4-CLOSURE-FUTURE-STABLE-CORRECTION-20260929`; sync_status=pending; tokens=unknown. This is the B4C-L01 future-stable routing correction and remains unsynchronized.
+- Event `PF02B-B4-PR59-POST-MAINTENANCE-RECONCILIATION-20260930`; sync_status=pending; tokens=unknown. This is the non-destructive reconciliation of PR #59 with the maintenance main and remains unsynchronized.
+- Event `PF02B-B4-CLOSURE-MAIN-PUBLICATION-20260930`; sync_status=pending; tokens=unknown. PR #59 reviewed HEAD `92fff275875fbdf7a3fa09775f1ee26094c813df` merged to main `9565a15e6f14b1806b2daa3b96b0da6faa54c1e6`; fresh push Repository `36677033496` and App `36677033545` completed required 9/9 SUCCESS. Hosted Expo Doctor 1.20.4 = 21/21; Linux and Windows Mobile each 133/133. This is closure-publication evidence, not new B4 product verification.
+- Event `PF02B-B4-B4C-L02-OPS-QUEUE-RECONCILIATION-20260930`; sync_status=pending; tokens=unknown. This ops-only follow-up reconciles queue coverage for the omitted pending events and records the closure-main publication event. It does not reopen B4 or authorize later PF02-B work.
+- No external synchronization of these repository events is claimed by this follow-up. EXTERNAL_SYNC remains PARTIAL_SYNC overall, and these named events remain queued until a later verified write/readback records their synchronization without rewriting historical rows.
