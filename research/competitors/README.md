@@ -11,7 +11,7 @@ Status: **PARTIALLY VERIFIED / WORKFLOW BENCHMARKS ONLY**.
 | Property Meld | SRC-024; SRC-025; SRC-026 | Meld lifecycle/activity history; estimate → owner approval; invoice review/approval/payment-status separation | Vendor documentation; closed Meld is documented as non-reopenable; no independent efficacy/adoption conclusion |
 | AppFolio | SRC-027 | Spring 2026 Realm-X Maintenance Performer advertises proactive vendor follow-up and logged interactions | Capability is vendor-published; any claimed outcome improvement remains vendor evidence only |
 | Buildium | SRC-028 | Work-order context, vendor assignment/progress tracking and approval-before-dispatch guidance | Vendor editorial/workflow guidance; not proof that every Buildium customer follows the workflow |
-| Latchel | SRC-029 | PM retains authorization/budget/provider authority; Latchel coordinates configured dispatch, availability, scheduling and completion | Current terms are strong authority-boundary evidence; service/ROI claims remain vendor evidence |
+| Latchel | SRC-029 | PM retains owner-approval responsibility, may choose whether to use Latchel network providers, and configures dispatch/budget rules; Latchel coordinates availability, scheduling and completion | Current terms are strong authority-boundary evidence; service/ROI claims remain vendor evidence |
 
 ## Implications for build-manager research
 
