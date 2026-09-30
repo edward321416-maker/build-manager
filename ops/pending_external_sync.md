@@ -272,3 +272,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - F15/F25/F39 remain NOT_RUN. The design may produce prerequisite evidence only after future implementation; it does not promote those canonical cases.
 - No product implementation, SQL migration, test, dependency, workflow, provider or Ready/merge action is authorized by this event.
 - Independent B5 written-design review is NOT_RUN. External synchronization is not claimed; EXTERNAL_SYNC remains PENDING for this event.
+
+- Event `PF02B-B5-DESIGN-LEAST-PRIVILEGE-CORRECTION-20260930`; sync_status=pending; tokens=unknown. Pre-independent-review self-audit narrows the proposed B5 owner SELECT surface to current-org ACTIVE memberships only and removes raw ended_at SELECT. Scope/public behavior/F-case status are unchanged; implementation remains unauthorized.
