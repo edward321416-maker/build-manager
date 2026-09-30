@@ -23,10 +23,10 @@ This is a provenance-governance defect, not evidence that the research statement
 
 | Batch | Scope | Priority | Completion rule |
 | --- | --- | --- | --- |
-| 0 | Core methodology sources used by Program Audit / S2-S6 | COMPLETE IN THIS CANDIDATE | Original source reopened; SRC and CLM rows added |
-| 1 | Official/legal/standards/primary-authority sources | NEXT | Reverify original pages and add stable SRC IDs + consequential claims |
-| 2 | Vendor/competitor primary documentation | AFTER B1 | Register as vendor evidence; preserve entry-path/version contradictions and marketing limits |
-| 3 | S1 public behavioral evidence | AFTER B2 | Map S1 public-case rows to stable source IDs; preserve same-thread/reviewer dependency, geography and self-selection limits |
+| 0 | Core methodology sources used by Program Audit / S2-S6 | COMPLETE / MERGED | Original source reopened; SRC and CLM rows added |
+| 1 | Official/legal/standards/primary-authority sources | CORE SET COMPLETE / FINAL RECONCILIATION OPEN | Current core authorities are registered; remaining active public/submission FACT coverage is decided by G-PROV-02/06/08 rather than by exhaustive source counting |
+| 2 | Vendor/competitor primary documentation | CORE WORKFLOW SET COMPLETE IN PR #57 CANDIDATE | Register vendor-primary workflow/authority evidence with marketing and scope limits; publication still requires the PR publication gate |
+| 3 | S1 public behavioral evidence | NEXT AFTER BATCH 2 PUBLICATION | Map active S1 public-case rows to stable source IDs; preserve same-thread/reviewer dependency, geography and self-selection limits |
 | 4 | Legacy 40-case proxy corpus | RECOVERY ONLY | Import only provenance that can be independently matched; do not invent missing case registry |
 
 ## Batch 0 receipt
@@ -46,7 +46,7 @@ Batch 0 reduces the highest-risk methodology provenance gap but **does not close
 
 ## Batch 1 progress — authoritative/legal/safety core
 
-Status: **PARTIAL COMPLETE IN THIS CANDIDATE**
+Status: **CORE AUTHORITATIVE SET COMPLETE / FINAL ACTIVE-CONCLUSION RECONCILIATION OPEN**
 
 Independently reverified against current/official primary sources: SRC-014..023 / CLM-022..031 covering current Commercial Act 657/680, current PIPA 15/16/21/29/37, NIST IR 8259A, EPA WaterSense leak/flow monitoring, and NIST AI 600-1.
 
@@ -60,7 +60,7 @@ Status: **CORE WORKFLOW COMPARATORS COMPLETE IN THIS CANDIDATE**
 
 Registered SRC-024..029 and CLM-032..037 for Property Meld, AppFolio, Buildium and Latchel. The competitor index is updated from bootstrap TO VERIFY-only status to a partial-verification model that records documented workflow/authority capabilities while explicitly excluding vendor efficacy, adoption, pricing and superiority claims from independent evidence.
 
-The current product-thesis-critical comparator set is now canonicalized. Optional/legacy competitor leads remain TO VERIFY and are not required for the present Coordination Core thesis.
+The current **Coordination Core workflow/authority-boundary comparator set** is covered in this candidate. This does not claim that all competitor, pricing, packaging or commercial facts in the living research document are canonicalized. Optional/legacy competitor leads remain TO VERIFY and are not used for feature-absence, superiority, pricing, adoption or demand claims.
 
 
 ## Frozen provenance closure gate — G-PROV-01..08

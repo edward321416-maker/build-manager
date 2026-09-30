@@ -2,7 +2,7 @@
 
 Status: **PARTIALLY VERIFIED / WORKFLOW BENCHMARKS ONLY**.
 
-This index distinguishes **documented primary-source workflow capability** from pricing, adoption, effectiveness, superiority, and market-share claims. A vendor's own product documentation can establish what the vendor publicly describes or contractually assigns; it does not independently establish customer outcomes or comparative superiority.
+[DECISION] This index distinguishes **documented primary-source workflow capability** from pricing, adoption, effectiveness, superiority, and market-share claims. A vendor's own product documentation can establish what the vendor publicly describes or contractually assigns; it does not independently establish customer outcomes or comparative superiority.
 
 ## Current primary-source workflow benchmarks
 
@@ -15,11 +15,11 @@ This index distinguishes **documented primary-source workflow capability** from 
 
 ## Implications for build-manager research
 
-- Generic maintenance intake, vendor assignment, scheduling, status history and approval workflow are **not unique differentiation claims**.
-- Property Meld's documented non-reopenable finished/closed Meld is a useful counterpoint to the current build-manager hypothesis that work-complete, resolution-confirmed and reopen should remain distinct.
-- Latchel's terms reinforce the separation between coordination execution and underlying spend/provider authority.
-- AppFolio's advertised vendor-follow-up agent means “having an AI maintenance agent” is not itself a defensible differentiation claim.
-- No competitor source in this index proves build-manager demand, WTP, adoption, switching intent, or superiority.
+- [DECISION] Do not use generic maintenance intake, vendor assignment, scheduling, status history or approval workflow as uniqueness claims; current comparator primary sources document those capability classes.
+- [FACT] Property Meld documents that a finished or closed Meld cannot be reopened. [HYPOTHESIS] This is a useful workflow counterpoint to the build-manager research hypothesis that work-complete, resolution-confirmed and reopen should remain distinct.
+- [DECISION] Use Latchel's current terms as authority-boundary evidence for separating coordination execution from owner/provider/spend authority; do not generalize beyond the documented terms.
+- [DECISION] Do not position the mere existence of an “AI maintenance agent” as unique differentiation because AppFolio publicly advertises a maintenance vendor-follow-up agent.
+- [DECISION] Treat demand, WTP, adoption, switching intent, efficacy and superiority as unproven by this competitor index.
 
 ## Unverified / legacy leads
 
@@ -34,4 +34,4 @@ The following earlier leads remain **TO VERIFY** and are not used as current can
 | International | HomeLantern | https://www.homelantern.app/ | TO VERIFY |
 | International | Residia AI | https://residia.ai/ | TO VERIFY |
 
-For any new competitor claim, record a source ID, access date, exact locator, customer/role context and evidence limit. Separate vendor claims from independently exercised behavior. Missing public evidence means UNKNOWN, not feature absence. Do not assert first/only/best or infer user counts.
+[DECISION] For any new competitor claim, record a source ID, access date, exact locator, customer/role context and evidence limit. Separate vendor claims from independently exercised behavior. Missing public evidence means UNKNOWN, not feature absence. Do not assert first/only/best or infer user counts.
