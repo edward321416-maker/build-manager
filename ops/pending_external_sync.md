@@ -311,3 +311,12 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event `PF02B-B5-DESIGN-PUBLICATION-MERGED-20261001`; sync_status=pending; tokens=unknown. Operator-approved B5 written design PR #63 merged at main `08fd7eb2ebd2aa3ba61efc089484b479c6f2b764`; fresh push/main Repository `36733611795` and App `36733611958` completed 9/9 SUCCESS. This is design-publication evidence only; implementation planning/product implementation remain NOT_AUTHORIZED.
 - Event `PF02B-B5-DESIGN-PUBLICATION-RECONCILIATION-CANDIDATE-20261001`; sync_status=pending; tokens=unknown. Bounded reconciliation scope is exactly `STATUS.md`, `ops/CHAT_CONTEXT_MANIFEST.json`, `ops/CHAT_HANDOFF.md`, `ops/AI_Execution_Log.csv`, and `ops/pending_external_sync.md`. Canonical target state is B5 DESIGN_APPROVED / IMPLEMENTATION_NOT_AUTHORIZED; current additional product task remains NONE_AUTHORIZED; next gate is B5_IMPLEMENTATION_PLAN_AUTHORIZATION_DECISION.
 - External synchronization is not claimed complete; these events remain queued.
+
+## 2026-10-01 PF02-B/B5 deadline-mode implementation-plan authorization
+
+- Event `PF02B-B5-DEADLINE-MODE-PLAN-AUTHORIZED-20261001`; sync_status=pending; tokens=unknown.
+- Operator authorized implementation-plan drafting/self-review/independent review and Codex execution-package preparation under the 2026-10-05 deadline.
+- Product/source/SQL/migration/test implementation remains NOT_AUTHORIZED until the written implementation plan is separately approved.
+- Intended post-plan execution mode: Codex release-candidate implementation → fixed-head full-product audit → independent review → blocker/high fix pass → RC freeze.
+- Frozen B1-B4 and the approved B5 design remain binding; PF02-C, real tenant data, provider/IAM and production hosting remain unauthorized.
+- External synchronization is not claimed complete; this event remains queued.
