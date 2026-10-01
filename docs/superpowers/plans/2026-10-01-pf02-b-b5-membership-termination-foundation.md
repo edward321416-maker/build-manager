@@ -4,9 +4,9 @@ Date: **2026-10-01**
 
 Status: **IMPLEMENTATION_PLAN_CORRECTION_CANDIDATE / DELTA_REVIEW_PENDING / PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED**
 
-Revision: **0.3**. Addresses the supplied independent review of PR #67 at HEAD `3e6629989a5cacf47050f7f5cf6f52e11419d94c` / plan blob `984ab71cff5418a8b84b789e2992c12441fda75e`: CHANGES_REQUIRED, BLOCKER0/HIGH0/MEDIUM5/LOW5. B5P-M01–M05 and B5P-L01–L05 are corrected in plan text only; resolution remains subject to fixed-head delta review. No design change, runtime verification, plan approval, Ready conversion, merge or product-implementation authorization is implied.
+Revision: **0.4**. Original whole-plan review at HEAD `3e6629989a5cacf47050f7f5cf6f52e11419d94c` / blob `984ab71cff5418a8b84b789e2992c12441fda75e` returned CHANGES_REQUIRED, BLOCKER0/HIGH0/MEDIUM5/LOW5. Revisions 0.2/0.3 supplied the ten corrections and the B5PD-M01 common-bootstrap connection. The supplied independent cumulative delta review at HEAD `735cd51ad6300d763fd6d27a218ad1ef21a71767` / blob `ada42c66245deaef2353c772bc591b3296024e34` returned CHANGES_REQUIRED, BLOCKER0/HIGH0/MEDIUM1/LOW0: nine original findings and B5PD-M01 RESOLVED in plan text; B5P-M02 PARTIALLY_RESOLVED through new finding B5PDR-M01. This revision addresses only that worker-loading/frozen-source issue and its evidence links; independent acceptance remains pending. No design change, runtime verification, plan approval, Ready conversion, merge or product-implementation authorization is implied.
 
-Revision 0.3 adds only the common test-bootstrap connection required by coordinator finding B5PD-M01 (the remaining B5P-L04 dependency) against revision 0.2 at HEAD `bb1f381b5b0a1a5411c9e9fcf98d7150fa8cbbb8` / blob `f5e0929a5dc7f29189b0fa28541dfa79f0d3c046`. The operator authorized this plan-only correction, not source implementation. The original ten corrections and this connection still require independent delta acceptance.
+Revision 0.3's bounded common-bootstrap connection is preserved. The next independent review may be limited to B5PDR-M01 and its directly dependent worker-loading/frozen-source boundaries against `735cd51ad6300d763fd6d27a218ad1ef21a71767`; the supplied cumulative review already dispositioned the earlier corrections. Its overall CHANGES_REQUIRED verdict is not converted into acceptance by this revision.
 
 Repository: `edward321416-maker/build-manager`
 
@@ -166,7 +166,7 @@ Bounded existing-test updates only:
 - `tests/architecture/b1-boundary.test.ts`
 - `apps/web/tests/b1-e2e/check-results.mjs`: append only the three Task 3 B5 case names and missing-B5-case negative controls; preserve all existing case names, verifier conditions and negative controls.
 
-Any additional existing file may be changed only if a RED test proves it is a necessary B5 integration point and the executor records that justification before editing.
+Any additional existing file may be changed only if a RED test proves it is a necessary B5 integration point and the executor records that justification before editing. This rule never overrides the frozen-source boundary: do not edit frozen B1/B2/B3/B4 application or persistence-postgres sources, including their error classes, to make the B5 worker load. Preserve their existing implementations and shared `src/transaction.ts`; only the explicitly predeclared additive integration seams and Task 1 import/await-only bootstrap exception remain permitted. A worker load failure is not authorization for a frozen-source rewrite.
 
 ---
 
@@ -357,6 +357,8 @@ Test:
 ## Step 2 — Implement API/application B5 types
 
 Add only B5 error schema; success DELETE has no response body schema.
+
+New B5 application code must not use TypeScript parameter properties. Declare fields explicitly and assign them in the constructor body; keep the new B5 source erasable. Do not rewrite existing B1/B3/B4 error classes or remove their existing exports to satisfy this rule. Task 5 handles the real graph's legacy syntax within the B5 test child only.
 
 ## Step 3 — RED: transaction order and connection-loss safety
 
@@ -582,6 +584,16 @@ Use fixture-side interception of the checked-out client's query in `b5-fixture.t
 
 The new `b5-timeout-worker.ts` must load the real B5 port/wrapper under the pinned native Node runtime. Its resolver must handle extensionless relative imports in both `packages/persistence-postgres/src/` and `packages/application/src/`, including required parent-relative imports. Derive any additional finite workspace-source allowlist from the actual B5 import graph and record it; do not rewrite builtins, third-party modules, explicit-extension imports or paths outside those allowlisted source roots. Smoke-test worker module loading before inducing database failure. Do not edit `idle-pool-worker.ts` or `tests/postgres/foundation.test.ts`.
 
+### B5PDR-M01 — Native TypeScript loading contract
+
+Resolution and syntax transformation are separate requirements. At the pinned base, the application index re-exports B1/B3/B4 error classes with TypeScript parameter properties; fixing extensionless paths alone does not make the real graph load in strip-only mode. Official [Node v24 TypeScript documentation](https://r2.nodejs.org/docs/latest-v24.x/api/typescript.html#type-stripping), displayed as v24.21.0 when checked, documents `--experimental-transform-types` for this syntax. This is source/documentation evidence, not a claim that the B5 worker has run.
+
+In the new `tests/postgres/b5-timeout.test.ts`, fork only the new B5 worker using the repository-pinned Node **24.21.0** executable and an explicit `execArgv: ["--experimental-transform-types"]`. Verify the actual executable version and option support before relying on it; record the child version and effective execArgv. Do not inherit an arbitrary parent execArgv, set global `NODE_OPTIONS`, change workflows/manifests/toolchain, install another loader, or change the R27-H02 fork's `execArgv: []`. The transformation option is a B5 test-child launch setting, not a production runtime setting or a production test switch.
+
+The load smoke test must use this same launch contract and resolver to dynamically import the real `@build-manager/persistence-postgres/b5` package entry with its actual application dependencies, without stubbing the entry or pruning frozen exports. Require an explicit sanitized module-loaded IPC marker after the import resolves and exit 0 for the load-only smoke invocation before supplying database configuration or inducing failure. Missing entry/import failure is loadability failure, never transaction/process-survival evidence. New B5 application code follows Task 2's no-parameter-properties rule; existing B1/B3/B4 classes remain byte-unchanged.
+
+Record transformation-warning behavior in the load-only, no-database smoke invocation: presence/absence and sanitized warning category, not raw stderr, stack paths or exact warning counts as the success oracle. Do not add `--no-warnings`, a global exception handler, or a test-only Pool error listener to obtain a pass. In the database-failure children, continue to discard raw stdout/stderr and use only the existing sanitized IPC/result oracle; Node startup warnings do not substitute for module-loaded, intended-phase, replacement-backend and exit-status evidence. Preserve the active/idle variants and unchanged 2000/5000/7000ms production budgets. If Node 24.21.0, the option, warning handling or the real graph is unavailable/unsuitable, **STOP AND REVIEW**; no frozen-source rewrite, alternate loader/dependency, version change or reduced AC16 evidence is implicitly authorized.
+
 Run both active-statement and idle-after-command/before-COMMIT variants in the B5-owned child harness. Its oracle permits only sanitized result/diagnostic messages. Late errors may reach the existing production pool listener as `postgres.pool.idle_error <sanitized code|UNKNOWN>`; accept that fixed shape only, with no raw error/message/SQL/credentials. Do not require an exact late-event count/order. Do not add a test-only Pool error listener or global exception handler. A child that never loaded B5, never reached the intended transaction phase, or died before replacement-backend success fails the test.
 
 ## Timeout evidence
@@ -722,7 +734,7 @@ At the end of this plan:
 | AC13 | Task 3 colocated HTTP tests plus actual b5.spec.ts transportAndNonDisclosure and zero-mutation readback |
 | AC14 | Task 1 catalog/helper least privilege and effective-admin helper positives/negatives |
 | AC15 | Task 1 Step 4 verbatim owner-role behavior matrix under real SET ROLE and final RLS, with positive controls and unchanged-row evidence |
-| AC16 | Task 2 b5-transaction.test.ts repeated-error/isolation/order RED→GREEN plus Task 5 b5-timeout-worker.ts active/idle termination, sanitized failure, client discard and replacement-backend/process-survival evidence |
+| AC16 | Task 2 b5-transaction.test.ts repeated-error/isolation/order RED→GREEN plus Task 5 real-entry load smoke under the B5-only transform-types launch contract, then b5-timeout-worker.ts active/idle termination, sanitized failure, client discard and replacement-backend/process-survival evidence |
 | AC17 | Task 1 + Task 5 bounded frozen inventory updates only |
 | AC18 | Task 1 common-bootstrap/migration regression + Task 3 unchanged Web startup path + Task 5 targeted B1-B4 regression + Task 6 full nine-check gate |
 | AC19 | Task 6 fixed-head evidence/publication boundary; no implementation merge before operator approval |
@@ -752,11 +764,12 @@ Before this plan may be approved, verify:
 - frozen B2/B3 inventories and the authenticated Web required-case inventory are adjusted only additively;
 - all B5P-M01–M05 and B5P-L01–L05 corrections are checked against the fixed delta, including both listener events, worker loading, test-controlled waits, exact outcomes, verbatim AC15 and READ COMMITTED;
 - B5PD-M01 is covered by the declared roles.ts import/await-only connection, common-bootstrap behavioral RED→GREEN, preserved return contract and fail-closed negative controls, and unchanged Web global setup reaching the B5 cases; no source work is authorized by this plan-text correction;
+- B5PDR-M01 has an explicit B5-only fork option/version/warning contract, real B5-entry smoke evidence before timeout evidence, new-B5 erasable syntax, and a frozen-source exclusion that overrides RED justification; unsuitable runtime/option/graph means STOP AND REVIEW;
 - the new B5 worker, transaction test, HTTP test and authenticated Web spec/fixture are explicitly declared while existing R27-H02 evidence stays byte-frozen;
 - implementation remains NOT_AUTHORIZED until separate operator approval after independent plan review.
 
 Next gate:
 
-`FRESH_B5_IMPLEMENTATION_PLAN_DELTA_REVIEW` of the corrected fixed HEAD and plan blob against review base `3e6629989a5cacf47050f7f5cf6f52e11419d94c`.
+`FRESH_B5_IMPLEMENTATION_PLAN_DELTA_REVIEW` of B5PDR-M01 and directly dependent changes in the corrected fixed HEAD and plan blob against reviewed base `735cd51ad6300d763fd6d27a218ad1ef21a71767`. The supplied cumulative review of `3e6629989a5cacf47050f7f5cf6f52e11419d94c` through that base remains the provenance for the resolved earlier findings; do not repeat the whole design audit or claim new runtime evidence.
 
 Only after acceptable delta review does the gate become `B5_IMPLEMENTATION_PLAN_APPROVAL_DECISION`. Keep PR #67 Draft; no plan Ready/merge or product implementation is authorized by this correction.
