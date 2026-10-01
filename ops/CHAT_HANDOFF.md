@@ -66,7 +66,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
 | PF02-B / B3 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b3_closure.md); implementation/remediation/F01 evidence accepted and published; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed |
 | PF02-B / B4 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b4_closure.md); PR #58 accepted HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307` merged as `6cf71049c479d100ec6e949002c2e30c8df81eba`; retained B4I-L01/B4R-L01 LOW and B4D-L01..L04 boundaries remain disclosed. [Erratum publication](pf02_b_b4_erratum_publication.md) is a historical pre-implementation snapshot. |
-| PF02-B / B5 | DESIGN_APPROVED / IMPLEMENTATION_NOT_AUTHORIZED | [Approved design](../docs/superpowers/specs/2026-09-30-pf02-b-b5-organization-membership-termination-last-admin-safety-design.md); PR #63 approved HEAD `279866e1adccd9b442b057e85e622eed85055f35` merged as `08fd7eb2ebd2aa3ba61efc089484b479c6f2b764`; final exact-head editorial check accepted; B5D2-L02 retained accepted LOW; implementation planning/product implementation remain separately unauthorized. |
+| PF02-B / B5 | DESIGN_APPROVED / IMPLEMENTATION_PLAN_AUTHORIZED / PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED | [Approved design](../docs/superpowers/specs/2026-09-30-pf02-b-b5-organization-membership-termination-last-admin-safety-design.md); PR #63 published the design. 2026-10-01 deadline-mode operator decision authorizes implementation-plan drafting/self-review/independent review and Codex execution-package preparation only. Product implementation remains separately gated. |
 | Beyond B5 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
@@ -195,15 +195,27 @@ current canonical documents.
 
 ## Current authorized next task
 
-**CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED.**
+**CURRENT ADDITIONAL PRODUCT TASK = B5_IMPLEMENTATION_PLAN_DRAFTING_AND_REVIEW_AUTHORIZED.**
 
-PF02-B / B5 written design is **APPROVED / PUBLISHED**. Approved candidate HEAD `279866e1adccd9b442b057e85e622eed85055f35` was merged by PR #63 as main `08fd7eb2ebd2aa3ba61efc089484b479c6f2b764`. Publication-main push CI is Repository `36733611795` / App `36733611958`, 9/9 SUCCESS. This is design-publication evidence, not B5 runtime implementation evidence.
+Deadline: **2026-10-05**. The approved B5 written design is the binding authority.
 
-B1/B2/B3/B4 remain VERIFIED / FROZEN. B5 implementation-plan drafting/review is **NOT_AUTHORIZED** and B5 product implementation is **NOT_AUTHORIZED**. The next consequential gate is an explicit operator **B5_IMPLEMENTATION_PLAN_AUTHORIZATION_DECISION**. Do not infer planning authorization from the approved design or its publication.
+Authorized now:
+- write one implementation plan for the B5/release-candidate work;
+- self-review the plan against the approved spec;
+- obtain one independent whole-plan review;
+- prepare a single Codex execution package for rapid implementation after plan approval.
 
-**F01 = PASS_POSTGRES_INTEGRATION; F15/F25/F39/F43 remain NOT_RUN as applicable.** B5D2-L02 remains an accepted non-blocking LOW residual. Existing B3/B4 retained risks and broader operational/security/privacy backlog remain disclosed; none is authorization to reopen a frozen slice.
+Still **NOT_AUTHORIZED** until the written plan is separately approved:
+- product/source code changes;
+- SQL migrations;
+- tests that implement B5 behavior;
+- implementation PR Ready/merge;
+- PF02-C / occupancy / resident invitation;
+- real tenant data, provider/IAM, production hosting.
 
-No slice beyond B5 is currently scoped, planned or implementation-authorized. REAL_TENANT_DATA and PRODUCTION_DB_HOSTING remain NOT_AUTHORIZED. PF02-C / Occupancy / Resident Invitation, F43 search, staff onboarding/roster/search/UI, invitation, membership role mutation, provider/IAM and other follow-on work must not be inferred from B5 design publication.
+After plan approval, the intended execution method is **Codex release-candidate implementation → fixed-head full-product audit → independent review → blocker/high fix pass → RC freeze**. Do not infer that later implementation authority before the plan approval gate.
+
+Next gate: **B5_IMPLEMENTATION_PLAN_APPROVAL_DECISION**.
 
 ## Private artifact rule
 
