@@ -320,3 +320,10 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Intended post-plan execution mode: Codex release-candidate implementation → fixed-head full-product audit → independent review → blocker/high fix pass → RC freeze.
 - Frozen B1-B4 and the approved B5 design remain binding; PF02-C, real tenant data, provider/IAM and production hosting remain unauthorized.
 - External synchronization is not claimed complete; this event remains queued.
+
+## 2026-10-01 PF02-B/B5 implementation-plan self-audit candidate
+
+- Event `PF02B-B5-IMPLEMENTATION-PLAN-SELF-AUDIT-READY-20261001`; sync_status=pending; tokens=unknown. Drafted and self-audited the six-task B5 implementation plan at plan blob `984ab71cff5418a8b84b789e2992c12441fda75e` on base main `211d84ead3e65f328da648d1cc9f3e050c326c1a`.
+- The plan maps AC01–AC19 to explicit evidence, preserves migrations 0001–0009, requires B5-specific first-post-BEGIN timeout handling and 25P04 process-survival evidence, includes B4 PUT × B5 both commit orders, and prepares a Codex release-candidate execution package.
+- Product/source/SQL/migration/test implementation remains NOT_AUTHORIZED pending independent whole-plan review and separate operator plan approval.
+- External synchronization is not claimed complete; this event remains queued.
