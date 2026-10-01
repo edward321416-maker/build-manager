@@ -44,6 +44,9 @@ const cases = [
   'B4 AC02 staffVisibilityPrecedence',
   'B4 AC13-14 staffReadThroughScope',
   'B4 AC20 transportAndMethodBoundaries',
+  'B5 AC02-06 membershipTerminationAndLastAdmin',
+  'B5 AC03 AC13 transportAndNonDisclosure',
+  'B5 AC10-12 membershipRevocationAndSessionSeparation',
 ];
 function collect(suite) {
   return [...(suite.specs ?? []), ...(suite.suites ?? []).flatMap(collect)];
@@ -62,6 +65,7 @@ function verify(candidate) {
 const specs = verify(report);
 // Mutate only parsed throwaway copies: the actual evidence file is never changed.
 const controls = [
+  ...['B5 AC02-06 membershipTerminationAndLastAdmin','B5 AC03 AC13 transportAndNonDisclosure','B5 AC10-12 membershipRevocationAndSessionSeparation'].map(title => copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== title); for (const child of s.suites ?? []) remove(child); } remove(copy); }),
   copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B4 AC05-09 adminAssignmentLifecycle'); for (const child of s.suites ?? []) remove(child); } remove(copy); },
   copy => { const suite = copy.suites.find(s => collect(s).some(s => s.title === 'AC03 staffNoAssignmentEmpty')); function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'AC03 staffNoAssignmentEmpty'); for (const child of s.suites ?? []) remove(child); } remove(suite); },
   copy => { function remove(s) { if (s.specs) s.specs = s.specs.filter(x => x.title !== 'B3 AC01 adminPropertyCreateReadback'); for (const child of s.suites ?? []) remove(child); } remove(copy); },

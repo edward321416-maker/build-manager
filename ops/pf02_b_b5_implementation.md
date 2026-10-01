@@ -51,6 +51,13 @@ No contradiction with the planned persistent listener-through-release handoff wa
 - `npm run test:shared`: exit 0, 34 files / 432 tests PASS.
 - The fixture probe initially hit a TypeScript overloaded-method `.call` type error after passing runtime; corrected to `Reflect.apply` with unchanged SQL/behavior. Final typecheck result is recorded with the task commit.
 
+## Task 3
+
+- HTTP executable scaffold RED: 24 failed, exit 1; route inventory RED: expected 10, received 9. Final HTTP 24 PASS; full Web 459 PASS and shared 432 PASS. Full typecheck and Web build exit 0.
+- Actual synthetic Web/PostgreSQL B5 run initially failed all 3 on an overly strict E2E Vary equality: Next adds its existing RSC Vary entries. Corrected only the new browser assertion to require the Cookie token, as the approved contract specifies; unit header equality remains exact. Targeted rerun: 3 PASS, exit 0.
+- Full `npm run test:e2e:b1`: 60 PASS, zero failed/skipped/retries, exit 0. Subsequent `node apps/web/tests/b1-e2e/check-results.mjs`: exit 0; exact 60 tests, 21 negative controls. This full report, not the targeted report, was checked.
+- B5 browser DB readback covers membership history/version, last-admin, zero mutation on denials, preserved assignments, revocation and unrelated organization/session access. Existing 57 cases remain present and passed.
+
 ## Remaining gates
 
 Tasks 3–6 and AC01–AC19 full completion: NOT_RUN / NOT_VERIFIED beyond the scoped evidence above. B5PDR2-L01 remains OPEN_NON_BLOCKING / IMPLEMENTATION_PREFLIGHT. B5D2-L02 and prior B3/B4/Mobile risks remain. F15/F25/F39/F43 are not promoted.
