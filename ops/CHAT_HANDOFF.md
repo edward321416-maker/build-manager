@@ -66,7 +66,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
 | PF02-B / B3 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b3_closure.md); implementation/remediation/F01 evidence accepted and published; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed |
 | PF02-B / B4 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b4_closure.md); PR #58 accepted HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307` merged as `6cf71049c479d100ec6e949002c2e30c8df81eba`; retained B4I-L01/B4R-L01 LOW and B4D-L01..L04 boundaries remain disclosed. [Erratum publication](pf02_b_b4_erratum_publication.md) is a historical pre-implementation snapshot. |
-| PF02-B / B5 | DESIGN_APPROVED / IMPLEMENTATION_PLAN_AUTHORIZED / PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED | [Approved design](../docs/superpowers/specs/2026-09-30-pf02-b-b5-organization-membership-termination-last-admin-safety-design.md); PR #63 published the design. 2026-10-01 deadline-mode operator decision authorizes implementation-plan drafting/self-review/independent review and Codex execution-package preparation only. Product implementation remains separately gated. |
+| PF02-B / B5 | PLAN_APPROVED_PUBLISHED / IMPLEMENTATION_AUTHORIZED | [Authority receipt](pf02_b_b5_plan_acceptance.md); next gate FIXED_HEAD_WHOLE_IMPLEMENTATION_REVIEW. |
 | Beyond B5 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
@@ -91,7 +91,7 @@ Closed. Do not re-derive, re-propose or re-ask these. Each is evidenced by the r
 - Modular Monolith, explicit SQL, application ports. No ORM.
 - B3 Building Registration Foundation is VERIFIED / FROZEN at the approved design/plan and accepted implementation boundary. Retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed; none authorizes reopening or later product work.
 - B4 Property Assignment Mutation Foundation is VERIFIED / FROZEN: exact-resource GET/PUT/DELETE for an ORG_ADMIN on a current same-org ACTIVE PROPERTY_STAFF membership and ACTIVE Property, migration 0009, `bm_b4_assignment_owner` SECURITY DEFINER boundary and canonical B4D-L04 method boundary. Retained B4I-L01/B4R-L01 and B4D-L01..L04 do not authorize reopening or later work.
-- B5 Organization Membership Termination & Last-Admin Safety Foundation has an operator-approved, published written design at PR #63. That design is the canonical boundary for any future B5 planning, but it does **not** authorize implementation-plan drafting/review, SQL/test work, product implementation, Ready/merge of implementation work, PF02-C or later slices.
+- B5 design and revision 0.4 plan are approved and published. Separate [execution authority](pf02_b_b5_plan_acceptance.md) permits implementation through a Draft PR; implementation Ready/merge, PF02-C and later slices remain unauthorized.
 
 ## Do not reopen without new evidence
 
@@ -183,7 +183,8 @@ Pull requests:
 
 | PR | State | Role |
 | --- | --- | --- |
-| #63 | MERGED | B5 operator-approved written design publication; merge/main `08fd7eb2ebd2aa3ba61efc089484b479c6f2b764`; implementation planning/product implementation remain unauthorized |
+| #67 | MERGED | Approved revision 0.4 plan publication; merge/main `9ee208b996ad945e0e8dea828d3f0e77b6ccbe42`; separate execution authority is recorded in the B5 receipt |
+| #63 | MERGED | Historical B5 design publication; merge/main `08fd7eb2ebd2aa3ba61efc089484b479c6f2b764`; later plan and implementation authority is recorded separately |
 | #35 | MERGED | B2 canonical closure |
 | #34 | MERGED | B2 implementation |
 | #33 | CLOSED / NOT_MERGED / `SUPERSEDED_BY_CANONICAL_SPEC_IN_MAIN` | Approved B2 design source; spec canonicalized into `main`, branch/history preserved. Not a rejection. |
@@ -195,27 +196,13 @@ current canonical documents.
 
 ## Current authorized next task
 
-**CURRENT ADDITIONAL PRODUCT TASK = B5_IMPLEMENTATION_PLAN_DRAFTING_AND_REVIEW_AUTHORIZED.**
+**CURRENT ADDITIONAL PRODUCT TASK = B5_PRODUCT_IMPLEMENTATION_AUTHORIZED.**
 
-Deadline: **2026-10-05**. The approved B5 written design is the binding authority.
+Read [B5 plan approval and execution authority](pf02_b_b5_plan_acceptance.md). The operator approved plan publication and implementation start together on 2026-10-02, including branch, tests, commits, push, Draft implementation PR and execution bookkeeping. PR #67 published unchanged revision 0.4. Plan re-approval and repeated whole-plan review are not required.
 
-Authorized now:
-- write one implementation plan for the B5/release-candidate work;
-- self-review the plan against the approved spec;
-- obtain one independent whole-plan review;
-- prepare a single Codex execution package for rapid implementation after plan approval.
+Use the actual main SHA after this authority publication as IMPLEMENTATION_BASE_SHA; record it in the implementation evidence. Preserve the six-task plan, AC01–AC19, frozen B1–B4 and migration bytes. Prepare isolated official Node 24.21.0 and verify it without changing global environments or repository pins. B5PDR2-L01 remains OPEN_NON_BLOCKING / IMPLEMENTATION_PREFLIGHT until actual evidence.
 
-Still **NOT_AUTHORIZED** until the written plan is separately approved:
-- product/source code changes;
-- SQL migrations;
-- tests that implement B5 behavior;
-- implementation PR Ready/merge;
-- PF02-C / occupancy / resident invitation;
-- real tenant data, provider/IAM, production hosting.
-
-After plan approval, the intended execution method is **Codex release-candidate implementation → fixed-head full-product audit → independent review → blocker/high fix pass → RC freeze**. Do not infer that later implementation authority before the plan approval gate.
-
-Next gate: **B5_IMPLEMENTATION_PLAN_APPROVAL_DECISION**.
+Next gate: **FIXED_HEAD_WHOLE_IMPLEMENTATION_REVIEW** after the implementation candidate and its nine required CI jobs. Independent implementation review has not run. Implementation PR Ready/merge, PF02-C/F43, role mutation, roster/onboarding, real data, provider/IAM and production hosting remain unauthorized. The 2026-10-05 target does not waive gates.
 
 ## Private artifact rule
 

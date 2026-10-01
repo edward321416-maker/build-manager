@@ -6,8 +6,8 @@
     "baseline_main": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d",
     "baseline_meaning": "canonical B2 closure main used to build this bootstrap package; provenance only, not a permanent claim about the current main",
     "current_main": "LIVE_READ_REQUIRED",
-    "status": "B5_DESIGN_PUBLISHED_IMPLEMENTATION_NOT_AUTHORIZED",
-    "snapshot_date": "2026-10-01",
+    "status": "B5_PLAN_PUBLISHED_IMPLEMENTATION_AUTHORIZED",
+    "snapshot_date": "2026-10-02",
     "staleness_rule": [
       "Always read the live main SHA yourself; never take current_main from this file.",
       "Compare live main against baseline_main. A newer main is expected and normal, because publishing this package is itself a commit.",
@@ -110,7 +110,7 @@
     "B1I-M01": "CLOSED_BY_B2",
     "B1I-M02": "DOCUMENT_RECONCILED",
     "PF02-B/B5": {
-      "state": "DESIGN_APPROVED",
+      "state": "PLAN_APPROVED_PUBLISHED_IMPLEMENTATION_AUTHORIZED",
       "approved_spec": "docs/superpowers/specs/2026-09-30-pf02-b-b5-organization-membership-termination-last-admin-safety-design.md",
       "spec_blob": "3c33c817236f7b9d3c6a404125f94e48913d7a8f",
       "design_pr": 63,
@@ -124,7 +124,8 @@
         "LOW_NEW": 0
       },
       "retained_limits": [
-        "B5D2-L02"
+        "B5D2-L02",
+        "B5PDR2-L01"
       ],
       "f_cases": {
         "F15": "NOT_RUN",
@@ -132,9 +133,15 @@
         "F39": "NOT_RUN"
       },
       "implementation_plan_authorized": true,
-      "implementation_authorized": false,
+      "implementation_authorized": true,
       "ready_or_merge_authorized": false,
-      "authorization_note": "Written design is approved and published. Deadline-mode operator decision on 2026-10-01 authorizes implementation-plan drafting/self-review/independent review and Codex execution-package preparation only. Product/source/SQL/test implementation remains NOT_AUTHORIZED until the plan is separately approved."
+      "authorization_note": "Operator authorization on 2026-10-02 permits B5 implementation, tests, isolated branch, commits, push and Draft PR under the approved revision 0.4. Implementation Ready/merge, real data and production deployment remain unauthorized. See ops/pf02_b_b5_plan_acceptance.md.",
+      "approved_plan": "docs/superpowers/plans/2026-10-01-pf02-b-b5-membership-termination-foundation.md",
+      "plan_blob": "61f44c6dc50d04e978602cfcd914ba85baba8721",
+      "plan_candidate_head": "857b1f409c304c1a4835691352b59a91c5111958",
+      "plan_merge_main": "9ee208b996ad945e0e8dea828d3f0e77b6ccbe42",
+      "plan_authorization_receipt": "ops/pf02_b_b5_plan_acceptance.md",
+      "implementation_authorization_receipt": "https://github.com/edward321416-maker/build-manager/pull/67#issuecomment-5936216651"
     }
   },
   "acceptance_receipts": [
@@ -688,17 +695,18 @@
     "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"
   },
   "current_product_task": {
-    "status": "B5_IMPLEMENTATION_PLAN_DRAFTING_AND_REVIEW_AUTHORIZED",
+    "status": "B5_PRODUCT_IMPLEMENTATION_AUTHORIZED",
     "last_closed_slice": "PF02-B/B4",
     "current_design_slice": "PF02-B/B5",
     "current_design_state": "DESIGN_APPROVED_PUBLISHED",
     "implementation_plan_authorized": true,
-    "implementation_authorized": false,
+    "implementation_authorized": true,
     "ready_or_merge_authorized": false,
     "deadline": "2026-10-05",
     "execution_method_after_plan_approval": "Codex release-candidate implementation followed by fixed-head full-product audit and independent review",
-    "next_gate": "B5_IMPLEMENTATION_PLAN_APPROVAL_DECISION",
-    "note": "Authorized now: one B5/release-candidate implementation plan, self-review, independent whole-plan review and Codex execution package. Product/source/SQL/migration/test implementation remains NOT_AUTHORIZED until the written plan is separately approved. PF02-C, F43 search, staff roster/search/onboarding/invitation, role mutation beyond approved B5 termination, provider/IAM, real tenant data and production hosting remain unauthorized."
+    "next_gate": "FIXED_HEAD_WHOLE_IMPLEMENTATION_REVIEW",
+    "note": "Operator authorization on 2026-10-02 permits B5 implementation, tests, isolated branch, commits, push and Draft PR under the approved revision 0.4. Implementation Ready/merge, real data and production deployment remain unauthorized. See ops/pf02_b_b5_plan_acceptance.md.",
+    "authorization_receipt": "https://github.com/edward321416-maker/build-manager/pull/67#issuecomment-5936216651"
   },
   "b3_closure": {
     "state": "VERIFIED_FROZEN",
@@ -741,7 +749,7 @@
     "independent_review": "EDITORIAL_CHECK_ACCEPTED",
     "retained_low": "B5D2-L02",
     "implementation_plan_authorized": true,
-    "implementation_authorized": false
+    "implementation_authorized": true
   },
   "private_artifacts": [
     {

@@ -327,3 +327,7 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - The plan maps AC01–AC19 to explicit evidence, preserves migrations 0001–0009, requires B5-specific first-post-BEGIN timeout handling and 25P04 process-survival evidence, includes B4 PUT × B5 both commit orders, and prepares a Codex release-candidate execution package.
 - Product/source/SQL/migration/test implementation remains NOT_AUTHORIZED pending independent whole-plan review and separate operator plan approval.
 - External synchronization is not claimed complete; this event remains queued.
+
+## 2026-10-02 B5 plan publication and implementation authority
+
+- Event `PF02B-B5-PLAN-PUBLISHED-IMPLEMENTATION-AUTHORIZED-20261002`; sync_status=pending; tokens=unknown. See [authority receipt](pf02_b_b5_plan_acceptance.md). Current event only; historical private queues are not reconstructed or cleared. No external transport/write/readback is claimed.
