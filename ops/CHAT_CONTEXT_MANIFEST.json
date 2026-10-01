@@ -131,10 +131,10 @@
         "F25": "NOT_RUN",
         "F39": "NOT_RUN"
       },
-      "implementation_plan_authorized": false,
+      "implementation_plan_authorized": true,
       "implementation_authorized": false,
       "ready_or_merge_authorized": false,
-      "authorization_note": "Written design is operator-approved and published. Design publication does not authorize implementation-plan drafting/review, SQL/test implementation, product implementation, PF02-C or later work."
+      "authorization_note": "Written design is approved and published. Deadline-mode operator decision on 2026-10-01 authorizes implementation-plan drafting/self-review/independent review and Codex execution-package preparation only. Product/source/SQL/test implementation remains NOT_AUTHORIZED until the plan is separately approved."
     }
   },
   "acceptance_receipts": [
@@ -688,15 +688,17 @@
     "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"
   },
   "current_product_task": {
-    "status": "NONE_AUTHORIZED",
+    "status": "B5_IMPLEMENTATION_PLAN_DRAFTING_AND_REVIEW_AUTHORIZED",
     "last_closed_slice": "PF02-B/B4",
     "current_design_slice": "PF02-B/B5",
     "current_design_state": "DESIGN_APPROVED_PUBLISHED",
-    "implementation_plan_authorized": false,
+    "implementation_plan_authorized": true,
     "implementation_authorized": false,
     "ready_or_merge_authorized": false,
-    "next_gate": "B5_IMPLEMENTATION_PLAN_AUTHORIZATION_DECISION",
-    "note": "B5 written design is approved and published. No B5 implementation-plan drafting/review, SQL/test implementation, product implementation, PF02-C, F43 search, staff roster/search/onboarding/invitation, role mutation, provider/IAM, real tenant data or production hosting is authorized."
+    "deadline": "2026-10-05",
+    "execution_method_after_plan_approval": "Codex release-candidate implementation followed by fixed-head full-product audit and independent review",
+    "next_gate": "B5_IMPLEMENTATION_PLAN_APPROVAL_DECISION",
+    "note": "Authorized now: one B5/release-candidate implementation plan, self-review, independent whole-plan review and Codex execution package. Product/source/SQL/migration/test implementation remains NOT_AUTHORIZED until the written plan is separately approved. PF02-C, F43 search, staff roster/search/onboarding/invitation, role mutation beyond approved B5 termination, provider/IAM, real tenant data and production hosting remain unauthorized."
   },
   "b3_closure": {
     "state": "VERIFIED_FROZEN",
@@ -738,7 +740,7 @@
     "publication_main": "08fd7eb2ebd2aa3ba61efc089484b479c6f2b764",
     "independent_review": "EDITORIAL_CHECK_ACCEPTED",
     "retained_low": "B5D2-L02",
-    "implementation_plan_authorized": false,
+    "implementation_plan_authorized": true,
     "implementation_authorized": false
   },
   "private_artifacts": [
