@@ -337,3 +337,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event PF02B-B5-TASK2-20261002; sync_status=pending; tokens=unknown. Task2 focused and shared evidence; historical backlog unchanged.
 - Event PF02B-B5-TASK3-20261002; sync_status=pending; tokens=unknown. Task3 actual browser and full-report evidence; historical backlog unchanged.
 - Event PF02B-B5-TASK4-20261002; sync_status=pending; tokens=unknown. Task4 evidence queued; historical backlog unchanged.
+- Reconciliation: Task1-4 and Task5 preflight current summaries were appended through native Google Sheets and read back at A141:D145; rolling Docs18 replacements read back. Earlier queue lines are historical. Local-Mobile stop event remains pending separate readback.
+- Stop-event reconciliation: PF02B-B5-LOCAL-MOBILE-STOP-20261002 appended through native Google Sheets and read back at A146:D146; rolling handoff STOP_REQUIRED_LOCAL_CHECK_FAILED read back. Historical backlog remains separate.

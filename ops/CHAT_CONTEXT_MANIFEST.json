@@ -110,7 +110,7 @@
     "B1I-M01": "CLOSED_BY_B2",
     "B1I-M02": "DOCUMENT_RECONCILED",
     "PF02-B/B5": {
-      "state": "PLAN_APPROVED_PUBLISHED_IMPLEMENTATION_AUTHORIZED",
+      "state": "IMPLEMENTATION_IN_PROGRESS_STOP_REQUIRED_LOCAL_CHECK_FAILED",
       "approved_spec": "docs/superpowers/specs/2026-09-30-pf02-b-b5-organization-membership-termination-last-admin-safety-design.md",
       "spec_blob": "3c33c817236f7b9d3c6a404125f94e48913d7a8f",
       "design_pr": 63,
@@ -141,7 +141,8 @@
       "plan_candidate_head": "857b1f409c304c1a4835691352b59a91c5111958",
       "plan_merge_main": "9ee208b996ad945e0e8dea828d3f0e77b6ccbe42",
       "plan_authorization_receipt": "ops/pf02_b_b5_plan_acceptance.md",
-      "implementation_authorization_receipt": "https://github.com/edward321416-maker/build-manager/pull/67#issuecomment-5936216651"
+      "implementation_authorization_receipt": "https://github.com/edward321416-maker/build-manager/pull/67#issuecomment-5936216651",
+      "implementation_evidence": "ops/pf02_b_b5_implementation.md"
     }
   },
   "acceptance_receipts": [
@@ -695,7 +696,7 @@
     "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"
   },
   "current_product_task": {
-    "status": "B5_PRODUCT_IMPLEMENTATION_AUTHORIZED",
+    "status": "B5_IMPLEMENTATION_STOP_REQUIRED_LOCAL_CHECK_FAILED",
     "last_closed_slice": "PF02-B/B4",
     "current_design_slice": "PF02-B/B5",
     "current_design_state": "DESIGN_APPROVED_PUBLISHED",
@@ -706,7 +707,11 @@
     "execution_method_after_plan_approval": "Codex release-candidate implementation followed by fixed-head full-product audit and independent review",
     "next_gate": "FIXED_HEAD_WHOLE_IMPLEMENTATION_REVIEW",
     "note": "Operator authorization on 2026-10-02 permits B5 implementation, tests, isolated branch, commits, push and Draft PR under the approved revision 0.4. Implementation Ready/merge, real data and production deployment remain unauthorized. See ops/pf02_b_b5_plan_acceptance.md.",
-    "authorization_receipt": "https://github.com/edward321416-maker/build-manager/pull/67#issuecomment-5936216651"
+    "authorization_receipt": "https://github.com/edward321416-maker/build-manager/pull/67#issuecomment-5936216651",
+    "implementation_base_sha": "397fa5a08897f70ada025a5fde931b9aec1179a9",
+    "implementation_branch": "feat/pf02-b-b5-membership-termination",
+    "implementation_evidence": "ops/pf02_b_b5_implementation.md",
+    "blocking_check": "Local cold-cache Mobile: exit1, 132/133 pass; tenant-ticket loading test exceeds unchanged5000ms. ROOT_CAUSE_NOT_ESTABLISHED. Candidate publication and exact-head CI not reached."
   },
   "b3_closure": {
     "state": "VERIFIED_FROZEN",
