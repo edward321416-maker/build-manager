@@ -42,7 +42,7 @@ Added:
 - CLM-021 — current 20–100-unit / 1–3-building band explicitly registered as an unverified working hypothesis
 - CLM-001 submission use narrowed to historical bootstrap framing
 
-Batch 0 reduces the highest-risk methodology provenance gap but **does not close the program-level provenance HIGH**. The hold remains until the current product thesis and externally consequential factual sections have canonical source coverage sufficient for submission/public factual reuse.
+At Batch 0 publication, this reduced the highest-risk methodology provenance gap but **did not close the program-level provenance HIGH**. That historical intermediate state is superseded by the final G-PROV closure table and factual-reuse boundary below.
 
 ## Batch 1 progress — authoritative/legal/safety core
 
@@ -52,7 +52,7 @@ Independently reverified against current/official primary sources: SRC-014..023 
 
 The living research document's stale Commercial Act historical-version links were replaced with current-law links. Its PIPA/GOV.UK source-link region was repaired after audit found cross-paragraph hyperlink-range drift; source labels now map to the intended current sources.
 
-Batch 1 is not exhaustive for every official/standards source. NFPC/KGS/CPSC/DOE/LBNL/ISO/CSA and insurance-specific authorities remain later authoritative backfill items. The program-level provenance hold remains open.
+Batch 1 is not exhaustive for every official/standards source. NFPC/KGS/CPSC/DOE/LBNL/ISO/CSA and insurance-specific authorities remain later authoritative backfill items and are explicitly excluded from canonical public/submission FACT reuse unless separately backfilled. At Batch 1 publication the program-level hold remained open; the final closure below now governs current status.
 
 ## Batch 2 progress — competitor/vendor primary sources
 
@@ -60,14 +60,14 @@ Status: **COMPLETE / CANONICAL PR #57**
 
 Registered SRC-024..029 and CLM-032..037 for Property Meld, AppFolio, Buildium and Latchel. The competitor index is updated from bootstrap TO VERIFY-only status to a partial-verification model that records documented workflow/authority capabilities while explicitly excluding vendor efficacy, adoption, pricing and superiority claims from independent evidence.
 
-The current **Coordination Core workflow/authority-boundary comparator set** is covered in this candidate. This does not claim that all competitor, pricing, packaging or commercial facts in the living research document are canonicalized. Optional/legacy competitor leads remain TO VERIFY and are not used for feature-absence, superiority, pricing, adoption or demand claims.
+The current **Coordination Core workflow/authority-boundary comparator set** is canonicalized by PR #57. This does not claim that all legacy competitor material in the living research document is canonicalized. Optional/legacy competitor leads remain TO VERIFY and are not used for feature-absence, superiority, adoption or demand claims; separately registered pricing claims are governed by CLM-042..048 below.
 
 
 ## Frozen provenance closure gate — G-PROV-01..08
 
 This gate was frozen before Batch 3 completion so HOLD release cannot be declared from registry growth or post-hoc judgment.
 
-| Gate | Requirement | Current status after this candidate |
+| Gate | Requirement | Final closure status |
 | --- | --- | --- |
 | G-PROV-01 | Batch 0 methodology sources used for S2-S6 boundaries have stable SRC IDs and consequential atomic CLM rows with scope/limitations. Working ICP remains a HYPOTHESIS. | PASS |
 | G-PROV-02 | Every active external FACT constraining current privacy/legal/safety/IoT/AI-governance conclusions and intended for public/submission reuse maps to a current primary/official SRC + CLM, or is explicitly downgraded/excluded. | PASS — current registered constraints are CLM-022..031; unregistered historical NFPC/KGS/CPSC/DOE/LBNL/ISO/CSA/insurance-specific facts remain historical/internal and are excluded from canonical public/submission FACT reuse unless separately backfilled |
@@ -95,11 +95,11 @@ Dependency preservation is explicit: 10 source URLs contain multiple coded rows;
 
 CLM-038..041 add bounded current-thesis coverage for directly reverified workflow-failure examples, low-frequency/unit-count counterevidence, mature-system/switching counterevidence and the S1 corpus dependency structure. These claims do not establish prevalence, WTP, adoption rate or product efficacy.
 
-G-PROV-04 and G-PROV-05 are candidate PASS in this stacked branch. G-PROV-06 is candidate PASS but still participates in the final G-PROV-08 active-thesis reconciliation. G-PROV-02 and G-PROV-08 remain OPEN / NOT RUN, so the program-level provenance HOLD cannot be released from Batch 3 alone.
+At the Batch 3 candidate stage, G-PROV-04/05/06 were candidate PASS while G-PROV-02/08 remained open. PR #60 has since published the mapping; the final G-PROV table and closure section below supersede that intermediate gate state.
 
 ### Batch 3 delta audit — 2026-10-01
 
-Status: **PASS AFTER CORRECTION / CANDIDATE PUBLICATION**
+Status: **PASS AFTER CORRECTION / PUBLISHED AS PR #60**
 
 Mechanical comparison against the live Google `S1_Public_Cases!A1:N77` confirms 76/76 case IDs map exactly on geography, source_type, direction and source_url; 52 distinct public URLs map to SRC-030..081; SRC-082 represents the internal registry. Ten multi-row URL clusters and all three declared speaker/reviewer dependency pairs are preserved.
 
