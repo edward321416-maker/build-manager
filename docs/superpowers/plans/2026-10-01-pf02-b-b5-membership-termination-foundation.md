@@ -512,7 +512,8 @@ For transaction_timeout:
 - no committed B5 mutation in the induced pre-commit case;
 - checked-out client destroyed, never returned to pool;
 - next pool operation obtains a healthy connection;
-- Web/process survives with no unhandled client error event.
+- prove process survival with an actual child-process/backend-termination harness, following the existing `R27-H02` / `tests/postgres/helpers/idle-pool-worker.ts` pattern rather than installing a global exception suppressor or test-only Pool error listener;
+- the child must exit 0 after observing only sanitized diagnostics and a successful replacement-backend transaction.
 
 Unknown COMMIT tests:
 - before-delivery and after-delivery transport loss;
