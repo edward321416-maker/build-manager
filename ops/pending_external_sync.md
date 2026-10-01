@@ -335,4 +335,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event PF02B-B5-TASK1-20261002; sync_status=pending; tokens=unknown. Task1 scoped implementation evidence; see ops/pf02_b_b5_implementation.md. Historical backlog unchanged.
 
 - Event PF02B-B5-TASK2-20261002; sync_status=pending; tokens=unknown. Task2 focused and shared evidence; historical backlog unchanged.
-`n- Event PF02B-B5-TASK3-20261002; sync_status=pending; tokens=unknown. Task3 actual browser and full-report evidence; historical backlog unchanged.
+- Event PF02B-B5-TASK3-20261002; sync_status=pending; tokens=unknown. Task3 actual browser and full-report evidence; historical backlog unchanged.
+- Event PF02B-B5-TASK4-20261002; sync_status=pending; tokens=unknown. Task4 evidence queued; historical backlog unchanged.

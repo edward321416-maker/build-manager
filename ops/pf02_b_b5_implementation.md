@@ -58,9 +58,24 @@ No contradiction with the planned persistent listener-through-release handoff wa
 - Full `npm run test:e2e:b1`: 60 PASS, zero failed/skipped/retries, exit 0. Subsequent `node apps/web/tests/b1-e2e/check-results.mjs`: exit 0; exact 60 tests, 21 negative controls. This full report, not the targeted report, was checked.
 - B5 browser DB readback covers membership history/version, last-admin, zero mutation on denials, preserved assignments, revocation and unrelated organization/session access. Existing 57 cases remain present and passed.
 
+## Task 4
+
+- Direct real bm_b1_web READ COMMITTED command tests use distinct backend PIDs, pg_blocking_pids and pg_stat_activity. Organization-first waiters have no membership RowShareLock yet. Exact self/cross/staff outcomes and three-admin ENDED/ENDED/LAST_ADMIN are asserted; effective-admin count never reaches zero.
+- Initial 14-test run: 13 PASS/1 FAIL because the third queued waiter was checked against the original holder, while PostgreSQL reports the preceding queued waiter. Corrected the fixture observation to B then re-observed B after A commits. No product SQL change.
+- Expanded run: 16 PASS/1 FAIL due to a test calling currentActor on the bootstrap-only port. Corrected to the existing session registry port. Final three-file command: 17/17 PASS, exit 0.
+- Caller ended/demoted, target ended and organization inactivated during measured lock waits produce exact NOT_FOUND/FORBIDDEN without rewrites. Both controlled B4/B5 commit orders preserve ACTIVE assignment history while frozen access denies the ended membership. Unrelated membership and the same session remain usable.
+
+## Task 5 preliminary evidence
+
+- Actual import graph adds domain/src to the finite persistence/application resolver roots. Initial no-DB native smoke exited 1 with ERR_MODULE_NOT_FOUND: existing domain versioned basenames heating.v1/leak.v1 required explicit finite resolution entries. Corrected only the new B5 worker. No frozen source/export changes.
+- Repeated load-only smoke after the identified correction: module-loaded IPC, Node v24.21.0, execArgv exactly [--experimental-transform-types], exit 0. Parent captured stderr privately and retained only warningPresent=true, category ExperimentalWarning, no warning code. No raw stderr/stack/path retained. Warning count is not the oracle.
+- Native active and idle-after-command failures both observed 25P04, sanitized DEPENDENCY_UNAVAILABLE, command once, zero COMMIT/ROLLBACK, exactly one release(true), terminated backend absent, different healthy replacement backend, unchanged membership history and child exit 0. Production 2000/5000/7000ms budgets unchanged.
+- Full B5 timeout file: 10/10 PASS, exit 0, including actual 55P03, 57014, 40P01, 23514, 22003 and unknown COMMIT before/after delivery with fresh-state readback. Fixture-only privileged deadlock_timeout selects the product connection as victim; no production timeout override.
+- Architecture/canonical frozen inventory: 53 existing files plus persistence manifest equal to base except the approved ./b5 export. Shared tests 435/435 across 35 files; test typecheck exit 0. Exact Git-byte exclusion check remains a final candidate gate.
+
 ## Remaining gates
 
-Tasks 3–6 and AC01–AC19 full completion: NOT_RUN / NOT_VERIFIED beyond the scoped evidence above. B5PDR2-L01 remains OPEN_NON_BLOCKING / IMPLEMENTATION_PREFLIGHT. B5D2-L02 and prior B3/B4/Mobile risks remain. F15/F25/F39/F43 are not promoted.
+Task 5 broader regression and Task 6 fixed-candidate gates remain pending. B5PDR2-L01 implementation handling is evidenced by the real smoke above; independent disposition remains for the fixed-head reviewer. B5D2-L02 and prior B3/B4/Mobile risks remain. F15/F25/F39/F43 are not promoted.
 
 Current external preflight summary and authorization handoff were written through Google Drive native Sheets/Docs actions and read back. The preflight Sheet timestamp is checkpoint metadata, not measured exact operation timing. Historical sync backlog remains separate; no private destination IDs or raw inputs are published.
 
