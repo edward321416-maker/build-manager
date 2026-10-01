@@ -43,9 +43,17 @@ Locked and installed pg 8.23.0 / pg-pool 3.14.0 inspected directly:
 
 No contradiction with the planned persistent listener-through-release handoff was observed. Fake-client repeated-error and real child runtime evidence remain required; source inspection is not that evidence.
 
+## Task 2
+
+- Executable scaffolds produced behavioral RED: application 9 failed/2 passed, transaction 5 failed; both exit 1, no missing-import failures.
+- Implemented application validation/session precheck and sanitized error contract, independent B5 transaction wrapper and single-command persistence port.
+- Application focused GREEN: 11/11; transaction focused GREEN: 20/20, including real PostgreSQL fixture-side READ COMMITTED probe after the third timeout statement. Persistent repeated-error/release handoff, no post-termination commit/rollback, one release, unknown COMMIT/no retry and SQL-state sanitization are covered.
+- `npm run test:shared`: exit 0, 34 files / 432 tests PASS.
+- The fixture probe initially hit a TypeScript overloaded-method `.call` type error after passing runtime; corrected to `Reflect.apply` with unchanged SQL/behavior. Final typecheck result is recorded with the task commit.
+
 ## Remaining gates
 
-Tasks 2–6 and AC01–AC19 full completion: NOT_RUN / NOT_VERIFIED beyond the scoped evidence above. B5PDR2-L01 remains OPEN_NON_BLOCKING / IMPLEMENTATION_PREFLIGHT. B5D2-L02 and prior B3/B4/Mobile risks remain. F15/F25/F39/F43 are not promoted.
+Tasks 3–6 and AC01–AC19 full completion: NOT_RUN / NOT_VERIFIED beyond the scoped evidence above. B5PDR2-L01 remains OPEN_NON_BLOCKING / IMPLEMENTATION_PREFLIGHT. B5D2-L02 and prior B3/B4/Mobile risks remain. F15/F25/F39/F43 are not promoted.
 
 Current external preflight summary and authorization handoff were written through Google Drive native Sheets/Docs actions and read back. The preflight Sheet timestamp is checkpoint metadata, not measured exact operation timing. Historical sync backlog remains separate; no private destination IDs or raw inputs are published.
 
