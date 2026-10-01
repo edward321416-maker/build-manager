@@ -1,6 +1,6 @@
 # Canonical research provenance backfill plan v1.3
 
-Status: **CLOSURE CANDIDATE / CANONICAL_PROVENANCE PASS ON PUBLICATION**
+Status: **CLOSED / CANONICAL_PROVENANCE PASS**
 
 ## Why this exists
 
@@ -80,7 +80,7 @@ This gate was frozen before Batch 3 completion so HOLD release cannot be declare
 
 **HOLD release rule:** CANONICAL_PROVENANCE moves from HOLD to PASS only when G-PROV-01 through G-PROV-08 are each PASS. Any OPEN / UNKNOWN / FAIL keeps the HOLD open. Batch completion or registry row count alone is insufficient.
 
-**Closure disposition:** G-PROV-01..08 all PASS in this closure candidate. On publication, `CANONICAL_PROVENANCE = PASS` and the Program Audit v1.3 provenance HOLD is released. This release means the canonical reuse boundary is mechanically consistent; it does **not** validate WTP, prevalence, adoption, product efficacy, Korean incidence, direct-user evidence, S6, implementation, real tenant data or production hosting.
+**Closure disposition:** G-PROV-01..08 are canonical PASS after PR #65 merged as main `e1645d34c995ace66f2b0360e9ca68290e8c2f03`. `CANONICAL_PROVENANCE = PASS` and the Program Audit v1.3 provenance HOLD is released. This release means the canonical reuse boundary is mechanically consistent; it does **not** validate WTP, prevalence, adoption, product efficacy, Korean incidence, direct-user evidence, S6, implementation, real tenant data or production hosting.
 
 
 ## Batch 3 progress — S1 row-level traceability
@@ -112,7 +112,7 @@ No mapped-but-unreverified row is promoted: all such rows remain `TO_VERIFY_MAPP
 
 ## Final G-PROV closure audit — 2026-10-01
 
-Status: **PASS / HOLD RELEASE CANDIDATE**
+Status: **PASS / HOLD RELEASED**
 
 ### Mechanical reconciliation
 
@@ -146,10 +146,21 @@ CLM-022..031 remain explicitly internal-only governance facts. CLM-032..036 may 
 
 `G-PROV-01..08 = PASS`.
 
-On merge/publication of this closure candidate:
+Published by PR #65 as main `e1645d34c995ace66f2b0360e9ca68290e8c2f03` after candidate Repository `36808793715` + App `36808793702` SUCCESS and fresh push-main Repository `36809293204` + App `36809293060` SUCCESS (required 9/9).
+
+Canonical result:
 - `CANONICAL_PROVENANCE = PASS`;
 - Program Audit v1.3 provenance HOLD is released;
 - no S1-S6 evidence class is upgraded;
 - no Wave 1 recruitment is opened;
 - S6 remains governed by its separate runnable-target entry gate;
 - no implementation, real-data, hosting or commercial-validation authorization is created.
+
+
+### Publication receipt
+
+PR #65 fixed candidate HEAD `76a696797eac4a6607007b27afc33a6508728996` passed required candidate CI: Repository `36808793715` SUCCESS and App `36808793702` SUCCESS, required 9/9. It was merged with expected-head protection as main `e1645d34c995ace66f2b0360e9ca68290e8c2f03`.
+
+Fresh actual-main push CI also passed: Repository `36809293204` SUCCESS and App `36809293060` SUCCESS, required 9/9 including mobile-health, Windows/Linux Mobile, Web E2E, PostgreSQL integration, apps, repository-safety and foundation-gate.
+
+The provenance HOLD is therefore released canonically. Future external factual reuse remains constrained by `claim_registry.csv` classification, source mapping, locator, verification and `submission_use`; no evidence-maturity or product-authorization gate changed.
