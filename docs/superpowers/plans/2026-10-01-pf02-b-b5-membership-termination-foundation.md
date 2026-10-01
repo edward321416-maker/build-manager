@@ -4,7 +4,9 @@ Date: **2026-10-01**
 
 Status: **IMPLEMENTATION_PLAN_CORRECTION_CANDIDATE / DELTA_REVIEW_PENDING / PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED**
 
-Revision: **0.2**. Addresses the supplied independent review of PR #67 at HEAD `3e6629989a5cacf47050f7f5cf6f52e11419d94c` / plan blob `984ab71cff5418a8b84b789e2992c12441fda75e`: CHANGES_REQUIRED, BLOCKER0/HIGH0/MEDIUM5/LOW5. B5P-M01–M05 and B5P-L01–L05 are corrected in plan text only; resolution remains subject to fixed-head delta review. No design change, runtime verification, plan approval, Ready conversion, merge or product-implementation authorization is implied.
+Revision: **0.3**. Addresses the supplied independent review of PR #67 at HEAD `3e6629989a5cacf47050f7f5cf6f52e11419d94c` / plan blob `984ab71cff5418a8b84b789e2992c12441fda75e`: CHANGES_REQUIRED, BLOCKER0/HIGH0/MEDIUM5/LOW5. B5P-M01–M05 and B5P-L01–L05 are corrected in plan text only; resolution remains subject to fixed-head delta review. No design change, runtime verification, plan approval, Ready conversion, merge or product-implementation authorization is implied.
+
+Revision 0.3 adds only the common test-bootstrap connection required by coordinator finding B5PD-M01 (the remaining B5P-L04 dependency) against revision 0.2 at HEAD `bb1f381b5b0a1a5411c9e9fcf98d7150fa8cbbb8` / blob `f5e0929a5dc7f29189b0fa28541dfa79f0d3c046`. The operator authorized this plan-only correction, not source implementation. The original ten corrections and this connection still require independent delta acceptance.
 
 Repository: `edward321416-maker/build-manager`
 
@@ -72,6 +74,8 @@ Migrations `0001`–`0009` are byte-frozen. Add only migration `0010_b5_membersh
 
 Do not modify frozen B1/B2/B3/B4 helper bodies. Any test inventory adjustment must be additive and bounded exactly as described below.
 
+The sole test-bootstrap connection exception is the Task 1 import and one awaited B5 provisioning call inside `packages/persistence-postgres/src/testing/roles.ts::provisionTestRoles`. Preserve the existing B1/B4 provisioning calls, their implementations, `grantRuntimeAccess`, and the existing signature/return contract. This permits no frozen product-helper rewrite, migration-runner change, or Web global-setup change; it takes effect only after separate product-implementation authorization.
+
 Keep `tests/postgres/helpers/idle-pool-worker.ts` and `tests/postgres/foundation.test.ts` (the existing R27-H02 test owner) byte-unchanged against the implementation base. Use the new B5-owned worker instead. No production timeout-override parameter, test-only production switch, global exception suppressor, or repeat-until-green is allowed.
 
 ---
@@ -113,6 +117,7 @@ Create:
 
 Modify:
 - `packages/persistence-postgres/src/testing/index.ts`
+- `packages/persistence-postgres/src/testing/roles.ts` (Task 1 test-bootstrap import and one awaited call only)
 - `packages/persistence-postgres/package.json`
 
 The only package-manifest change allowed is:
@@ -177,6 +182,7 @@ Create:
 
 Modify:
 - `packages/persistence-postgres/src/testing/index.ts`
+- `packages/persistence-postgres/src/testing/roles.ts` (test-bootstrap connection only; see Step 2)
 - `tests/postgres/b2-capabilities.test.ts`
 - `tests/postgres/b3-capabilities.test.ts`
 
@@ -193,9 +199,17 @@ Write failing tests that prove:
 - production migration fails closed if either role is missing, has wrong attributes, wrong membership, or hostile Web membership;
 - failed migration leaves no partial `b5_*` functions/policies/grants.
 
-## Step 2 — Implement test-only role provisioning
+In `tests/postgres/b5-schema.test.ts`, add a common-bootstrap regression that calls the existing exported `provisionTestRoles(admin, adminConfig, database)` on a fresh disposable database, with no B5-specific role pre-seeding. Assert both B5 roles and their exact migrator memberships exist before migration, the existing return shape is unchanged, and `runPostgresMigrations` then applies through 0010 successfully. The pre-connection RED must fail on missing B5 role/catalog assertions, not an import error; the test must still detect an omitted awaited call when the new helper/export already exists. Keep separate deliberate missing-role negative controls that bypass the all-role helper and still fail closed.
 
-Follow `src/testing/b4-roles.ts` style. Do not create a production login or credential.
+## Step 2 — Implement test-only role provisioning and connect the common bootstrap
+
+Follow `src/testing/b4-roles.ts` style. Define the new `provisionB5TestRoles(admin: Client, migrationRole: string): Promise<void>` in `b5-roles.ts`; it provisions only the two disposable NOLOGIN owners and exact SET-only memberships already specified above, never a production login or credential.
+
+In `packages/persistence-postgres/src/testing/roles.ts`, add its import and exactly one awaited `provisionB5TestRoles(admin, TEST_MIGRATION_ROLE)` call immediately after the existing `await provisionB4TestRole(admin, TEST_MIGRATION_ROLE)` and before `return { migrationConfig, runtimeConfig, b1 }`. Preserve the `provisionTestRoles` signature, return type/shape, credentials, and existing B1/B4 order; return no B5 credential/config. Do not change either existing role generator or `grantRuntimeAccess`.
+
+Keep `testing/index.ts` exporting the same `provisionTestRoles` from `./roles`; add only the new B5 testing exports, not an alternative wrapper/re-export route. Existing PostgreSQL harnesses and `apps/web/tests/b1-e2e/global-setup.ts` must obtain B5 roles through that common call before `runPostgresMigrations`; do not edit Web global setup, `testing/migrate.ts`, or compensate inside `b5-fixture.ts` after migration has already run. No role creation in production migration SQL, suppressed preflight error, or weakened missing-role check is allowed.
+
+Run `npm run test:postgres -- tests/postgres/b5-schema.test.ts tests/postgres/b5-capabilities.test.ts` from repository root. At this step, common role/return-contract assertions must turn GREEN while not-yet-implemented migration/catalog assertions remain RED; after Steps 3/4, the same tests must all pass. Task 3 Step 4 separately proves the unchanged Web setup reaches server startup and the three B5 cases through this connection.
 
 ## Step 3 — Implement migration 0010
 
@@ -454,6 +468,8 @@ Update route inventory from nine to ten v2 route files.
 
 ## Step 4 — Actual authenticated Web/API/PostgreSQL evidence
 
+Prerequisite: Task 1's common bootstrap must create B1/B4/B5 roles before migration 0010. Use the unchanged `apps/web/tests/b1-e2e/global-setup.ts` path: `provisionTestRoles` → `runPostgresMigrations` → Web server startup → B5 spec. A B5 fixture that manually creates missing roles after setup is not evidence for this connection; startup/migration failures must fail the run rather than be swallowed. Verify global setup and the migration runner remain byte-unchanged.
+
 `apps/web/tests/b1-e2e/b5.spec.ts` owns the following exact case titles, using a new B5 fixture and the existing synthetic session/server/PostgreSQL setup without editing frozen B4 fixtures/specs:
 - `B5 AC02-06 membershipTerminationAndLastAdmin`: successful staff/admin termination, last-effective-admin rejection, repeated/hidden target non-disclosure and database history/version readback;
 - `B5 AC03 AC13 transportAndNonDisclosure`: real HTTP method/Origin/session/CSRF/query/path/body precedence, private/no-store and Cookie Vary, empty 204, sanitized failures and zero mutation;
@@ -708,7 +724,7 @@ At the end of this plan:
 | AC15 | Task 1 Step 4 verbatim owner-role behavior matrix under real SET ROLE and final RLS, with positive controls and unchanged-row evidence |
 | AC16 | Task 2 b5-transaction.test.ts repeated-error/isolation/order RED→GREEN plus Task 5 b5-timeout-worker.ts active/idle termination, sanitized failure, client discard and replacement-backend/process-survival evidence |
 | AC17 | Task 1 + Task 5 bounded frozen inventory updates only |
-| AC18 | Task 5 targeted B1-B4 regression + Task 6 full nine-check gate |
+| AC18 | Task 1 common-bootstrap/migration regression + Task 3 unchanged Web startup path + Task 5 targeted B1-B4 regression + Task 6 full nine-check gate |
 | AC19 | Task 6 fixed-head evidence/publication boundary; no implementation merge before operator approval |
 
 No AC row above is a canonical F-case promotion. F15/F25/F39 remain NOT_RUN.
@@ -735,6 +751,7 @@ Before this plan may be approved, verify:
 - B4 PUT × B5 both commit orders are mandatory;
 - frozen B2/B3 inventories and the authenticated Web required-case inventory are adjusted only additively;
 - all B5P-M01–M05 and B5P-L01–L05 corrections are checked against the fixed delta, including both listener events, worker loading, test-controlled waits, exact outcomes, verbatim AC15 and READ COMMITTED;
+- B5PD-M01 is covered by the declared roles.ts import/await-only connection, common-bootstrap behavioral RED→GREEN, preserved return contract and fail-closed negative controls, and unchanged Web global setup reaching the B5 cases; no source work is authorized by this plan-text correction;
 - the new B5 worker, transaction test, HTTP test and authenticated Web spec/fixture are explicitly declared while existing R27-H02 evidence stays byte-frozen;
 - implementation remains NOT_AUTHORIZED until separate operator approval after independent plan review.
 
