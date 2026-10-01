@@ -331,3 +331,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 ## 2026-10-02 B5 plan publication and implementation authority
 
 - Event `PF02B-B5-PLAN-PUBLISHED-IMPLEMENTATION-AUTHORIZED-20261002`; sync_status=pending; tokens=unknown. See [authority receipt](pf02_b_b5_plan_acceptance.md). Current event only; historical private queues are not reconstructed or cleared. No external transport/write/readback is claimed.
+
+- Event PF02B-B5-TASK1-20261002; sync_status=pending; tokens=unknown. Task1 scoped implementation evidence; see ops/pf02_b_b5_implementation.md. Historical backlog unchanged.

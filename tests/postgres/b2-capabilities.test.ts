@@ -119,12 +119,12 @@ it("AC15 exactB2CapabilityCatalog", async () => {
     am.admin_option,am.inherit_option,am.set_option FROM pg_auth_members am
     JOIN pg_roles granted ON granted.oid=am.roleid JOIN pg_roles member ON member.oid=am.member
     WHERE (granted.rolname LIKE 'bm_%' OR member.rolname LIKE 'bm_%')
-      AND granted.rolname<>'bm_b4_assignment_owner' ORDER BY granted.rolname,member.rolname`)).rows;
+      AND granted.rolname NOT IN ('bm_b4_assignment_owner','bm_b5_membership_owner','bm_b5_effective_admin_probe_owner') ORDER BY granted.rolname,member.rolname`)).rows;
   expect(memberships).toEqual([{ granted: "bm_b1_capability_owner", member: owner.rolname,
     admin_option: false, inherit_option: false, set_option: true }]);
   // Keep this frozen regression scoped to the B1/B2 policy inventory. B3 policies
   // are asserted independently in b3-capabilities.test.ts; B4 additions in b4-capabilities.test.ts.
-  const policies = (await catalog()).filter(policy => !policy.polname.startsWith("b3_") && !policy.polname.startsWith("b4_"));
+  const policies = (await catalog()).filter(policy => !policy.polname.startsWith("b3_") && !policy.polname.startsWith("b4_") && !policy.polname.startsWith("b5_"));
   const capOid = roleRows.find(r => r.rolname === "bm_b1_capability_owner")!.oid;
   const webOid = roleRows.find(r => r.rolname === "bm_b1_web")!.oid;
   const m = "user_id=authn.context_actor() AND status='ACTIVE' AND role=ANY(ARRAY['ORG_ADMIN','PROPERTY_STAFF'])";
