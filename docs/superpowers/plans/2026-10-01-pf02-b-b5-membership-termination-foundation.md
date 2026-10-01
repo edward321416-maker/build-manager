@@ -608,7 +608,35 @@ At the end of this plan:
 
 ---
 
-# 4. Codex execution package
+# 4. AC01–AC19 evidence map
+
+| AC | Primary evidence |
+| --- | --- |
+| AC01 | Task 3 route inventory + Task 5 architecture no-roster/no-create/no-role-mutation checks |
+| AC02 | Task 4 basic authority tests: current same-org ORG_ADMIN success; PROPERTY_STAFF forbidden |
+| AC03 | Task 4 hidden/foreign/missing/ENDED target uniform 404 + zero mutation |
+| AC04 | Task 4 staff ACTIVE→ENDED history/version/ended_at invariants |
+| AC05 | Task 4 admin termination with another effective admin |
+| AC06 | Task 4 sole-effective-admin + SUSPENDED/DELETION_PENDING co-admin denial |
+| AC07 | Task 4 distinct-backend concurrency matrix + pg_blocking_pids/activity evidence |
+| AC08 | Task 4 caller visibility/admin revocation race precedence |
+| AC09 | Task 4 target-ended-before-lock race |
+| AC10 | Task 4 PropertyAssignment preservation + B4 PUT × B5 both commit orders |
+| AC11 | Task 4 multi-org isolation |
+| AC12 | Task 4 unrelated organization/session access preserved |
+| AC13 | Task 3 HTTP method/Origin/session/CSRF/query/path/body precedence |
+| AC14 | Task 1 catalog/helper least privilege and effective-admin helper positives/negatives |
+| AC15 | Task 1 command-owner/probe-owner behavioral privilege negatives |
+| AC16 | Task 5 timeout/deadlock/SQLSTATE/25P04/process-survival evidence |
+| AC17 | Task 1 + Task 5 bounded frozen inventory updates only |
+| AC18 | Task 5 targeted B1-B4 regression + Task 6 full nine-check gate |
+| AC19 | Task 6 fixed-head evidence/publication boundary; no implementation merge before operator approval |
+
+No AC row above is a canonical F-case promotion. F15/F25/F39 remain NOT_RUN.
+
+---
+
+# 5. Codex execution package
 
 After this plan is independently accepted and the operator separately authorizes product implementation, give Codex the following execution rule:
 
@@ -616,7 +644,7 @@ After this plan is independently accepted and the operator separately authorizes
 
 ---
 
-# 5. Plan self-check / approval gate
+# 6. Plan self-check / approval gate
 
 Before this plan may be approved, verify:
 - exact base is current live main and contains no unreviewed B5 product code;
