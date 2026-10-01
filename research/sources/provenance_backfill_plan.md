@@ -25,8 +25,8 @@ This is a provenance-governance defect, not evidence that the research statement
 | --- | --- | --- | --- |
 | 0 | Core methodology sources used by Program Audit / S2-S6 | COMPLETE / MERGED | Original source reopened; SRC and CLM rows added |
 | 1 | Official/legal/standards/primary-authority sources | CORE SET COMPLETE / FINAL RECONCILIATION OPEN | Current core authorities are registered; remaining active public/submission FACT coverage is decided by G-PROV-02/06/08 rather than by exhaustive source counting |
-| 2 | Vendor/competitor primary documentation | CORE WORKFLOW SET COMPLETE IN PR #57 CANDIDATE | Register vendor-primary workflow/authority evidence with marketing and scope limits; publication still requires the PR publication gate |
-| 3 | S1 public behavioral evidence | NEXT AFTER BATCH 2 PUBLICATION | Map active S1 public-case rows to stable source IDs; preserve same-thread/reviewer dependency, geography and self-selection limits |
+| 2 | Vendor/competitor primary documentation | COMPLETE / MERGED PR #57 | Vendor-primary workflow/authority evidence is canonical with marketing and scope limits preserved |
+| 3 | S1 public behavioral evidence | CANDIDATE MAPPING COMPLETE / AUDITED | 76/76 active rows mapped to 52 public URLs; dependencies preserved; only directly reverified sources promoted beyond TO_VERIFY |
 | 4 | Legacy 40-case proxy corpus | RECOVERY ONLY | Import only provenance that can be independently matched; do not invent missing case registry |
 
 ## Batch 0 receipt
@@ -71,13 +71,40 @@ This gate was frozen before Batch 3 completion so HOLD release cannot be declare
 | --- | --- | --- |
 | G-PROV-01 | Batch 0 methodology sources used for S2-S6 boundaries have stable SRC IDs and consequential atomic CLM rows with scope/limitations. Working ICP remains a HYPOTHESIS. | PASS |
 | G-PROV-02 | Every active external FACT constraining current privacy/legal/safety/IoT/AI-governance conclusions and intended for public/submission reuse maps to a current primary/official SRC + CLM, or is explicitly downgraded/excluded. | OPEN — final active-conclusion reconciliation required |
-| G-PROV-03 | Every competitor/vendor FACT used for current Coordination Core differentiation/boundary maps to vendor-primary SRC + CLM and preserves vendor-evidence limits. Legacy competitors may remain TO VERIFY only when not used for absence/superiority/pricing/adoption claims. | CANDIDATE PASS — becomes canonical only after this Batch 2 PR merges |
-| G-PROV-04 | Every active S1 public-case row has a stable canonical source_id; every distinct active source URL has a canonical SRC. Unmatched rows are EXCLUDED_FROM_CANONICAL_EVIDENCE or TO_VERIFY. | NOT RUN — Batch 3 |
-| G-PROV-05 | Batch 3 preserves same-thread/page and known same-speaker/reviewer dependencies; mapped-row/source counts are never relabeled independent participants/events; geography, self-selection, vendor-review and source-cluster limits remain visible. | NOT RUN — Batch 3 |
-| G-PROV-06 | claim_registry contains atomic entries for externally consequential current-thesis facts carried into synthesis: external behavioral workflow boundary/counterconditions where supported, competitor non-uniqueness/boundaries, and current legal/safety/privacy constraints. Product DECISION/HYPOTHESIS and synthetic outputs are not padded into external FACT claims. | OPEN — final thesis-coverage audit after Batch 3 |
+| G-PROV-03 | Every competitor/vendor FACT used for current Coordination Core differentiation/boundary maps to vendor-primary SRC + CLM and preserves vendor-evidence limits. Legacy competitors may remain TO VERIFY only when not used for absence/superiority/pricing/adoption claims. | PASS — Batch 2 merged as PR #57 / main 09b5689b104c27c831cae5ff593a4fb916d8c0d3 with fresh push CI 9/9 SUCCESS |
+| G-PROV-04 | Every active S1 public-case row has a stable canonical source_id; every distinct active source URL has a canonical SRC. Unmatched rows are EXCLUDED_FROM_CANONICAL_EVIDENCE or TO_VERIFY. | CANDIDATE PASS — 76/76 rows mapped; 52/52 distinct URLs registered; unreverified rows explicitly TO_VERIFY |
+| G-PROV-05 | Batch 3 preserves same-thread/page and known same-speaker/reviewer dependencies; mapped-row/source counts are never relabeled independent participants/events; geography, self-selection, vendor-review and source-cluster limits remain visible. | CANDIDATE PASS — 10 shared-URL clusters and 3 known same-speaker/reviewer dependencies mechanically preserved |
+| G-PROV-06 | claim_registry contains atomic entries for externally consequential current-thesis facts carried into synthesis: external behavioral workflow boundary/counterconditions where supported, competitor non-uniqueness/boundaries, and current legal/safety/privacy constraints. Product DECISION/HYPOTHESIS and synthetic outputs are not padded into external FACT claims. | CANDIDATE PASS — CLM-038..041 provide bounded S1/countercondition/corpus coverage; final active-thesis reconciliation still required |
 | G-PROV-07 | Legacy 40-case proxy corpus may remain historical hypothesis-generation context when unrecoverable rows are excluded from canonical factual evidence; cumulative unique count remains NOT CERTIFIED. | PASS — policy frozen |
 | G-PROV-08 | Final mechanical reconciliation proves no active canonical S1 row lacks source_id; no CLM references a missing SRC; every FACT CLM has locator + verification; no public current-thesis FACT depends only on an unbackfilled long-form link; vendor/current-law/dependency limits are preserved. | NOT RUN — final closure audit |
 
 **HOLD release rule:** CANONICAL_PROVENANCE moves from HOLD to PASS only when G-PROV-01 through G-PROV-08 are each PASS. Any OPEN / UNKNOWN / FAIL keeps the HOLD open. Batch completion or registry row count alone is insufficient.
 
-**Sequence after this candidate:** merge/reconcile Batch 2 → execute Batch 3 S1 row-level mapping and dependency preservation → run G-PROV-02/06/08 final reconciliation → release or retain HOLD. This does not rerun S1-S6 and does not authorize recruitment, S6 execution, implementation, real tenant data, or production hosting.
+**Sequence after this candidate:** publish audited Batch 3 → run G-PROV-02/06/08 final active-thesis and mechanical reconciliation → release or retain HOLD. This does not rerun S1-S6 and does not authorize recruitment, S6 execution, implementation, real tenant data, or production hosting.
+
+
+## Batch 3 progress — S1 row-level traceability
+
+Status: **CANDIDATE MAPPING COMPLETE / HOLD REMAINS OPEN**
+
+Google Drive readback of the live `S1_Public_Cases` registry produced 76 coded rows and 52 distinct source URLs. Batch 3 adds stable SRC-030..081 URL mappings plus SRC-082 for the internal S1 registry, and adds `s1_row_source_map.csv` so each S1 row has a stable source_id, URL cluster and known speaker/reviewer dependency.
+
+Six source URLs were independently reopened during this audit and are marked `ACTIVE_E0_VERIFIED_SECONDARY`. All other mapped rows are explicitly `TO_VERIFY_MAPPED_NOT_CANONICAL`; mapping a URL does not make its observation a verified canonical FACT.
+
+Dependency preservation is explicit: 10 source URLs contain multiple coded rows; known same-speaker/reviewer splits S1-001/002, S1-025/026 and S1-056/057 have stable dependency IDs. Shared source/page/thread rows remain non-independent even when speakers differ.
+
+CLM-038..041 add bounded current-thesis coverage for directly reverified workflow-failure examples, low-frequency/unit-count counterevidence, mature-system/switching counterevidence and the S1 corpus dependency structure. These claims do not establish prevalence, WTP, adoption rate or product efficacy.
+
+G-PROV-04 and G-PROV-05 are candidate PASS in this stacked branch. G-PROV-06 is candidate PASS but still participates in the final G-PROV-08 active-thesis reconciliation. G-PROV-02 and G-PROV-08 remain OPEN / NOT RUN, so the program-level provenance HOLD cannot be released from Batch 3 alone.
+
+### Batch 3 delta audit — 2026-10-01
+
+Status: **PASS AFTER CORRECTION / CANDIDATE PUBLICATION**
+
+Mechanical comparison against the live Google `S1_Public_Cases!A1:N77` confirms 76/76 case IDs map exactly on geography, source_type, direction and source_url; 52 distinct public URLs map to SRC-030..081; SRC-082 represents the internal registry. Ten multi-row URL clusters and all three declared speaker/reviewer dependency pairs are preserved.
+
+Fresh recheck reconfirmed the active evidence boundaries for SRC-033, SRC-037, SRC-041, SRC-051 and SRC-081 on 2026-10-01. SRC-032 retains its prior 2026-09-29 verification receipt because the page was not newly retrievable in this audit; it is not silently re-dated.
+
+Two mixed fact/inference claims were corrected: CLM-039 now records only the observed 9/16-unit low-burden counterexamples, while behavior-based ICP interpretation remains a next action; CLM-040 now records only the observed 47-unit mature-PMS workflow and 72-unit switching-reluctance counterexamples, while integration-first/DEFER remains a research action rather than a FACT.
+
+No mapped-but-unreverified row is promoted: all such rows remain `TO_VERIFY_MAPPED_NOT_CANONICAL`. S1 remains E0+ secondary evidence with geography/source/self-selection dependence and cannot establish prevalence, WTP, adoption rate, product effect or Korean market incidence.
