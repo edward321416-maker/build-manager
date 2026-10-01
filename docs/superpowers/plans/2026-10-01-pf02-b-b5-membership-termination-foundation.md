@@ -2,7 +2,9 @@
 
 Date: **2026-10-01**
 
-Status: **IMPLEMENTATION_PLAN_DRAFT / PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED**
+Status: **IMPLEMENTATION_PLAN_CORRECTION_CANDIDATE / DELTA_REVIEW_PENDING / PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED**
+
+Revision: **0.2**. Addresses the supplied independent review of PR #67 at HEAD `3e6629989a5cacf47050f7f5cf6f52e11419d94c` / plan blob `984ab71cff5418a8b84b789e2992c12441fda75e`: CHANGES_REQUIRED, BLOCKER0/HIGH0/MEDIUM5/LOW5. B5P-M01–M05 and B5P-L01–L05 are corrected in plan text only; resolution remains subject to fixed-head delta review. No design change, runtime verification, plan approval, Ready conversion, merge or product-implementation authorization is implied.
 
 Repository: `edward321416-maker/build-manager`
 
@@ -69,6 +71,8 @@ Do **not** implement or prepare:
 Migrations `0001`–`0009` are byte-frozen. Add only migration `0010_b5_membership_termination.sql`.
 
 Do not modify frozen B1/B2/B3/B4 helper bodies. Any test inventory adjustment must be additive and bounded exactly as described below.
+
+Keep `tests/postgres/helpers/idle-pool-worker.ts` and `tests/postgres/foundation.test.ts` (the existing R27-H02 test owner) byte-unchanged against the implementation base. Use the new B5-owned worker instead. No production timeout-override parameter, test-only production switch, global exception suppressor, or repeat-until-green is allowed.
 
 ---
 
@@ -139,15 +143,23 @@ Create:
 - `tests/postgres/b5-concurrency.test.ts`
 - `tests/postgres/b5-revocation.test.ts`
 - `tests/postgres/b5-timeout.test.ts`
+- `tests/postgres/b5-transaction.test.ts`
+- `tests/postgres/helpers/b5-timeout-worker.ts`
 - `tests/postgres/helpers/b5-fixture.ts`
 - `tests/architecture/b5-boundary.test.ts`
 
-Use the existing Web test location/pattern discovered at implementation time for B5 HTTP transport tests; do not invent a second test convention if the current main uses colocated Web server tests.
+Also create:
+- `apps/web/src/server/b5/http.test.ts` (colocated HTTP unit tests, matching B3/B4);
+- `apps/web/tests/b1-e2e/b5-fixture.ts` (synthetic fixtures only);
+- `apps/web/tests/b1-e2e/b5.spec.ts` (actual authenticated Web/API/PostgreSQL evidence, owned by Task 3).
+
+The existing PostgreSQL test glob is `tests/postgres/**/*.test.ts`; the existing authenticated Playwright configuration discovers `apps/web/tests/b1-e2e`, with retries 0. Do not introduce another runner/configuration.
 
 Bounded existing-test updates only:
 - `tests/postgres/b2-capabilities.test.ts`
 - `tests/postgres/b3-capabilities.test.ts`
 - `tests/architecture/b1-boundary.test.ts`
+- `apps/web/tests/b1-e2e/check-results.mjs`: append only the three Task 3 B5 case names and missing-B5-case negative controls; preserve all existing case names, verifier conditions and negative controls.
 
 Any additional existing file may be changed only if a RED test proves it is a necessary B5 integration point and the executor records that justification before editing.
 
@@ -258,6 +270,8 @@ B5 catalog tests must assert:
 - exact column grants;
 - exact policy types/roles/expressions;
 - exact helper owner/volatility/search_path/ACL;
+- command `authn.b5_end_organization_membership(bytea,uuid,uuid)` owner is `bm_b5_membership_owner`, SECURITY DEFINER, `search_path=pg_catalog,pg_temp`, with PUBLIC EXECUTE revoked and only the intended command EXECUTE grant to Web;
+- command definition contains no dynamic SQL or catch-all `EXCEPTION WHEN OTHERS`;
 - Web gets command EXECUTE only;
 - command owner gets helper EXECUTE only;
 - no direct Web membership DML;
@@ -265,6 +279,32 @@ B5 catalog tests must assert:
 - probe owner cannot mutate tables or read ungranted columns such as `app_user.session_epoch`;
 - helper positive case with two distinct ACTIVE admin Users returns true;
 - SUSPENDED/DELETION_PENDING second User, ENDED/staff membership, foreign/missing context return false/no visibility.
+
+### AC15 — Mandatory owner-role behavior
+
+Run the following approved-design AC15 list under real `SET ROLE` to each disposable synthetic owner, using the migrator's SET-only/non-inherited membership. Assert final RLS/privilege behavior, not merely catalog snapshots. Use valid positive-control rows and statements that isolate the intended denial; unrelated syntax/fixture failures do not satisfy a negative.
+
+Using the disposable synthetic B5 command owner under final policies:
+- actual ACTIVE→ENDED UPDATE succeeds;
+- ENDED→ACTIVE denied;
+- role/org/user update denied;
+- membership INSERT denied;
+- membership DELETE denied;
+- Organization status/display_name/created_at update denied;
+- Organization id change denied by RLS/FK;
+- missing org context sees/mutates zero B5 rows.
+
+Using the disposable synthetic B5 effective-admin probe owner under final policies:
+- INSERT/UPDATE/DELETE on organization_membership denied;
+- INSERT/UPDATE/DELETE on app_user denied;
+- ungranted membership columns denied outside the granted set;
+- ungranted app_user columns such as session_epoch denied;
+- ENDED membership rows not visible through the probe policy;
+- PROPERTY_STAFF membership rows not visible through the probe policy;
+- foreign-org admin membership rows not visible through the probe policy;
+- missing current-org context yields zero probe-visible membership rows.
+
+Use synthetic transaction/fixture cleanup; do not provision a production role or credential. Verify denied/zero-row mutations leave the corresponding row bytes unchanged. Read full history snapshots through a separate privileged synthetic fixture, not by expanding the owner's SELECT grants.
 
 Bounded frozen-test changes:
 - B2 exact policy inventory excludes `b5_*` just as it excludes B3/B4;
@@ -284,6 +324,7 @@ Create:
 - `packages/application/src/b5/{ports,errors,validation,membership-termination}.ts`
 - `packages/application/src/b5/membership-termination.test.ts`
 - `packages/persistence-postgres/src/b5/{index,transaction,membership-termination}.ts`
+- `tests/postgres/b5-transaction.test.ts`
 
 Modify:
 - `packages/api-contracts/src/index.ts`
@@ -305,33 +346,39 @@ Add only B5 error schema; success DELETE has no response body schema.
 
 ## Step 3 — RED: transaction order and connection-loss safety
 
-Write tests around a B5-specific transaction wrapper proving exact order:
+In `tests/postgres/b5-transaction.test.ts`, prove exact production query order:
 
-`BEGIN`
-→ lock_timeout
-→ statement_timeout
-→ transaction_timeout
+`BEGIN ISOLATION LEVEL READ COMMITTED`
+→ `SET LOCAL lock_timeout = '2000ms'`
+→ `SET LOCAL statement_timeout = '5000ms'`
+→ `SET LOCAL transaction_timeout = '7000ms'`
 → current_actor
 → authorize_org
 → set_config org/session
 → command
 → `COMMIT`
 
-Do not use `withB1OrgTransaction` unchanged.
+A fixture-side probe after the three SET LOCAL statements must assert `current_setting('transaction_isolation') = 'read committed'`; it is not an extra production query or a substitute for the exact-order assertion. Do not rely on the connection's default isolation. Do not use `withB1OrgTransaction` unchanged.
+
+Add a RED fake-client test that emits `error` twice around a query rejection (before and after it), plus an event during release handoff. Assert a persistent, idempotent handler, no unhandled event, no COMMIT/ROLLBACK after observed termination, exactly one `release(true)`, and no listener-free cleanup interval. Cover normal release separately to detect listener accumulation. Missing imports alone are not behavioral RED evidence.
 
 ## Step 4 — Implement isolated B5 transaction wrapper
 
 Preferred implementation: `src/b5/transaction.ts` owns the checked-out `PoolClient` using existing internal `getInternalPool(database)` and mirrors the frozen `withTransaction` success/rollback/unknown-COMMIT semantics without changing the frozen shared helper.
 
 It must:
-- attach a temporary checked-out-client `error` listener before BEGIN so server-side `transaction_timeout` termination cannot become an unhandled process error;
-- arm all three SET LOCAL values as the first statements after BEGIN;
+- attach a persistent temporary checked-out-client `error` listener with `on`, never `once`, before BEGIN; it must be idempotent and tolerate repeated events without throwing or logging raw errors;
+- use `BEGIN ISOLATION LEVEL READ COMMITTED`, then arm the three fixed SET LOCAL values above as the first statements after BEGIN;
 - then run current_actor / authorize_org / org+session set_config;
-- treat 25P04/session termination as connection loss and force `release(true)`;
-- destroy on failed BEGIN/COMMIT/ROLLBACK or captured client termination;
-- remove the temporary listener safely during cleanup;
+- set a termination flag on captured client termination; check it before COMMIT/ROLLBACK, skip both once termination is observed, return the sanitized dependency category, and force `release(true)`;
+- treat 25P04/session termination as connection loss and force `release(true)` even when first observed through the query rejection;
+- destroy on failed BEGIN/COMMIT/ROLLBACK or captured client termination, releasing exactly once;
+- retain the temporary listener through synchronous `release(true)` and remove it only after that call returns; never remove it first or introduce an await between removal and release;
+- on a healthy path, likewise remove the temporary listener only after ordinary release returns, without accumulating listeners on pooled clients;
 - never auto-retry;
 - never log credentials/raw SQL/error payloads.
+
+Before relying on that listener handoff, inspect the installed locked `pg@8.23.0` and its lock-resolved `pg-pool` sources: checkout/release listener transfer, Client error/socket-close handling, and end/destruction ordering. Record exact package versions, source paths and bounded line evidence. The supplied review explicitly described these internals from library knowledge, not a repository-installed inspection; this plan does not claim that inspection or runtime proof has already occurred. The fake-client test and real child-process tests are both mandatory. Stop for review if the installed behavior contradicts the handoff contract.
 
 STOP AND REVIEW if the only viable implementation requires changing shared `src/transaction.ts`; do not silently widen a frozen cross-slice helper.
 
@@ -362,11 +409,14 @@ Architecture test later must prove persistence contains no raw `app.organization
 Create:
 - `apps/web/src/server/b5/{errors,request,http}.ts`
 - exact membership route
-- B5 HTTP tests at the repository's current Web-test convention
+- `apps/web/src/server/b5/http.test.ts`
+- `apps/web/tests/b1-e2e/b5-fixture.ts`
+- `apps/web/tests/b1-e2e/b5.spec.ts`
 
 Modify:
 - `apps/web/src/server/b1/container.ts`
 - `tests/architecture/b1-boundary.test.ts`
+- `apps/web/tests/b1-e2e/check-results.mjs` (bounded additive case inventory and negative controls only)
 
 ## Step 1 — RED: HTTP precedence
 
@@ -402,6 +452,19 @@ No new env var, pool, provider client or credential.
 
 Update route inventory from nine to ten v2 route files.
 
+## Step 4 — Actual authenticated Web/API/PostgreSQL evidence
+
+`apps/web/tests/b1-e2e/b5.spec.ts` owns the following exact case titles, using a new B5 fixture and the existing synthetic session/server/PostgreSQL setup without editing frozen B4 fixtures/specs:
+- `B5 AC02-06 membershipTerminationAndLastAdmin`: successful staff/admin termination, last-effective-admin rejection, repeated/hidden target non-disclosure and database history/version readback;
+- `B5 AC03 AC13 transportAndNonDisclosure`: real HTTP method/Origin/session/CSRF/query/path/body precedence, private/no-store and Cookie Vary, empty 204, sanitized failures and zero mutation;
+- `B5 AC10-12 membershipRevocationAndSessionSeparation`: before/after B1-B4 authority checks through the ended membership, untouched assignment history, and continued unrelated-org access using the same synthetic session.
+
+Follow `apps/web/tests/b1-e2e/b4.spec.ts` / `b4-fixture.ts` as read-only precedents. B5 fixtures may compose existing helpers; new B5 fixture behavior stays in the new file. Assert real HTTP responses plus PostgreSQL readback, not mocked port calls. This is SYNTHETIC_AUTH + ACTUAL_WEB_POSTGRES, never LIVE_PROVIDER evidence.
+
+Append these three exact names to `check-results.mjs` and add a missing-case negative control for each. Preserve all 57 existing required cases, exact-one-result checks, retries=0, failure/skip/error rejection and existing negative controls. The expected full-run case inventory becomes 60; do not weaken equality into a minimum count.
+
+From repository root, run the targeted browser spec with `npm --workspace @build-manager/web run test:e2e:b1 -- b5.spec.ts`. Then run `npm run test:e2e:b1` and `node apps/web/tests/b1-e2e/check-results.mjs` on the full report. Do not feed the targeted three-case report to the full-inventory checker. Keep the existing prebuilt-server/environment setup and workflows unchanged. If existing setup cannot support the new fixture without a frozen change, stop and report the exact integration need.
+
 ---
 
 # Task 4 — PostgreSQL command semantics, concurrency, revocation and B4 interaction
@@ -420,7 +483,7 @@ Implement/finalize migration command function until these tests are GREEN.
 
 Inside the B5 function:
 1. optional fast caller classification;
-2. lock current ACTIVE Organization `FOR NO KEY UPDATE`;
+2. lock current ACTIVE Organization `FOR NO KEY UPDATE`; if the lock returns zero rows (including an org hidden/inactivated while waiting), return NOT_FOUND immediately with no further command statements or mutation;
 3. reclassify caller;
 4. lock all current ACTIVE ORG_ADMIN memberships plus exact ACTIVE target in **one top-level query** with `ORDER BY id FOR NO KEY UPDATE`;
 5. derive target from locked rows;
@@ -450,14 +513,21 @@ Inside the B5 function:
 - second admin membership ACTIVE but User SUSPENDED => 409;
 - second admin membership ACTIVE but User DELETION_PENDING => 409.
 
-### AC07 concurrency
-Use distinct DB handles/backend PIDs and `pg_blocking_pids` or `pg_stat_activity`, no sleeps-as-proof:
-- self/self with two admins => one success then one conflict/denial consistent with current state, never zero effective admins;
-- cross A ends B while B ends A;
-- same target;
-- three-admin case.
+### AC07–AC10 test-controlled transaction boundary
 
-Prove Organization lock is the first common serialization point.
+For evidenced concurrency/race waits, call the real `authn.b5_end_organization_membership` function directly as `bm_b1_web` in test-controlled READ COMMITTED transactions with the real authorized synthetic org/session context. Do not use privileged fixture DML as the product operation. A separate privileged fixture may hold/release the Organization lock or stage the specified race.
+
+These semantic-lock tests intentionally do not pass through the production wrapper's 2000ms lock budget. Keep their own bounded harness watchdog and finally-release cleanup; do not modify global/production timeouts. Follow the `gateB4Query` / `waitB4Lock` fixture-side gating and observation precedent without editing frozen helpers. Test wrapper timeout enforcement separately in Task 5 and real HTTP mapping in Task 3; direct-function evidence must not be labeled wrapper/HTTP execution.
+
+### AC07 concurrency
+
+Use distinct DB handles/backend PIDs and `pg_blocking_pids` or `pg_stat_activity`, no sleeps-as-proof. Establish the first lock holder and observe the waiter before releasing the holder; commit in the evidenced order. Assert exact SQL results with their separately tested public mappings:
+- self/self with two admins => ENDED then LAST_ADMIN (204 then 409);
+- cross A ends B while B ends A => ENDED then NOT_FOUND (204 then 404 because the losing caller's membership ended);
+- two distinct still-active admins end the same staff target => ENDED then NOT_FOUND (204 then 404);
+- three admins each self-terminate in an evidenced A→B→C order => ENDED, ENDED, LAST_ADMIN; one effective administrator remains.
+
+Prove Organization lock is the first common serialization point. In every variant assert at least one effective admin remains. A 503 or arbitrary denial is not an acceptable substitute for the specified business result. No repeat-until-green; a failed/deadline-exceeded run is retained and investigated.
 
 ### Authority/target races
 - caller loses membership visibility while blocked => 404;
@@ -485,13 +555,22 @@ STOP if a concurrency test can reach zero effective admins or requires client-si
 
 Create:
 - `tests/postgres/b5-timeout.test.ts`
+- `tests/postgres/helpers/b5-timeout-worker.ts`
 - `tests/architecture/b5-boundary.test.ts`
 
 Modify only bounded frozen inventories already declared.
 
+## Fixture-side gates and B5-owned native worker
+
+Use fixture-side interception of the checked-out client's query in `b5-fixture.ts` / the B5 worker, never a production delay/timeout option. Preserve and restore the intercepted method in finally. Gate after the real command returns and before COMMIT delivery for the idle-in-transaction variant. For the active-statement variant, first age the transaction within its fixed budget, then run a fixture-only statement on the same client that spans the remaining transaction lifetime but is shorter than the fixed 5000ms statement timeout. An immediate statement longer than 7000ms would hit statement_timeout first and is not valid 25P04 evidence. Use backend state/timing and the observed error class to identify the actual failure, not the planned delay alone.
+
+The new `b5-timeout-worker.ts` must load the real B5 port/wrapper under the pinned native Node runtime. Its resolver must handle extensionless relative imports in both `packages/persistence-postgres/src/` and `packages/application/src/`, including required parent-relative imports. Derive any additional finite workspace-source allowlist from the actual B5 import graph and record it; do not rewrite builtins, third-party modules, explicit-extension imports or paths outside those allowlisted source roots. Smoke-test worker module loading before inducing database failure. Do not edit `idle-pool-worker.ts` or `tests/postgres/foundation.test.ts`.
+
+Run both active-statement and idle-after-command/before-COMMIT variants in the B5-owned child harness. Its oracle permits only sanitized result/diagnostic messages. Late errors may reach the existing production pool listener as `postgres.pool.idle_error <sanitized code|UNKNOWN>`; accept that fixed shape only, with no raw error/message/SQL/credentials. Do not require an exact late-event count/order. Do not add a test-only Pool error listener or global exception handler. A child that never loaded B5, never reached the intended transaction phase, or died before replacement-backend success fails the test.
+
 ## Timeout evidence
 
-Induce without global config changes:
+Induce without global config changes, production timeout overrides, framework-timeout increases or retries-until-green:
 - lock_timeout;
 - statement_timeout/cancel;
 - deadlock;
@@ -512,7 +591,7 @@ For transaction_timeout:
 - no committed B5 mutation in the induced pre-commit case;
 - checked-out client destroyed, never returned to pool;
 - next pool operation obtains a healthy connection;
-- prove process survival with an actual child-process/backend-termination harness, following the existing `R27-H02` / `tests/postgres/helpers/idle-pool-worker.ts` pattern rather than installing a global exception suppressor or test-only Pool error listener;
+- prove process survival with the actual B5-owned `tests/postgres/helpers/b5-timeout-worker.ts` child-process/backend-termination harness above; preserve the existing R27-H02 worker/test bytes;
 - the child must exit 0 after observing only sanitized diagnostics and a successful replacement-backend transaction.
 
 Unknown COMMIT tests:
@@ -573,7 +652,7 @@ At the fixed implementation candidate HEAD record:
 - new migration filename;
 - B5 role/policy/function catalog;
 - B5 test counts;
-- authenticated Web/API/PostgreSQL B5 evidence;
+- authenticated Web/API/PostgreSQL B5 evidence from Task 3 `apps/web/tests/b1-e2e/b5.spec.ts`, the full-run result checker and PostgreSQL readback;
 - AC01-AC19 disposition;
 - retained B5D2-L02;
 - F15/F25/F39 = NOT_RUN;
@@ -624,10 +703,10 @@ At the end of this plan:
 | AC10 | Task 4 PropertyAssignment preservation + B4 PUT × B5 both commit orders |
 | AC11 | Task 4 multi-org isolation |
 | AC12 | Task 4 unrelated organization/session access preserved |
-| AC13 | Task 3 HTTP method/Origin/session/CSRF/query/path/body precedence |
+| AC13 | Task 3 colocated HTTP tests plus actual b5.spec.ts transportAndNonDisclosure and zero-mutation readback |
 | AC14 | Task 1 catalog/helper least privilege and effective-admin helper positives/negatives |
-| AC15 | Task 1 command-owner/probe-owner behavioral privilege negatives |
-| AC16 | Task 5 timeout/deadlock/SQLSTATE/25P04/process-survival evidence |
+| AC15 | Task 1 Step 4 verbatim owner-role behavior matrix under real SET ROLE and final RLS, with positive controls and unchanged-row evidence |
+| AC16 | Task 2 b5-transaction.test.ts repeated-error/isolation/order RED→GREEN plus Task 5 b5-timeout-worker.ts active/idle termination, sanitized failure, client discard and replacement-backend/process-survival evidence |
 | AC17 | Task 1 + Task 5 bounded frozen inventory updates only |
 | AC18 | Task 5 targeted B1-B4 regression + Task 6 full nine-check gate |
 | AC19 | Task 6 fixed-head evidence/publication boundary; no implementation merge before operator approval |
@@ -654,9 +733,13 @@ Before this plan may be approved, verify:
 - B5-specific transaction wrapper avoids silently modifying frozen shared transaction behavior;
 - 25P04/process-survival is an explicit acceptance test, not an assumption;
 - B4 PUT × B5 both commit orders are mandatory;
-- frozen B2/B3 inventories are adjusted only additively;
+- frozen B2/B3 inventories and the authenticated Web required-case inventory are adjusted only additively;
+- all B5P-M01–M05 and B5P-L01–L05 corrections are checked against the fixed delta, including both listener events, worker loading, test-controlled waits, exact outcomes, verbatim AC15 and READ COMMITTED;
+- the new B5 worker, transaction test, HTTP test and authenticated Web spec/fixture are explicitly declared while existing R27-H02 evidence stays byte-frozen;
 - implementation remains NOT_AUTHORIZED until separate operator approval after independent plan review.
 
 Next gate:
 
-`B5_IMPLEMENTATION_PLAN_APPROVAL_DECISION`
+`FRESH_B5_IMPLEMENTATION_PLAN_DELTA_REVIEW` of the corrected fixed HEAD and plan blob against review base `3e6629989a5cacf47050f7f5cf6f52e11419d94c`.
+
+Only after acceptable delta review does the gate become `B5_IMPLEMENTATION_PLAN_APPROVAL_DECISION`. Keep PR #67 Draft; no plan Ready/merge or product implementation is authorized by this correction.
