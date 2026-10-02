@@ -110,7 +110,7 @@
     "B1I-M01": "CLOSED_BY_B2",
     "B1I-M02": "DOCUMENT_RECONCILED",
     "PF02-B/B5": {
-      "state": "IMPLEMENTATION_IN_PROGRESS_STOP_REQUIRED_LOCAL_CHECK_FAILED",
+      "state": "IMPLEMENTATION_REVIEW_CANDIDATE_NOT_ACCEPTED",
       "approved_spec": "docs/superpowers/specs/2026-09-30-pf02-b-b5-organization-membership-termination-last-admin-safety-design.md",
       "spec_blob": "3c33c817236f7b9d3c6a404125f94e48913d7a8f",
       "design_pr": 63,
@@ -696,7 +696,7 @@
     "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"
   },
   "current_product_task": {
-    "status": "B5_IMPLEMENTATION_STOP_REQUIRED_LOCAL_CHECK_FAILED",
+    "status": "B5_REVIEW_CANDIDATE_NOT_ACCEPTED",
     "last_closed_slice": "PF02-B/B4",
     "current_design_slice": "PF02-B/B5",
     "current_design_state": "DESIGN_APPROVED_PUBLISHED",
@@ -711,7 +711,9 @@
     "implementation_base_sha": "397fa5a08897f70ada025a5fde931b9aec1179a9",
     "implementation_branch": "feat/pf02-b-b5-membership-termination",
     "implementation_evidence": "ops/pf02_b_b5_implementation.md",
-    "blocking_check": "Local cold-cache Mobile: exit1, 132/133 pass; tenant-ticket loading test exceeds unchanged5000ms. ROOT_CAUSE_NOT_ESTABLISHED. Candidate publication and exact-head CI not reached."
+    "blocking_check": "Local Mobile failure remains FAILED/OPEN/ROOT_CAUSE_NOT_ESTABLISHED; candidate-specific operator exception permits review Draft after other applicable local/safety checks pass. No waiver or acceptance.",
+    "review_publication_exception": "Explicit operator resume instruction: preserve397fa5a/186843f/fivecommits; bounded current Mobile diagnosis, remaining checks, normal push/Draft and exact-head9CI authorized. No timeout/skip/assertion relaxation; Ready/merge/production unauthorized.",
+    "local_verification": "Fresh full PostgreSQL295/295 in28files; deps PASS; Doctor1.20.4 21/21; Android/iOS JS/assets29/25files. Original HEAD and one BASE cold Mobile132/133 each retained; not identical-cause/non-regression proof."
   },
   "b3_closure": {
     "state": "VERIFIED_FROZEN",

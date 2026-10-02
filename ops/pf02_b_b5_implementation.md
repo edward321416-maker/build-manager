@@ -1,6 +1,6 @@
 # PF02-B/B5 implementation evidence
 
-Status: STOP_REQUIRED_LOCAL_CHECK_FAILED / NOT_ACCEPTED. This is executor evidence, not independent review.
+Status: REVIEW_CANDIDATE / NOT_ACCEPTED. This is executor evidence, not independent review. The original local Mobile failure remains FAILED/OPEN; the later candidate-specific operator exception below permits review-only publication after the public-safety gate.
 
 - POLICY_REF: `211d84ead3e65f328da648d1cc9f3e050c326c1a`.
 - Approved plan HEAD: `857b1f409c304c1a4835691352b59a91c5111958`; blob `61f44c6dc50d04e978602cfcd914ba85baba8721`.
@@ -73,7 +73,7 @@ No contradiction with the planned persistent listener-through-release handoff wa
 - Full B5 timeout file: 10/10 PASS, exit 0, including actual 55P03, 57014, 40P01, 23514, 22003 and unknown COMMIT before/after delivery with fresh-state readback. Fixture-only privileged deadlock_timeout selects the product connection as victim; no production timeout override.
 - Architecture/canonical frozen inventory: 53 existing files plus persistence manifest equal to base except the approved ./b5 export. Shared tests 435/435 across 35 files; test typecheck exit 0. Exact Git-byte exclusion check remains a final candidate gate.
 
-## Task 6 stop receipt
+## Task 6 initial stop receipt (historical, failure retained)
 
 Task5 bounded integration RED (recorded before editing the additional path): targeted B1–B5 regression exited 1, 208 PASS/1 FAIL across 27 files. `tests/postgres/b1-capabilities.test.ts:62` applies the legacy B1 owner/search_path oracle to every authn function except B4. New B5 commands intentionally have distinct owners and pg_catalog,pg_temp. Under approved plan section 3's RED-proven additional integration exception, exclude exactly the three new B5 function names from this legacy query, retaining every existing B1 assertion/negative control. Exact B5 owner/config/ACL remains asserted by b5-capabilities.test.ts. This test path is not one of the frozen sources; no implementation or old migration is changed.
 
@@ -111,8 +111,8 @@ Commands: P1 = Task1 schema/capability runs; P2 = Task2 transaction run; P4 = th
 | AC15 | b5-capabilities.test.ts; P1 PASS, real SET ROLE behavior and unchanged-row negative controls |
 | AC16 | b5-transaction.test.ts (20 PASS), b5-timeout.test.ts and real b5-timeout-worker.ts; P2/P5 PASS, real load/phase/25P04/replacement and COMMIT uncertainty |
 | AC17 | b5-boundary.test.ts; A PASS; 53 base Git blob comparisons PASS |
-| AC18 | P1/common bootstrap and unchanged Web setup/W PASS; targeted 208/209 then corrected B1/B5 capability11/11; full nine-job gate NOT_RUN, Local Mobile FAILED |
-| AC19 | Explicit authority/base and stop receipt recorded; fixed release candidate/CI/independent review NOT_REACHED |
+| AC18 | P1/common bootstrap and unchanged Web setup/W PASS; prior targeted208/209 and corrected11/11 retained; resumed full PostgreSQL295/295 PASS; local Mobile FAILED; exact-head nine-job receipt recorded separately in Draft PR |
+| AC19 | Explicit authority/base, initial stop and candidate-specific review-publication exception recorded; original five commits preserved; fixed candidate CI/independent review gate tracked in Draft PR, Ready/merge unauthorized |
 
 ## External bookkeeping readback
 
@@ -120,8 +120,42 @@ Native Google Docs revision-guarded rolling handoff update: 18 exact-text replac
 
 ## Remaining gates
 
-Task 6 is stopped on the mandatory local Mobile failure. Resume requires resolution within authorized scope or an explicit operator disposition for this candidate; no repeated plan approval is needed. B5PDR2-L01 implementation handling is evidenced by the real smoke above; independent disposition remains for the fixed-head reviewer. B5D2-L02 and prior B3/B4/Mobile risks remain. F15/F25/F39/F43 are not promoted.
+The operator subsequently authorized bounded diagnosis, remaining verification and conditional Draft publication for this candidate despite unresolved local Mobile timeout. This supersedes the publication stop only; it is neither a failure waiver nor acceptance. B5PDR2-L01 implementation handling is evidenced by the real smoke above; independent disposition remains for the fixed-head reviewer. B5D2-L02 and prior B3/B4/Mobile risks remain. F15/F25/F39/F43 are not promoted.
 
 Current external preflight summary and authorization handoff were written through Google Drive native Sheets/Docs actions and read back. The preflight Sheet timestamp is checkpoint metadata, not measured exact operation timing. Historical sync backlog remains separate; no private destination IDs or raw inputs are published.
 
 NEXT_GATE: FIXED_HEAD_WHOLE_IMPLEMENTATION_REVIEW after fixed implementation candidate and nine required CI jobs. Implementation PR Ready/merge: NOT_AUTHORIZED / NOT_PERFORMED.
+
+## Resume authorization and bounded Mobile diagnosis
+
+The operator explicitly authorized preservation of base `397fa5a08897f70ada025a5fde931b9aec1179a9`, checkpoint `186843f6a7ff0881645ab0824a7d1fb4fb6bb24b` and all five existing commits; bounded diagnosis of this failure only; completion of remaining checks; then push/Draft PR for review if other applicable local and public-safety checks pass. Unresolved local Mobile timeout alone no longer forbids this candidate's review publication. No repeated plan approval, history rewriting, timeout increase, skip, weaker assertion, CI relaxation or repeat-until-green is authorized. Ready/merge/production/real data remain unauthorized. Live main is still the fixed base; pinned POLICY_REF and live-main AGENTS/delivery/project-policy blobs match.
+
+The debugging-wizard skill was applied for evidence/hypothesis separation. The original failed HEAD-side execution is reused, not rerun: Windows PowerShell, isolated Node v24.21.0/npm 11.19.0, dependency installation `npm ci --ignore-scripts --no-audit --no-fund`, root command `npm run test:mobile -- --cacheDirectory <fresh-unique-private-cache> --json --outputFile <private-result>`. The root script passes `--runInBand`; the cache path was checked absent before launch. Exact expanded command/cache path and raw result remain in the private original log/JSON. Original log SHA256 `89cf7bf22e0e22943fc8453e0404d85eb9c81ee853589b402be04cf041743ac4`; original JSON SHA256 `432668b919dbdb48702d68f2a318939f83de3ca94a8e4e1614cc453d518c55a3`.
+
+The original execution occurred before the final checkpoint commit, with Task5 test/evidence work in progress. The checkpoint's Mobile files, direct runtime graph and configuration are unchanged from that execution; this justifies reusing its Mobile result, not claiming the original whole working tree was a clean checkout at checkpoint SHA.
+
+BASE vs checkpoint inspection:
+- `apps/mobile`, `packages/api-client`, `packages/domain`, `packages/fixtures`, root/mobile manifests, lockfile and TypeScript base configuration: no changes.
+- Mobile imports api-client and api-contracts. api-client imports runtime schemas from api-contracts. The direct shared-graph delta is the additive `api-contracts/src/b5.ts` strict Zod error schema and its index export. It has no timer/network/DB action. Application B5 additions are not a runtime dependency of this inspected Mobile/api-client/contracts graph. This inspection does not prove performance equivalence.
+- A separate detached BASE worktree used the same isolated Node/npm, same installation flags and unchanged lock/configuration. One full fresh-cache Mobile run was performed at BASE; no warm retry or repeated HEAD run. Private environment receipt records exact base, cwd, runtime, command and new absent cache path.
+- Subsequent read-only `--showConfig` outputs match after normalizing worktree path and per-run id/seed. These are current default configuration observations, not retroactive captures of every original process setting. Both actual test commands explicitly used runInBand and fresh cache directories.
+
+| Execution | Suites | Tests | Result | Failing test |
+| --- | --- | --- | --- | --- |
+| Original HEAD-side result, reused | 12 PASS / 1 FAIL | 132 PASS / 1 FAIL | exit 1 | tenant ticket loading: loads the ticket named by the route; unchanged 5000ms limit; measured test duration 6072ms |
+| BASE single cold comparison | 12 PASS / 1 FAIL | 132 PASS / 1 FAIL | exit 1 | same test title/5000ms timeout; measured test duration 5611ms |
+
+Both executions have zero skipped/pending/todo tests. BASE result JSON SHA256 `ee611a60a15b7290d6208386616c6835e7428dd944ea97596d9fb0c2012339f3`. Wall-clock time, system load and file-system/cache conditions beyond the fresh Jest directories were not experimentally controlled. The same symptom on both refs is not proof of identical cause or non-regression. Additional schema transform cost/system-load hypotheses remain unproven. No B5 regression is established by this bounded evidence; **ROOT_CAUSE_NOT_ESTABLISHED / LOCAL_MOBILE_FAILED / OPEN** remains. Historical B3 diagnostics were not repeated.
+
+## Resumed verification receipts
+
+All local commands use the isolated pinned runtime. Product/test changes since checkpoint: none; resumed changes are evidence/ops only. Earlier valid shared435/Web459/typecheck/lint/build/B5 browser3/full60-checker and demo Web E2E23 results are retained, not relabeled fresh runs.
+
+- `npm run test:postgres`: fresh full suite after the B1 catalog correction, exit 0, **295/295 tests across 28/28 files PASS**, duration 515.67s. This includes all B1–B5 and frozen foundation tests; prior failed/partial runs remain historical evidence.
+- `npm run check:deps`: exit 0; installed React/React DOM/React Native/Expo trees checked.
+- `npx --yes expo-doctor@1.20.4 --version`: exact 1.20.4, exit 0. `npx --yes expo-doctor@1.20.4 .` in apps/mobile: 21/21 PASS, exit 0.
+- With scoped `EXPO_PUBLIC_API_URL=http://127.0.0.1:3000`, `npx expo export --platform android --output-dir <fresh-private-dir>` and corresponding ios command: both exit 0, non-empty exports of 29/25 files. These are JS/assets exports, not native device builds.
+- Native Linux cold Mobile and hosted Windows cold Mobile remain separate hosted workflow evidence; no local Linux execution is claimed.
+- Fresh public index/reachable-history scan and exact candidate nine-job CI remain publication gates. Required jobs: verify, repository-safety, apps, mobile-cold-linux, install-mobile-windows, web-e2e, mobile-health, postgres-integration, foundation-gate. Exact fixed HEAD/run IDs and post-freeze CI receipts belong in the Draft PR body/comment and rolling handoff so recording them does not mutate the reviewed HEAD.
+
+Resume/diagnosis external receipts: native Google Docs revision-guarded resumed-state update and fresh readback succeeded; Google Sheets events were appended/read back at A150:D151. Existing coordinator rows A148:D149 were preserved. No custom plugin was downloaded, so no new downloaded-schema cache artifact is required. Historical external backlog is not cleared. Detailed private logs and hashes remain outside the public repository; only sanitized summaries are published.
