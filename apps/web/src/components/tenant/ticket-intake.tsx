@@ -48,7 +48,7 @@ function readAnswer(
   return submitter?.value ?? null;
 }
 
-export function TicketIntake({ ticketId }: { ticketId: string }) {
+export function TicketIntake({ ticketId, client, coreFlow=false }: { ticketId: string; client?: ReturnType<typeof createBrowserApiClient>; coreFlow?: boolean }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -57,12 +57,12 @@ export function TicketIntake({ ticketId }: { ticketId: string }) {
   const fetchTicket = useCallback(async (): Promise<LoadState> => {
     try {
       const ticket =
-        await createBrowserApiClient().getTenantTicketStatus(ticketId);
+        await (client ?? createBrowserApiClient()).getTenantTicketStatus(ticketId);
       return { kind: "ready", ticket };
     } catch (error) {
       return { kind: "error", message: describeApiError(error) };
     }
-  }, [ticketId]);
+  }, [client, ticketId]);
 
   /** Mount already renders the loading state, so it is not set again here. */
   useEffect(() => {
@@ -93,7 +93,7 @@ export function TicketIntake({ ticketId }: { ticketId: string }) {
     setBusy(true);
     setActionError(null);
     try {
-      setState({ kind: "ready", ticket: await action(createBrowserApiClient()) });
+      setState({ kind: "ready", ticket: await action(client ?? createBrowserApiClient()) });
     } catch (error) {
       setActionError(describeApiError(error));
     } finally {
@@ -145,9 +145,9 @@ export function TicketIntake({ ticketId }: { ticketId: string }) {
 
   return (
     <main className="tenant-page">
-      <TenantDemoBanner />
+      {coreFlow ? null : <TenantDemoBanner />}
       <p>
-        <Link href="/demo/tenant">← 세입자 데모 홈</Link>
+        <Link href={coreFlow ? "/core" : "/demo/tenant"}>{coreFlow ? "← 접수 목록" : "← 세입자 데모 홈"}</Link>
       </p>
 
       {state.kind === "loading" ? <StateMessage kind="loading" /> : null}
@@ -227,7 +227,7 @@ export function TicketIntake({ ticketId }: { ticketId: string }) {
             </form>
           ) : null}
 
-          {stage === "EVIDENCE" ? (
+          {stage === "EVIDENCE" && !coreFlow ? (
             <form
               onSubmit={(event) =>
                 submitEvidence(outstandingEvidence(ticket), event)
@@ -240,7 +240,8 @@ export function TicketIntake({ ticketId }: { ticketId: string }) {
             </form>
           ) : null}
 
-          {stage === "READY_TO_FINALIZE" ? (
+          {coreFlow && stage === "EVIDENCE" ? <p>사진 업로드는 아직 지원하지 않습니다. 현재 정보로 제출하면 관리자가 부족한 정보를 확인합니다.</p> : null}
+          {stage === "READY_TO_FINALIZE" || (coreFlow && stage === "EVIDENCE") ? (
             <section className="finalize-stage">
               <h2>제출할 준비가 되었습니다</h2>
               <p className="passport-note">

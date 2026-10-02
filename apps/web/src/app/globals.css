@@ -306,6 +306,13 @@ button:disabled {
   opacity: 0.55;
 }
 
+.core-flow form { display: grid; gap: 1rem; margin-block: 1.5rem; max-width: 42rem; }
+.core-flow label { display: grid; gap: .4rem; }
+.core-flow textarea, .core-flow input[type="password"] { font: inherit; padding: .8rem; border: 1px solid #426057; border-radius: .375rem; max-width: 100%; }
+.core-flow textarea { min-height: 7rem; resize: vertical; }
+.core-flow > button { margin: .3rem; }
+.core-flow li { margin-block: .6rem; }
+
 :focus-visible {
   outline: 3px solid #7b4c2f;
   outline-offset: 2px;

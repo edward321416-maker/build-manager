@@ -16,6 +16,7 @@ export default function Home() {
       </section>
 
       <section aria-labelledby="role-entry-title" className="role-entry">
+        {process.env.CORE_FLOW_MODE === "SYNTHETIC_LOCAL" ? <p><Link href="/core">RC1 수리 접수·처리 시작</Link></p> : null}
         <h2 id="role-entry-title">데모 시작하기</h2>
 
         <p className="role-entry-note">
