@@ -5,6 +5,40 @@ import { createB5Harness, seedB5Scope, membershipRows, interceptB5, observeB5Wai
 import { waitB4Lock } from "./helpers/b4-fixture";
 
 type Receipt = { type: string; [key: string]: unknown };
+async function runObserverControl(mode: "unhandled" | "handled") {
+  expect(process.version).toBe("v24.21.0");
+  const child = fork(new URL("./helpers/b5-timeout-worker.ts",import.meta.url),[`observer-${mode}`],{
+    execPath:process.execPath,execArgv:["--experimental-transform-types"],stdio:["ignore","ignore","ignore","ipc"],
+  });
+  const messages: Receipt[] = [];
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const result = await new Promise<{ code: number | null; signal: string | null }>((resolve,reject) => {
+      timer=setTimeout(()=>{ child.kill(); reject(new Error("B5_OBSERVER_DEADLINE")); },20_000);
+      child.once("error",()=>reject(new Error("B5_OBSERVER_START_FAILED")));
+      child.once("exit",(code,signal)=>resolve({ code,signal }));
+      child.on("message",(message: Receipt) => {
+        messages.push(message);
+        if (message.type === "observer-armed") child.send({ type:"emit-control" });
+      });
+    });
+    expect(messages[0]).toEqual({ type:"module-loaded",version:"v24.21.0",execArgv:["--experimental-transform-types"],roots:["persistence-postgres","application","domain"] });
+    expect(messages[1]).toMatchObject({ type:"observer-armed",monitorSupported:true });
+    expect(messages[2]).toEqual({ type:"observer-observed",observedCount:1 });
+    expect(result).toEqual({ code:mode === "unhandled" ? 1 : 0,signal:null });
+    const normalCount = mode === "unhandled" ? 0 : 1;
+    expect(messages[1]).toEqual({ type:"observer-armed",before:normalCount,after:normalCount,monitorSupported:true });
+    if (mode === "unhandled") expect(messages).toHaveLength(3);
+    else {
+      expect(messages).toHaveLength(4);
+      expect(messages[3]).toEqual({ type:"observer-complete",handledCount:1,observedCount:1,normalAfterCleanup:1,monitorAfterCleanup:0 });
+    }
+    console.info("B5_OBSERVER_RECEIPT",JSON.stringify({ mode,...result,normalCount,observedCount:1,handledCount:mode === "handled" ? 1 : 0 }));
+  } finally { clearTimeout(timer); if (child.exitCode === null && child.signalCode === null) child.kill(); }
+}
+
+it.each(["unhandled","handled"] as const)("AC16 observer control %s preserves normal error semantics",async mode=>{ await runObserverControl(mode); });
+
 async function runWorker(mode: "load-only" | "active" | "idle", h?: B5Harness) {
   expect(process.version).toBe("v24.21.0");
   const s = h ? await seedB5Scope(h) : undefined;

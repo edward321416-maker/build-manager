@@ -341,3 +341,6 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Stop-event reconciliation: PF02B-B5-LOCAL-MOBILE-STOP-20261002 appended through native Google Sheets and read back at A146:D146; rolling handoff STOP_REQUIRED_LOCAL_CHECK_FAILED read back. Historical backlog remains separate.
 - Event PF02B-B5-RESUME-REVIEW-PUBLICATION-20261002; sync_status=pending; tokens=unknown. Current-candidate review-only publication exception; historical Mobile failure and backlog retained.
 - Resume/diagnosis reconciliation: native Google Sheets A150:D151 and resumed rolling handoff were written/read back. Current local-verification event pending final publication receipt; historical coordinator/backlog entries preserved.
+
+- Remediation reconciliation: current event PR68-TEST-EVIDENCE-RED-GREEN-20261002 appended through native Google Sheets and read back at A160:D160. Prior coordinator intake rows and historical backlog are preserved; no queue reconstruction. Full verification/fixed-head CI and rolling handoff receipts remain pending this phase.
+- Event PR68-TEST-EVIDENCE-LOCAL-VERIFIED-20261002; sync_status=pending; tokens=unknown. FullPG297 and bounded local checks passed. Final safety/commit/publication/exact-head CI and final rolling handoff readback receipts will be external after freeze; no historical backlog is cleared.

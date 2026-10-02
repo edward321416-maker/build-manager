@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
+import { EventEmitter, errorMonitor } from "node:events";
 import { existsSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ClientConfig, PoolClient } from "pg";
+
+function observeClientErrors(client: EventEmitter, observer: (error: unknown) => void) {
+  client.on(errorMonitor,observer);
+  return () => { client.removeListener(errorMonitor,observer); };
+}
 
 // Actual graph: B5 -> application index -> domain index. No other source roots.
 const roots = ["persistence-postgres","application","domain"].map(name => new URL(`../../../packages/${name}/src/`,import.meta.url).href);
@@ -26,6 +32,24 @@ const { createOrganizationMembershipTerminationPort } = await import("@build-man
 process.send?.({ type: "module-loaded",version: process.version,execArgv: process.execArgv,roots: ["persistence-postgres","application","domain"] });
 if (process.argv.includes("load-only")) {
   process.disconnect?.();
+} else if (process.argv.includes("observer-unhandled") || process.argv.includes("observer-handled")) {
+  const handled = process.argv.includes("observer-handled");
+  const emitter = new EventEmitter();
+  let handledCount = 0, observedCount = 0;
+  if (handled) emitter.on("error",() => { handledCount++; });
+  const before = emitter.listenerCount("error");
+  const stopObserving = observeClientErrors(emitter,() => {
+    observedCount++;
+    process.send?.({ type:"observer-observed",observedCount });
+  });
+  process.send?.({ type:"observer-armed",before,after:emitter.listenerCount("error"),monitorSupported:typeof errorMonitor === "symbol" });
+  process.once("message",() => {
+    // Intentionally uncaught: observation alone must not consume this error.
+    emitter.emit("error",new Error("B5_OBSERVER_CONTROL"));
+    stopObserving();
+    process.send?.({ type:"observer-complete",handledCount,observedCount,normalAfterCleanup:emitter.listenerCount("error"),monitorAfterCleanup:emitter.listenerCount(errorMonitor) });
+    process.disconnect?.();
+  });
 } else {
   const { createPostgresDatabase, getInternalPool } = await import(new URL("../../../packages/persistence-postgres/src/database.ts",import.meta.url).href) as typeof import("../../../packages/persistence-postgres/src/database");
   process.once("message",async (input: { config: ClientConfig; digest: string; org: string; target: string; mode: "active" | "idle" }) => {
@@ -35,7 +59,7 @@ if (process.argv.includes("load-only")) {
     const codes: string[] = [];
     let observedClient: PoolClient | undefined;
     let originalQuery: PoolClient["query"] | undefined;
-    let observer: ((error: unknown) => void) | undefined;
+    let stopObserving: (() => void) | undefined;
     const safeCode = (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "25P04" ? "25P04" : "OTHER";
     try {
       console.error = (...args: unknown[]) => {
@@ -50,8 +74,7 @@ if (process.argv.includes("load-only")) {
         pid = Number((await query("SELECT pg_backend_pid() AS pid")).rows[0].pid);
         let terminated!: () => void;
         const ended = new Promise<void>(resolve => { terminated = resolve; });
-        observer = error => { codes.push(safeCode(error)); terminated(); };
-        client.on("error",observer);
+        stopObserving = observeClientErrors(client,error => { codes.push(safeCode(error)); terminated(); });
         client.release = (destroy?: boolean | Error) => { releases++; if (destroy) destroyed++; release(destroy); };
         client.query = (async (...args: unknown[]) => {
           if (args[0] === "COMMIT") commits++;
@@ -94,7 +117,7 @@ if (process.argv.includes("load-only")) {
     finally {
       pool.connect=originalConnect;
       if (observedClient && originalQuery) observedClient.query=originalQuery;
-      if (observedClient && observer) observedClient.removeListener("error",observer);
+      stopObserving?.();
       console.error=originalError;
       try { await db.close(); } catch { process.exitCode=1; }
       process.disconnect?.();

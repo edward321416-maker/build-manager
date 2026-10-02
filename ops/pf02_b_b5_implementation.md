@@ -1,6 +1,6 @@
 # PF02-B/B5 implementation evidence
 
-Status: REVIEW_CANDIDATE / NOT_ACCEPTED. This is executor evidence, not independent review. The original local Mobile failure remains FAILED/OPEN; the later candidate-specific operator exception below permits review-only publication after the public-safety gate.
+Status: TEST_EVIDENCE_DELTA_REVIEW_CANDIDATE / NOT_ACCEPTED. Supplied whole review at `65a486b4f2c180172b43ae50ff2999cb2faf0881`: CHANGES_REQUIRED B0/H0/M1/L2; see the remediation section below. This is executor evidence, not independent review. AC16 and AC18 remain PARTIAL. The original local Mobile failure remains FAILED/OPEN; the candidate-specific operator exception permits review-only publication after the public-safety gate.
 
 - POLICY_REF: `211d84ead3e65f328da648d1cc9f3e050c326c1a`.
 - Approved plan HEAD: `857b1f409c304c1a4835691352b59a91c5111958`; blob `61f44c6dc50d04e978602cfcd914ba85baba8721`.
@@ -81,7 +81,7 @@ After the bounded inventory correction, `npm run test:postgres -- tests/postgres
 
 Native Windows / isolated Node v24.21.0 / npm 11.19.0, fresh unique Jest cache:
 
-- `npm run test:mobile -- --cacheDirectory <new-private-cache> --json --outputFile <private-result>`: exit 1; 13 suites (12 passed, 1 failed), 133 tests (132 passed, 1 failed), zero pending/todo. Failure: `apps/mobile/src/features/tenant/tenant-ticket.test.ts:78`, `tenant ticket — loading loads the ticket named by the route`, exceeded unchanged 5000ms timeout.
+- `npm run test:mobile -- --cacheDirectory <new-private-cache> --json --outputFile <private-result>`: exit 1; 13 suites (12 passed, 1 failed), 133 tests (132 passed, 1 failed), zero pending/todo. Failure: `apps/mobile/src/features/tenant/tenant-ticket.test.tsx:78`, `tenant ticket — loading loads the ticket named by the route`, exceeded unchanged 5000ms timeout. This corrects the file reference only; original failure artifacts and hashes are preserved.
 - Mobile files, root manifest/lock and workflows have zero diff from IMPLEMENTATION_BASE_SHA. This is current local failed evidence, not a proven B5 regression or a resolved historical risk. ROOT_CAUSE_NOT_ESTABLISHED. Previous accepted Mobile exceptions are historical and are not silently extended to B5.
 - Per operator handoff section 7, a mandatory-check failure requires stopping with evidence. No warm retry, timeout increase, Mobile edit, frozen edit or pass-through-hosted substitution was performed. Candidate freeze, push, Draft PR and new hosted CI remain NOT_PERFORMED / NOT_RUN.
 - Other completed final checks: lint exit 0 (existing unused imports in B3 Web and Mobile tests remain warnings); full typecheck exit 0; `npm run test:e2e:web` exit 0, 23/23 PASS. Task3 build/Web/60-browser evidence remains valid for unchanged product source; not represented as a new rerun.
@@ -109,9 +109,9 @@ Commands: P1 = Task1 schema/capability runs; P2 = Task2 transaction run; P4 = th
 | AC13 | apps/web/src/server/b5/http.test.ts (24 PASS), b5.spec.ts; W PASS, precedence/body/cache/non-disclosure/readback |
 | AC14 | b5-capabilities.test.ts; P1 PASS, exact catalog/ACL and effective-admin helper positives/negatives |
 | AC15 | b5-capabilities.test.ts; P1 PASS, real SET ROLE behavior and unchanged-row negative controls |
-| AC16 | b5-transaction.test.ts (20 PASS), b5-timeout.test.ts and real b5-timeout-worker.ts; P2/P5 PASS, real load/phase/25P04/replacement and COMMIT uncertainty |
+| AC16 | PARTIAL pending independent delta acceptance. Transaction20 PASS retained; original native-survival oracle was masked by the ordinary test error observer (MEDIUM-1). New non-consuming observation and native controls/runtime evidence are submitted below; executor does not promote this to final PASS. |
 | AC17 | b5-boundary.test.ts; A PASS; 53 base Git blob comparisons PASS |
-| AC18 | P1/common bootstrap and unchanged Web setup/W PASS; prior targeted208/209 and corrected11/11 retained; resumed full PostgreSQL295/295 PASS; local Mobile FAILED; exact-head nine-job receipt recorded separately in Draft PR |
+| AC18 | PARTIAL due local Mobile FAILED/OPEN/ROOT_CAUSE_NOT_ESTABLISHED. P1/bootstrap and unchanged Web setup/W PASS; prior targeted208/209, corrected11/11 and resumed full295/295 retained as historical executions; new full PostgreSQL and exact-head CI receipts are distinct evidence generations. |
 | AC19 | Explicit authority/base, initial stop and candidate-specific review-publication exception recorded; original five commits preserved; fixed candidate CI/independent review gate tracked in Draft PR, Ready/merge unauthorized |
 
 ## External bookkeeping readback
@@ -120,11 +120,11 @@ Native Google Docs revision-guarded rolling handoff update: 18 exact-text replac
 
 ## Remaining gates
 
-The operator subsequently authorized bounded diagnosis, remaining verification and conditional Draft publication for this candidate despite unresolved local Mobile timeout. This supersedes the publication stop only; it is neither a failure waiver nor acceptance. B5PDR2-L01 implementation handling is evidenced by the real smoke above; independent disposition remains for the fixed-head reviewer. B5D2-L02 and prior B3/B4/Mobile risks remain. F15/F25/F39/F43 are not promoted.
+The operator subsequently authorized bounded diagnosis, remaining verification and conditional Draft publication for this candidate despite unresolved local Mobile timeout. This supersedes the publication stop only; it is neither a failure waiver nor acceptance. B5PDR2-L01 was independently RESOLVED within its defined warning-capture scope in the supplied whole review; it is distinct from MEDIUM-1. B5D2-L02 and prior B3/B4/Mobile risks remain. F15/F25/F39/F43 are not promoted.
 
 Current external preflight summary and authorization handoff were written through Google Drive native Sheets/Docs actions and read back. The preflight Sheet timestamp is checkpoint metadata, not measured exact operation timing. Historical sync backlog remains separate; no private destination IDs or raw inputs are published.
 
-NEXT_GATE: FIXED_HEAD_WHOLE_IMPLEMENTATION_REVIEW after fixed implementation candidate and nine required CI jobs. Implementation PR Ready/merge: NOT_AUTHORIZED / NOT_PERFORMED.
+Historical next gate was FIXED_HEAD_WHOLE_IMPLEMENTATION_REVIEW. The supplied whole review is now received; current next gate is FIXED_HEAD_DELTA_IMPLEMENTATION_REVIEW after the bounded correction and fresh nine-job CI described below. Implementation PR Ready/merge: NOT_AUTHORIZED / NOT_PERFORMED.
 
 ## Resume authorization and bounded Mobile diagnosis
 
@@ -159,3 +159,47 @@ All local commands use the isolated pinned runtime. Product/test changes since c
 - Fresh public index/reachable-history scan and exact candidate nine-job CI remain publication gates. Required jobs: verify, repository-safety, apps, mobile-cold-linux, install-mobile-windows, web-e2e, mobile-health, postgres-integration, foundation-gate. Exact fixed HEAD/run IDs and post-freeze CI receipts belong in the Draft PR body/comment and rolling handoff so recording them does not mutate the reviewed HEAD.
 
 Resume/diagnosis external receipts: native Google Docs revision-guarded resumed-state update and fresh readback succeeded; Google Sheets events were appended/read back at A150:D151. Existing coordinator rows A148:D149 were preserved. No custom plugin was downloaded, so no new downloaded-schema cache artifact is required. Historical external backlog is not cleared. Detailed private logs and hashes remain outside the public repository; only sanitized summaries are published.
+
+## PR68 test/evidence remediation after supplied whole review
+
+DELTA_BASE is `65a486b4f2c180172b43ae50ff2999cb2faf0881`; original implementation base remains `397fa5a08897f70ada025a5fde931b9aec1179a9`. The operator delivered `ASTRA_PR68_B5_TEST_EVIDENCE_REMEDIATION.md` as the execution request. This authorizes bounded correction, verification, ordinary commit/push to the same Draft PR and bookkeeping, not product changes or acceptance. All six prior commits and checkpoint `186843f6a7ff0881645ab0824a7d1fb4fb6bb24b` are preserved ancestors. No new branch, reset, rebase or force push.
+
+[Supplied whole-review intake](https://github.com/edward321416-maker/build-manager/pull/68#issuecomment-5945240102): CHANGES_REQUIRED, BLOCKER0/HIGH0/MEDIUM1/LOW2. Review report SHA256 `44db7e3cd209255913ee56f4a02817f53997491f797d954eea9616c0f0e0b347` is supplied provenance; this executor read the packet and intake receipt, not a second independently executed review. Reviewer INDEPENDENT_RUNTIME=NOT_RUN. Other AC PASS dispositions retain their existing evidence limits. AC01–AC19 are in spec section23; section26 contains plan constraints.
+
+| Finding | Bounded correction and evidence | Disposition |
+| --- | --- | --- |
+| MEDIUM-1 | `tests/postgres/helpers/b5-timeout-worker.ts` uses a private shared `observeClientErrors` helper with `errorMonitor` and matching removal. `b5-timeout.test.ts` adds no-DB unhandled/handled behavioral controls using that same helper after real B5-entry import. Existing real active/idle checks and production listener/query/release paths are unchanged. | Executor correction submitted; independent delta acceptance pending; AC16 PARTIAL |
+| LOW-1 | `b1-capabilities.test.ts` excludes only `b5_has_other_effective_admin` and `b5_end_organization_membership`; asserts `b5_classify_caller` is actually returned. All old B1 assertions and dedicated B5 owner/config/ACL tests remain. The earlier three-name exclusion above is historical, superseded by this correction. | Executor correction submitted; independent delta acceptance pending |
+| LOW-2 | Actual file reference corrected to `apps/mobile/src/features/tenant/tenant-ticket.test.tsx:78` here and in PR68. Original logs/JSON hashes and failure history are unchanged. | Executor correction submitted; independent delta acceptance pending |
+| B5PDR2-L01 | Supplied reviewer independently resolved the defined early-warning capture issue. Existing load-only memory-only stderr reduction remains intact. | RESOLVED; separate from MEDIUM-1 |
+
+The [official Node24.21.0 Events documentation](https://nodejs.org/download/release/v24.21.0/docs/api/events.html#eventserrormonitor) was successfully read in this execution. Its monitoring semantics are source rationale, not runtime evidence. Actual execution used the existing project-isolated official Node **v24.21.0**, npm **11.19.0**, locked/installed **pg8.23.0 / pg-pool3.14.0**, and disposable synthetic PostgreSQL fixtures. Child execArgv remains exactly `["--experimental-transform-types"]`; global options, runtime pins and dependencies are unchanged. The coordinator's earlier Node22 probe is not reused as pinned-runtime evidence.
+
+RED used the same helper initially retaining the old ordinary `on("error")` behavior. Command `npm run test:postgres -- tests/postgres/b5-timeout.test.ts -t 'observer control'` exited **1**: **2 failed**, 10 unselected, one file, 19.21s. Both controls reached real module-loaded, armed and observed receipts. The unhandled control incorrectly exited0 instead of1; the handled control increased ordinary listeners from1 to2. This is behavioral RED, not an import failure or text search. Unselected tests are a focused selection, not added skips or whole-suite evidence. Private RED log SHA256 `4206449d940bae0a9884182c56931587fcd6698373cab951932bcec964bfd7a6`.
+
+GREEN changes only the helper attachment/removal to the non-consuming symbol. The negative control reaches the observed marker and naturally exits1, signal null, without a normal handler or completion marker; parent start/deadline/kill paths reject. The positive control calls its normal handler exactly once, exits0, retains one normal listener and removes its monitor. Both import the real B5 entry on the pinned native child runtime without DB configuration; stdout/stderr are discarded. These controls do not replace the real database tests.
+
+The unchanged real active/idle assertions require actual phase observation, 25P04, command1, release1/destroy1, COMMIT0/ROLLBACK0, terminated backend absence, different healthy replacement backend, unchanged membership rows and child exit0. DB observer callback still synchronously records only safeCode and resolves the termination gate. No test-only Pool listener, global exception handler, production change or warning suppression was added. Load-only keeps parent stderr in memory and publishes only allowed warning summaries. AC16 remains **PARTIAL pending independent acceptance** despite new executor runtime evidence.
+
+### Remediation validation receipts
+
+All commands below run at the existing worktree repository root in Windows PowerShell with the pinned isolated runtime. Exit codes are retained separately. The default local Vitest reporter summarizes successful tests without printing their console receipts; passing assertions are local evidence, while new hosted logs must separately expose the sanitized control/active/idle receipts.
+
+| Command | Actual result |
+| --- | --- |
+| `node --version` / `npm --version` | exit0 each; v24.21.0 / 11.19.0 |
+| `npm run test:postgres -- tests/postgres/b5-timeout.test.ts tests/postgres/b5-transaction.test.ts tests/postgres/b1-capabilities.test.ts tests/postgres/b5-capabilities.test.ts` | exit0; 43/43 tests,4/4 files,120.82s |
+| `npm run test:postgres` | exit0;297/297 tests,28/28 files,650.76s; new full run, not historical295/295 |
+| `npm run test:shared` | exit0;435/435 tests,35/35 files,15.80s |
+| `npm run typecheck` | exit0; packages/tests/Web/Mobile checks |
+| `npm run lint` | exit0; two pre-existing unused-import warnings, no errors |
+| `PYTHONPATH=<repo> python tests/test_verify_repository.py -v` | exit0;3 tests |
+| `PYTHONPATH=<repo> python scripts/tests/test_verify_repository.py -v` | exit0;14 tests |
+| `git diff --check` | exit0 before freeze; final staged check required |
+| `python scripts/verify_repository.py --history` | Final staged index/reachable-history scan is a mandatory pre-push gate; its result and scanned-tree identity are recorded in the fixed-head PR receipt after staging. Prior scans are not substituted. |
+
+Byte checks: all **53 frozen Git blobs** equal original BASE, DELTA_BASE and current canonical worktree blobs; approved plan/spec equal their fixed blobs at both bases and worktree. No delta in product `apps`/`packages`, dependencies/lockfile, workflows or approved docs. The original B5 implementation delta from397fa5a is preserved, not claimed absent. Original Mobile log/HEAD JSON/BASE JSON SHA256 values above were rechecked and match. No Mobile rerun, new diagnosis, timeout change, test deletion, skip or assertion weakening. Local failures remain **FAILED/OPEN/ROOT_CAUSE_NOT_ESTABLISHED**, AC18 **PARTIAL**; suite5.998s is not per-test timeout headroom evidence.
+
+Changed paths are exactly the three test paths in the findings table plus this evidence file, `STATUS.md`, `ops/CHAT_HANDOFF.md`, `ops/CHAT_CONTEXT_MANIFEST.json`, and append-only `ops/AI_Execution_Log.csv` / `ops/pending_external_sync.md`. No new repository files. Skill: debugging-wizard empirical RED/GREEN, existing Google Docs/Sheets capabilities for authorized bookkeeping; no new installation/schema acquisition. Current RED/GREEN event was appended/read back at native Sheets A160:D160; rolling handoff execution-state update used a revision guard and was read back. Historical coordinator rows and sync backlog remain intact.
+
+After freeze, actual DELTA_HEAD, exact nine-job CI and final sync receipts belong in PR68 and the rolling handoff without another log-only commit. Old runs Repository36950555363/App36950555287 at65a486b remain historical; they cannot validate this correction. No new independent delta review is claimed. Stop at **FIXED_HEAD_DELTA_IMPLEMENTATION_REVIEW / PR68 DRAFT / NOT_ACCEPTED**, reviewing only65a486b to the new fixed HEAD and direct dependencies. AC16/AC18 PARTIAL; Ready/merge/production/real data NOT_AUTHORIZED/NOT_PERFORMED. F15/F25/F39/F43 and retained B5D2-L02/B3/B4/Mobile risks are unchanged.
