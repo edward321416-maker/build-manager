@@ -9,7 +9,8 @@
     "./b1": "./src/b1/index.ts",
     "./b3": "./src/b3/index.ts",
     "./b4": "./src/b4/index.ts",
-    "./b5": "./src/b5/index.ts"
+    "./b5": "./src/b5/index.ts",
+    "./core-flow": "./src/core-flow.ts"
   },
   "dependencies": {
     "pg": "8.23.0",

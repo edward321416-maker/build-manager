@@ -30,3 +30,4 @@ export * from "./b4/property-assignment";
 export * from "./b5/errors";
 export * from "./b5/ports";
 export * from "./b5/membership-termination";
+export * from "./core-flow";

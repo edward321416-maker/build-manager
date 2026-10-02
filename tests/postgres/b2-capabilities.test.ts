@@ -119,7 +119,7 @@ it("AC15 exactB2CapabilityCatalog", async () => {
     am.admin_option,am.inherit_option,am.set_option FROM pg_auth_members am
     JOIN pg_roles granted ON granted.oid=am.roleid JOIN pg_roles member ON member.oid=am.member
     WHERE (granted.rolname LIKE 'bm_%' OR member.rolname LIKE 'bm_%')
-      AND granted.rolname NOT IN ('bm_b4_assignment_owner','bm_b5_membership_owner','bm_b5_effective_admin_probe_owner') ORDER BY granted.rolname,member.rolname`)).rows;
+      AND granted.rolname NOT IN ('bm_b4_assignment_owner','bm_b5_membership_owner','bm_b5_effective_admin_probe_owner','bm_core_flow_owner') ORDER BY granted.rolname,member.rolname`)).rows;
   expect(memberships).toEqual([{ granted: "bm_b1_capability_owner", member: owner.rolname,
     admin_option: false, inherit_option: false, set_option: true }]);
   // Keep this frozen regression scoped to the B1/B2 policy inventory. B3 policies
@@ -180,7 +180,8 @@ it("AC15 exactB2CapabilityCatalog", async () => {
       WHERE p.oid=$1::regprocedure`, [signature])).rows[0];
     expect(f, signature).toEqual({ owner: "bm_b1_capability_owner", provolatile: volatility, lanname: language,
       prosecdef: definer, proconfig: ["search_path=pg_catalog"], args, result,
-      executors: name === "can_read_property" ? ["bm_b1_capability_owner", "bm_b1_web", "bm_b4_assignment_owner"]
+      executors: name === "can_read_property" ? ["bm_b1_capability_owner", "bm_b1_web", "bm_b4_assignment_owner", "bm_core_flow_owner"]
+        : name === "current_actor" ? ["bm_b1_capability_owner", "bm_b1_web", "bm_core_flow_owner"]
         : web ? ["bm_b1_capability_owner", "bm_b1_web"] : ["bm_b1_capability_owner"], grantable: false });
     for (const role of ["bm_b1_login", "bm_pf02a_runtime"])
       expect((await h.migration.query("SELECT has_function_privilege($1,$2,'EXECUTE') AS allowed", [role, signature])).rows[0].allowed).toBe(false);

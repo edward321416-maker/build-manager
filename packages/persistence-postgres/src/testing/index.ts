@@ -4,3 +4,4 @@ export type { TestRoleCredentials } from "./roles";
 export * from "./migrate";
 export * from "./b4-roles";
 export * from "./b5-roles";
+export * from "./core-flow-fixture";
