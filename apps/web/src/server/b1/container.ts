@@ -3,13 +3,15 @@ import { createPostgresDatabase } from '@build-manager/persistence-postgres';
 import { createOrganizationReadPort,createSessionRegistryPort } from '@build-manager/persistence-postgres/b1';
 import { createBuildingRegistrationPort,createUnitReadPort } from '@build-manager/persistence-postgres/b3';
 import { createPropertyAssignmentMutationPort } from '@build-manager/persistence-postgres/b4';
+import { createOrganizationMembershipTerminationPort } from '@build-manager/persistence-postgres/b5';
 import { parseApplicationMode } from '../../runtime/application-mode';
 import { getB1Auth0 } from './auth0';
 import { readB1AuthConfig } from './config';
 import type { B3HTTPDependencies } from '../b3/http';
 import type { B4HTTPDependencies } from '../b4/http';
-let container:(B3HTTPDependencies & B4HTTPDependencies)|undefined;
-export function getB1Container():B3HTTPDependencies & B4HTTPDependencies{
+import type { B5HTTPDependencies } from '../b5/http';
+let container:(B3HTTPDependencies & B4HTTPDependencies & B5HTTPDependencies)|undefined;
+export function getB1Container():B3HTTPDependencies & B4HTTPDependencies & B5HTTPDependencies{
  if(parseApplicationMode(process.env.BUILD_MANAGER_MODE)!=='B1')throw new B1Error('DEPENDENCY_UNAVAILABLE');
  if(!container){
   const connectionString=process.env.B1_WEB_DATABASE_URL;
@@ -21,6 +23,7 @@ export function getB1Container():B3HTTPDependencies & B4HTTPDependencies{
    registration:createBuildingRegistrationPort(database),
    units:createUnitReadPort(database),
    assignments:createPropertyAssignmentMutationPort(database),
+   memberships:createOrganizationMembershipTerminationPort(database),
    readSession:request=>auth0.getSession(request),
    appBaseUrl:config.appBaseUrl,
   };

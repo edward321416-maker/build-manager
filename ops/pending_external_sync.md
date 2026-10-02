@@ -331,3 +331,16 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 ## 2026-10-02 B5 plan publication and implementation authority
 
 - Event `PF02B-B5-PLAN-PUBLISHED-IMPLEMENTATION-AUTHORIZED-20261002`; sync_status=pending; tokens=unknown. See [authority receipt](pf02_b_b5_plan_acceptance.md). Current event only; historical private queues are not reconstructed or cleared. No external transport/write/readback is claimed.
+
+- Event PF02B-B5-TASK1-20261002; sync_status=pending; tokens=unknown. Task1 scoped implementation evidence; see ops/pf02_b_b5_implementation.md. Historical backlog unchanged.
+
+- Event PF02B-B5-TASK2-20261002; sync_status=pending; tokens=unknown. Task2 focused and shared evidence; historical backlog unchanged.
+- Event PF02B-B5-TASK3-20261002; sync_status=pending; tokens=unknown. Task3 actual browser and full-report evidence; historical backlog unchanged.
+- Event PF02B-B5-TASK4-20261002; sync_status=pending; tokens=unknown. Task4 evidence queued; historical backlog unchanged.
+- Reconciliation: Task1-4 and Task5 preflight current summaries were appended through native Google Sheets and read back at A141:D145; rolling Docs18 replacements read back. Earlier queue lines are historical. Local-Mobile stop event remains pending separate readback.
+- Stop-event reconciliation: PF02B-B5-LOCAL-MOBILE-STOP-20261002 appended through native Google Sheets and read back at A146:D146; rolling handoff STOP_REQUIRED_LOCAL_CHECK_FAILED read back. Historical backlog remains separate.
+- Event PF02B-B5-RESUME-REVIEW-PUBLICATION-20261002; sync_status=pending; tokens=unknown. Current-candidate review-only publication exception; historical Mobile failure and backlog retained.
+- Resume/diagnosis reconciliation: native Google Sheets A150:D151 and resumed rolling handoff were written/read back. Current local-verification event pending final publication receipt; historical coordinator/backlog entries preserved.
+
+- Remediation reconciliation: current event PR68-TEST-EVIDENCE-RED-GREEN-20261002 appended through native Google Sheets and read back at A160:D160. Prior coordinator intake rows and historical backlog are preserved; no queue reconstruction. Full verification/fixed-head CI and rolling handoff receipts remain pending this phase.
+- Event PR68-TEST-EVIDENCE-LOCAL-VERIFIED-20261002; sync_status=pending; tokens=unknown. FullPG297 and bounded local checks passed. Final safety/commit/publication/exact-head CI and final rolling handoff readback receipts will be external after freeze; no historical backlog is cleared.

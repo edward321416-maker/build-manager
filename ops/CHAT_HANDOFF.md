@@ -66,7 +66,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
 | PF02-B / B3 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b3_closure.md); implementation/remediation/F01 evidence accepted and published; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed |
 | PF02-B / B4 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b4_closure.md); PR #58 accepted HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307` merged as `6cf71049c479d100ec6e949002c2e30c8df81eba`; retained B4I-L01/B4R-L01 LOW and B4D-L01..L04 boundaries remain disclosed. [Erratum publication](pf02_b_b4_erratum_publication.md) is a historical pre-implementation snapshot. |
-| PF02-B / B5 | PLAN_APPROVED_PUBLISHED / IMPLEMENTATION_AUTHORIZED | [Authority receipt](pf02_b_b5_plan_acceptance.md); next gate FIXED_HEAD_WHOLE_IMPLEMENTATION_REVIEW. |
+| PF02-B / B5 | TEST_EVIDENCE_DELTA_REVIEW_CANDIDATE / NOT_ACCEPTED | [Remediation evidence](pf02_b_b5_implementation.md); next gate FIXED_HEAD_DELTA_IMPLEMENTATION_REVIEW. |
 | Beyond B5 | NOT_STARTED / NOT_YET_SCOPED | — |
 
 Foundation design context (not milestone evidence):
@@ -196,13 +196,13 @@ current canonical documents.
 
 ## Current authorized next task
 
-**CURRENT ADDITIONAL PRODUCT TASK = B5_PRODUCT_IMPLEMENTATION_AUTHORIZED.**
+**CURRENT ADDITIONAL PRODUCT TASK = B5_TEST_EVIDENCE_REMEDIATION_AUTHORIZED.**
 
 Read [B5 plan approval and execution authority](pf02_b_b5_plan_acceptance.md). The operator approved plan publication and implementation start together on 2026-10-02, including branch, tests, commits, push, Draft implementation PR and execution bookkeeping. PR #67 published unchanged revision 0.4. Plan re-approval and repeated whole-plan review are not required.
 
-Use the actual main SHA after this authority publication as IMPLEMENTATION_BASE_SHA; record it in the implementation evidence. Preserve the six-task plan, AC01–AC19, frozen B1–B4 and migration bytes. Prepare isolated official Node 24.21.0 and verify it without changing global environments or repository pins. B5PDR2-L01 remains OPEN_NON_BLOCKING / IMPLEMENTATION_PREFLIGHT until actual evidence.
+Implementation base is `397fa5a08897f70ada025a5fde931b9aec1179a9`; branch `feat/pf02-b-b5-membership-termination`; PR68 remains Draft/NOT_ACCEPTED. Preserve checkpoint186843f and all six existing commits through DELTA_BASE `65a486b4f2c180172b43ae50ff2999cb2faf0881`. [Evidence](pf02_b_b5_implementation.md) records supplied independent whole review CHANGES_REQUIRED B0/H0/M1/L2 and authorized test-only remediation. MEDIUM-1: non-consuming observer and controls; LOW-1: classifier restored to B1 catalog; LOW-2: .tsx reference. Product/frozen/plan/spec bytes remain unchanged. AC16 stays PARTIAL pending independent delta acceptance; B5PDR2-L01 is independently RESOLVED in its defined scope. AC18 stays PARTIAL: original HEAD/BASE Mobile132/133 failures remain FAILED/OPEN/ROOT_CAUSE_NOT_ESTABLISHED; no Mobile rerun or acceptance inferred.
 
-Next gate: **FIXED_HEAD_WHOLE_IMPLEMENTATION_REVIEW** after the implementation candidate and its nine required CI jobs. Independent implementation review has not run. Implementation PR Ready/merge, PF02-C/F43, role mutation, roster/onboarding, real data, provider/IAM and production hosting remain unauthorized. The 2026-10-05 target does not waive gates.
+Next gate: **FIXED_HEAD_DELTA_IMPLEMENTATION_REVIEW** after corrected candidate local/safety checks and its nine required CI jobs. Review only65a486b to the new fixed HEAD and direct dependencies. Supplied whole reviewer runtime was NOT_RUN; executor validation is separate from independent acceptance. Exact new HEAD/CI/sync receipts belong in PR68 and the rolling handoff after freeze. Ready/merge, PF02-C/F43, real data and production remain unauthorized.
 
 ## Private artifact rule
 

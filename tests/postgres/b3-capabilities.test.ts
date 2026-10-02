@@ -23,13 +23,16 @@ it("AC17 exposes the exact B3 admin capability contract", async () => {
       CASE WHEN fn.oid IS NULL THEN false
            ELSE has_function_privilege(role_name,fn.oid,'EXECUTE') END AS execute
     FROM fn CROSS JOIN (VALUES
-      ('bm_b1_capability_owner'),('bm_b1_web'),('bm_b1_login'),('bm_pf02a_runtime'),('bm_b4_assignment_owner')
+      ('bm_b1_capability_owner'),('bm_b1_web'),('bm_b1_login'),('bm_pf02a_runtime'),('bm_b4_assignment_owner'),
+      ('bm_b5_membership_owner'),('bm_b5_effective_admin_probe_owner')
     ) roles(role_name) ORDER BY role_name`);
   expect(privileges.rows).toEqual([
     { role_name: "bm_b1_capability_owner", execute: true },
     { role_name: "bm_b1_login", execute: false },
     { role_name: "bm_b1_web", execute: true },
     { role_name: "bm_b4_assignment_owner", execute: true },
+    { role_name: "bm_b5_effective_admin_probe_owner", execute: false },
+    { role_name: "bm_b5_membership_owner", execute: false },
     { role_name: "bm_pf02a_runtime", execute: false },
   ]);
   // A NULL ACL means PostgreSQL's default function ACL (including PUBLIC EXECUTE),

@@ -27,3 +27,6 @@ export * from "./b3/building-registration";
 export * from "./b4/ports";
 export * from "./b4/errors";
 export * from "./b4/property-assignment";
+export * from "./b5/errors";
+export * from "./b5/ports";
+export * from "./b5/membership-termination";
