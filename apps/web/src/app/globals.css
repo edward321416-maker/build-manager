@@ -306,12 +306,25 @@ button:disabled {
   opacity: 0.55;
 }
 
-.core-flow form { display: grid; gap: 1rem; margin-block: 1.5rem; max-width: 42rem; }
+.core-flow { display: block; place-content: normal; justify-items: normal; width: min(100%, 48rem); margin-inline: auto; padding: clamp(1rem, 4vw, 2rem); overflow-wrap: anywhere; }
+.core-flow > * + * { margin-top: 1rem; }
+.core-flow h2 { font-size: 1.25rem; font-weight: 700; }
+.core-flow form { display: grid; gap: 1rem; margin-block: 1.5rem; max-width: 100%; }
 .core-flow label { display: grid; gap: .4rem; }
 .core-flow textarea, .core-flow input[type="password"] { font: inherit; padding: .8rem; border: 1px solid #426057; border-radius: .375rem; max-width: 100%; }
 .core-flow textarea { min-height: 7rem; resize: vertical; }
-.core-flow > button { margin: .3rem; }
+.core-flow button, .core-flow select, .core-flow input[type="password"], .core-flow input[type="text"] { min-height: 2.75rem; max-width: 100%; }
+.core-flow select, .core-flow textarea, .core-flow input[type="password"] { width: 100%; min-width: 0; }
+.core-flow .core-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.core-flow .core-actions button { flex: 1 1 auto; }
+.core-flow .field-check { display: flex; }
+.core-flow .field-check label { min-height: 2.75rem; align-content: center; flex: 1; }
+.core-flow .core-result { padding: 1rem; border: 1px solid #c9c1ad; border-radius: .5rem; background: #fffdf7; }
+.core-flow .core-result p + p { margin-top: .5rem; }
+.core-flow .core-work-status { font-size: 1.2rem; font-weight: 700; }
+.core-flow .tenant-page, .core-flow .landlord-page { width: 100%; padding: 0; margin: 1.5rem 0; }
 .core-flow li { margin-block: .6rem; }
+.core-flow li button { width: 100%; text-align: left; }
 
 :focus-visible {
   outline: 3px solid #7b4c2f;

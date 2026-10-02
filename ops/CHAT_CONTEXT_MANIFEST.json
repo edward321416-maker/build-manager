@@ -722,7 +722,7 @@
     "next_gate": "ACTUAL_EXPO_RUNTIME_VERIFICATION_AND_CONSOLIDATED_FEEDBACK",
     "goal": "RUNNABLE_CORE_FLOW_RC1_DELIVERED",
     "goal_achieved": false,
-    "note": "No new approval/review gate. Actual Web roundtrip and restart previously verified. Renewed operator-authorized Expo startup on2026-10-03 was again rejected before process creation; separate Web static export passed9routes. Native/device/LAN NOT_RUN. Original Mobile failures retained. Prior256f47d CI9success remains a separate generation; subsequent exact-head receipts are on Draft PR70. New Google sync pending: transport unavailable."
+    "note": "Web usability continued from91db051: actual320px audit; controls/result/session/error/empty guidance fixed; final core browser7 and relevant Web checks pass. No Expo startup was repeated or bypassed in this phase. Formal host permission conditions must be confirmed before actual Expo execution; native/device/LAN NOT_RUN. Original failures retained. Exact-head CI receipts remain on Draft PR70; Google sync pending. No final merge or deployment."
   },
   "b3_closure": {
     "state": "VERIFIED_FROZEN",

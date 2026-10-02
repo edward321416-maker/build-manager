@@ -207,6 +207,8 @@ Finish the blocked Expo runtime verification and consolidate app feedback. Draft
 
 Resume2026-10-03: same main and PR70 HEAD256f47d confirmed; operator renewed execution authority. Automatic review again rejected Expo startup before process creation. Separate Expo Web static export passed9routes, synthetic preparation preserved the database, and existing Web returned200. No new Expo runtime or Mobile test claim. Read the [resume receipt](core_flow_rc1.md#2026-10-03-resumed-runtime-check); this is an executor restriction, not an approval/review gate. New external sync is pending because the Google transports are unavailable in this session.
 
+Web usability follow-up from91db051: operator explicitly prohibited repeating/bypassing Expo startup while authorizing Web improvements. Actual320px audit led to compact44px controls, saved/result descriptions and session/error/empty guidance; nested session loss now clears parent content too. Final local core browser7/7 (original4+new3), Web465, existing browser23, typecheck/lint/build passed. Failed intermediate runs and the exact peer-list before/after oracle are preserved in [the implementation receipt](core_flow_rc1.md#2026-10-03-web-usability-implementation). Web remains on3130 with the same database. Continue existing Mobile goal only after formally allowed host conditions are confirmed; no Expo startup attempt occurred in this phase. No final merge/deployment. Current new-head CI receipts are on PR70; Google sync pending.
+
 ## Private artifact rule
 
 Do **not** assume a new session can read local machine paths. Planning artifacts, private review

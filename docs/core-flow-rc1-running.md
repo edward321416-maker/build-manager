@@ -21,6 +21,8 @@ Open **http://127.0.0.1:3130/core**. `--prepare` prints the private access-code 
 4. Refresh the tenant view and reopen unit history. Completion is a human-entered record, separate from route approval or proof of repair.
 5. Stop/restart the Web server. Tickets remain in the named PostgreSQL volume. Do not remove that volume to restart.
 
+The small-screen Web flow was exercised at320px; result layout also checked390/768/1280px. Saved intake and handling show a confirmation and a building/unit result summary. Initial loading disables code entry; expired or revoked access clears the protected screen and directs you to a fresh code. A failed save keeps the input: use the read-only refresh to check history before submitting again, because an interrupted response does not prove the save failed. Empty lists and missing unit assignments explain the next step. These are Web checks, not Expo/device evidence.
+
 Codes last55minutes. Run `--prepare` again to issue fresh codes for the same synthetic accounts while retaining tickets, then sign in with the new codes. Logging out revokes that code's session. Browser refresh retains its HttpOnly session; Mobile stores its code only in memory and requires re-entry after app restart.
 
 ## Existing Expo app
@@ -48,4 +50,4 @@ npx --no-install playwright test --config playwright.core.config.ts
 Pop-Location
 ```
 
-Prepare fresh session codes first. The four core browser tests use synthetic local state, disable trace/video, and save only post-login synthetic screenshots outside Git. They have their own report and do not replace or feed the existing60-test B1 checker. See [execution evidence](../ops/core_flow_rc1.md) for full regressions and retained failures.
+Prepare fresh session codes first. The seven core browser tests (original4 plus usability3) use synthetic local state, disable trace/video, and save only post-login or cleared-code synthetic screenshots outside Git. Controlled network/empty-state responses are explicitly distinguished from actual API/database checks. They have their own report and do not replace or feed the existing60-test B1 checker. See [execution evidence](../ops/core_flow_rc1.md) for full regressions and retained failures.

@@ -22,13 +22,14 @@ test("Web tenant creates, another browser manager handles, tenant reloads and re
 
 test("real native bearer contract denies peer/foreign/manager creation and anonymous access",async({request})=>{
   const keys=await codes(),headers=(who:string)=>({Authorization:`Bearer ${keys[who]}`});
+  const peerBefore=await request.get("/api/v2/core/tickets",{headers:headers("tenantPeer")});expect(peerBefore.status()).toBe(200);const ownTickets=await peerBefore.json();
   const units=await request.get("/api/v2/core/units",{headers:headers("tenant")});expect(units.status()).toBe(200);const unit=(await units.json())[0].id;
   const created=await request.post("/api/v2/core/tickets",{headers:headers("tenant"),data:{unitId:unit,issueType:"HEATING",rawUserText:"가스 냄새가 나요"}});expect(created.status()).toBe(201);const t=await created.json();expect(t.detail.status).toBe("SAFETY_ESCALATED");
   for(const who of ["tenantPeer","tenantOther","otherTenant","otherManager"]){const r=await request.get(`/api/v2/core/tickets/${t.ticketId}`,{headers:headers(who)});expect(r.status()).toBe(404);expect(await r.text()).not.toContain(t.ticketId);}
   expect((await request.get(`/api/v2/core/tickets/${t.ticketId}`)).status()).toBe(401);
   expect((await request.post(`/api/v2/core/tickets/${t.ticketId}/handling`,{headers:headers("tenant"),data:{status:"IN_PROGRESS",message:"forbidden"}})).status()).toBe(403);
   expect((await request.post("/api/v2/core/tickets",{headers:headers("manager"),data:{unitId:unit,issueType:"LEAK",rawUserText:"forbidden"}})).status()).toBe(403);
-  const list=await request.get("/api/v2/core/tickets",{headers:headers("tenantPeer")});expect(await list.json()).toEqual([]);
+  const list=await request.get("/api/v2/core/tickets",{headers:headers("tenantPeer")});expect(list.status()).toBe(200);const peerAfter=await list.json();expect(peerAfter).toEqual(ownTickets);expect(peerAfter.map((ticket:{ticketId:string})=>ticket.ticketId)).not.toContain(t.ticketId);
 });
 
 test("text intake, manager follow-up and tenant answer use the same persistent protocol",async({request})=>{
