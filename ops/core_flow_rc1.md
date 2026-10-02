@@ -45,10 +45,28 @@ The persisted development DB was created while migration0011 was being developed
 
 ## Remaining limits and execution blocker
 
-Two local Expo dev-server startup requests were rejected by automatic approval review (`blocked by policy`), including a narrower offline/loopback attempt. No more startup attempts were made. Thus Expo Web interaction, physical-device LAN reachability, APK and native-device runtime remain NOT_RUN. Android/iOS exports and React Native component tests do not replace runtime evidence. Available interface inspection found no verified phone-accessible private LAN; PC localhost is not asserted to work on a phone.
+In the initial execution, two local Expo dev-server startup requests were rejected by automatic approval review (`blocked by policy`), including a narrower offline/loopback attempt. That execution made no further startup attempts. The separately authorized resumed attempt is recorded below. Expo Web interaction, physical-device LAN reachability, APK and native-device runtime remain NOT_RUN. Android/iOS exports and React Native component tests do not replace runtime evidence. Available interface inspection found no verified phone-accessible private LAN; PC localhost is not asserted to work on a phone.
 
 The first RC1 Mobile failure remains FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED. Later RC1 cold and warm passes neither diagnose that failure nor resolve the original B5/B3 failures. No BASE re-diagnosis was performed. No new security/data-loss failure is known from the executed checks, but this is not independent review or acceptance.
 
 The launcher defaults to loopback. An explicit private interface is required for LAN serving; public interfaces and wildcard hosts are rejected. Synthetic codes expire after55minutes and are renewed by `--prepare`, preserving users and tickets. Development startup does not delete containers/volumes or overwrite a pre-existing setup without its matching private state.
 
 Next work: run the blocked Expo UI against the same API, verify an actual phone-accessible address/device if available, then consolidate user feedback. Pagination beyond100 tickets/200 units, real photo upload, provider login, notifications and visual polish remain backlog. Do not mark RUNNABLE_CORE_FLOW_RC1_DELIVERED for both platforms until Expo runtime is actually verified.
+
+## 2026-10-03 resumed runtime check
+
+The operator renewed the same RC1 implementation/startup authorization. Live main remained `e9144fac807f39544932baac25b11f836658dbb3`; local and Draft PR70 HEAD both remained `256f47dd64b8f9f316bbb6669774efd1b29d34ea`, with a clean worktree before this documentation delta. Existing three commits and all product bytes are preserved. Fullstack-guardian remains the applied implementation skill; no new tool installation or redesign was needed.
+
+The previous exact-HEAD runs36993344577/36993344588 were re-read as SUCCESS, and their [fixed receipt](https://github.com/edward321416-maker/build-manager/pull/70#issuecomment-5950048391) was read back. Those tests were not rerun locally or attributed to this later documentation candidate. A new published HEAD requires its own hosted receipts.
+
+| Resumed action | Observed result |
+| --- | --- |
+| `node --version` / `npm --version` | Project-isolated24.21.0 /11.19.0; no global/version/lock/workflow changes |
+| `npx --no-install expo start --web --offline --localhost --port 8081` from apps/mobile | Process creation rejected by automatic approval review: `blocked by policy`; no process exit code, app log or runtime evidence exists for this attempt. No detailed reason was supplied. No alternate startup was used to bypass rejection. |
+| `npx --no-install expo export --platform web --output-dir <private-output>` from apps/mobile | Exit0; nine static routes including `/core`; Web910 modules and server renderer959 modules. `EXPO_PUBLIC_API_URL` was loopback3130; CI=1. Static compilation only, no served UI claim. |
+| `node --experimental-transform-types scripts/core-flow-dev.mjs --prepare` | Exit0; no pending migrations; same synthetic accounts renewed for55minutes and existing database retained |
+| HTTP GET `http://127.0.0.1:3130/core` | 200 from the existing built Web server; not a new round-trip test |
+
+The private export log `rc1-resume-web-export-20261003.log` has SHA256 `6eabab8718fdcabaa86f27b410a55d73895bdc761300e9c089e549e2dd28ae8c`. Original failed logs remain intact. The rejected startup did not create its proposed redirected log; the tool rejection is the evidence. No new Mobile Jest run or root-cause conclusion is claimed. Expo/device/APK runtime and phone-accessible LAN remain NOT_RUN; the two-platform delivery goal remains unachieved because of the actual execution constraint. Web remains available independently.
+
+This documentation delta also corrects the obsolete current-task B5 remediation paragraph in STATUS; original B5 evidence and acceptance are unchanged. Prior native Google sync remains historical verified evidence. Google Docs/Sheets transports are not exposed in this resumed session; this new event is PENDING_SYNC in the local queue, without replacing prior receipts.

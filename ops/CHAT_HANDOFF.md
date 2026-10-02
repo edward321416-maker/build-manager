@@ -205,6 +205,8 @@ Read [execution evidence](core_flow_rc1.md) and [run instructions](../docs/core-
 
 Finish the blocked Expo runtime verification and consolidate app feedback. Draft publication/normal pushes and bookkeeping are authorized; no final Ready/merge, deployment, paid account/OAuth/IAM, destructive change or real personal data. Fixed publication HEAD and CI receipts live on the new Draft PR. B5 is already accepted/merged: do not restart its review, merge or local Mobile diagnosis. New Mobile initial132/133 failure remains OPEN despite subsequent cold136 and finalwarm137 passes; no root-cause resolution is inferred.
 
+Resume2026-10-03: same main and PR70 HEAD256f47d confirmed; operator renewed execution authority. Automatic review again rejected Expo startup before process creation. Separate Expo Web static export passed9routes, synthetic preparation preserved the database, and existing Web returned200. No new Expo runtime or Mobile test claim. Read the [resume receipt](core_flow_rc1.md#2026-10-03-resumed-runtime-check); this is an executor restriction, not an approval/review gate. New external sync is pending because the Google transports are unavailable in this session.
+
 ## Private artifact rule
 
 Do **not** assume a new session can read local machine paths. Planning artifacts, private review

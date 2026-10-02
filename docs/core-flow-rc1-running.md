@@ -34,6 +34,8 @@ npx --no-install expo start --offline --localhost --port 8081
 
 Open the Expo Web entry and choose **RC1 수리 접수·처리**, or visit `/core`. Enter the same synthetic tenant/manager codes to use the shared API and DB. **These startup requests were blocked by automatic approval review in the executor session; Expo UI execution is not yet verified.** Component tests and Android/iOS JS/assets exports passed; neither is an APK/device run.
 
+The operator-authorized 2026-10-03 resume again received `blocked by policy` before process creation for `expo start --web --offline --localhost --port 8081`. A separate Expo Web static export succeeded with nine routes including `/core`. This verifies compilation, not browser interaction or native execution; see the [resume receipt](../ops/core_flow_rc1.md#2026-10-03-resumed-runtime-check). Existing Web startup and synthetic data preparation remain usable.
+
 For a physical phone, loopback is not usable. Configure `CORE_FLOW_HOST` to an actual private IPv4 interface on the development PC and set `EXPO_PUBLIC_API_URL` to that address/port before starting Expo with the appropriate LAN settings. The launcher rejects wildcard/public hosts. Device reachability and any firewall requirements must be verified separately; do not alter firewall/IAM or connect a new account automatically. No phone-accessible LAN was verified in this execution.
 
 ## Reproduce the new checks
