@@ -344,3 +344,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 
 - Remediation reconciliation: current event PR68-TEST-EVIDENCE-RED-GREEN-20261002 appended through native Google Sheets and read back at A160:D160. Prior coordinator intake rows and historical backlog are preserved; no queue reconstruction. Full verification/fixed-head CI and rolling handoff receipts remain pending this phase.
 - Event PR68-TEST-EVIDENCE-LOCAL-VERIFIED-20261002; sync_status=pending; tokens=unknown. FullPG297 and bounded local checks passed. Final safety/commit/publication/exact-head CI and final rolling handoff readback receipts will be external after freeze; no historical backlog is cleared.
+
+- RC1 local phase CORE-FLOW-RC1-LOCAL-20261002 synced through native Google Sheets A173:D173 and read back. Final fixed-HEAD Draft/CI and rolling handoff receipt remains PENDING until publication. B5 successor acceptance is reconciled in ops/pf02_b_b5_acceptance.md; original queues and failed logs are preserved.

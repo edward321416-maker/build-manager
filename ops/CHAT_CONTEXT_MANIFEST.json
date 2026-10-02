@@ -6,7 +6,7 @@
     "baseline_main": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d",
     "baseline_meaning": "canonical B2 closure main used to build this bootstrap package; provenance only, not a permanent claim about the current main",
     "current_main": "LIVE_READ_REQUIRED",
-    "status": "B5_PLAN_PUBLISHED_IMPLEMENTATION_AUTHORIZED",
+    "status": "CORE_FLOW_RC1_WEB_RUNNABLE_EXPO_EXECUTION_BLOCKED",
     "snapshot_date": "2026-10-02",
     "staleness_rule": [
       "Always read the live main SHA yourself; never take current_main from this file.",
@@ -105,12 +105,12 @@
       "canonical_closure_receipt": "ops/pf02_b_b4_closure.md",
       "authorization_note": "Historical B4 plan/implementation/resume authorization is completed history. The erratum receipt's READY_FOR_RESUME_DECISION and PARTIAL_LOCAL_NOT_ACCEPTED states are pre-implementation snapshots, not current state. B4 closure authorizes no later work; current_product_task remains the only current product-work authority."
     },
-    "PF02-B/later_slices": "BEYOND_B5_NOT_STARTED_NOT_YET_SCOPED",
+    "PF02-B/later_slices": "CORE_FLOW_RC1_AUTHORIZED_BY_ISSUE69_OTHER_SLICES_NOT_SCOPED",
     "D01": "RESOLVED_FOR_B1_ONLY",
     "B1I-M01": "CLOSED_BY_B2",
     "B1I-M02": "DOCUMENT_RECONCILED",
     "PF02-B/B5": {
-      "state": "TEST_EVIDENCE_DELTA_REVIEW_CANDIDATE_NOT_ACCEPTED",
+      "state": "ACCEPTED_AND_MERGED_WITH_DISCLOSED_LOCAL_MOBILE_RISK",
       "approved_spec": "docs/superpowers/specs/2026-09-30-pf02-b-b5-organization-membership-termination-last-admin-safety-design.md",
       "spec_blob": "3c33c817236f7b9d3c6a404125f94e48913d7a8f",
       "design_pr": 63,
@@ -125,7 +125,7 @@
       },
       "retained_limits": [
         "B5D2-L02",
-        "AC16_PARTIAL_PENDING_DELTA_ACCEPTANCE",
+        "AC16_ORIGINAL_QUALIFICATIONS",
         "AC18_PARTIAL_LOCAL_MOBILE"
       ],
       "f_cases": {
@@ -135,8 +135,8 @@
       },
       "implementation_plan_authorized": true,
       "implementation_authorized": true,
-      "ready_or_merge_authorized": false,
-      "authorization_note": "Operator authorization on 2026-10-02 permits B5 implementation, tests, isolated branch, commits, push and Draft PR under the approved revision 0.4. Implementation Ready/merge, real data and production deployment remain unauthorized. See ops/pf02_b_b5_plan_acceptance.md.",
+      "ready_or_merge_authorized": true,
+      "authorization_note": "Completed B5-only acceptance/merge; no standing future-candidate Mobile waiver. RC1 authority is separate issue69.",
       "approved_plan": "docs/superpowers/plans/2026-10-01-pf02-b-b5-membership-termination-foundation.md",
       "plan_blob": "61f44c6dc50d04e978602cfcd914ba85baba8721",
       "plan_candidate_head": "857b1f409c304c1a4835691352b59a91c5111958",
@@ -146,14 +146,18 @@
       "implementation_evidence": "ops/pf02_b_b5_implementation.md",
       "implementation_review": {
         "delta_base": "65a486b4f2c180172b43ae50ff2999cb2faf0881",
-        "supplied_verdict": "CHANGES_REQUIRED B0/H0/M1/L2",
+        "supplied_verdict": "WHOLE_REVIEW_THEN_DELTA_ACCEPTED",
         "independent_runtime": "NOT_RUN",
         "B5PDR2-L01": "RESOLVED",
-        "AC16": "PARTIAL",
+        "AC16": "NATIVE_SURVIVAL_GAP_INDEPENDENTLY_ACCEPTED",
         "AC18": "PARTIAL",
-        "receipt": "https://github.com/edward321416-maker/build-manager/pull/68#issuecomment-5945240102"
-      }
-    }
+        "receipt": "https://github.com/edward321416-maker/build-manager/pull/68#issuecomment-5946696436"
+      },
+      "accepted_implementation_head": "1e7a684599fc1359cfef3f7c5cb289f75b0df9b5",
+      "implementation_main": "e9144fac807f39544932baac25b11f836658dbb3",
+      "acceptance_receipt": "ops/pf02_b_b5_acceptance.md"
+    },
+    "Core flow RC1": "WEB_RUNNABLE_EXPO_EXECUTION_BLOCKED_NOT_ACCEPTED"
   },
   "acceptance_receipts": [
     {
@@ -706,25 +710,19 @@
     "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"
   },
   "current_product_task": {
-    "status": "B5_TEST_EVIDENCE_DELTA_REVIEW_CANDIDATE_NOT_ACCEPTED",
-    "last_closed_slice": "PF02-B/B4",
-    "current_design_slice": "PF02-B/B5",
-    "current_design_state": "DESIGN_APPROVED_PUBLISHED",
-    "implementation_plan_authorized": true,
+    "status": "CORE_FLOW_RC1_WEB_RUNNABLE_EXPO_EXECUTION_BLOCKED",
+    "last_closed_slice": "PF02-B/B5",
+    "authorization_receipt": "https://github.com/edward321416-maker/build-manager/issues/69",
     "implementation_authorized": true,
     "ready_or_merge_authorized": false,
-    "deadline": "2026-10-05",
-    "execution_method_after_plan_approval": "Supplied whole review complete with CHANGES_REQUIRED; bounded test/evidence remediation, fresh exact-head nine-job CI, then delta and direct-dependency independent review.",
-    "next_gate": "FIXED_HEAD_DELTA_IMPLEMENTATION_REVIEW",
-    "note": "Operator delivered remediation instructions: same PR68 branch, three test files plus bounded evidence/ops only. Product/frozen/plan/spec preserved. No Mobile re-diagnosis or plan reapproval. AC16/AC18 PARTIAL; B5PDR2-L01 RESOLVED; Ready/merge/production unauthorized.",
-    "authorization_receipt": "https://github.com/edward321416-maker/build-manager/pull/67#issuecomment-5936216651",
-    "implementation_base_sha": "397fa5a08897f70ada025a5fde931b9aec1179a9",
-    "implementation_branch": "feat/pf02-b-b5-membership-termination",
-    "implementation_evidence": "ops/pf02_b_b5_implementation.md",
-    "blocking_check": "Local Mobile failure remains FAILED/OPEN/ROOT_CAUSE_NOT_ESTABLISHED; candidate-specific operator exception permits review Draft after other applicable local/safety checks pass. No waiver or acceptance.",
-    "review_publication_exception": "Explicit operator resume instruction: preserve397fa5a/186843f/fivecommits; bounded current Mobile diagnosis, remaining checks, normal push/Draft and exact-head9CI authorized. No timeout/skip/assertion relaxation; Ready/merge/production unauthorized.",
-    "local_verification": "Remediation targetedPG43/4files and fullPG297/28files; shared435/35files; typecheck/lint and scanner3+14 PASS. Final index/history and exact-head9CI receipts recorded in PR after staging/freeze. Earlier deps/Doctor21/exports29+25 are historical. Original HEAD/BASE Mobile132/133 each retained; no new Mobile run or cause/non-regression proof.",
-    "delta_base_sha": "65a486b4f2c180172b43ae50ff2999cb2faf0881"
+    "implementation_base_sha": "e9144fac807f39544932baac25b11f836658dbb3",
+    "implementation_branch": "feat/core-flow-rc1",
+    "implementation_evidence": "ops/core_flow_rc1.md",
+    "run_instructions": "docs/core-flow-rc1-running.md",
+    "next_gate": "ACTUAL_EXPO_RUNTIME_VERIFICATION_AND_CONSOLIDATED_FEEDBACK",
+    "goal": "RUNNABLE_CORE_FLOW_RC1_DELIVERED",
+    "goal_achieved": false,
+    "note": "No new approval/review gate. Actual Web roundtrip and restart verified. Automatic review rejected Expo startup; native/device/LAN NOT_RUN. Original and current initial Mobile failures retained; later cold136/warm137 passes do not diagnose them. Draft and exact-head CI receipts on PR after freeze."
   },
   "b3_closure": {
     "state": "VERIFIED_FROZEN",

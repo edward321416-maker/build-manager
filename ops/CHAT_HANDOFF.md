@@ -66,8 +66,8 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B / B2 | VERIFIED / FROZEN | `ops/pf02_b_b2_acceptance.md` |
 | PF02-B / B3 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b3_closure.md); implementation/remediation/F01 evidence accepted and published; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed |
 | PF02-B / B4 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b4_closure.md); PR #58 accepted HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307` merged as `6cf71049c479d100ec6e949002c2e30c8df81eba`; retained B4I-L01/B4R-L01 LOW and B4D-L01..L04 boundaries remain disclosed. [Erratum publication](pf02_b_b4_erratum_publication.md) is a historical pre-implementation snapshot. |
-| PF02-B / B5 | TEST_EVIDENCE_DELTA_REVIEW_CANDIDATE / NOT_ACCEPTED | [Remediation evidence](pf02_b_b5_implementation.md); next gate FIXED_HEAD_DELTA_IMPLEMENTATION_REVIEW. |
-| Beyond B5 | NOT_STARTED / NOT_YET_SCOPED | — |
+| PF02-B / B5 | ACCEPTED_AND_MERGED_WITH_DISCLOSED_LOCAL_MOBILE_RISK | [Successor receipt](pf02_b_b5_acceptance.md), original failures and AC18 PARTIAL retained. |
+| Core flow RC1 | WEB_RUNNABLE / EXPO_EXECUTION_BLOCKED | [Issue69 authority](https://github.com/edward321416-maker/build-manager/issues/69), [execution](core_flow_rc1.md), [running](../docs/core-flow-rc1-running.md). Other unscoped slices remain unauthorized. |
 
 Foundation design context (not milestone evidence):
 `docs/production-foundation/README.md`, `docs/production-foundation/00_foundation_blueprint.md`,
@@ -91,7 +91,7 @@ Closed. Do not re-derive, re-propose or re-ask these. Each is evidenced by the r
 - Modular Monolith, explicit SQL, application ports. No ORM.
 - B3 Building Registration Foundation is VERIFIED / FROZEN at the approved design/plan and accepted implementation boundary. Retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed; none authorizes reopening or later product work.
 - B4 Property Assignment Mutation Foundation is VERIFIED / FROZEN: exact-resource GET/PUT/DELETE for an ORG_ADMIN on a current same-org ACTIVE PROPERTY_STAFF membership and ACTIVE Property, migration 0009, `bm_b4_assignment_owner` SECURITY DEFINER boundary and canonical B4D-L04 method boundary. Retained B4I-L01/B4R-L01 and B4D-L01..L04 do not authorize reopening or later work.
-- B5 design and revision 0.4 plan are approved and published. Separate [execution authority](pf02_b_b5_plan_acceptance.md) permits implementation through a Draft PR; implementation Ready/merge, PF02-C and later slices remain unauthorized.
+- B5 design/plan approval, implementation review and candidate-specific Mobile-risk acceptance are completed history. [Successor receipt](pf02_b_b5_acceptance.md) records merge e9144fa. Issue69 separately authorizes core-flow RC1 through runnable development delivery and Draft publication; no final RC1 merge or production.
 
 ## Do not reopen without new evidence
 
@@ -183,7 +183,8 @@ Pull requests:
 
 | PR | State | Role |
 | --- | --- | --- |
-| #67 | MERGED | Approved revision 0.4 plan publication; merge/main `9ee208b996ad945e0e8dea828d3f0e77b6ccbe42`; separate execution authority is recorded in the B5 receipt |
+| #68 | MERGED | B5 accepted candidate1e7a684 integrated at e9144fa with disclosed local Mobile risk; [receipt](pf02_b_b5_acceptance.md) |
+| #67 | MERGED | Approved revision0.4 plan publication; original plan/spec bytes retained |
 | #63 | MERGED | Historical B5 design publication; merge/main `08fd7eb2ebd2aa3ba61efc089484b479c6f2b764`; later plan and implementation authority is recorded separately |
 | #35 | MERGED | B2 canonical closure |
 | #34 | MERGED | B2 implementation |
@@ -196,13 +197,13 @@ current canonical documents.
 
 ## Current authorized next task
 
-**CURRENT ADDITIONAL PRODUCT TASK = B5_TEST_EVIDENCE_REMEDIATION_AUTHORIZED.**
+**CURRENT ADDITIONAL PRODUCT TASK = CORE_FLOW_RC1_IMPLEMENTATION_FIRST.**
 
-Read [B5 plan approval and execution authority](pf02_b_b5_plan_acceptance.md). The operator approved plan publication and implementation start together on 2026-10-02, including branch, tests, commits, push, Draft implementation PR and execution bookkeeping. PR #67 published unchanged revision 0.4. Plan re-approval and repeated whole-plan review are not required.
+Authority: [issue69](https://github.com/edward321416-maker/build-manager/issues/69) and the operator-delivered RC1 implementation directive. Base/POLICY_REF `e9144fac807f39544932baac25b11f836658dbb3`; branch `feat/core-flow-rc1`. Preserve the parent checkout and old B5 worktree/history. No intermediate plan approval or independent-review loop is required.
 
-Implementation base is `397fa5a08897f70ada025a5fde931b9aec1179a9`; branch `feat/pf02-b-b5-membership-termination`; PR68 remains Draft/NOT_ACCEPTED. Preserve checkpoint186843f and all six existing commits through DELTA_BASE `65a486b4f2c180172b43ae50ff2999cb2faf0881`. [Evidence](pf02_b_b5_implementation.md) records supplied independent whole review CHANGES_REQUIRED B0/H0/M1/L2 and authorized test-only remediation. MEDIUM-1: non-consuming observer and controls; LOW-1: classifier restored to B1 catalog; LOW-2: .tsx reference. Product/frozen/plan/spec bytes remain unchanged. AC16 stays PARTIAL pending independent delta acceptance; B5PDR2-L01 is independently RESOLVED in its defined scope. AC18 stays PARTIAL: original HEAD/BASE Mobile132/133 failures remain FAILED/OPEN/ROOT_CAUSE_NOT_ESTABLISHED; no Mobile rerun or acceptance inferred.
+Read [execution evidence](core_flow_rc1.md) and [run instructions](../docs/core-flow-rc1-running.md). Web tenant intake → manager questions/handling → tenant result → persistent unit history works through the shared scoped PostgreSQL API. Existing Expo source uses the same contract; component tests and JS/assets exports pass. Actual Expo dev-server startup, including offline/loopback, was rejected by automatic approval review; Expo/phone/APK runtime is NOT_RUN. Final two-platform RUNNABLE_CORE_FLOW_RC1_DELIVERED is not claimed.
 
-Next gate: **FIXED_HEAD_DELTA_IMPLEMENTATION_REVIEW** after corrected candidate local/safety checks and its nine required CI jobs. Review only65a486b to the new fixed HEAD and direct dependencies. Supplied whole reviewer runtime was NOT_RUN; executor validation is separate from independent acceptance. Exact new HEAD/CI/sync receipts belong in PR68 and the rolling handoff after freeze. Ready/merge, PF02-C/F43, real data and production remain unauthorized.
+Finish the blocked Expo runtime verification and consolidate app feedback. Draft publication/normal pushes and bookkeeping are authorized; no final Ready/merge, deployment, paid account/OAuth/IAM, destructive change or real personal data. Fixed publication HEAD and CI receipts live on the new Draft PR. B5 is already accepted/merged: do not restart its review, merge or local Mobile diagnosis. New Mobile initial132/133 failure remains OPEN despite subsequent cold136 and finalwarm137 passes; no root-cause resolution is inferred.
 
 ## Private artifact rule
 
