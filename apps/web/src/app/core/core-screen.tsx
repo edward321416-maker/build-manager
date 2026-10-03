@@ -69,7 +69,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
     catch(e){if(e instanceof ApiClientError&&(e.status===401||e.status===403))throw e;setPhotoMessage(photoError(e));}
   };
   const checkPhotos=async()=>{if(!selected)return;const ticket=await client.read(selected.ticketId),photos=await client.photos(selected.ticketId);setSelected(ticket);setPending(current=>current.filter(f=>!photos.some(p=>p.uploadId===f.uploadId)));setRevision(r=>r+1);setPhotoMessage(`저장된 사진 ${photos.length}장을 확인했습니다. ${ticket.workStatus==="COMPLETED"?"처리 완료된 접수에는 사진을 추가할 수 없습니다.":"남은 미전송 사진만 다시 전송할 수 있습니다."}`);};
-  return <main className="page-shell core-flow">
+  const Workspace=b1?"section":"main";
+  return <Workspace className="page-shell core-flow" aria-label="수리 접수 작업">
     <h1>우리 집 수리 접수</h1>
     <p>{b1?"B1 로그인 세션 · RC1 합성 주거 데이터 · 참고 사진 첨부 지원 · 업체 출동·알림은 지원하지 않습니다.":"RC1 합성 개발 계정 전용 · 참고 사진 첨부 지원 · 실제 로그인·업체 출동·알림은 지원하지 않습니다."}</p>
     {error?<div className="state-error" role="alert" tabIndex={-1} ref={errorPanel}><p>{error}</p><button disabled={busy} onClick={()=>void run(session?refresh:restore)}>다시 불러오기</button></div>:null}
@@ -120,5 +121,5 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
         {tickets.filter(t=>t.unitId===unit).length===0?<p>{!unit?"호실 배정 후 접수 이력을 볼 수 있습니다.":session.role==="TENANT"?"선택한 호실의 접수 내역이 없습니다. 위의 문제 접수에서 첫 내용을 남겨 주세요.":"선택한 호실의 접수 내역이 없습니다. 다른 호실을 선택하거나 전체 새로고침으로 새 접수를 확인해 주세요."}</p>:<ul>{tickets.filter(t=>t.unitId===unit).map(t=><li key={t.ticketId}><button disabled={busy||pending.length>0} onClick={()=>void run(async()=>{setSelected(await client.read(t.ticketId));setMessage("");})}>{t.detail.issueType==="HEATING"?"난방":"누수"} · {statuses[t.workStatus]} · {t.ticketId.slice(0,8)}</button><PhotoGallery compact client={client} ticketId={t.ticketId} revision={revision} /></li>)}</ul>}
       </>}
     </>}
-  </main>;
+  </Workspace>;
 }

@@ -37,7 +37,7 @@ export function CoreLoginScreen(){
   }catch{if(g===generation.current)setError("소속을 선택하지 못했습니다. 다시 선택해 주세요.");}
  };
  const logout=()=>{generation.current++;setScope(undefined);setAccess(null);setError("");setPhase("logout");logoutForm.current?.submit();};
- return <>
+ return <div className="core-b1-shell">
   <section className="page-shell core-flow core-account" aria-label="로그인과 내 소속">
    <h1>내 소속·호실</h1><p>B1 계정 로그인 · RC1 합성 주거 데이터</p>
    {error?<p role="alert">{error}</p>:null}
@@ -52,6 +52,8 @@ export function CoreLoginScreen(){
    </>:null}
    <form ref={logoutForm} action="/api/v2/session/logout" method="post"><input type="hidden" name="csrf" value={logoutCsrf}/></form>
   </section>
-  {scope?<CoreFlowPage key={scope.orgId+scope.csrf} b1={scope} onDenied={scopedDenied} onLogout={logout}/>:null}
- </>;
+  <div className="core-workspace">
+   {scope?<CoreFlowPage key={scope.orgId+scope.csrf} b1={scope} onDenied={scopedDenied} onLogout={logout}/>:null}
+  </div>
+ </div>;
 }

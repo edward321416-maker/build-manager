@@ -1,36 +1,72 @@
 import { test,expect } from "@playwright/test";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { mkdir,writeFile } from "node:fs/promises";
 import sharp from "sharp";
 import { sdkSession,base,privateRoot } from "./session";
 const saved=(page:import("@playwright/test").Page)=>page.getByRole("region",{name:"저장된 참고 사진",exact:true});
-test("synthetic SDK completion -> workspace -> tenant photo -> manager handling -> reconnect -> existing POST logout",async({browser})=>{
+const evidenceRoot=join(privateRoot,"desktop-presentation");
+async function layout(page:import("@playwright/test").Page,width:number){
+ await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toHaveCount(1);
+ await expect(page.locator("main main")).toHaveCount(0);
+ const account=await page.getByRole("region",{name:"로그인과 내 소속"}).boundingBox(),workspace=await page.getByRole("region",{name:"수리 접수 작업",exact:true}).boundingBox();
+ expect(account).not.toBeNull();expect(workspace).not.toBeNull();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ if(width>=1024){
+  expect(account!.x+account!.width).toBeLessThanOrEqual(workspace!.x);
+  expect(workspace!.width).toBeGreaterThan(width*.6);
+  expect(account!.y).toBe(workspace!.y);
+ }else{
+  expect(account!.y+account!.height).toBeLessThanOrEqual(workspace!.y);
+  expect(workspace!.width).toBeGreaterThan(width*.9);
+ }
+ // Inspect real control geometry and hit targets, without fixed pixel snapshots.
+ const controls=await page.evaluate(()=>Array.from(document.querySelectorAll('button,a,select,textarea,input:not([type="hidden"])')).map(el=>{
+  const r=el.getBoundingClientRect(),style=getComputedStyle(el),x=r.x+r.width/2,y=r.y+r.height/2;
+  const inView=r.width>0&&r.height>0&&r.y>=0&&r.bottom<=innerHeight;
+  return{tag:el.tagName,textContent:el.tagName==='SELECT'?'[server-scoped options]':el.textContent?.trim(),role:el.getAttribute('role'),parent:el.parentElement?.className,box:{x:r.x,y:r.y,width:r.width,height:r.height},position:style.position,inView,inside:r.x>=0&&r.right<=document.documentElement.clientWidth,hit:!inView||el.contains(document.elementFromPoint(x,y)),inShell:!!el.closest('.core-b1-shell')};
+ }));
+ expect(controls.filter(c=>c.box.width>0&&c.box.height>0).every(c=>c.inside&&c.inShell)).toBe(true);
+ expect(controls.filter(c=>c.inView).every(c=>c.hit)).toBe(true);
+ await mkdir(evidenceRoot,{recursive:true});
+ await writeFile(join(evidenceRoot,`controls-${width}.json`),JSON.stringify({width,account,workspace,controls},null,2));
+}
+for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace -> tenant photo -> manager handling -> reconnect -> existing POST logout (${width}px)`,async({browser})=>{
  const tenant=await sdkSession(browser),manager=await sdkSession(browser,"manager");
+ const viewport={width,height:width===1280?900:width===390?844:800};
+ const capture=(actor:string)=>join(evidenceRoot,`login-${actor}-${width===1280?'desktop':'mobile'}-${width}.png`);
  try{
-  const page=await tenant.context.newPage();await page.goto("/workspace");await page.getByRole("link",{name:"내 호실 수리 접수·사진·처리 이력 열기"}).click();
+  const page=await tenant.context.newPage();await page.setViewportSize(viewport);await page.goto("/workspace");await page.getByRole("link",{name:"내 호실 수리 접수·사진·처리 이력 열기"}).click();
   await expect(page.getByLabel("건물·호실")).toBeVisible();await expect(page.getByLabel("개발 접근 코드")).toHaveCount(0);
   expect((await page.getByRole("region",{name:"로그인과 내 소속"}).boundingBox())!.height).toBeLessThan(300);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await layout(page,width);
   await page.getByLabel("문제 설명").fill("로그인 연결 합성 누수 — 사진과 처리 이력");
   const bytes=await sharp(Buffer.from('<svg width="300" height="180" xmlns="http://www.w3.org/2000/svg"><rect width="300" height="180" fill="#edf3ef"/><path d="M35 45H140V100H265" fill="none" stroke="#718e94" stroke-width="25"/><path d="M140 122q-15 19 0 24q15-5 0-24" fill="#278dca"/><text x="12" y="168" font-size="13" fill="#244b43">SYNTHETIC LEAK SAMPLE</text></svg>')).png().toBuffer();
   await page.getByLabel("참고 사진 선택",{exact:true}).setInputFiles({name:"synthetic.png",mimeType:"image/png",buffer:bytes});
   const created=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");await page.getByRole("button",{name:"접수하기",exact:true}).click();const ticket=await (await created).json();
   await expect(saved(page).getByRole("img")).toHaveCount(1);await expect(page.getByText("사진을 저장했습니다.",{exact:false})).toBeVisible();
   await expect.poll(()=>saved(page).getByRole("img").evaluateAll(imgs=>imgs.every(img=>(img as HTMLImageElement).naturalWidth>0))).toBe(true);
-  await page.screenshot({path:join(privateRoot,"login-tenant-photo-320.png"),fullPage:true});
-  const m=await manager.context.newPage();await m.goto("/core");await m.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();
+  await page.evaluate(()=>scrollTo(0,0));await layout(page,width);await page.screenshot({path:capture("tenant"),fullPage:true});
+  const m=await manager.context.newPage();await m.setViewportSize(viewport);await m.goto("/core");await m.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();
   await expect(saved(m).getByRole("img")).toHaveCount(1);await m.getByLabel("처리 기록").fill("로그인한 관리자가 합성 사진 확인 후 처리 시작");await m.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(m.getByTestId("work-status")).toHaveText("처리중");
-  await m.screenshot({path:join(privateRoot,"login-manager-photo-320.png"),fullPage:true});
+  await expect.poll(()=>saved(m).getByRole("img").evaluateAll(imgs=>imgs.every(img=>(img as HTMLImageElement).naturalWidth>0))).toBe(true);
+  await m.evaluate(()=>scrollTo(0,0));await layout(m,width);await m.screenshot({path:capture("manager"),fullPage:true});
   await page.reload();await page.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();await expect(page.getByTestId("work-status")).toHaveText("처리중");await expect(saved(page).getByRole("img")).toHaveCount(1);
   const photos=await (await tenant.context.request.get(`/api/v2/core/tickets/${ticket.ticketId}/photos`,{headers:tenant.headers})).json();
-  await page.screenshot({path:join(privateRoot,"login-reconnected-320.png"),fullPage:true});
+  await page.evaluate(()=>scrollTo(0,0));await layout(page,width);await page.screenshot({path:capture("reconnected"),fullPage:true});
   const ending=page.waitForResponse(r=>r.url().endsWith("/api/v2/session/logout"));await page.getByRole("button",{name:"로그아웃",exact:true}).click();
   // No provider exists in this synthetic run. Local registry revoke still precedes its failure.
   expect((await ending).status()).toBe(503);
   expect((await tenant.context.request.get(photos[0].path,{headers:tenant.headers})).status()).toBe(401);
   await page.goto("/core");await expect(page.getByRole("link",{name:"계정으로 로그인"})).toBeVisible();await expect(page.getByRole("img",{name:/저장된 참고 사진/})).toHaveCount(0);
-  await page.screenshot({path:join(privateRoot,"login-logged-out-320.png"),fullPage:true});
+  await page.screenshot({path:capture("logged-out"),fullPage:true});
  }finally{await tenant.close();await manager.close();}
+});
+test("768px tablet uses the available width with account above workspace",async({browser})=>{
+ const tenant=await sdkSession(browser);
+ try{const page=await tenant.context.newPage();await page.setViewportSize({width:768,height:1024});await page.goto("/core");await expect(page.getByLabel("건물·호실")).toBeVisible();await layout(page,768);await page.screenshot({path:join(evidenceRoot,"login-tenant-tablet-768.png"),fullPage:true});}
+ finally{await tenant.close();}
 });
 test("ended occupancy, assignment and membership revoke B1 raw photo access",async({browser})=>{
  const tenant=await sdkSession(browser,"none"),staff=await sdkSession(browser,"none");
@@ -51,7 +87,7 @@ test("ended occupancy, assignment and membership revoke B1 raw photo access",asy
 });
 test("no-association and account switch clear prior actor UI, never offer developer-code fallback",async({browser})=>{
  const tenant=await sdkSession(browser),none=await sdkSession(browser,"none");
- try{const p=await none.context.newPage();await p.goto("/core");await expect(p.getByText("연결된 소속·호실이 없습니다.",{exact:false})).toBeVisible();await expect(p.getByRole("button",{name:"로그아웃"})).toBeVisible();await p.screenshot({path:join(privateRoot,"login-no-association-320.png"),fullPage:true});
+ try{const p=await none.context.newPage();await p.goto("/core");await expect(p.getByText("연결된 소속·호실이 없습니다.",{exact:false})).toBeVisible();await expect(p.getByRole("button",{name:"로그아웃"})).toBeVisible();await p.screenshot({path:join(evidenceRoot,"login-no-association-320.png"),fullPage:true});
   const page=await tenant.context.newPage();await page.goto("/core");await expect(page.getByLabel("문제 설명")).toBeVisible();await tenant.context.addCookies([{name:"__session",value:none.cookie,url:base,httpOnly:true,sameSite:"Lax"}]);
   // Visibility revalidation can already clear the old screen after cookie switch.
   // If still mounted, dispatch its refresh atomically rather than waiting for a removed button.

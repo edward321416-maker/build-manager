@@ -22,6 +22,15 @@ node scripts/core-flow-b1-open.mjs --tenant
 node scripts/core-flow-b1-open.mjs --manager
 ```
 
+The default viewport is **1280×900**. Add `--mobile` for **390×844**:
+
+```powershell
+node scripts/core-flow-b1-open.mjs --tenant --mobile
+node scripts/core-flow-b1-open.mjs --manager --mobile
+```
+
+`--capture` follows the selected viewport and saves `login-launcher-<actor>-desktop-1280.png` or `login-launcher-<actor>-mobile-390.png` in the existing private evidence directory. Without `--capture`, the browser remains open for use. These four headed launcher combinations were exercised during the desktop correction. The test-session helper still defaults to320×800.
+
 These explicitly use the installed Auth0 SDK testing helper, existing B1 completion endpoint and registered synthetic identities. They **do not authenticate with live Auth0**. No access code/secret is printed or placed in a URL. The helper visits `/api/v2/session/complete` → `/workspace`, then follows the RC1 entry link. A normal unseeded browser shows **계정으로 로그인**. That provider button is unavailable in synthetic SDK mode; use the explicit test helper rather than treating it as a live login.
 
 Select **내 소속** when more than one association exists; one association opens automatically. Confirm **건물·호실**, create a synthetic report and optional reference photos, then read/handle that ticket in the manager window. Refresh/reopen the tenant history to confirm the result. Switching organization clears unsaved text/photo selections; stored data remains in its own organization's history. An account without association gets connection guidance and logout, with no developer/admin fallback.
@@ -43,7 +52,38 @@ npm exec --workspace @build-manager/web -- playwright test --config playwright.c
 npm run test:postgres -- tests/postgres/core-flow-access.test.ts
 ```
 
-The five new browser cases use actual SDK cookies/B1 completion/PostgreSQL/Web, with no live provider. They remain separate from the frozen60-case B1 checker. See [login evidence](../ops/core_flow_rc1_login.md). Expo/native authentication and actual Expo/device runtime remain unexecuted.
+The eight login browser cases use actual SDK cookies/B1 completion/PostgreSQL/Web, with no live provider. They retain the original five320px cases and add1280px/390px full round trips and768px layout coverage. They remain separate from the frozen60-case B1 checker. See [login evidence](../ops/core_flow_rc1_login.md) for the preceding implementation generation. Expo/native authentication and actual Expo/device runtime remain unexecuted.
+
+## Desktop presentation correction evidence
+
+Policy/base: `e9144fac807f39544932baac25b11f836658dbb3`. Correction starts at `1cbd136a503f6616a73e0de41b809c743fa2e3a2`, preserving all eight ancestors. The existing `D:\Users\admin\Desktop\build-manager-core-flow-rc1` worktree was reused. New worktrees, Desktop directories and global environment changes: **0**. Final commit and exact-head hosted results belong to the same Draft [PR70](https://github.com/edward321416-maker/build-manager/pull/70) receipt; this local record is not a hosted-CI result.
+
+The launcher previously forced390px even for a manual desktop window. At1280px, the prior account/work area also stacked in a48rem container, leaving only704px usable content. The B1-only shell now places a304px account panel beside a976px workspace at1280px, with an inner68rem limit on wider screens. Below1024px it stacks at full available width. The global `.page-shell` and code-mode layout are unchanged. B1 uses a named section around the existing detail component to prevent nested `main` landmarks; its session and mutation handlers are unchanged.
+
+Local Windows, isolated Node24.21.0/npm11.19.0, existing synthetic PostgreSQL18.6 state:
+
+| Check | Observed result |
+| --- | --- |
+| Login browser suite |8/8 PASS;320/390/1280 full ticket-photo-manager-reconnect-logout flow,768 layout, original authorization and organization cases |
+| Existing core browser suite |11/11 PASS; original tests unchanged |
+| Web unit suite |475 tests /41 files PASS |
+| Lint / typecheck / build:web / check:deps | Exit0 each; existing Mobile unused-import warning retained |
+| Scanner regressions |3 +14 PASS; staged public tree and reachable-history scan required before push |
+| Historical320px screenshots |19 originals SHA256 unchanged |
+
+The first login run passed5 and failed3 when geometry inspection discovered nested `main` landmarks on ticket detail. Only the B1 presentation wrapper and the named-region assertion were corrected; the second full run passed8. No retries, timeout increases, skipped tests or weaker gates were used. Both execution logs remain private. The unchanged core suite ran with a process-local `USERPROFILE` under the private `desktop-core-regression-home` directory and copies of the existing private fixture files; it used the same database and preserved all original screenshots. This process-only override was restored afterward. Its image fixture generation emitted Fontconfig folder warnings; all11 behavioral checks passed. No credential contents were printed or committed.
+
+Current screenshots are under the private `desktop-presentation` subdirectory:
+
+- `login-tenant-desktop-1280.png`, `login-manager-desktop-1280.png`
+- `login-reconnected-desktop-1280.png`, `login-logged-out-desktop-1280.png`
+- `login-tenant-mobile-390.png`, `login-manager-mobile-390.png`
+
+The320/390/768/1280 checks inspect horizontal overflow, panel order/overlap, useful workspace width, each visible control's horizontal bounds and on-screen hit target. Private `controls-<width>.json` records tag, sanitized text, role, parent, bounding box and computed position. Controls come from `CoreLoginScreen`, `CoreFlowPage` and its existing ticket/photo components. Screenshots and credentials remain outside Git.
+
+**AC-D06 remains NOT_VERIFIED.** The originally reported small `웃` control was not reproduced in the before/after application captures or DOM. The operator could not confirm its original location. No captured element can honestly be assigned a tag/component or labeled a browser artifact; no CSS suppression was added. Observed app controls are within their panels and hit-test correctly, but that does not prove the origin of an absent original artifact. AC-D01–05 and07–11 pass locally; AC-D12 requires the subsequent exact-head CI receipt. Therefore full desktop acceptance/Ready recommendation remains **NO** pending AC-D06 evidence, even if CI succeeds.
+
+Live Auth0 remains NOT_RUN/CONFIGURATION_REQUIRED; synthetic logout503 follows actual local revocation and old-photo401. Expo/native remains NOT_RUN under the existing policy block, with no retry or alternate launch attempted. No API, authorization, storage, migrations0001–0013, dependency or workflow behavior changed. No Ready conversion, merge or deployment is authorized/performed.
 
 ## Explicit development access-code mode
 
