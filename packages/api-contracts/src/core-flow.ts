@@ -3,6 +3,8 @@ import { TenantTicketStatusDtoSchema,LandlordTicketDetailDtoSchema } from "./tic
 
 export const CoreLoginSchema=z.object({accessCode:z.string().regex(/^[a-f0-9]{64}$/)}).strict();
 export const CoreSessionSchema=z.object({role:z.enum(["TENANT","ORG_ADMIN","PROPERTY_STAFF"]),synthetic:z.literal(true)}).strict();
+export const CoreAccessSchema=z.object({authentication:z.literal("B1"),synthetic:z.literal(true),csrf:z.string().regex(/^[a-f0-9]{64}$/),organizations:z.array(z.object({id:z.string().uuid(),name:z.string(),role:z.enum(["TENANT","ORG_ADMIN","PROPERTY_STAFF"])}).strict())}).strict();
+export type CoreAccessDto=z.infer<typeof CoreAccessSchema>;
 export const CoreUnitSchema=z.object({id:z.string().uuid(),buildingId:z.string().uuid(),buildingName:z.string(),label:z.string()}).strict();
 export const CoreUnitsSchema=z.array(CoreUnitSchema);
 export const CoreCreateSchema=z.object({unitId:z.string().uuid(),issueType:z.enum(["HEATING","LEAK"]),rawUserText:z.string().trim().min(1).max(2000)}).strict();

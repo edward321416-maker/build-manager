@@ -6,7 +6,7 @@
     "baseline_main": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d",
     "baseline_meaning": "canonical B2 closure main used to build this bootstrap package; provenance only, not a permanent claim about the current main",
     "current_main": "LIVE_READ_REQUIRED",
-    "status": "CORE_FLOW_RC1_WEB_PHOTO_RUNNABLE_EXPO_RUNTIME_NOT_RUN",
+    "status": "CORE_FLOW_RC1_B1_BRIDGE_SYNTHETIC_SDK_VERIFIED_LIVE_AUTH0_NOT_RUN",
     "snapshot_date": "2026-10-03",
     "staleness_rule": [
       "Always read the live main SHA yourself; never take current_main from this file.",
@@ -157,7 +157,7 @@
       "implementation_main": "e9144fac807f39544932baac25b11f836658dbb3",
       "acceptance_receipt": "ops/pf02_b_b5_acceptance.md"
     },
-    "Core flow RC1": "WEB_RUNNABLE_EXPO_EXECUTION_BLOCKED_NOT_ACCEPTED"
+    "Core flow RC1": "B1_BRIDGE_SYNTHETIC_SDK_VERIFIED_LIVE_AUTH0_NOT_RUN_EXPO_BLOCKED_NOT_ACCEPTED"
   },
   "acceptance_receipts": [
     {
@@ -710,19 +710,19 @@
     "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"
   },
   "current_product_task": {
-    "status": "CORE_FLOW_RC1_WEB_PHOTO_RUNNABLE_EXPO_RUNTIME_NOT_RUN",
+    "status": "CORE_FLOW_RC1_B1_BRIDGE_SYNTHETIC_SDK_VERIFIED_LIVE_AUTH0_NOT_RUN",
     "last_closed_slice": "PF02-B/B5",
     "authorization_receipt": "https://github.com/edward321416-maker/build-manager/issues/69",
     "implementation_authorized": true,
     "ready_or_merge_authorized": false,
     "implementation_base_sha": "e9144fac807f39544932baac25b11f836658dbb3",
     "implementation_branch": "feat/core-flow-rc1",
-    "implementation_evidence": "ops/core_flow_rc1.md",
+    "implementation_evidence": "ops/core_flow_rc1_login.md",
     "run_instructions": "docs/core-flow-rc1-running.md",
     "next_gate": "ACTUAL_EXPO_RUNTIME_VERIFICATION_AND_CONSOLIDATED_FEEDBACK",
     "goal": "RUNNABLE_CORE_FLOW_RC1_DELIVERED",
     "goal_achieved": false,
-    "note": "Photo successor authorized by the operator from3b71970: protected JPEG/PNG selection-preview-save-manager-reconnect/restart works on Web with11core browser cases. Migration0012 and pinned existing sharp0.35.4 added; previous migrations and B1-B5 semantics preserved. See ops/core_flow_rc1_photos.md. Final local Mobile139 pass after lazy enlargement; earlier cold/focused timeouts remain OPEN and hosted results do not resolve them. No Expo startup or bypass; native/device/LAN NOT_RUN. Exact-head CI receipts on Draft PR70; native Sheets current photo summaries A179:D180 verified after transport-discovery correction; final rolling receipt pending; no final merge/deployment."
+    "note": "Existing-login successor authorized fromdf922d7: thin frozen B1 SDK-registry-CSRF consumer, additive0013 actor associations and request-scoped organization binding, workspace-to-core entry, photos/handling/history and existing POSTlogout. Synthetic SDK actual browser5, prior core11, PG315, Web475, shared438, B1browser60/checker21, demo23 and fresh-cache Mobile139 pass. Original0001-0012, B1-B5 security and identity/photo data preserved. LIVE_AUTH0 NOT_RUN/CONFIGURATION_REQUIRED; no Expo retry/bypass or native/device/LAN claim. Prior Mobile risks unchanged. Native Sheets implementation summary A185:D185 verified. Exact-head CI and rolling receipts on Draft70 after publication; no Ready/merge/deployment."
   },
   "b3_closure": {
     "state": "VERIFIED_FROZEN",

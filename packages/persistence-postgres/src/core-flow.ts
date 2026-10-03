@@ -1,8 +1,16 @@
-import { CoreFlowError, type CoreFlowPort, type CoreScope } from "@build-manager/application";
+import { CoreFlowError, type CoreFlowPort, type CoreScope,type CoreAccessPort,type CoreOrganization } from "@build-manager/application";
 import type { PostgresDatabase } from "./database";
 import { withTransaction } from "./transaction";
 
-export function createCoreFlowPort(database: PostgresDatabase): CoreFlowPort {
+export function createCoreAccessPort(database:PostgresDatabase):CoreAccessPort {
+  return {organizations:async digest=>{
+    if(!/^[a-f0-9]{64}$/.test(digest))throw new CoreFlowError("UNAUTHENTICATED");
+    try{return await withTransaction(database,async client=>(await client.query<{value:CoreOrganization[]}>("SELECT core_flow.access_organizations($1) AS value",[Buffer.from(digest,"hex")])).rows[0].value);}
+    catch(error){if(typeof error==="object"&&error&&"code" in error&&error.code==="28000")throw new CoreFlowError("UNAUTHENTICATED");throw error;}
+  },inOrganization:org=>createCoreFlowPort(database,org)};
+}
+
+export function createCoreFlowPort(database: PostgresDatabase,orgId?:string): CoreFlowPort {
   return { async run(digest,operation) {
     if (!/^[a-f0-9]{64}$/.test(digest)) throw new CoreFlowError("UNAUTHENTICATED");
     try {
@@ -10,6 +18,9 @@ export function createCoreFlowPort(database: PostgresDatabase): CoreFlowPort {
         await client.query("SET LOCAL lock_timeout='2000ms'");
         await client.query("SET LOCAL statement_timeout='5000ms'");
         const hash=Buffer.from(digest,"hex");
+        // Binding and every read/write share one transaction and digest lock.
+        // The selected org belongs to this request, never a mutable browser cookie.
+        if(orgId!==undefined)await client.query("SELECT core_flow.bind_organization($1,$2)",[hash,orgId]);
         const call=async <T>(query:string,values:unknown[]):Promise<T> => (await client.query<{value:T}>(query,values)).rows[0].value;
         const session=await call<CoreScope["session"]>("SELECT core_flow.session($1) AS value",[hash]);
         return operation({

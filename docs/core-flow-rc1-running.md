@@ -2,6 +2,51 @@
 
 Use the `feat/core-flow-rc1` worktree, Node **24.21.0**, npm **11.19.0**, Docker Desktop and the existing lockfile. These are development commands, not deployment. All accounts, buildings and reports must remain synthetic.
 
+## Existing login bridge
+
+The B1 login bridge is implemented and exercised with **synthetic SDK sessions**, separately from the development access-code mode below. Actual Auth0 provider login is **NOT_RUN / CONFIGURATION_REQUIRED** on this machine. No Auth0 settings, accounts or identities were changed. Existing photo/ticket data remains available in its original mode; separate SDK test actors have their own synthetic records.
+
+From the repository root with the same isolated Node24.21.0/npm11.19.0:
+
+```powershell
+npm run build:web
+node --experimental-transform-types scripts/core-flow-dev.mjs --prepare
+node --experimental-transform-types scripts/core-flow-b1-dev.mjs --prepare-synthetic-sdk
+node --experimental-transform-types scripts/core-flow-b1-dev.mjs --serve-synthetic-sdk
+```
+
+The last command keeps **http://localhost:3133/core** running. In another terminal, open isolated synthetic SDK browser sessions:
+
+```powershell
+node scripts/core-flow-b1-open.mjs --tenant
+node scripts/core-flow-b1-open.mjs --manager
+```
+
+These explicitly use the installed Auth0 SDK testing helper, existing B1 completion endpoint and registered synthetic identities. They **do not authenticate with live Auth0**. No access code/secret is printed or placed in a URL. The helper visits `/api/v2/session/complete` → `/workspace`, then follows the RC1 entry link. A normal unseeded browser shows **계정으로 로그인**. That provider button is unavailable in synthetic SDK mode; use the explicit test helper rather than treating it as a live login.
+
+Select **내 소속** when more than one association exists; one association opens automatically. Confirm **건물·호실**, create a synthetic report and optional reference photos, then read/handle that ticket in the manager window. Refresh/reopen the tenant history to confirm the result. Switching organization clears unsaved text/photo selections; stored data remains in its own organization's history. An account without association gets connection guidance and logout, with no developer/admin fallback.
+
+Logout uses the existing B1 POST endpoint. In synthetic SDK mode the nonexistent provider produces a503 response **after local registry revocation**; revisiting `/core` shows login and old raw photo requests return401. This is tested local logout, not successful provider logout. Close the isolated test browser when finished.
+
+For an **already configured** real Auth0 test environment, use its existing private `B1_AUTH0_DOMAIN`, `B1_AUTH0_CLIENT_ID`, `B1_AUTH0_CLIENT_SECRET`, `B1_AUTH0_SECRET` and `B1_APP_BASE_URL` in the process, then:
+
+```powershell
+node --experimental-transform-types scripts/core-flow-b1-dev.mjs --serve
+```
+
+This validates/reuses the configured loopback callback/base origin unchanged, with login/registry/core roles from the same prepared synthetic database. It never assumes3130/3133 is an allowed callback. Missing config fails with a sanitized `CORE_B1_CONFIGURATION_REQUIRED` message; it does not start demo authentication. A real authenticated actor with no existing membership/occupancy sees no association. The launcher does not create grants, link email identities or transfer older tickets/photos. This live-mode preflight was exercised and failed as expected because configuration was absent; no real Auth0 login/logout is claimed.
+
+Reproduce the separate new login tests with the prepared SDK fixture and no manually running3133 server:
+
+```powershell
+npm exec --workspace @build-manager/web -- playwright test --config playwright.core-login.config.ts
+npm run test:postgres -- tests/postgres/core-flow-access.test.ts
+```
+
+The five new browser cases use actual SDK cookies/B1 completion/PostgreSQL/Web, with no live provider. They remain separate from the frozen60-case B1 checker. See [login evidence](../ops/core_flow_rc1_login.md). Expo/native authentication and actual Expo/device runtime remain unexecuted.
+
+## Explicit development access-code mode
+
 From repository root in PowerShell, with the project-isolated Node directory on this shell's PATH:
 
 ```powershell

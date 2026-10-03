@@ -28,6 +28,8 @@ export type CoreScope = {
   savePhoto(id:string,input:CorePhotoInput):Promise<{photo:CorePhoto;created:boolean}>;
 };
 export type CoreFlowPort = { run<T>(digest: string, operation: (scope: CoreScope) => Promise<T>): Promise<T> };
+export type CoreOrganization={id:string;name:string;role:CoreSession["role"]};
+export type CoreAccessPort={organizations(digest:string):Promise<CoreOrganization[]>;inOrganization(orgId:string):CoreFlowPort};
 export type CoreAction =
  | { type: "CREATE"; unitId: string; issueType: IssueType; rawUserText: string }
  | { type: "ANSWER"; ticketId: string; questionId: string; value: AnswerValue }

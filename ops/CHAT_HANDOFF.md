@@ -209,6 +209,10 @@ Resume2026-10-03: same main and PR70 HEAD256f47d confirmed; operator renewed exe
 
 Web usability follow-up from91db051: operator explicitly prohibited repeating/bypassing Expo startup while authorizing Web improvements. Actual320px audit led to compact44px controls, saved/result descriptions and session/error/empty guidance; nested session loss now clears parent content too. Final local core browser7/7 (original4+new3), Web465, existing browser23, typecheck/lint/build passed. Failed intermediate runs and the exact peer-list before/after oracle are preserved in [the implementation receipt](core_flow_rc1.md#2026-10-03-web-usability-implementation). Web remains on3130 with the same database. Continue existing Mobile goal only after formally allowed host conditions are confirmed; no Expo startup attempt occurred in this phase. No final merge/deployment. Current new-head CI receipts are on PR70; Google sync pending.
 
+## Existing-login implementation — 2026-10-03
+
+Operator-authorized successor from df922d7, same branch/Draft70. [Login evidence](core_flow_rc1_login.md) is current: B1 SDK/registry adapter, additive0013 association discovery and request-scoped org binding, workspace entry, account/no-association UI, protected photos and existing POST logout. Original0001–0012 and B1–B5 security sources/identities/data preserved. Actual synthetic SDK browser5, prior core11, PG315, Web475, shared438, B1browser60/checker21, demo23 and fresh-cache Mobile139 pass. Exact photo/ticket restart verified. [Running guide](../docs/core-flow-rc1-running.md) includes3133 synthetic SDK launcher/helper and separate real Auth0 preflight. LIVE_AUTH0=NOT_RUN/CONFIGURATION_REQUIRED; Expo remains blocked/not retried. Current implementation summary A185:D185 externally appended/read back. Exact committed HEAD/required9CI and final rolling readback are published as the next receipt on PR70; no Ready/merge/deployment.
+
 ## Private artifact rule
 
 Do **not** assume a new session can read local machine paths. Planning artifacts, private review

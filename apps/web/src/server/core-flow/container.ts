@@ -1,9 +1,10 @@
-import { CoreFlowError,type CoreFlowPort } from "@build-manager/application";
+import { CoreFlowError,type CoreFlowPort,type CoreAccessPort } from "@build-manager/application";
 import { createPostgresDatabase } from "@build-manager/persistence-postgres";
-import { createCoreFlowPort } from "@build-manager/persistence-postgres/core-flow";
+import { createCoreFlowPort,createCoreAccessPort } from "@build-manager/persistence-postgres/core-flow";
 import { createSessionRegistryPort } from "@build-manager/persistence-postgres/b1";
 
-export type CoreHTTPDependencies={port:CoreFlowPort;revoke(digest:string):Promise<void>;origins:string[]};
+import { requireCoreB1Session } from "./b1-access";
+export type CoreHTTPDependencies={port:CoreFlowPort;revoke(digest:string):Promise<void>;origins:string[];b1?:{current:typeof requireCoreB1Session;access:CoreAccessPort}};
 let instance:CoreHTTPDependencies|undefined;
 export function getCoreFlowContainer():CoreHTTPDependencies {
   if(process.env.CORE_FLOW_MODE!=="SYNTHETIC_LOCAL")throw new CoreFlowError("DEPENDENCY_UNAVAILABLE");
@@ -14,7 +15,8 @@ export function getCoreFlowContainer():CoreHTTPDependencies {
     const registry=createSessionRegistryPort(database);
     const origins=(process.env.CORE_FLOW_ORIGINS??"").split(",").filter(Boolean);
     if(!origins.length)throw new CoreFlowError("DEPENDENCY_UNAVAILABLE");
-    instance={port:createCoreFlowPort(database),revoke:digest=>registry.revoke(digest),origins};
+    if(!["B1","DEMO"].includes(process.env.BUILD_MANAGER_MODE??""))throw new CoreFlowError("DEPENDENCY_UNAVAILABLE");
+    instance={port:createCoreFlowPort(database),revoke:digest=>registry.revoke(digest),origins,...(process.env.BUILD_MANAGER_MODE==="B1"?{b1:{current:requireCoreB1Session,access:createCoreAccessPort(database)}}:{})};
   }
   return instance;
 }

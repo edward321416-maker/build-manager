@@ -308,6 +308,9 @@ button:disabled {
 
 .core-flow { display: block; place-content: normal; justify-items: normal; width: min(100%, 48rem); margin-inline: auto; padding: clamp(1rem, 4vw, 2rem); overflow-wrap: anywhere; }
 .core-flow > * + * { margin-top: 1rem; }
+.page-shell.core-account { min-height: 0; padding-bottom: 0; }
+.core-account a.primary-button { display: inline-flex; min-height: 2.75rem; align-items: center; padding: .5rem 1rem; }
+.core-account form { margin: 0; }
 .core-flow h2 { font-size: 1.25rem; font-weight: 700; }
 .core-flow form { display: grid; gap: 1rem; margin-block: 1.5rem; max-width: 100%; }
 .core-flow label { display: grid; gap: .4rem; }

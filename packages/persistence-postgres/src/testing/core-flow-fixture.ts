@@ -6,7 +6,7 @@ export type CoreFixture = {
   accounts:Record<string,{handle:string;digest:string;userId:string;orgId:string;membershipId?:string}>;
 };
 /** Explicit synthetic setup only, never imported by an application/runtime route. */
-export async function seedCoreFlowFixture(admin:Client,login:Client):Promise<CoreFixture> {
+export async function seedCoreFlowFixture(admin:Client,login:Client,authentication:"DEVELOPMENT_CODE"|"SYNTHETIC_B1"="DEVELOPMENT_CODE"):Promise<CoreFixture> {
   const marker=(await admin.query("SELECT pg_catalog.shobj_description(oid,'pg_database') AS marker FROM pg_catalog.pg_database WHERE datname=current_database()")).rows[0].marker;
   if(marker!=="CORE_FLOW_SYNTHETIC_LOCAL")throw new Error("CORE_FIXTURE_MARKER_REQUIRED");
   const orgA=randomUUID(),orgB=randomUUID(),propertyA=randomUUID(),propertyB=randomUUID(),unitA=randomUUID(),unitOther=randomUUID(),unitB=randomUUID();
@@ -30,7 +30,7 @@ export async function seedCoreFlowFixture(admin:Client,login:Client):Promise<Cor
     ["otherTenant",orgB,unitB,null],["otherManager",orgB,null,"ORG_ADMIN"],
   ] as const){
     const handle=randomBytes(32).toString("hex"),digest=createHash("sha256").update(handle).digest("hex");
-    const userId=(await login.query("SELECT authn.begin_session($1,$2,$3,clock_timestamp()+interval '55 minutes') AS id",["https://rc1.synthetic.invalid/",`synthetic-${name}-${randomUUID()}`,Buffer.from(digest,"hex")])).rows[0].id as string;
+    const userId=(await login.query("SELECT authn.begin_session($1,$2,$3,clock_timestamp()+interval '55 minutes') AS id",[authentication==="SYNTHETIC_B1"?"https://b1.synthetic.invalid/":"https://rc1.synthetic.invalid/",`${authentication==="SYNTHETIC_B1"?"auth0|":""}synthetic-${name}-${randomUUID()}`,Buffer.from(digest,"hex")])).rows[0].id as string;
     accounts[name]={handle,digest,userId,orgId:org};
     if(role){
       const member=randomUUID();accounts[name].membershipId=member;

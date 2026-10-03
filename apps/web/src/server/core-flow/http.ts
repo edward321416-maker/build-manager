@@ -1,6 +1,6 @@
 import { createHash,randomUUID } from "node:crypto";
-import { CoreFlowError,isApplicationError,performCoreAction,type CoreRecord,type CoreSession,type CoreAction } from "@build-manager/application";
-import { CoreSessionSchema,CoreUnitsSchema,CoreTicketSchema,CoreTicketsSchema,CoreCreateSchema,CoreHandlingSchema,CoreLoginSchema,SubmitTenantAnswerRequestSchema,DecisionRequestSchema,FinalizeTicketRequestSchema } from "@build-manager/api-contracts";
+import { B1Error,CoreFlowError,isApplicationError,performCoreAction,type CoreRecord,type CoreSession,type CoreAction } from "@build-manager/application";
+import { CoreAccessSchema,CoreSessionSchema,CoreUnitsSchema,CoreTicketSchema,CoreTicketsSchema,CoreCreateSchema,CoreHandlingSchema,CoreLoginSchema,SubmitTenantAnswerRequestSchema,DecisionRequestSchema,FinalizeTicketRequestSchema } from "@build-manager/api-contracts";
 import { presentTenantTicket,presentLandlordTicket } from "../http/presenters";
 import { parseRouteCode } from "../http/route-code";
 import { getCoreFlowContainer,type CoreHTTPDependencies } from "./container";
@@ -26,7 +26,7 @@ function parse<T>(schema:{safeParse(v:unknown):{success:boolean;data?:T}},value:
 }
 
 export async function handleCoreFlow(request:Request,segments:string[],resolve:()=>CoreHTTPDependencies=getCoreFlowContainer):Promise<Response>{
-  const headers=new Headers({"Cache-Control":"private, no-store",Vary:"Cookie, Authorization, Origin","X-Content-Type-Options":"nosniff"});
+  const headers=new Headers({"Cache-Control":"private, no-store",Vary:"Cookie, Authorization, Origin, X-Core-Organization","X-Content-Type-Options":"nosniff"});
   const json=(data:unknown,status=200)=>Response.json(data,{status,headers});
   try {
     const d=resolve(),origin=request.headers.get("origin"),bearer=request.headers.get("authorization");
@@ -35,9 +35,22 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
       if(!origin)fail("FORBIDDEN");headers.set("Access-Control-Allow-Methods","GET, POST, OPTIONS");headers.set("Access-Control-Allow-Headers","Content-Type, Authorization, X-Upload-Id");return new Response(null,{status:204,headers});
     }
     if(!["GET","POST"].includes(request.method))return json({error:{code:"METHOD_NOT_ALLOWED",message:"허용하지 않는 요청입니다."}},405);
-    if(request.method==="POST" && !origin && !bearer)fail("FORBIDDEN");
+    if(request.method==="POST" && !origin && (!bearer||d.b1))fail("FORBIDDEN");
     const url=new URL(request.url),route=segments.join("/");
     if([...url.searchParams.keys()].some(k=>k!=="unitId" || route!=="tickets" || request.method!=="GET") || url.searchParams.getAll("unitId").length>1)fail("INVALID_INPUT");
+    let hash:string,port=d.port;
+    if(d.b1){
+      const current=await d.b1.current(request);
+      if(route==="access"&&request.method==="GET")return json(CoreAccessSchema.parse({authentication:"B1",synthetic:true,csrf:current.csrf,organizations:await d.b1.access.organizations(current.digest)}));
+      if(route==="login"||route==="logout")fail("NOT_FOUND");
+      const org=request.headers.get("x-core-organization");
+      if(!org||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(org))fail("INVALID_INPUT");
+      hash=current.digest;port=d.b1.access.inOrganization(org);
+      if(route==="organization"&&request.method==="POST"){
+        parse(FinalizeTicketRequestSchema,await body(request));
+        return await port.run(hash,s=>Promise.resolve(json(CoreSessionSchema.parse({role:s.session.role,synthetic:true}))));
+      }
+    }else {
     if(route==="login" && request.method==="POST"){
       const input=parse(CoreLoginSchema,await body(request));
       const session=await d.port.run(digest(input.accessCode),s=>Promise.resolve(s.session));
@@ -46,9 +59,10 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
     }
     const raw=bearer ? (/^Bearer ([a-f0-9]{64})$/.exec(bearer)?.[1]??"") : (request.headers.get("cookie")??"").split(";").map(x=>x.trim()).find(x=>x.startsWith(cookie+"="))?.slice(cookie.length+1);
     if(!raw || !/^[a-f0-9]{64}$/.test(raw))fail("UNAUTHENTICATED");
-    const hash=digest(raw);
-    if(segments[0]==="tickets"&&segments[2]==="photos")return await handlePhotoRequest(request,segments,hash,d.port,headers);
-    return await d.port.run(hash,async scope=>{
+    hash=digest(raw);
+    }
+    if(segments[0]==="tickets"&&segments[2]==="photos")return await handlePhotoRequest(request,segments,hash,port,headers);
+    return await port.run(hash,async scope=>{
       if(route==="session" && request.method==="GET")return json(CoreSessionSchema.parse({role:scope.session.role,synthetic:true}));
       if(route==="logout" && request.method==="POST"){
         parse(FinalizeTicketRequestSchema,await body(request));await d.revoke(hash);
@@ -86,7 +100,7 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
     });
   }catch(error){
     if(error instanceof PhotoRequestError)return json({error:{code:error.status===413?"PHOTO_TOO_LARGE":error.status===415?"PHOTO_UNSUPPORTED":"PHOTO_INVALID",message:error.status===413?"사진은 5 MiB 이하, 20메가픽셀 이하로 선택해 주세요.":error.status===415?"정상적인 JPEG 또는 PNG 사진만 첨부할 수 있습니다.":"사진 파일을 읽을 수 없습니다. 다른 샘플 사진을 선택해 주세요."}},error.status);
-    const code=error instanceof CoreFlowError?error.code:isApplicationError(error)?error.code:"DEPENDENCY_UNAVAILABLE";
+    const code=error instanceof CoreFlowError||error instanceof B1Error?error.code:isApplicationError(error)?error.code:"DEPENDENCY_UNAVAILABLE";
     const status=code==="UNAUTHENTICATED"?401:code==="FORBIDDEN"?403:code==="NOT_FOUND"?404:code==="INVALID_INPUT"?400:code==="STATE_CONFLICT"?409:503;
     return json({error:{code,message:status===503?"서비스에 연결하지 못했습니다.":status===409?"현재 상태에서 처리할 수 없습니다.":"접근 권한이나 입력을 확인해 주세요."}},status);
   }

@@ -15,7 +15,7 @@ const container="build-manager-core-flow-rc1",database="core_flow_synthetic";
 const docker=(...args)=>execFileSync("docker",args,{encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim();
 const save=async(state)=>{await writeFile(statePath,JSON.stringify(state,null,2),{mode:0o600});await writeFile(codesPath,JSON.stringify(Object.fromEntries(Object.entries(state.fixture.accounts).map(([name,a])=>[name,a.handle])),null,2),{mode:0o600});};
 async function prepare(){
-  const { provisionTestRoles,grantRuntimeAccess,runPostgresMigrations,seedCoreFlowFixture }=await import("@build-manager/persistence-postgres/testing");
+  const { provisionTestRoles,provisionCoreAccessTestRole,grantRuntimeAccess,runPostgresMigrations,seedCoreFlowFixture }=await import("@build-manager/persistence-postgres/testing");
   await mkdir(directory,{recursive:true,mode:0o700});
   let state;
   if(existsSync(statePath))state=JSON.parse(await readFile(statePath,"utf8"));
@@ -45,6 +45,7 @@ async function prepare(){
       state.roles=await provisionTestRoles(admin,state.admin,database);
       await writeFile(statePath,JSON.stringify(state,null,2),{mode:0o600});
     }
+    await provisionCoreAccessTestRole(admin);
     const migration=new Client(state.roles.migrationConfig);await migration.connect();
     try{await runPostgresMigrations(migration);await grantRuntimeAccess(migration);}finally{await migration.end();}
     login=new Client(state.roles.b1.loginConfig);await login.connect();
