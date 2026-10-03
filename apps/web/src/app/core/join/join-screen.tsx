@@ -3,6 +3,7 @@ import { useEffect,useRef,useState } from "react";
 import { CoreAccessSchema,type InvitationDto } from "@build-manager/api-contracts";
 import { ApiClientError,createCoreOnboardingClient } from "@build-manager/api-client";
 import { InvitationSummary,onboardingMessage } from "../onboarding-panel";
+import styles from "../core-design.module.css";
 
 export function JoinScreen(){
  const token=useRef<string|null>(null),[hasToken,setHasToken]=useState(false),[csrf,setCsrf]=useState("");
@@ -21,16 +22,17 @@ export function JoinScreen(){
  },[]);
  const run=async(work:()=>Promise<void>,mutation=false)=>{setBusy(true);setMessage("");if(mutation)setUncertain(true);try{await work();}catch(e){setMessage(onboardingMessage(e));if(e instanceof ApiClientError&&e.status===401){token.current="";setHasToken(false);setCsrf("");setInvite(null);setPhase("login");}}finally{setBusy(false);}};
  const client=createCoreOnboardingClient({csrf});
- return <main className="page-shell core-flow core-join"><h1>내 호실 연결</h1>
+ return <main className="page-shell core-flow core-join"><header className={styles.heading}><h1>내 호실 연결</h1>
   <p>관리자가 보낸 초대입니다. 직접 요청한 뒤 관리자 승인을 받아야 입주 연결이 완료됩니다.</p>
+  </header>
   {phase==="loading"?<p role="status">로그인 상태를 확인하는 중…</p>:null}
   {phase==="login"?<><p>기존 계정으로 로그인한 뒤, 관리자에게 받은 원래 초대 링크를 다시 열어 주세요. 초대 정보는 로그인 제공자에게 전달하지 않습니다.</p><a className="primary-button" href="/auth/login">기존 계정으로 로그인</a></>:null}
   {message?<p role="alert">{message}</p>:null}{busy?<p role="status">연결 상태를 확인하는 중…</p>:null}
   {phase==="ready"?<>
    {!hasToken&&!invite?<p>초대 링크 정보가 없습니다. 관리자에게 받은 원래 링크를 다시 열어 주세요. 이미 신청했다면 내 연결 요청에서 상태를 확인할 수 있습니다.</p>:null}
-   {hasToken&&!invite?<button disabled={busy||uncertain} onClick={()=>void run(async()=>setInvite(await client.inspect(token.current!)))}>초대 내용 확인</button>:null}
+   {hasToken&&!invite?<button className={styles.primary} disabled={busy||uncertain} onClick={()=>void run(async()=>setInvite(await client.inspect(token.current!)))}>초대 내용 확인</button>:null}
    {invite?<section className="core-result" aria-label="초대 확인"><InvitationSummary invite={invite}/>
-    {invite.state==="OPEN"?<><p>위 호실이 본인의 입주 예정 호실인지 확인한 뒤 신청하세요.</p><button disabled={busy||uncertain||!hasToken} onClick={()=>void run(async()=>{setInvite(await client.claim(token.current!));setUncertain(false);token.current="";setHasToken(false);},true)}>연결 요청 보내기</button></>:null}
+    {invite.state==="OPEN"?<><p>위 호실이 본인의 입주 예정 호실인지 확인한 뒤 신청하세요.</p><button className={styles.primary} disabled={busy||uncertain||!hasToken} onClick={()=>void run(async()=>{setInvite(await client.claim(token.current!));setUncertain(false);token.current="";setHasToken(false);},true)}>연결 요청 보내기</button></>:null}
     {invite.state==="REQUESTED"?<p>연결 요청을 저장했습니다. 위 요청번호를 관리자에게 전달해 주세요. 승인 전에는 이 호실의 접수·사진에 접근할 수 없습니다.</p>:null}
     {invite.state==="APPROVED"?<p>연결이 승인되었습니다. 내 소속·호실에서 새 호실을 확인하고 글·사진을 접수하세요.</p>:null}
    </section>:null}

@@ -1,0 +1,189 @@
+.root {
+  --core-navy: #17283b;
+  --core-canvas: #f6f7f9;
+  --core-surface: #fff;
+  --core-text: #172b3a;
+  --core-muted: #526275;
+  --core-action: #245cb2;
+  --core-border: #7a8897;
+  --core-rule: #d7dde5;
+  min-height: 100vh;
+  background: var(--core-canvas);
+  color: var(--core-text);
+  font-family: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.root :global(.page-shell.core-flow) {
+  width: 100%;
+  max-width: 88rem;
+  min-height: 0;
+  padding: 1rem;
+  color: var(--core-text);
+}
+.root :global(.core-flow) > * + * { margin-top: 1.5rem; }
+.root h1 { font-size: 1.5rem; line-height: 1.3334; font-weight: 700; letter-spacing: -.025em; }
+.root h2 { font-size: 1.25rem; line-height: 1.4; font-weight: 700; }
+.root h3 { font-size: 1rem; line-height: 1.5; font-weight: 700; }
+.root p { max-width: 76ch; }
+.root :is(button, input, select, textarea, summary) { font: inherit; }
+.root :is(button, a, input, select, textarea, summary, h2[tabindex], [role="alert"]):focus-visible {
+  outline: 3px solid var(--core-action);
+  outline-offset: 3px;
+  scroll-margin-block: 1rem;
+}
+.root :is(button, a, input, select, textarea) { transition: background-color 120ms, border-color 120ms; }
+.root button, .root :global(a.primary-button) {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  height: auto;
+  max-width: 100%;
+  padding: .625rem 1rem;
+  border: 1px solid var(--core-border);
+  border-radius: .5rem;
+  background: var(--core-surface);
+  color: var(--core-text);
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: none;
+  cursor: pointer;
+}
+.root button:hover:not(:disabled) { background: #edf2f9; border-color: var(--core-action); }
+.root button.primary, .root :global(a.primary-button) { background: var(--core-action); border-color: var(--core-action); color: white; }
+.root button.primary:hover:not(:disabled), .root :global(a.primary-button:hover) { background: #1c4b94; }
+.root button.dangerAction { color: #b42318; }
+.root button:disabled { opacity: 1; color: var(--core-muted); background: #e9edf2; border-color: var(--core-border); cursor: not-allowed; }
+.root a:not(:global(.primary-button)) { color: var(--core-action); text-decoration: underline; text-underline-offset: .2em; }
+.root :is(select, textarea, input[type="password"], input[type="text"]) {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: .75rem;
+  color: var(--core-text);
+  background: var(--core-surface);
+  border: 1px solid var(--core-border);
+  border-radius: .5rem;
+}
+.root textarea { min-height: 8rem; }
+.root input[type="checkbox"] { accent-color: var(--core-action); }
+.root :global(.core-flow) form:not(:has(input[type="hidden"]):not(:has(button))) {
+  margin-block: 1.5rem;
+  padding: 1rem;
+  gap: 1rem;
+  background: var(--core-surface);
+  border: 1px solid var(--core-rule);
+  border-radius: .75rem;
+}
+.root :global(.core-actions) { gap: .5rem; }
+.root :global(.core-actions) button { flex: 0 1 auto; }
+.root :global(.core-result) { background: var(--core-surface); border: 1px solid var(--core-rule); border-radius: .75rem; padding: 1rem; }
+.root :is([role="alert"], :global(.state-error)) { color: #b42318; background: #fef3f2; border: 1px solid #b42318; border-radius: .5rem; padding: 1rem; }
+.root :is([role="status"], :global(.save-ok)) { color: #1d4ed8; background: #eff6ff; border-radius: .5rem; padding: .75rem 1rem; }
+
+.heading { padding-bottom: 1.5rem; border-bottom: 1px solid var(--core-rule); }
+.heading p { color: var(--core-muted); font-size: .875rem; line-height: 1.5; margin-top: .5rem; }
+.root > :global(.core-flow):not(:global(.core-join)) > .heading {
+  margin: -1rem -1rem 0;
+  padding: 1.5rem 1rem;
+  color: white;
+  background: var(--core-navy);
+}
+.root > :global(.core-flow):not(:global(.core-join)) > .heading p { color: #d8e3f0; }
+.root :global(.core-b1-shell) { grid-template-columns: minmax(0, 1fr); min-height: 100vh; background: var(--core-navy); }
+.root :global(.core-b1-shell .core-account) {
+  width: 100%;
+  max-width: none;
+  align-self: start;
+  padding: 1.5rem 1rem;
+  background: var(--core-navy);
+  color: white;
+  border: 0;
+  border-radius: 0;
+}
+.root :global(.core-account) p { color: #d8e3f0; font-size: .875rem; line-height: 1.5; }
+.root :global(.core-account) :is([role="alert"], [role="status"]) { color: var(--core-text); background: #edf2f9; }
+.root :global(.core-account) :focus-visible { outline-color: #b6d3ff; }
+.root :global(.core-account) form { padding: 0; border: 0; margin: 0; }
+.root :global(.core-account h1) { font-size: 1.5rem; line-height: 1.3334; }
+.root :global(.core-workspace) { min-width: 0; width: 100%; background: var(--core-canvas); }
+.root :global(.core-workspace > .core-flow) { max-width: 88rem; padding: 1rem; }
+.root :global(.core-workspace h1) { font-size: 1.5rem; line-height: 1.3334; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: .25rem .625rem;
+  border-radius: 1rem;
+  color: var(--core-muted);
+  background: #e9edf2;
+  font-size: .875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: normal;
+}
+.badge[data-work-state="IN_PROGRESS"], .badge[data-invitation-state="OPEN"] { color: #1d4ed8; background: #eff6ff; }
+.badge[data-work-state="COMPLETED"], .badge[data-invitation-state="APPROVED"] { color: #166534; background: #dcfce7; }
+.badge[data-invitation-state="REQUESTED"] { color: #92400e; background: #fef3c7; }
+.badge[data-invitation-state="REJECTED"] { color: #b42318; background: #fef3f2; }
+.intakeStatus { color: var(--core-muted); font-size: .875rem; }
+.intakeStatus[data-intake-state="SAFETY_ESCALATED"] { color: #b42318; font-weight: 700; }
+.ticketList { list-style: none; padding: 0; background: var(--core-surface); border-block: 1px solid var(--core-rule); }
+.root .ticketList > li { margin: 0; padding: .5rem 0; border-bottom: 1px solid var(--core-rule); }
+.root .ticketList > li:last-child { border-bottom: 0; }
+.root .ticketRow { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; border-color: transparent; background: transparent; text-align: left; }
+.ticketList :global(.photo-grid) { grid-template-columns: repeat(auto-fill, minmax(4.5rem, 6rem)); padding-inline: 1rem; }
+.ticketList :global(.photo-grid img) { height: 4.5rem; }
+.root .ticketList :global(.photo-grid button) { padding: .25rem; border-color: var(--core-rule); }
+.ticketTitle { font-weight: 700; }
+.ticketId { color: var(--core-muted); font-size: .875rem; font-weight: 400; }
+.detailGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.detailGrid > * { min-width: 0; }
+.summary { grid-column: 1 / -1; }
+.photoArea { min-width: 0; }
+.photoArea > * + * { margin-top: 1rem; }
+.root .detailGrid .handling { margin: 0; }
+.history { grid-column: 1 / -1; border-top: 1px solid var(--core-rule); padding-top: 1.5rem; }
+.history p { margin-top: 1rem; padding-left: 1rem; border-left: 2px solid var(--core-rule); }
+.history time { display: block; color: var(--core-muted); font-size: .875rem; }
+.root :global(.core-photos) { min-width: 0; }
+.root :global(.photo-grid) { grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); }
+.root :global(.photo-grid img) { background: #e9edf2; border-radius: .5rem; object-fit: contain; }
+.root :global(.photo-dialog) { color: var(--core-text); background: white; border: 1px solid var(--core-rule); border-radius: .75rem; box-shadow: 0 1rem 3rem #17283b33; }
+.root :global(.photo-dialog)::backdrop { background: #17283bcc; }
+.root :global(.core-onboarding) { border-top: 1px solid var(--core-rule); }
+.root :global(.core-onboarding) summary { font-size: 1.125rem; min-height: 2.75rem; }
+.root :global(.invitation-card) { margin-block: 1rem; }
+.root :global(.invitation-card) > * + * { margin-top: .75rem; }
+.root :global(.invitation-card) > button { margin-right: .5rem; }
+.root :global(.invitation-confirm) { align-items: start; padding-block: .5rem; }
+.root :global(.invitation-confirm input) { margin-top: .125rem; }
+.root :global(.core-join) { max-width: 48rem; padding-top: 2rem; }
+.root :global(.core-join) > p:last-child { padding-top: 1rem; border-top: 1px solid var(--core-rule); }
+.root :global(.core-result) > button + button { margin: .5rem 0 0 .5rem; }
+/* Existing protocol children keep their behavior; only this route changes surfaces. */
+.root :is(:global(.tenant-page), :global(.landlord-page)) { color: var(--core-text); background: transparent; }
+.root :is(:global(.field-card), :global(.ticket-card), :global(.section-card)) { background: var(--core-surface); border-color: var(--core-rule); box-shadow: none; }
+
+@media (min-width: 768px) {
+  .root :global(.page-shell.core-flow), .root :global(.core-workspace > .core-flow) { padding: 1.5rem; }
+  .root :global(.core-flow) form:not(:has(input[type="hidden"]):not(:has(button))) { padding: 1.5rem; }
+  .root > :global(.core-flow):not(:global(.core-join)) > .heading { margin: -1.5rem -1.5rem 0; padding: 1.5rem; }
+}
+@media (min-width: 1024px) {
+  .root :global(.core-b1-shell) { grid-template-columns: 248px minmax(0, 1fr); }
+  .root :global(.core-b1-shell .core-account) { padding: 2rem 1.5rem; }
+  .root :global(.page-shell.core-flow), .root :global(.core-workspace > .core-flow) { padding: 2rem; }
+  .root h1, .root :global(.core-workspace h1) { font-size: 1.75rem; line-height: 1.2858; }
+  .root :global(.core-account h1) { font-size: 1.5rem; line-height: 1.3334; }
+  .root > :global(.core-flow):not(:global(.core-join)) > .heading { margin: -2rem -2rem 0; padding: 2rem; }
+  .detailGrid:has(.handling) { grid-template-columns: minmax(0, 1fr) minmax(16rem, .8fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .root *, .root *::before, .root *::after { transition: none; animation: none; scroll-behavior: auto; }
+}
