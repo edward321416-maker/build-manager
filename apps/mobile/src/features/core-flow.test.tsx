@@ -7,7 +7,7 @@ const factory=jest.mocked(createCoreFlowClient);
 const unit={id:"synthetic-unit",buildingId:"synthetic-building",buildingName:"합성 건물",label:"합성 호실"};
 const record={ticketId:"synthetic-ticket",unitId:unit.id,workStatus:"OPEN",detail:{issueType:"LEAK"},events:[]};
 function setup(role="TENANT"){
-  const client={session:jest.fn().mockResolvedValue({role,synthetic:true}),units:jest.fn().mockResolvedValue([unit]),tickets:jest.fn().mockResolvedValue([]),create:jest.fn().mockResolvedValue(record),read:jest.fn().mockResolvedValue(record),handling:jest.fn().mockResolvedValue({...record,workStatus:"IN_PROGRESS"}),protocol:{}};
+  const client={session:jest.fn().mockResolvedValue({role,synthetic:true}),units:jest.fn().mockResolvedValue([unit]),tickets:jest.fn().mockResolvedValue([]),photos:jest.fn().mockResolvedValue([]),create:jest.fn().mockResolvedValue(record),read:jest.fn().mockResolvedValue(record),handling:jest.fn().mockResolvedValue({...record,workStatus:"IN_PROGRESS"}),protocol:{}};
   factory.mockReturnValue(client as unknown as ReturnType<typeof createCoreFlowClient>);return client;
 }
 beforeEach(()=>{jest.clearAllMocks();process.env.EXPO_PUBLIC_API_URL="http://127.0.0.1:3130";});

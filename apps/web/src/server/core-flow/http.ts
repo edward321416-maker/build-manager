@@ -4,6 +4,7 @@ import { CoreSessionSchema,CoreUnitsSchema,CoreTicketSchema,CoreTicketsSchema,Co
 import { presentTenantTicket,presentLandlordTicket } from "../http/presenters";
 import { parseRouteCode } from "../http/route-code";
 import { getCoreFlowContainer,type CoreHTTPDependencies } from "./container";
+import { handlePhotoRequest,PhotoRequestError } from "./photos";
 
 const cookie="rc1_session";
 const digest=(value:string)=>createHash("sha256").update(value).digest("hex");
@@ -31,7 +32,7 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
     const d=resolve(),origin=request.headers.get("origin"),bearer=request.headers.get("authorization");
     if(origin){if(!d.origins.includes(origin))fail("FORBIDDEN");headers.set("Access-Control-Allow-Origin",origin);headers.set("Access-Control-Allow-Credentials","true");}
     if(request.method==="OPTIONS"){
-      if(!origin)fail("FORBIDDEN");headers.set("Access-Control-Allow-Methods","GET, POST, OPTIONS");headers.set("Access-Control-Allow-Headers","Content-Type, Authorization");return new Response(null,{status:204,headers});
+      if(!origin)fail("FORBIDDEN");headers.set("Access-Control-Allow-Methods","GET, POST, OPTIONS");headers.set("Access-Control-Allow-Headers","Content-Type, Authorization, X-Upload-Id");return new Response(null,{status:204,headers});
     }
     if(!["GET","POST"].includes(request.method))return json({error:{code:"METHOD_NOT_ALLOWED",message:"허용하지 않는 요청입니다."}},405);
     if(request.method==="POST" && !origin && !bearer)fail("FORBIDDEN");
@@ -46,6 +47,7 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
     const raw=bearer ? (/^Bearer ([a-f0-9]{64})$/.exec(bearer)?.[1]??"") : (request.headers.get("cookie")??"").split(";").map(x=>x.trim()).find(x=>x.startsWith(cookie+"="))?.slice(cookie.length+1);
     if(!raw || !/^[a-f0-9]{64}$/.test(raw))fail("UNAUTHENTICATED");
     const hash=digest(raw);
+    if(segments[0]==="tickets"&&segments[2]==="photos")return await handlePhotoRequest(request,segments,hash,d.port,headers);
     return await d.port.run(hash,async scope=>{
       if(route==="session" && request.method==="GET")return json(CoreSessionSchema.parse({role:scope.session.role,synthetic:true}));
       if(route==="logout" && request.method==="POST"){
@@ -83,6 +85,7 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
       return json(project(result,scope.session),action.type==="CREATE"?201:200);
     });
   }catch(error){
+    if(error instanceof PhotoRequestError)return json({error:{code:error.status===413?"PHOTO_TOO_LARGE":error.status===415?"PHOTO_UNSUPPORTED":"PHOTO_INVALID",message:error.status===413?"사진은 5 MiB 이하, 20메가픽셀 이하로 선택해 주세요.":error.status===415?"정상적인 JPEG 또는 PNG 사진만 첨부할 수 있습니다.":"사진 파일을 읽을 수 없습니다. 다른 샘플 사진을 선택해 주세요."}},error.status);
     const code=error instanceof CoreFlowError?error.code:isApplicationError(error)?error.code:"DEPENDENCY_UNAVAILABLE";
     const status=code==="UNAUTHENTICATED"?401:code==="FORBIDDEN"?403:code==="NOT_FOUND"?404:code==="INVALID_INPUT"?400:code==="STATE_CONFLICT"?409:503;
     return json({error:{code,message:status===503?"서비스에 연결하지 못했습니다.":status===409?"현재 상태에서 처리할 수 없습니다.":"접근 권한이나 입력을 확인해 주세요."}},status);

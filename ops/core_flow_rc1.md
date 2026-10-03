@@ -105,3 +105,7 @@ Private log SHA256 receipts:
 - `rc1-usability-existing-browser.log`: 4361beb64d5336be6513fd3402ad44fdc2aafe3a5cece8cbfbae8d4853b34ae5
 
 Local PostgreSQL/Mobile/Doctor/export were not rerun for this Web-only delta; their previous results stay attributed to their original generation. New-head required CI is recorded on PR70 after publication, separately from prior91db051/256f47d runs. Original Mobile timeouts and Expo runtime NOT_RUN remain unchanged; no full two-platform delivery, final merge or production claim. External Google sync for this phase remains pending because the transport is unavailable.
+
+## 2026-10-03 protected photo successor
+
+The operator's subsequent photo instruction authorizes the bounded addition from3b71970. See [photo execution evidence](core_flow_rc1_photos.md) for implementation, actual screens, full regressions and retained new Mobile failures. Earlier unsupported-photo statements describe their original execution generation and are not rewritten. Current Web photo flow is runnable; Expo startup was neither retried nor bypassed. No final merge or production.

@@ -2,9 +2,10 @@ import { CoreSessionSchema,CoreUnitsSchema,CoreTicketSchema,CoreTicketsSchema,Co
   TenantTicketStatusDtoSchema,LandlordTicketDetailDtoSchema,type CoreCreateRequest,type CoreHandlingRequest,type CoreTicketDto,type CoreSessionDto,type CoreUnitDto } from "@build-manager/api-contracts";
 import type { ApiClient } from "./client";
 import { sendRequest,type FetchLike } from "./http";
+import { corePhotos } from "./core-photos";
 
 /** One contract for Web cookie and Expo bearer transport; no role parameter. */
-export function createCoreFlowClient(options:{baseUrl:string;accessCode?:string;fetchImpl?:FetchLike}) {
+export function createCoreFlowClient(options:{baseUrl:string;accessCode?:string;fetchImpl?:FetchLike;photoFetchImpl?:typeof fetch}) {
   const fetcher:FetchLike=(input,init)=> (options.fetchImpl??globalThis.fetch)(input,{
     ...init,headers:{...init?.headers,...(options.accessCode?{Authorization:`Bearer ${options.accessCode}`}:{})},
   });
@@ -24,7 +25,7 @@ export function createCoreFlowClient(options:{baseUrl:string;accessCode?:string;
     requestMoreInfo:async (id,input)=>LandlordTicketDetailDtoSchema.parse((await mutate(id,"/decision",{type:"REQUEST_MORE_INFO",...input})).detail),
   };
   return {
-    protocol,read,
+    protocol,read,...corePhotos(options),
     session:()=>sendRequest<CoreSessionDto>(fetcher,options.baseUrl,{method:"GET",path:"/api/v2/core/session",schema:CoreSessionSchema}),
     login:(accessCode:string)=>sendRequest<CoreSessionDto>(fetcher,options.baseUrl,{method:"POST",path:"/api/v2/core/login",body:CoreLoginSchema.parse({accessCode}),schema:CoreSessionSchema}),
     logout:()=>sendRequest<CoreSessionDto>(fetcher,options.baseUrl,{method:"POST",path:"/api/v2/core/logout",body:{},schema:CoreSessionSchema}),

@@ -19,3 +19,15 @@ export type CoreUnitDto=z.infer<typeof CoreUnitSchema>;
 export type CoreTicketDto=z.infer<typeof CoreTicketSchema>;
 export type CoreCreateRequest=z.infer<typeof CoreCreateSchema>;
 export type CoreHandlingRequest=z.infer<typeof CoreHandlingSchema>;
+
+export const CORE_PHOTO_MAX_BYTES=5*1024*1024;
+export const CORE_PHOTO_MAX_PIXELS=20_000_000;
+export const CORE_PHOTO_MAX_COUNT=3;
+export const CorePhotoSchema=z.object({
+  photoId:z.string().uuid(),uploadId:z.string().uuid(),createdAt:z.string().datetime({offset:true}),
+  mime:z.enum(["image/jpeg","image/png"]),byteSize:z.number().int().positive().max(CORE_PHOTO_MAX_BYTES),
+  width:z.number().int().positive(),height:z.number().int().positive(),
+  path:z.string().regex(/^\/api\/v2\/core\/tickets\/[a-f0-9-]{36}\/photos\/[a-f0-9-]{36}$/),
+}).strict().refine(p=>p.width*p.height<=CORE_PHOTO_MAX_PIXELS);
+export const CorePhotosSchema=z.array(CorePhotoSchema).max(CORE_PHOTO_MAX_COUNT);
+export type CorePhotoDto=z.infer<typeof CorePhotoSchema>;

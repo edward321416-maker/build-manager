@@ -240,7 +240,7 @@ export function TicketIntake({ ticketId, client, coreFlow=false }: { ticketId: s
             </form>
           ) : null}
 
-          {coreFlow && stage === "EVIDENCE" ? <p>사진 업로드는 아직 지원하지 않습니다. 현재 정보로 제출하면 관리자가 부족한 정보를 확인합니다.</p> : null}
+          {coreFlow && stage === "EVIDENCE" ? <p>위 참고 사진은 필수 증빙 판정과 별개입니다. 현재 정보로 제출하면 관리자가 부족한 정보를 확인합니다.</p> : null}
           {stage === "READY_TO_FINALIZE" || (coreFlow && stage === "EVIDENCE") ? (
             <section className="finalize-stage">
               <h2>제출할 준비가 되었습니다</h2>

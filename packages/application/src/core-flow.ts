@@ -13,6 +13,8 @@ export type CoreUnit = { id: string; buildingId: string; buildingName: string; l
 export type CoreWorkStatus = "OPEN" | "IN_PROGRESS" | "COMPLETED";
 export type CoreEvent = { id: string; kind: string; actorRole: CoreSession["role"]; message: string; at: string };
 export type CoreRecord = { ticket: Ticket; building: Building; workStatus: CoreWorkStatus; version: number; events: CoreEvent[] };
+export type CorePhoto = {photoId:string;uploadId:string;createdAt:string;mime:"image/jpeg"|"image/png";byteSize:number;width:number;height:number};
+export type CorePhotoInput = {uploadId:string;mime:CorePhoto["mime"];width:number;height:number;bytes:Uint8Array};
 export type CoreScope = {
   session: CoreSession;
   units(): Promise<CoreUnit[]>;
@@ -20,6 +22,10 @@ export type CoreScope = {
   read(id: string, lock?: boolean): Promise<CoreRecord>;
   list(unitId?: string): Promise<CoreRecord[]>;
   store(ticket: Ticket, kind: string, message: string, work?: CoreWorkStatus): Promise<void>;
+  checkPhotoWrite(id:string):Promise<void>;
+  photos(id:string):Promise<CorePhoto[]>;
+  photo(id:string,photoId:string):Promise<{photo:CorePhoto;bytes:Uint8Array}>;
+  savePhoto(id:string,input:CorePhotoInput):Promise<{photo:CorePhoto;created:boolean}>;
 };
 export type CoreFlowPort = { run<T>(digest: string, operation: (scope: CoreScope) => Promise<T>): Promise<T> };
 export type CoreAction =
@@ -32,7 +38,7 @@ export type CoreAction =
  | { type: "HANDLING"; ticketId: string; status: "IN_PROGRESS" | "COMPLETED"; message: string };
 
 export class CoreFlowError extends Error {
-  readonly code: "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_INPUT" | "DEPENDENCY_UNAVAILABLE";
+  readonly code: "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_INPUT" | "STATE_CONFLICT" | "DEPENDENCY_UNAVAILABLE";
   constructor(code: CoreFlowError["code"]) { super(code); this.code=code; }
 }
 

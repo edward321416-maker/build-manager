@@ -5,6 +5,8 @@ import { resolve,join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { randomUUID,createHash } from "node:crypto";
+import sharp from "sharp";
 import { setTimeout as delay } from "node:timers/promises";
 
 // Owned loopback process only. No container/data removal; no secret output.
@@ -27,9 +29,16 @@ async function api(who,path,body){const r=await fetch(base+"/api/v2/core/"+path,
 try{
   const first=await start();
   const t=await api("tenant","tickets",{unitId:state.fixture.unitA,issueType:"LEAK",rawUserText:"합성 서버 재시작 영속성 확인"});
+  const input=await sharp({create:{width:80,height:40,channels:3,background:"#197c92"}}).jpeg().toBuffer();
+  const uploaded=await fetch(`${base}/api/v2/core/tickets/${t.ticketId}/photos`,{method:"POST",headers:{Authorization:`Bearer ${state.fixture.accounts.tenant.handle}`,"Content-Type":"image/jpeg","X-Upload-Id":randomUUID()},body:input});assert.equal(uploaded.status,201);const photo=await uploaded.json();
+  const photoBytes=async who=>{const r=await fetch(base+photo.path,{headers:{Authorization:`Bearer ${state.fixture.accounts[who].handle}`}});assert.equal(r.status,200);return Buffer.from(await r.arrayBuffer());};
+  const originalPhoto=await photoBytes("tenant"),photoHash=createHash("sha256").update(originalPhoto).digest("hex");
   await api("manager",`tickets/${t.ticketId}/handling`,{status:"IN_PROGRESS",message:"합성 재시작 전 처리 기록"});
   const before=await api("tenant",`tickets/${t.ticketId}`);await stop();const second=await start();assert.notEqual(first,second);
   const after=await api("tenant",`tickets/${t.ticketId}`);assert.deepEqual(after,before);
   assert.equal((await api("manager","tickets")).some(x=>x.ticketId===t.ticketId),true);
+  assert.deepEqual(await api("tenant",`tickets/${t.ticketId}/photos`),[photo]);
+  for(const who of ["tenant","manager"]){assert.equal(createHash("sha256").update(await photoBytes(who)).digest("hex"),photoHash);}
+  console.log("RC1_PHOTO_RESTART_PASS | exact JPEG bytes and metadata retained | tenant and manager protected reread");
   console.log("RC1_SERVER_RESTART_PASS | distinct server PIDs | exact ticket/version/events preserved | tenant and manager reread");
 }finally{await stop();}

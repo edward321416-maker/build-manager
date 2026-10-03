@@ -49,7 +49,7 @@ it("uses existing safety protocol and refuses automatic completion without a han
   await expect(act("manager",{type:"HANDLING",ticketId:ticket.ticket.id,status:"COMPLETED",message:"too soon"})).rejects.toMatchObject({code:"STATE_CONFLICT"});
 });
 it("denies direct tables and public capabilities; runtime cannot create org scope",async()=>{
-  for(const table of ["session_scope","ticket","ticket_event","building_context"])
+  for(const table of ["session_scope","ticket","ticket_event","ticket_photo","building_context"])
     await expect(f.web.query(`SELECT * FROM core_flow.${table}`)).rejects.toMatchObject({code:"42501"});
   const publicFunctions=(await f.p.admin.query("SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='core_flow' AND EXISTS(SELECT 1 FROM aclexplode(p.proacl) a WHERE a.grantee=0)")).rows;
   expect(publicFunctions).toEqual([]);
@@ -78,7 +78,7 @@ it("pins RC1 owner, membership, FORCE RLS and exact capability exposure",async()
   const grants=(await f.p.admin.query("SELECT r.rolname AS member,a.admin_option,a.inherit_option,a.set_option FROM pg_auth_members a JOIN pg_roles r ON r.oid=a.member WHERE a.roleid='bm_core_flow_owner'::regrole")).rows;
   expect(grants).toEqual([{member:"bm_pf02a_migrator",admin_option:false,inherit_option:false,set_option:true}]);
   const tables=(await f.p.admin.query("SELECT relname,relrowsecurity,relforcerowsecurity FROM pg_class WHERE relnamespace='core_flow'::regnamespace AND relkind='r' ORDER BY relname")).rows;
-  expect(tables).toEqual(["building_context","session_scope","ticket","ticket_event"].map(relname=>({relname,relrowsecurity:true,relforcerowsecurity:true})));
+  expect(tables).toEqual(["building_context","session_scope","ticket","ticket_event","ticket_photo"].map(relname=>({relname,relrowsecurity:true,relforcerowsecurity:true})));
   const funcs=(await f.p.admin.query("SELECT proname,prosecdef,proconfig,pg_get_userbyid(proowner) AS owner,has_function_privilege('bm_b1_web',oid,'EXECUTE') AS web FROM pg_proc WHERE pronamespace='core_flow'::regnamespace ORDER BY proname")).rows;
-  expect(funcs).toEqual(["building","can_unit","list_tickets","read_ticket","session","store_ticket","units"].map(proname=>({proname,prosecdef:true,proconfig:["search_path=pg_catalog"],owner:"bm_core_flow_owner",web:proname!=="can_unit"})));
+  expect(funcs).toEqual(["building","can_unit","check_photo_write","list_photos","list_tickets","read_photo","read_ticket","save_photo","session","store_ticket","units"].map(proname=>({proname,prosecdef:true,proconfig:["search_path=pg_catalog"],owner:"bm_core_flow_owner",web:proname!=="can_unit"})));
 });
