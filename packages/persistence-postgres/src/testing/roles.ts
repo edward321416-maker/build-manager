@@ -1,6 +1,7 @@
 import { provisionB1TestRoles, type B1RoleCredentials } from "./b1-roles";
 import { provisionB4TestRole } from "./b4-roles";
 import { provisionB5TestRoles } from "./b5-roles";
+import { provisionCoreFlowTestRole } from "./core-flow-roles";
 import { randomBytes } from "node:crypto";
 import type { Client, ClientConfig } from "pg";
 
@@ -60,5 +61,6 @@ export async function provisionTestRoles(
   const b1 = await provisionB1TestRoles(admin, base, TEST_MIGRATION_ROLE);
   await provisionB4TestRole(admin, TEST_MIGRATION_ROLE);
   await provisionB5TestRoles(admin, TEST_MIGRATION_ROLE);
+  await provisionCoreFlowTestRole(admin);
   return { migrationConfig, runtimeConfig, b1 };
 }

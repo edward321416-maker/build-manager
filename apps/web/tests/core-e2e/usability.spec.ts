@@ -1,0 +1,95 @@
+import { test,expect,type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+const privateRoot=join(homedir(),".build-manager-rc1-private");
+const alerts=(page:Page)=>page.getByRole("main").filter({has:page.getByRole("heading",{name:"우리 집 수리 접수",exact:true})}).getByRole("alert");
+class CoreScreen {
+  constructor(readonly page:Page){}
+  async login(who:string){
+    const codes=JSON.parse(await readFile(join(privateRoot,"access-codes.json"),"utf8")) as Record<string,string>;
+    await this.page.goto("/core");
+    await this.page.getByLabel("개발 접근 코드").fill(codes[who]!);
+    await this.page.getByRole("button",{name:"들어가기",exact:true}).click();
+    await expect(this.page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();
+  }
+  async assertFits(){
+    expect(await this.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    for(const button of await this.page.getByRole("button").all()){
+      if(!await button.isVisible())continue;
+      const box=await button.boundingBox();expect(box).not.toBeNull();
+      expect(box!.height).toBeGreaterThanOrEqual(44);expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x+box!.width).toBeLessThanOrEqual(this.page.viewportSize()!.width);
+    }
+  }
+}
+
+test("320px tenant and manager can save and read a clear handling result",async({page,browser})=>{
+  await page.setViewportSize({width:320,height:740});const tenant=new CoreScreen(page);await tenant.login("tenant");
+  await tenant.assertFits();
+  await page.getByLabel("문제 유형").selectOption("LEAK");await page.getByLabel("문제 설명").fill("합성 작은 화면 누수 점검");
+  const response=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");
+  await page.getByRole("button",{name:"접수하기",exact:true}).click();const created=await response;expect(created.status()).toBe(201);const ticket=await created.json();
+  await expect(page.getByRole("status").filter({hasText:"접수 내용이 저장되었습니다"})).toHaveText("접수 내용이 저장되었습니다. 아래 질문과 제출 상태를 확인해 주세요.");
+  await expect(page.getByRole("region",{name:"접수 및 처리 이력"})).toContainText("접수 내용 저장");
+  await expect(page.getByRole("heading",{name:"접수 상세",exact:true})).toBeFocused();
+  const managerContext=await browser.newContext({viewport:{width:320,height:740}}),manager=await managerContext.newPage();
+  try{
+    const managerScreen=new CoreScreen(manager);await managerScreen.login("manager");
+    await manager.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();
+    await expect(manager.getByRole("heading",{name:`수리 요청 ${ticket.ticketId}`,exact:true})).toBeVisible();
+    await managerScreen.assertFits();
+    await manager.screenshot({path:join(privateRoot,"usability-manager-active-320.png"),fullPage:true});
+    await manager.getByLabel("처리 기록").fill("합성 현장 확인 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();
+    await expect(manager.getByRole("status").filter({hasText:"처리 시작 기록을 저장했습니다"})).toHaveText("처리 시작 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.");
+    await manager.getByLabel("처리 기록").fill("합성 누수 조치 결과 확인");await manager.getByRole("button",{name:"처리 완료 기록",exact:true}).click();
+    await expect(manager.getByRole("status").filter({hasText:"처리 완료 기록을 저장했습니다"})).toHaveText("처리 완료 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.");await managerScreen.assertFits();
+    await page.getByRole("button",{name:"전체 새로고침",exact:true}).click();
+    await expect(page.getByTestId("work-status")).toHaveText("처리 완료 (관리자 기록)");
+    await expect(page.getByRole("region",{name:"접수 및 처리 이력"})).toContainText("합성 누수 조치 결과 확인");await tenant.assertFits();
+    await page.screenshot({path:join(privateRoot,"usability-tenant-result-320.png"),fullPage:true});
+    await manager.screenshot({path:join(privateRoot,"usability-manager-result-320.png"),fullPage:true});
+    for(const width of [390,768,1280]){await page.setViewportSize({width,height:900});await tenant.assertFits();}
+  }finally{await managerContext.close();}
+});
+
+test("load failure offers a read-only retry and empty lists explain the next action",async({page})=>{
+  await page.setViewportSize({width:320,height:740});
+  let releaseSession!:()=>void;const pendingSession=new Promise<void>(resolve=>{releaseSession=resolve;});
+  await page.route("**/api/v2/core/session",async route=>{await pendingSession;await route.abort();});await page.goto("/core");
+  await expect(page.getByLabel("개발 접근 코드")).toBeDisabled();releaseSession();
+  await expect(alerts(page)).toContainText("내용을 불러오지 못했습니다");
+  await page.unroute("**/api/v2/core/session");await page.getByRole("button",{name:"다시 불러오기",exact:true}).click();
+  await expect(alerts(page)).toHaveCount(0);
+  // Controlled empty/error responses exercise UI recovery, not persistence or authorization.
+  await page.route("**/api/v2/core/tickets",route=>route.request().method()==="GET"?route.fulfill({json:[]}):route.continue());
+  await new CoreScreen(page).login("tenant");
+  await expect(page.getByText("선택한 호실의 접수 내역이 없습니다. 위의 문제 접수에서 첫 내용을 남겨 주세요.",{exact:true})).toBeVisible();
+  await page.screenshot({path:join(privateRoot,"usability-empty-320.png"),fullPage:true});
+  await page.getByLabel("문제 설명").fill("연결 실패에도 유지할 합성 입력");
+  let submissions=0;
+  await page.route("**/api/v2/core/tickets",route=>{if(route.request().method()==="POST"){submissions++;return route.abort();}return route.fulfill({json:[]});});
+  await page.getByRole("button",{name:"접수하기",exact:true}).click();
+  await expect(alerts(page)).toContainText("저장 결과를 확인하지 못했습니다");
+  await expect(page.getByLabel("문제 설명")).toHaveValue("연결 실패에도 유지할 합성 입력");
+  await page.screenshot({path:join(privateRoot,"usability-save-error-320.png"),fullPage:true});
+  await page.getByRole("button",{name:"다시 불러오기",exact:true}).click();
+  await expect(alerts(page)).toHaveCount(0);expect(submissions).toBe(1);
+  await page.route("**/api/v2/core/units",route=>route.fulfill({json:[]}));
+  await page.getByRole("button",{name:"전체 새로고침",exact:true}).click();
+  await expect(page.getByText("접근 가능한 호실이 없습니다. 관리자에게 소속·호실 배정을 확인한 뒤 전체 새로고침을 눌러 주세요.",{exact:true})).toBeVisible();
+  await expect(page.getByRole("button",{name:"접수하기",exact:true})).toHaveCount(0);
+});
+
+test("a missing session during a nested ticket action clears protected content and explains sign-in",async({page,context})=>{
+  await page.setViewportSize({width:320,height:740});await new CoreScreen(page).login("tenant");
+  await page.getByLabel("문제 설명").fill("합성 세션 안내 확인");await page.getByRole("button",{name:"접수하기",exact:true}).click();
+  await expect(page.getByTestId("refresh")).toBeVisible();
+  await context.clearCookies(); // Real server401 after browser loses its session, without revoking a shared fixture code.
+  await page.getByTestId("refresh").click();
+  await expect(alerts(page)).toContainText("접속이 만료되었거나 코드가 유효하지 않습니다");
+  await expect(page.getByLabel("개발 접근 코드")).toBeVisible();
+  await expect(page.getByRole("heading",{name:"접수 상세",exact:true})).toHaveCount(0);
+  await page.screenshot({path:join(privateRoot,"usability-session-ended-320.png"),fullPage:true});
+});

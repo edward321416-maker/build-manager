@@ -65,10 +65,12 @@ export function TicketReview({
   client,
   ticketId,
   onBack,
+  coreFlow=false,
 }: {
   client: ApiClient;
   ticketId: string;
   onBack: () => void;
+  coreFlow?: boolean;
 }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [busy, setBusy] = useState(false);
@@ -161,7 +163,7 @@ export function TicketReview({
 
   return (
     <Screen>
-      <DemoBanner />
+      {coreFlow ? null : <DemoBanner />}
 
       {state.kind === "loading" ? <LoadingState /> : null}
 
@@ -323,9 +325,9 @@ export function TicketReview({
               ))}
             </View>
 
-            <Text style={styles.rowLabel}>다시 제출받을 DEMO 증빙</Text>
+            {coreFlow ? null : <Text style={styles.rowLabel}>다시 제출받을 DEMO 증빙</Text>}
             <View style={styles.group}>
-              {ticket.followUpOptions.evidence.map((requirement) => (
+              {(coreFlow ? [] : ticket.followUpOptions.evidence).map((requirement) => (
                 <ActionButton
                   disabled={busy}
                   key={requirement.evidenceType}

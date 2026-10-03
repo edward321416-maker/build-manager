@@ -1,0 +1,276 @@
+{
+  "scope": "Windows development worktree runs, not exact committed-head CI",
+  "base": "e9144fac807f39544932baac25b11f836658dbb3",
+  "node": "24.21.0",
+  "npm": "11.19.0",
+  "postgres": "18.6",
+  "no_timeout_skip_or_oracle_relaxation": true,
+  "logs_private": true,
+  "checks": [
+    {
+      "log": "rc1-postgres-1.log",
+      "command": "targeted core PostgreSQL",
+      "exit_code": 1,
+      "result": "setup owner EXECUTE failure",
+      "sha256": "fc8fd198a7c38d53de76132449f39449e0829e197a45318167f7004c14a5f657"
+    },
+    {
+      "log": "rc1-postgres-2.log",
+      "command": "targeted core PostgreSQL",
+      "exit_code": 1,
+      "result": "setup grant ownership failure",
+      "sha256": "a651ea195fb7df54197c1703967788c78b500bae2c54dcacf47dcd281f92f09a"
+    },
+    {
+      "log": "rc1-postgres-3.log",
+      "command": "targeted core PostgreSQL",
+      "exit_code": 1,
+      "result": "5failed/2passed SQL ambiguous unit",
+      "sha256": "70d5cfead8a9badd53c15d78f77bb71b660e795f17a4236ef67c83627bb20781"
+    },
+    {
+      "log": "rc1-postgres-4.log",
+      "command": "targeted core PostgreSQL",
+      "exit_code": 0,
+      "result": "7passed/1file",
+      "sha256": "edd2cf8a17d78fa3def678b5ef527d89bb1688498127e2da848b8af647af9529"
+    },
+    {
+      "log": "rc1-pg-full-1.log",
+      "command": "npm run test:postgres",
+      "exit_code": 1,
+      "result": "301passed/3failed/29files",
+      "sha256": "a01e620a16525861caafd6448387056250291c6a00e7a77ed75b3b614141d135"
+    },
+    {
+      "log": "rc1-pg-full-2.log",
+      "command": "npm run test:postgres",
+      "exit_code": 0,
+      "result": "305passed/29files;430.70s",
+      "sha256": "ab1ec48654f3202fe7c510655870922075bf753b78c56a88c527cfc46f4f0a9a"
+    },
+    {
+      "log": "rc1-shared-1.log",
+      "command": "npm run test:shared",
+      "exit_code": 0,
+      "result": "435passed/35files",
+      "sha256": "43ca09d3fafee979a271dc21f9414df75b3783818e2d48f16448a99e162ad765"
+    },
+    {
+      "log": "rc1-shared-2.log",
+      "command": "npm run test:shared",
+      "exit_code": 1,
+      "result": "434passed/1failed new subpath inventory",
+      "sha256": "da8041ace9cd13a0a236141a5724699776e24380ae91a10fa0d17342004290b3"
+    },
+    {
+      "log": "rc1-shared-3.log",
+      "command": "npm run test:shared",
+      "exit_code": 0,
+      "result": "435passed/35files",
+      "sha256": "0575fdaa8be10b60789ab2df8e09b2d4aab89075e15f93be70b6239f3719c3fd"
+    },
+    {
+      "log": "rc1-web-1.log",
+      "command": "npm run test:web",
+      "exit_code": 0,
+      "result": "465passed/39files",
+      "sha256": "54508968ff0bdaeb5bc99e7ee5823c2c1d37325476b777850cb0689527227235"
+    },
+    {
+      "log": "rc1-mobile-1.log",
+      "command": "npm run test:mobile",
+      "exit_code": 1,
+      "result": "132passed/1failed/13suites;default cache coldness NOT_VERIFIED;5000ms timeout tenant-ticket.test.tsx:78",
+      "sha256": "9dc6b09a9824e1f8afaabbf9611695cceeebdc604cd9c21b427cbf379e22556c"
+    },
+    {
+      "log": "rc1-mobile-core-1.log",
+      "command": "npm run test:mobile -- core-flow.test.tsx",
+      "exit_code": 1,
+      "result": "3failed;unawaited render test harness",
+      "sha256": "b66fc0961e452500be0996700326c18df1b50d586214ef5a6b37e9f37dfb0181"
+    },
+    {
+      "log": "rc1-mobile-core-2.log",
+      "command": "npm run test:mobile -- core-flow.test.tsx",
+      "exit_code": 0,
+      "result": "3passed/1suite",
+      "sha256": "419faa460710fa5f4649a1f6deed5ecbf741210b7e072406a733114b5fee05e9"
+    },
+    {
+      "log": "rc1-mobile-cold.log",
+      "command": "npm run test:mobile -- --cacheDirectory <fresh-private-directory> --json --outputFile <private-result>",
+      "exit_code": 0,
+      "result": "136passed/14suites;27.067s;fresh cache created for this run",
+      "sha256": "114465c2ba986cbab8f741000aeab3447310878d904ff443872eac15e62e089f"
+    },
+    {
+      "log": "rc1-mobile-final.log",
+      "command": "npm run test:mobile",
+      "exit_code": 0,
+      "result": "137passed/14suites;8.99s;warm/default cache",
+      "sha256": "baf90052b491a83239cc872d0757e599cdead2f8e3511149be3be4e24898ebfa"
+    },
+    {
+      "log": "rc1-core-e2e-1.log",
+      "command": "npx --no-install playwright test --config playwright.core.config.ts",
+      "exit_code": 1,
+      "result": "1passed/2failed missing fixture passport fields",
+      "sha256": "faabb29db156c5d90e2f3fd08b417b2db052acaeb576cf458142f45b470259b6"
+    },
+    {
+      "log": "rc1-core-e2e-2.log",
+      "command": "same core browser command after fixture correction",
+      "exit_code": 0,
+      "result": "3passed",
+      "sha256": "4bd871fd657b3dbe436c1f10ffc6f51d5ddbbd704ec007331846889e1056de63"
+    },
+    {
+      "log": "rc1-core-e2e-3.log",
+      "command": "same core browser command after denial-clearing test added",
+      "exit_code": 0,
+      "result": "4passed",
+      "sha256": "50fc3848588d167d672cfb2feb65224a8090a7922fb1a237e13aa536d5860d54"
+    },
+    {
+      "log": "rc1-restart-1.log",
+      "command": "node scripts/core-flow-restart-check.mjs",
+      "exit_code": 0,
+      "result": "distinct server PIDs/exact persistent ticket comparison",
+      "sha256": "dd7eef646c31879ce5e69836af2a24218f0da864d81042bca0643b990536147a"
+    },
+    {
+      "log": "rc1-e2e-demo-1.log",
+      "command": "npm run test:e2e:web; BUILD_MANAGER_E2E_PREBUILT=1",
+      "exit_code": 0,
+      "result": "23passed",
+      "sha256": "ccbf08af26745917af89f33f0b07caf1c6812fde769c04de36f5f842946a5a47"
+    },
+    {
+      "log": "rc1-e2e-b1-1.log",
+      "command": "npm run test:e2e:b1; BUILD_MANAGER_E2E_PREBUILT=1",
+      "exit_code": 0,
+      "result": "60passed;checker separately verified21negative/zero skipped/retries",
+      "sha256": "9b1306caafe503afd730eace33d1c32ec125b97e0e9d8146ef907a0d6bbb7d3c"
+    },
+    {
+      "log": "rc1-types-1.log",
+      "command": "npm run typecheck",
+      "exit_code": 2,
+      "result": "generic client return/approve input",
+      "sha256": "152bc4203ae54c2eb29f2c014f68759da0f44bc07d6db1767906f6f213c039b2"
+    },
+    {
+      "log": "rc1-types-2.log",
+      "command": "npm run typecheck",
+      "exit_code": 2,
+      "result": "HTTP narrowing errors",
+      "sha256": "6510a9884fd11f96551cf2fc2e1cc0850229c3974f7bf8ef2de08e5d439fb568"
+    },
+    {
+      "log": "rc1-types-final.log",
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "result": "packages/tests/Web/Mobile",
+      "sha256": "c6c909ba49a145b7e844339fefe2c22478aa8aca8d9664fabfa28d6abaca407d"
+    },
+    {
+      "log": "rc1-build-1.log",
+      "command": "npm run build:web",
+      "exit_code": 1,
+      "result": "test headers type error",
+      "sha256": "9ebcc15a958f84d9c953f5982d55c667706ea5700a0759847ffe256be3e75e84"
+    },
+    {
+      "log": "rc1-build-4.log",
+      "command": "npm run build:web",
+      "exit_code": 0,
+      "result": "final Web build",
+      "sha256": "1fbdd63b4ce6ba52ec69e02568c0c5b665e2dd58f2246c1a7b3befc7c3ef6d92"
+    },
+    {
+      "log": "rc1-lint-final.log",
+      "command": "npm run lint",
+      "exit_code": 0,
+      "result": "2pre-existing warnings",
+      "sha256": "b5b353c83a056b4f5f398df005c2823e32ad558019dfc65a1a5206b3b7842a85"
+    },
+    {
+      "log": "rc1-deps-1.log",
+      "command": "npm run check:deps",
+      "exit_code": 0,
+      "result": "locked dependency tree",
+      "sha256": "4773d0a638cccbe7f95f0d47f000cbfd78197df4f3bee470b627802631d598ff"
+    },
+    {
+      "log": "rc1-doctor-1.log",
+      "command": "npx --yes expo-doctor@1.20.4 .",
+      "exit_code": 0,
+      "result": "21/21",
+      "sha256": "034e6a035ebc285318478d08ac2b1f6b182022e50eeda2ded136e0081d2f5a80"
+    },
+    {
+      "log": "rc1-android-1.log",
+      "command": "npx --no-install expo export --platform android --output-dir <private>",
+      "exit_code": 0,
+      "result": "29files; before final denial-clearing UI delta",
+      "sha256": "7e81abd18653a390ea0019ef7b322a62853472b94dbd732dccd6570a7c434e42"
+    },
+    {
+      "log": "rc1-ios-1.log",
+      "command": "npx --no-install expo export --platform ios --output-dir <private>",
+      "exit_code": 0,
+      "result": "25files; before final denial-clearing UI delta",
+      "sha256": "086c117b95d1c859fa1d14ba6ae6d7e408f496a352861f8aa7729cdebae7050e"
+    },
+    {
+      "log": "rc1-scanner-tests-1.log",
+      "command": "python tests/test_verify_repository.py -v",
+      "exit_code": 0,
+      "result": "3passed",
+      "sha256": "81da49bdaecc04a518b4285e5cbd1e0beb0cf81c5811abe6839e18fbf3e961f9"
+    },
+    {
+      "log": "rc1-scanner-tests-2.log",
+      "command": "python scripts/tests/test_verify_repository.py -v",
+      "exit_code": 0,
+      "result": "14passed",
+      "sha256": "8080907bfe4bf5e84394cf23596c251b2e70ba5df520f1c193c150a0d29a4b5e"
+    },
+    {
+      "log": "rc1-safety-backend.log",
+      "command": "python scripts/verify_repository.py --history",
+      "exit_code": 0,
+      "result": "512files/262links/1267historyblobs/zero findings; backend staged generation",
+      "sha256": "5b15855ec180807bd501371f5381420e6b70e2a0a2bd5bc10dd1687d1a7d90ae"
+    },
+    {
+      "log": "rc1-android-final.log",
+      "command": "npx --no-install expo export --platform android --output-dir <private>",
+      "exit_code": 0,
+      "result": "29files; final UI",
+      "sha256": "7d72be06a6601348545e3e0ecfe185433338fb733bf4224419dbc81e4fcb4e6a"
+    },
+    {
+      "log": "rc1-ios-final.log",
+      "command": "npx --no-install expo export --platform ios --output-dir <private>",
+      "exit_code": 0,
+      "result": "25files; final UI",
+      "sha256": "efd677b3e34b4805a49738902316941e46b2d960272ee3db1a1e1d40084e3299"
+    },
+    {
+      "log": "rc1-safety-ui.log",
+      "command": "python scripts/verify_repository.py",
+      "exit_code": 0,
+      "result": "520files/262links/zero findings; UI staged generation",
+      "sha256": "343082df01a1d736fb80fc2428c505791725df71da82b4b263835994c679a1c4"
+    }
+  ],
+  "not_run": [
+    "Expo development-server startup rejected twice by automatic approval review",
+    "Expo Web UI",
+    "physical device/LAN",
+    "APK/native-device runtime"
+  ]
+}
