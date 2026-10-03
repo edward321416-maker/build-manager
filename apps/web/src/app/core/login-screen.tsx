@@ -2,6 +2,7 @@
 import { useCallback,useEffect,useRef,useState } from "react";
 import { CoreAccessSchema,type CoreAccessDto } from "@build-manager/api-contracts";
 import CoreFlowPage from "./core-screen";
+import { OnboardingPanel } from "./onboarding-panel";
 
 export function CoreLoginScreen(){
  const [access,setAccess]=useState<CoreAccessDto|null>(null),[scope,setScope]=useState<{orgId:string;csrf:string;generation:number}|undefined>();
@@ -54,6 +55,7 @@ export function CoreLoginScreen(){
   </section>
   <div className="core-workspace">
    {scope?<CoreFlowPage key={scope.orgId+scope.csrf} b1={scope} onDenied={scopedDenied} onLogout={logout}/>:null}
+   {phase==="ready"&&access?<OnboardingPanel key={"onboarding-"+(scope?.orgId??"none")+access.csrf} csrf={access.csrf} orgId={scope?.orgId} manager={access.organizations.some(o=>o.id===scope?.orgId&&o.role==="ORG_ADMIN")} onRefreshAccess={()=>void load()} onDenied={denied}/>:null}
   </div>
  </div>;
 }

@@ -86,6 +86,8 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
   expect(manifest.exports["./b5"]).toBe("./src/b5/index.ts"); delete manifest.exports["./b5"];
   // Successor scope issue69 adds an isolated entry; the original public root stays frozen.
   expect(manifest.exports["./core-flow"]).toBe("./src/core-flow.ts"); delete manifest.exports["./core-flow"];
+  // PR70 authorization5969526294 adds only this successor capability entry.
+  expect(manifest.exports["./core-onboarding"]).toBe("./src/core-onboarding.ts"); delete manifest.exports["./core-onboarding"];
   expect(manifest).toEqual({"name": "@build-manager/persistence-postgres", "version": "0.0.0", "private": true, "type": "module", "exports": {".": "./src/index.ts", "./testing": "./src/testing/index.ts", "./b1": "./src/b1/index.ts", "./b3": "./src/b3/index.ts", "./b4": "./src/b4/index.ts"}, "dependencies": {"pg": "8.23.0", "@build-manager/application": "0.0.0"}, "devDependencies": {"@testcontainers/postgresql": "12.1.0", "@types/pg": "8.23.1", "node-pg-migrate": "9.0.0"}});
 });
 it("AC01 B5 server graph excludes raw driver/demo/testing and exposes only the exact individual route",async()=>{

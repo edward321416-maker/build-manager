@@ -350,6 +350,12 @@ button:disabled {
 .core-flow .photo-dialog { margin: auto; max-width: 95vw; max-height: 95vh; padding: 1rem; border-radius: .5rem; }
 .core-flow .photo-dialog img { display: block; max-width: 100%; max-height: 75vh; object-fit: contain; }
 .core-flow .photo-dialog::backdrop { background: #14241bcc; }
+.core-onboarding details > * + *, .core-join > * + * { margin-top: 1rem; }
+.core-onboarding summary { min-height: 2.75rem; align-content: center; cursor: pointer; font-weight: 700; }
+.core-onboarding .invitation-card { margin-block: 1rem; }
+.core-onboarding .invitation-confirm { display: flex; align-items: center; gap: .75rem; min-height: 2.75rem; margin-block: .75rem; }
+.core-onboarding .invitation-confirm input { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
+.core-onboarding .request-number, .core-join .request-number { overflow-wrap: anywhere; }
 
 :focus-visible {
   outline: 3px solid #7b4c2f;

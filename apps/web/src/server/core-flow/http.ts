@@ -5,6 +5,7 @@ import { presentTenantTicket,presentLandlordTicket } from "../http/presenters";
 import { parseRouteCode } from "../http/route-code";
 import { getCoreFlowContainer,type CoreHTTPDependencies } from "./container";
 import { handlePhotoRequest,PhotoRequestError } from "./photos";
+import { handleOnboarding } from "./onboarding";
 
 const cookie="rc1_session";
 const digest=(value:string)=>createHash("sha256").update(value).digest("hex");
@@ -26,7 +27,7 @@ function parse<T>(schema:{safeParse(v:unknown):{success:boolean;data?:T}},value:
 }
 
 export async function handleCoreFlow(request:Request,segments:string[],resolve:()=>CoreHTTPDependencies=getCoreFlowContainer):Promise<Response>{
-  const headers=new Headers({"Cache-Control":"private, no-store",Vary:"Cookie, Authorization, Origin, X-Core-Organization","X-Content-Type-Options":"nosniff"});
+  const headers=new Headers({"Cache-Control":"private, no-store","Referrer-Policy":"no-referrer",Vary:"Cookie, Authorization, Origin, X-Core-Organization","X-Content-Type-Options":"nosniff"});
   const json=(data:unknown,status=200)=>Response.json(data,{status,headers});
   try {
     const d=resolve(),origin=request.headers.get("origin"),bearer=request.headers.get("authorization");
@@ -37,6 +38,12 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
     if(!["GET","POST"].includes(request.method))return json({error:{code:"METHOD_NOT_ALLOWED",message:"허용하지 않는 요청입니다."}},405);
     if(request.method==="POST" && !origin && (!bearer||d.b1))fail("FORBIDDEN");
     const url=new URL(request.url),route=segments.join("/");
+    if(segments[0]==="onboarding"){
+      if(!d.b1)fail("UNAUTHENTICATED");
+      const current=await d.b1.current(request);
+      if(!d.b1.onboarding||!d.b1.inviteOrigin)fail("DEPENDENCY_UNAVAILABLE");
+      return await handleOnboarding(request,segments.slice(1),current.digest,d.b1.onboarding,d.b1.inviteOrigin,headers);
+    }
     if([...url.searchParams.keys()].some(k=>k!=="unitId" || route!=="tickets" || request.method!=="GET") || url.searchParams.getAll("unitId").length>1)fail("INVALID_INPUT");
     let hash:string,port=d.port;
     if(d.b1){

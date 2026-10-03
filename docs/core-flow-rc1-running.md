@@ -129,7 +129,36 @@ The operator-authorized 2026-10-03 resume again received `blocked by policy` bef
 
 For a physical phone, loopback is not usable. Configure `CORE_FLOW_HOST` to an actual private IPv4 interface on the development PC and set `EXPO_PUBLIC_API_URL` to that address/port before starting Expo with the appropriate LAN settings. The launcher rejects wildcard/public hosts. Device reachability and any firewall requirements must be verified separately; do not alter firewall/IAM or connect a new account automatically. No phone-accessible LAN was verified in this execution.
 
-## Reproduce the new checks
+## B1 invitation and tenant connection
+
+The B1 Web screen now has **세입자 초대·연결 관리** below the existing workspace. An ORG_ADMIN selects a vacant ACTIVE unit and creates a24hour invitation. Copy its link and deliver it manually to the intended applicant. The raw link is available only in that browser memory; if it is lost, refresh the invitation list, revoke it and create a new one. If the browser refuses copying, allow clipboard writing for this local app and retry the copy button; no new invitation is needed.
+
+The tenant signs in with the existing Auth0 account, reopens the original invitation, checks the unit, then clicks **연결 요청 보내기**. Opening a link never submits a request. This also works before the account belongs to any organization. Both parties see the same request number. The manager confirms that number and the unit directly with the applicant, checks the confirmation box, then approves or rejects. Approval creates the occupancy atomically; a lost response is recovered with the status-refresh button. The tenant uses **내 소속·호실 새로고침** and the existing text/photo intake. Previous occupancies, tickets and photos remain intact.
+
+Use the existing isolated Node24.21.0 executable. From the repository root, apply only outstanding migrations to the already marked local DB:
+
+```powershell
+node --experimental-transform-types scripts/core-flow-b1-dev.mjs --migrate
+```
+
+The existing real Auth0 server keeps its registered origin and private settings:
+
+```powershell
+node --env-file="$env:USERPROFILE/.build-manager-rc1-private/auth0-existing.env" --experimental-transform-types scripts/core-flow-b1-dev.mjs --serve
+```
+
+Open **http://localhost:3100/core** in the existing configured environment. The SDK test manager uses the same DB on3133. For this split local setup only, its server must create links for the registered tenant origin:
+
+```powershell
+$env:CORE_INVITE_APP_ORIGIN='http://localhost:3100'
+node --experimental-transform-types scripts/core-flow-b1-dev.mjs --serve-synthetic-sdk
+```
+
+In a second shell using the same isolated Node, `node scripts/core-flow-b1-open.mjs --manager` opens the existing synthetic manager. It is not actual provider authentication. Do not run a second server on an occupied port or change registered Auth0 callbacks. No additional provider account or login setting is required for invitations. This feature is B1 Web-only; developer-code/bearer sessions cannot call onboarding, and Expo remains unexecuted under the existing restriction.
+
+New checks are in `tests/postgres/core-onboarding.test.ts` and `apps/web/tests/core-login-e2e/onboarding.spec.ts`. Run browser configurations sequentially because the repository's default and B1 browser runners both build the same Web output. Invitation tests use isolated synthetic actors/organizations; real-account acceptance uses the existing manager scope and at most one new empty synthetic unit, with connection decisions made through app screens.
+
+## Reproduce the core photo checks
 
 ```powershell
 npm run test:postgres -- tests/postgres/core-flow.test.ts tests/postgres/core-flow-photos.test.ts

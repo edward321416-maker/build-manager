@@ -48,7 +48,10 @@ for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace ->
   await expect(saved(page).getByRole("img")).toHaveCount(1);await expect(page.getByText("사진을 저장했습니다.",{exact:false})).toBeVisible();
   await expect.poll(()=>saved(page).getByRole("img").evaluateAll(imgs=>imgs.every(img=>(img as HTMLImageElement).naturalWidth>0))).toBe(true);
   await page.evaluate(()=>scrollTo(0,0));await layout(page,width);await page.screenshot({path:capture("tenant"),fullPage:true});
-  const m=await manager.context.newPage();await m.setViewportSize(viewport);await m.goto("/core");await m.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();
+  const m=await manager.context.newPage();await m.setViewportSize(viewport);await m.goto("/core");
+  // Existing live tenant units are preserved; the manager's first sorted unit may differ.
+  await m.getByLabel("건물·호실").selectOption(tenant.fixture.unitA);
+  await m.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();
   await expect(saved(m).getByRole("img")).toHaveCount(1);await m.getByLabel("처리 기록").fill("로그인한 관리자가 합성 사진 확인 후 처리 시작");await m.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(m.getByTestId("work-status")).toHaveText("처리중");
   await expect.poll(()=>saved(m).getByRole("img").evaluateAll(imgs=>imgs.every(img=>(img as HTMLImageElement).naturalWidth>0))).toBe(true);
   await m.evaluate(()=>scrollTo(0,0));await layout(m,width);await m.screenshot({path:capture("manager"),fullPage:true});

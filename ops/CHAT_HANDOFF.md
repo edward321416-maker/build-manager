@@ -226,3 +226,27 @@ conversation.
   for that milestone. Prefer the receipt.
 - Private paths are intentionally not listed in this package; the manifest records them as
   `not repository-addressable`.
+
+## Actual B1 Auth0 runtime execution — 2026-10-03
+
+Event `CORE-FLOW-RC1-LIVE-AUTH0-20261003`; unchanged product HEAD `2d63b6f58fdf7683fe055c59dab20e32f1f1ea3c`, same worktree/branch. This actual execution supersedes only the earlier RC1 `LIVE_AUTH0=NOT_RUN/CONFIGURATION_REQUIRED` current-state claim; earlier synthetic runs and historical receipts remain unchanged.
+
+The operator approved the existing B1 credential bundle plus one new RC1 session secret. The original B1 registered `http://localhost:3100` origin was recovered from its existing live receipt and referenced smoke test. B1 source settings and all old keys were preserved; no D01 values were mixed. Five values were connected to a private env file outside Git with exclusive creation and readback. No values, cookies, identity details or private destination identifiers appear in this receipt.
+
+Actual isolated-browser execution, with the operator entering the existing test account directly into Auth0:
+
+- Callback 307, B1 session completion 303 and authenticated session 200: PASS.
+- Core access 200 with organization count 0; the actual app displayed the existing no-association guidance. No membership, role, assignment or ticket ownership was changed.
+- Actual-account intake, photo and handling-history round-trip: NOT_RUN because this account has no existing association. Previous synthetic ticket/photo evidence remains separate.
+- Product logout 303, actual provider logout return to the registered local root, then session 401: PASS. Replayed old cookies were rejected with 401 by session, core access and session completion.
+- Three real app screenshots and a sanitized runtime receipt are retained privately. No synthetic session was used. Server remains available on localhost3100; the browser ends logged out.
+
+No product source change, new regression/CI run, Ready conversion, merge or deployment occurred in this execution. AC-D06 remains NOT_VERIFIED and full desktop acceptance remains unchanged. Expo/native was not retried. Current summary was appended to the existing native execution Sheet A196:D196 and nine rolling handoff fields were updated and read back; prior coordinator rows were preserved. These append-only local records remain uncommitted so the implementation HEAD is unchanged. A future authorized account association is a separate action; no automatic grants or owner transfer is implied.
+
+## Live tenant continuation completed
+
+Event `RC1-LIVE-TENANT-FLOW-PASS-5968939198`: [actual tenant flow receipt](core_flow_rc1_login.md#actual-tenant-photo-flow--2026-10-03) supersedes the prior current no-association limitation only. Same product HEAD2d63b6f; actual Auth0 tenant now has exactly one explicitly authorized dedicated synthetic unit/occupancy link, while the existing manager uses synthetic SDK authentication. Real UI text/photo/submission/manager handling/reload/re-entry/history/logout completed; peer/other-org404 and post-logout401/DB-session revocation verified. No broad grants, owner transfers or existing-data changes. Original no-association state and intermediate helper failures remain historical. Local runtime records stay uncommitted; external A204 and current rolling fields read back. Preserve all existing desktop/Mobile/Expo verdicts and stop before Ready/merge/deployment; no new plan/review loop is needed.
+
+## Tenant invitation successor in progress
+
+Operator receipt5969526294 authorizes the [invitation successor](core_flow_rc1_onboarding.md) on the same branch/worktree. Manager invite creation, authenticated tenant request, explicit request-number confirmation and atomic approval are implemented. Local PostgreSQL330, Web487, shared438, fresh-cache Mobile139, core browser11, B1 login/onboarding browser16, B1–B5 browser60 and demo browser23 pass; initial failures remain in the receipt. One authorized empty synthetic unit was added because none was vacant. Its invitation was created/copied in the manager app. No runtime occupancy/member SQL was used for this successor. Actual Auth0 tenant login remains pending; preceding real-account evidence does not prove the new invitation flow. Final public safety checks, candidate commit and exact-head CI remain separate gates. Existing data, photos, keys, desktop dispositions and Expo restriction are preserved. External execution summary A208:D208 was read back.

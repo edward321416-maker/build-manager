@@ -19,7 +19,13 @@ try{
  if(state.roles.b1.loginConfig.user!=="bm_b1_login"||state.roles.b1.webConfig.user!=="bm_b1_web")throw new Error();
  const admin=new Client(state.admin);await admin.connect();
  try{if((await admin.query("SELECT shobj_description(oid,'pg_database') AS marker FROM pg_database WHERE datname=current_database()")).rows[0].marker!=="CORE_FLOW_SYNTHETIC_LOCAL")throw new Error();}finally{await admin.end();}
- if(process.argv.includes("--prepare-synthetic-sdk")){
+ if(process.argv.includes("--migrate")){
+  const {provisionCoreOnboardingTestRole,runPostgresMigrations}=await import("@build-manager/persistence-postgres/testing");
+  const admin=new Client(state.admin),migration=new Client(state.roles.migrationConfig);await admin.connect();
+  try{await provisionCoreOnboardingTestRole(admin);await migration.connect();try{await runPostgresMigrations(migration);}finally{await migration.end();}}
+  finally{await admin.end();}
+  console.log("CORE_B1_MIGRATED | marked local database; existing accounts, sessions, tickets and photos preserved");
+ }else if(process.argv.includes("--prepare-synthetic-sdk")){
   const {seedCoreFlowFixture}=await import("@build-manager/persistence-postgres/testing");
   const admin=new Client(state.admin),login=new Client(state.roles.b1.loginConfig);await admin.connect();await login.connect();
   try{

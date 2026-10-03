@@ -1,5 +1,7 @@
 # Current status
 
+RC1 successor: [tenant invitation execution](ops/core_flow_rc1_onboarding.md) is authorized by [PR70 receipt5969526294](https://github.com/edward321416-maker/build-manager/pull/70#issuecomment-5969526294). B1-only manager invitations, tenant requests and atomic manager approval are implemented with passing local synthetic round-trip, security and concurrency checks. Actual-account invitation continuation is awaiting operator login; it is not inferred from prior actual Auth0/photo evidence. Existing acceptance dispositions and Expo restrictions remain unchanged.
+
 Snapshot: **2026-10-02**. B1–B4 retain their verified/frozen dispositions. B5 is accepted and merged at `e9144fac807f39544932baac25b11f836658dbb3` with disclosed local Mobile risk; see [successor acceptance](ops/pf02_b_b5_acceptance.md). [Issue69](https://github.com/edward321416-maker/build-manager/issues/69) separately authorizes core-flow RC1 implementation and runnable development delivery. [RC1 execution evidence](ops/core_flow_rc1.md) and [run instructions](docs/core-flow-rc1-running.md) distinguish actual Web/PostgreSQL execution from blocked Expo runtime. Prior evidence, risks and F-case dispositions remain unchanged.
 
 | Area | State | Evidence / next gate |
