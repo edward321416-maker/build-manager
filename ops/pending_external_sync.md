@@ -351,3 +351,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event CORE-FLOW-RC1-WEB-USABILITY-20261003; sync_status=pending; tokens=unknown. Actual small-screen Web fixes and final7core browser checks recorded; rolling handoff updated. No Expo startup attempted. Google transport remains unavailable; no new external write/readback or historical queue clearing is claimed.
 
 - Event CORE-FLOW-RC1-PHOTOS-20261003; sync_status=pending; tokens=unknown. Protected photo Web flow verified with persistent database and actual screens; current Mobile failures retained. Local rolling handoff updated. Google Docs/Sheets transports are not exposed; no external write/readback or private schema upload is claimed. Previous queues remain intact.
+
+- Photo-phase correction: the initial unavailable-transport report was incorrect; native Google tools were found by narrower discovery. Current photo phase summaries and this correction were written/read back at AI_Execution_Log A179:D180. Final exact-head CI/rolling receipt follows publication. Prior queues are preserved and are not declared reconciled.

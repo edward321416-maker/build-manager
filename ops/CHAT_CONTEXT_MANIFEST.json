@@ -722,7 +722,7 @@
     "next_gate": "ACTUAL_EXPO_RUNTIME_VERIFICATION_AND_CONSOLIDATED_FEEDBACK",
     "goal": "RUNNABLE_CORE_FLOW_RC1_DELIVERED",
     "goal_achieved": false,
-    "note": "Photo successor authorized by the operator from3b71970: protected JPEG/PNG selection-preview-save-manager-reconnect/restart works on Web with11core browser cases. Migration0012 and pinned existing sharp0.35.4 added; previous migrations and B1-B5 semantics preserved. See ops/core_flow_rc1_photos.md. Final local Mobile139 pass after lazy enlargement; earlier cold/focused timeouts remain OPEN and hosted results do not resolve them. No Expo startup or bypass; native/device/LAN NOT_RUN. Exact-head CI receipts on Draft PR70; Google sync pending; no final merge/deployment."
+    "note": "Photo successor authorized by the operator from3b71970: protected JPEG/PNG selection-preview-save-manager-reconnect/restart works on Web with11core browser cases. Migration0012 and pinned existing sharp0.35.4 added; previous migrations and B1-B5 semantics preserved. See ops/core_flow_rc1_photos.md. Final local Mobile139 pass after lazy enlargement; earlier cold/focused timeouts remain OPEN and hosted results do not resolve them. No Expo startup or bypass; native/device/LAN NOT_RUN. Exact-head CI receipts on Draft PR70; native Sheets current photo summaries A179:D180 verified after transport-discovery correction; final rolling receipt pending; no final merge/deployment."
   },
   "b3_closure": {
     "state": "VERIFIED_FROZEN",
