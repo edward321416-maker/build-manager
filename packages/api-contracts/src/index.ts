@@ -14,3 +14,4 @@ export * from "./b5";
 export * from "./core-flow";
 export * from "./core-onboarding";
 export * from "./core-manager-work";
+export * from "./core-ticket-communication";

@@ -8,6 +8,7 @@ import { requestMoreInfo } from "./use-cases/request-more-info";
 import { approveRecommendation } from "./use-cases/approve-recommendation";
 import { overrideRoute } from "./use-cases/override-route";
 import type { CoreManagerScope } from "./core-manager-work";
+import type { CoreTicketCommunicationScope } from "./core-ticket-communication";
 
 export type CoreSession = { actorId: string; orgId: string; role: "TENANT" | "ORG_ADMIN" | "PROPERTY_STAFF" };
 export type CoreUnit = { id: string; buildingId: string; buildingName: string; label: string };
@@ -17,6 +18,7 @@ export type CoreRecord = { ticket: Ticket; building: Building; workStatus: CoreW
 export type CorePhoto = {photoId:string;uploadId:string;createdAt:string;mime:"image/jpeg"|"image/png";byteSize:number;width:number;height:number};
 export type CorePhotoInput = {uploadId:string;mime:CorePhoto["mime"];width:number;height:number;bytes:Uint8Array};
 export type CoreScope = {
+  communication: CoreTicketCommunicationScope;
   manager: CoreManagerScope;
   session: CoreSession;
   units(): Promise<CoreUnit[]>;
@@ -39,7 +41,7 @@ export type CoreAction =
  | { type: "MORE_INFO"; ticketId: string; reason: string; requestedQuestionIds: string[] }
  | { type: "APPROVE"; ticketId: string }
  | { type: "OVERRIDE"; ticketId: string; route: RouteType; reason?: string }
- | { type: "HANDLING"; ticketId: string; status: "IN_PROGRESS" | "COMPLETED"; message: string };
+ | { type: "HANDLING"; ticketId: string; status: "IN_PROGRESS" | "COMPLETED"; message: string; expectedCommunicationVersion?:number };
 
 export class CoreFlowError extends Error {
   readonly code: "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_INPUT" | "STATE_CONFLICT" | "DEPENDENCY_UNAVAILABLE";
@@ -75,6 +77,7 @@ export async function performCoreAction(scope: CoreScope, action: CoreAction, cl
     case "OVERRIDE": await overrideRoute(deps,{ticketId:action.ticketId,selectedRoute:action.route,reason:action.reason});kind="DECISION";break;
     case "HANDLING":
       if (!action.message.trim() || (action.status === "COMPLETED" && before!.workStatus !== "IN_PROGRESS")) throw stateConflict("Record handling before completion");
+      if(action.status==="COMPLETED")await scope.communication.guardCompletion(action.ticketId,action.expectedCommunicationVersion);
       // Separate from route approval: this records a human's report, not dispatch or proof of repair.
       saved=before!.ticket;message=action.message;break;
   }

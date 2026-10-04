@@ -25,6 +25,13 @@ export function createCoreFlowPort(database: PostgresDatabase,orgId?:string): Co
         const session=await call<CoreScope["session"]>("SELECT core_flow.session($1) AS value",[hash]);
         return operation({
           session,
+          communication:{
+            read:(id,before,limit=50)=>call("SELECT core_flow.read_communication($1,$2,$3,$4) AS value",[hash,id,before??null,limit]),
+            send:(id,input)=>call("SELECT core_flow.send_communication($1,$2,$3,$4,$5,$6) AS value",[hash,id,input.clientRequestId,input.expectedVersion,input.intent,input.body]),
+            receipt:(id,key)=>call("SELECT core_flow.communication_receipt($1,$2,$3) AS value",[hash,id,key]),
+            summaries:ids=>call("SELECT core_flow.communication_summaries($1,$2) AS value",[hash,ids]),
+            guardCompletion:async(id,version)=>{await client.query("SELECT core_flow.guard_communication_completion($1,$2,$3)",[hash,id,version??null]);},
+          },
           manager:{
             list:()=>call("SELECT core_flow.list_manager_work($1) AS value",[hash]),
             read:id=>call("SELECT core_flow.read_manager_work($1,$2) AS value",[hash,id]),

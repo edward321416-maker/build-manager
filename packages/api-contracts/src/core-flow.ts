@@ -8,7 +8,7 @@ export type CoreAccessDto=z.infer<typeof CoreAccessSchema>;
 export const CoreUnitSchema=z.object({id:z.string().uuid(),buildingId:z.string().uuid(),buildingName:z.string(),label:z.string()}).strict();
 export const CoreUnitsSchema=z.array(CoreUnitSchema);
 export const CoreCreateSchema=z.object({unitId:z.string().uuid(),issueType:z.enum(["HEATING","LEAK"]),rawUserText:z.string().trim().min(1).max(2000)}).strict();
-export const CoreHandlingSchema=z.object({status:z.enum(["IN_PROGRESS","COMPLETED"]),message:z.string().trim().min(1).max(2000)}).strict();
+export const CoreHandlingSchema=z.object({status:z.enum(["IN_PROGRESS","COMPLETED"]),message:z.string().trim().min(1).max(2000),expectedCommunicationVersion:z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional()}).strict();
 export const CoreTicketSchema=z.object({
   ticketId:z.string(),unitId:z.string().uuid(),buildingId:z.string().uuid(),
   workStatus:z.enum(["OPEN","IN_PROGRESS","COMPLETED"]),version:z.number().int().positive(),

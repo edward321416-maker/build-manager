@@ -4,6 +4,7 @@ import type { ApiClient } from "./client";
 import { sendRequest,type FetchLike } from "./http";
 import { corePhotos } from "./core-photos";
 import { coreManagerWork } from "./core-manager-work";
+import { coreTicketCommunication } from "./core-ticket-communication";
 
 /** One contract for Web cookie and Expo bearer transport; no role parameter. */
 export function createCoreFlowClient(options:{baseUrl:string;accessCode?:string;fetchImpl?:FetchLike;photoFetchImpl?:typeof fetch}) {
@@ -28,6 +29,7 @@ export function createCoreFlowClient(options:{baseUrl:string;accessCode?:string;
   return {
     protocol,read,...corePhotos(options),
     manager:coreManagerWork(fetcher,options.baseUrl),
+    communication:coreTicketCommunication(fetcher,options.baseUrl),
     session:()=>sendRequest<CoreSessionDto>(fetcher,options.baseUrl,{method:"GET",path:"/api/v2/core/session",schema:CoreSessionSchema}),
     login:(accessCode:string)=>sendRequest<CoreSessionDto>(fetcher,options.baseUrl,{method:"POST",path:"/api/v2/core/login",body:CoreLoginSchema.parse({accessCode}),schema:CoreSessionSchema}),
     logout:()=>sendRequest<CoreSessionDto>(fetcher,options.baseUrl,{method:"POST",path:"/api/v2/core/logout",body:{},schema:CoreSessionSchema}),

@@ -7,6 +7,8 @@ import { getCoreFlowContainer,type CoreHTTPDependencies } from "./container";
 import { handlePhotoRequest,PhotoRequestError } from "./photos";
 import { handleOnboarding } from "./onboarding";
 import { CoreManagerWorkItemsSchema,CoreManagerWorkItemSchema,CoreManagerWorkUpdateSchema,CoreManagerInternalNotesSchema,CoreManagerInternalNoteSchema,CoreManagerInternalNoteCreateSchema } from "@build-manager/api-contracts";
+import { sendCoreCommunication } from "@build-manager/application";
+import { CoreCommunicationPageSchema,CoreCommunicationSendSchema,CorePublicMessageSchema,CoreCommunicationSummariesSchema } from "@build-manager/api-contracts";
 
 const cookie="rc1_session";
 const digest=(value:string)=>createHash("sha256").update(value).digest("hex");
@@ -45,7 +47,20 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
       if(!d.b1.onboarding||!d.b1.inviteOrigin)fail("DEPENDENCY_UNAVAILABLE");
       return await handleOnboarding(request,segments.slice(1),current.digest,d.b1.onboarding,d.b1.inviteOrigin,headers);
     }
-    if([...url.searchParams.keys()].some(k=>k!=="unitId" || route!=="tickets" || request.method!=="GET") || url.searchParams.getAll("unitId").length>1)fail("INVALID_INPUT");
+    const communicationPage=request.method==="GET"&&segments[0]==="tickets"&&segments.length===3&&segments[2]==="communication";
+    const communicationSummaries=request.method==="GET"&&route==="communication-summaries";
+    const positiveQuery=(name:string,max:number)=>{
+      const values=url.searchParams.getAll(name);if(!values.length)return undefined;
+      if(values.length!==1||!/^\d+$/.test(values[0])||!Number.isSafeInteger(Number(values[0]))||Number(values[0])<1||Number(values[0])>max)fail("INVALID_INPUT");return Number(values[0]);
+    };
+    let beforeSequence:number|undefined,limit=50;
+    const summaryIds=url.searchParams.getAll("ticketId");
+    if(communicationPage){
+      if([...url.searchParams.keys()].some(k=>k!=="beforeSequence"&&k!=="limit"))fail("INVALID_INPUT");
+      beforeSequence=positiveQuery("beforeSequence",Number.MAX_SAFE_INTEGER);limit=positiveQuery("limit",50)??50;
+    }else if(communicationSummaries){
+      if([...url.searchParams.keys()].some(k=>k!=="ticketId")||summaryIds.length>50||summaryIds.some(id=>!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id)))fail("INVALID_INPUT");
+    }else if([...url.searchParams.keys()].some(k=>k!=="unitId" || route!=="tickets" || request.method!=="GET") || url.searchParams.getAll("unitId").length>1)fail("INVALID_INPUT");
     let hash:string,port=d.port;
     if(d.b1){
       const current=await d.b1.current(request);
@@ -71,6 +86,7 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
     }
     if(segments[0]==="tickets"&&segments[2]==="photos")return await handlePhotoRequest(request,segments,hash,port,headers);
     return await port.run(hash,async scope=>{
+      if(communicationSummaries)return json(CoreCommunicationSummariesSchema.parse(await scope.communication.summaries(summaryIds)));
       if(segments[0]==="manager"){
         if(scope.session.role!=="ORG_ADMIN"&&scope.session.role!=="PROPERTY_STAFF")fail("FORBIDDEN");
         if(route==="manager/work-items"&&request.method==="GET")return json(CoreManagerWorkItemsSchema.parse(await scope.manager.list()));
@@ -101,6 +117,18 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
       }
       if(segments[0]!=="tickets")fail("NOT_FOUND");
       const id=segments[1];if(id && !/^[a-f0-9-]{36}$/.test(id))fail("INVALID_INPUT");
+      if(id&&segments[2]==="communication"){
+        if(communicationPage)return json(CoreCommunicationPageSchema.parse(await scope.communication.read(id,beforeSequence,limit)));
+        if(segments.length===4&&segments[3]==="messages"&&request.method==="POST"){
+          const result=await sendCoreCommunication(scope,id,parse(CoreCommunicationSendSchema,await body(request)));
+          return json(CorePublicMessageSchema.parse(result.message),result.created?201:200);
+        }
+        if(segments.length===5&&segments[3]==="requests"&&request.method==="GET"){
+          const key=segments[4];if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(key))fail("INVALID_INPUT");
+          return json(CorePublicMessageSchema.parse(await scope.communication.receipt(id,key)));
+        }
+        fail("NOT_FOUND");
+      }
       if(id && segments.length===2 && request.method==="GET")return json(project(await scope.read(id),scope.session));
       if(request.method!=="POST")fail("NOT_FOUND");
       let action:CoreAction;
