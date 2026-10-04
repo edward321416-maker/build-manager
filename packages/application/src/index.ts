@@ -35,3 +35,4 @@ export * from "./core-onboarding";
 export * from "./core-manager-work";
 export * from "./core-ticket-communication";
 export * from "./core-ticket-outcome";
+export * from "./core-maintenance-fact";

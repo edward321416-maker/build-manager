@@ -26,6 +26,12 @@ export function createCoreFlowPort(database: PostgresDatabase,orgId?:string): Co
         const session=await call<CoreScope["session"]>("SELECT core_flow.session($1) AS value",[hash]);
         return operation({
           session,
+          maintenance:{
+            listUnit:id=>call("SELECT core_flow.read_unit_maintenance_facts($1,$2) AS value",[hash,id]),
+            readForTicket:id=>call("SELECT core_flow.read_ticket_maintenance_fact($1,$2) AS value",[hash,id]),
+            create:(id,input)=>call("SELECT core_flow.create_unit_maintenance_fact($1,$2,$3,$4,$5) AS value",[hash,id,input.clientRequestId,input.actionKind,input.componentLabel]),
+            correct:(id,input)=>call("SELECT core_flow.correct_unit_maintenance_fact($1,$2,$3,$4,$5,$6,$7) AS value",[hash,id,input.clientRequestId,input.expectedCurrentFactId,input.actionKind,input.componentLabel,input.correctionReason]),
+          },
           outcome:{
             read:id=>call("SELECT core_flow.read_ticket_outcome($1,$2) AS value",[hash,id]),
             confirmResolved:(id,input)=>call("SELECT core_flow.confirm_ticket_resolved($1,$2,$3) AS value",[hash,id,input.clientRequestId]),

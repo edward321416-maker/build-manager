@@ -3,3 +3,5 @@
 *.jpg binary
 *.pdf binary
 product/05_product_spec_v1_REAUDITED_v2.md whitespace=-blank-at-eol
+# Preserve the approved SHA-256, including intentional Markdown hard line breaks.
+docs/superpowers/specs/2026-10-04-unit-maintenance-fact-timeline-v1-design.md whitespace=-blank-at-eol
