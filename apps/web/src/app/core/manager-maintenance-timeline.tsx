@@ -36,7 +36,7 @@ export function MaintenanceFactCard({fact,onOpenTicket}:{fact:CoreUnitMaintenanc
   <h3>{fact.issueType==="HEATING"?"난방":"누수"} · {actionLabels[fact.actionKind]}</h3><p className={styles.component}>{fact.componentLabel??"부품·위치 명칭 미기록"}</p>
   <p>{fact.buildingName} · {fact.unitLabel}</p><dl><div><dt>원본 접수 완료</dt><dd><time dateTime={fact.sourceCompletedAt}>{dateText(fact.sourceCompletedAt)}</time></dd></div><div><dt>사실 기록</dt><dd><time dateTime={fact.recordedAt}>{dateText(fact.recordedAt)}</time></dd></div></dl>
   {fact.corrected?<p>정정 {fact.correctionCount}회 · 현재 기록</p>:null}<p>{outcomeLabels[fact.tenantOutcome]}</p>
-  <div className={styles.actions}><button onClick={()=>onOpenTicket(fact.sourceTicketId)}>원본 접수 보기</button>
+  <div className={styles.actions}><button onClick={()=>onOpenTicket(fact.sourceTicketId)}>근거 접수 보기</button>
    {fact.previousTicketId?<button onClick={()=>onOpenTicket(fact.previousTicketId!)}>이전 완료 접수에서 이어진 건</button>:null}
    {fact.followUpTicketId?<button onClick={()=>onOpenTicket(fact.followUpTicketId!)}>후속 접수 있음</button>:null}</div>
  </article>;

@@ -18,7 +18,7 @@ it("keeps loading, error and absent-fact states distinct with a recovery action"
 });
 it("shows existing append-only history and explicit correction without edit/delete claims",()=>{
  const html=view({detail:{current:{...fact,corrected:true,correctionCount:1},revisions:[{factId:"fact",actionKind:"REPAIR",componentLabel:"합성 펌프",recordedAt:fact.recordedAt,correctionReason:null,current:false}]}});
- expect(html).toContain("정정 기록 추가");expect(html).toContain("호실 이력에서 보기");expect(html).toContain("정정 이력");expect(html).not.toContain("삭제");expect(html).not.toContain("정비 사실 저장");
+ expect(html).toContain("정정 기록 추가");expect(html).toContain("호실 이력에서 보기");expect(html).toContain("근거 접수 보기");expect(html).toContain("정정 이력");expect(html).not.toContain("삭제");expect(html).not.toContain("정비 사실 저장");
 });
 it("retains stale input visibly and requires an explicit review before another correction",()=>{
  const html=view({editing:true,detail:{current:fact,revisions:[]},reviewRequired:true,label:"내가 입력한 합성 부품"});expect(html).toContain("내가 입력한 합성 부품");expect(html).toContain("최신 기록을 확인했습니다");expect(html).toContain("정정 이유");expect(html).toContain("disabled");

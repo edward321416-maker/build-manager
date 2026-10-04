@@ -4,6 +4,7 @@ import { Client } from "pg";
 import sharp from "sharp";
 import { createPostgresDatabase } from "@build-manager/persistence-postgres";
 import { createCoreFlowPort } from "@build-manager/persistence-postgres/core-flow";
+import { createOrganizationMembershipTerminationPort } from "@build-manager/persistence-postgres/b5";
 import { seedCoreFlowFixture,type CoreFixture } from "@build-manager/persistence-postgres/testing";
 import { performCoreAction,type CoreScope,type CoreAction,type CoreMaintenanceFactCreate,type CoreMaintenanceFactCorrection } from "@build-manager/application";
 import { CoreUnitMaintenanceFactSchema } from "@build-manager/api-contracts";
@@ -156,6 +157,19 @@ it("rechecks assignment after the observed source-lock wait and denies earlier r
   await f.p.admin.query("UPDATE app.property_assignment SET status='ENDED',ended_at=clock_timestamp() WHERE membership_id=$1",[data.accounts.staff.membershipId]);await a.client.query("COMMIT");await expect(pending).rejects.toMatchObject({code:"P0002"});
  }finally{await a.close();await b.close();await pending?.catch(()=>{});}
  expect(await ledger(id)).toHaveLength(0);for(const op of [()=>create(oldId,r,"staff"),()=>correct(root.fact.factId,c,"staff"),()=>read(oldId,"staff"),()=>list(data.unitA,"staff")])await expect(op()).rejects.toMatchObject({code:"NOT_FOUND"});
+});
+it("denies a waiting correction and saved receipts after actual B5 membership termination",async()=>{
+ const membership=data.accounts.staff.membershipId;if(!membership)throw new Error("STAFF_FIXTURE_MEMBERSHIP_REQUIRED");
+ // Restore only this disposable fixture assignment ended by the preceding test.
+ await f.p.admin.query("UPDATE app.property_assignment SET status='ACTIVE',ended_at=NULL WHERE membership_id=$1",[data.accounts.staff.membershipId]);
+ const id=(await source()).ticket.id,r=input(),root=await create(id,r,"staff"),c=correction(root.fact.factId),saved=await correct(root.fact.factId,c,"staff"),before=await ledger(id);
+ const a=await controlled(),b=await controlled("staff");let pending:Promise<unknown>|undefined;
+ try{await a.client.query("SELECT core_flow.read_ticket($1,$2,true)",[Buffer.from(data.accounts.manager.digest,"hex"),id]);pending=b.correct(saved.fact.factId,{...correction(saved.fact.factId),actionKind:"ADJUSTMENT"});void pending.catch(()=>{});await waitB4Lock(f.p.admin,b.pid,a.pid);
+  await createOrganizationMembershipTerminationPort(db).endCurrent(data.accounts.manager.digest,data.orgA,membership);
+  await a.client.query("COMMIT");await expect(pending).rejects.toMatchObject({code:"42501"});
+ }finally{await a.close();await b.close();await pending?.catch(()=>{});}
+ for(const op of [()=>create(id,r,"staff"),()=>correct(root.fact.factId,c,"staff"),()=>read(id,"staff"),()=>list(data.unitA,"staff")])await expect(op()).rejects.toMatchObject({code:"FORBIDDEN"});
+ expect(await ledger(id)).toEqual(before);expect((await read(id)).current?.factId).toBe(saved.fact.factId);
 });
 it("retains manager history across actual tenant turnover without exposing old content or facts to a replacement",async()=>{
  const id=(await source()).ticket.id,root=(await create(id)).fact,before=await snapshot(id),facts=await ledger(id);
