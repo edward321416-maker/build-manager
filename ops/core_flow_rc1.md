@@ -1,5 +1,7 @@
 # Core flow RC1 execution evidence
 
+Historical execution record. Current RC1 development acceptance and retained risks are owned by the [2026-10-04 canonical closure receipt](core_flow_rc1_acceptance.md). Earlier NOT_ACCEPTED, unsupported-capability and no-merge statements below describe their original stage and are preserved without retroactive relabeling.
+
 POLICY_REF / IMPLEMENTATION_BASE: `e9144fac807f39544932baac25b11f836658dbb3`.
 Authority: [issue69](https://github.com/edward321416-maker/build-manager/issues/69), operator-delivered `ASTRA_CORE_FLOW_RC1_IMPLEMENT_NOW.md`.
 Status: WEB_RUNNABLE / EXPO_EXECUTION_BLOCKED / NOT_ACCEPTED. Web execution and persistence are verified; Expo/native execution is not. No final merge or production authorization. Fixed HEAD and hosted job receipts are recorded on the Draft PR after candidate freeze.

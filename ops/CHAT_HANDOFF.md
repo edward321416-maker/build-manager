@@ -2,6 +2,8 @@
 
 Repository: `edward321416-maker/build-manager`
 
+Current milestone: **RC1 ACCEPTED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS**. Read the [canonical closure receipt](core_flow_rc1_acceptance.md) and current `STATUS.md` first after policy bootstrap. Dated implementation entries below are historical execution records; their old no-merge/NOT_ACCEPTED statements do not override the operator's 2026-10-04 acceptance and completed development merge.
+
 ## Purpose
 
 Canonical reconstruction entry point for a new ChatGPT / Claude / Codex session.
@@ -67,7 +69,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B / B3 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b3_closure.md); implementation/remediation/F01 evidence accepted and published; retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed |
 | PF02-B / B4 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b4_closure.md); PR #58 accepted HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307` merged as `6cf71049c479d100ec6e949002c2e30c8df81eba`; retained B4I-L01/B4R-L01 LOW and B4D-L01..L04 boundaries remain disclosed. [Erratum publication](pf02_b_b4_erratum_publication.md) is a historical pre-implementation snapshot. |
 | PF02-B / B5 | ACCEPTED_AND_MERGED_WITH_DISCLOSED_LOCAL_MOBILE_RISK | [Successor receipt](pf02_b_b5_acceptance.md), original failures and AC18 PARTIAL retained. |
-| Core flow RC1 | WEB_RUNNABLE / EXPO_EXECUTION_BLOCKED | [Issue69 authority](https://github.com/edward321416-maker/build-manager/issues/69), [execution](core_flow_rc1.md), [running](../docs/core-flow-rc1-running.md). Other unscoped slices remain unauthorized. |
+| Core flow RC1 | ACCEPTED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS | [Canonical acceptance/closure](core_flow_rc1_acceptance.md); accepted candidate c60501a, actual development merge 2cd6dca. Production/native/live-manager-Auth0 readiness is not established. |
 
 Foundation design context (not milestone evidence):
 `docs/production-foundation/README.md`, `docs/production-foundation/00_foundation_blueprint.md`,
@@ -91,7 +93,7 @@ Closed. Do not re-derive, re-propose or re-ask these. Each is evidenced by the r
 - Modular Monolith, explicit SQL, application ports. No ORM.
 - B3 Building Registration Foundation is VERIFIED / FROZEN at the approved design/plan and accepted implementation boundary. Retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed; none authorizes reopening or later product work.
 - B4 Property Assignment Mutation Foundation is VERIFIED / FROZEN: exact-resource GET/PUT/DELETE for an ORG_ADMIN on a current same-org ACTIVE PROPERTY_STAFF membership and ACTIVE Property, migration 0009, `bm_b4_assignment_owner` SECURITY DEFINER boundary and canonical B4D-L04 method boundary. Retained B4I-L01/B4R-L01 and B4D-L01..L04 do not authorize reopening or later work.
-- B5 design/plan approval, implementation review and candidate-specific Mobile-risk acceptance are completed history. [Successor receipt](pf02_b_b5_acceptance.md) records merge e9144fa. Issue69 separately authorizes core-flow RC1 through runnable development delivery and Draft publication; no final RC1 merge or production.
+- B5 design/plan approval, implementation review and candidate-specific Mobile-risk acceptance are completed history. [Successor receipt](pf02_b_b5_acceptance.md) records merge e9144fa. RC1 now has its own [operator-approved development acceptance](core_flow_rc1_acceptance.md); prior B5 exceptions are not future waivers. RC1 functional contracts and the accepted Apple/Toss/spatial/responsive UI remain frozen.
 
 ## Do not reopen without new evidence
 
@@ -117,8 +119,8 @@ Not in scope. Do not implement, scaffold or "prepare" these:
 - Staff invitation, staff creation, membership role mutation
 - Assignment management UI, assignment collection/list API, and lifecycle work beyond the frozen B4 exact-resource API
 - Staff roster, staff search, staff onboarding
-- Resident / occupancy end-user flow
-- Ticket flow
+- Resident / occupancy workflows beyond the accepted RC1 invitation scope
+- Additional ticket features beyond the accepted RC1 scope
 - Mobile authentication
 - Kakao login, account linking
 - Billing
@@ -147,6 +149,8 @@ coverage. A green CI run is not a correctness proof for authorization.
 ## Open risks
 
 Summarized by link only. Read the cited file for the current wording.
+
+- RC1 development integration retains Expo/native/device/APK, actual-manager Auth0, AC-D06, historical Mobile/AC18 and dependency/CI maintenance risks — [RC1 closure](core_flow_rc1_acceptance.md#retained-risks-accepted-for-development-integration-only).
 
 - Dependency security triage — moderate npm advisories and an install-script warning. `STATUS.md`.
 - CI supply-chain maintenance — pinned Action majors vs. hosted Node runtime. `STATUS.md`.
@@ -196,6 +200,12 @@ commit. A newer `main` is normal, not an error. Read live `main`, compare ancest
 current canonical documents.
 
 ## Current authorized next task
+
+**CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED_BY_THIS_CLOSURE.** RC1 development integration has been accepted with retained risks. Use the final [issue69 receipt](https://github.com/edward321416-maker/build-manager/issues/69) to verify the closure's publication SHA, canonical readback and fresh main CI. Read [RC1 acceptance](core_flow_rc1_acceptance.md) for the exact candidate, merge and scope. Do not treat historical Expo or release goals as standing authority for runtime changes, production deployment, real data, native release or live Auth0 rollout. Preserve existing dirty runtime files and running resources.
+
+## Historical RC1 implementation handoff (superseded current-task status)
+
+The following entries retain the authority and evidence available at their original execution dates. Their implementation-first and no-merge instructions are historical; the current acceptance is owned by the receipt above.
 
 **CURRENT ADDITIONAL PRODUCT TASK = CORE_FLOW_RC1_IMPLEMENTATION_FIRST.**
 

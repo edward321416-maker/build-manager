@@ -6,8 +6,8 @@
     "baseline_main": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d",
     "baseline_meaning": "canonical B2 closure main used to build this bootstrap package; provenance only, not a permanent claim about the current main",
     "current_main": "LIVE_READ_REQUIRED",
-    "status": "CORE_FLOW_RC1_B1_BRIDGE_SYNTHETIC_SDK_VERIFIED_LIVE_AUTH0_NOT_RUN",
-    "snapshot_date": "2026-10-03",
+    "status": "RC1_ACCEPTED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS",
+    "snapshot_date": "2026-10-04",
     "staleness_rule": [
       "Always read the live main SHA yourself; never take current_main from this file.",
       "Compare live main against baseline_main. A newer main is expected and normal, because publishing this package is itself a commit.",
@@ -105,7 +105,7 @@
       "canonical_closure_receipt": "ops/pf02_b_b4_closure.md",
       "authorization_note": "Historical B4 plan/implementation/resume authorization is completed history. The erratum receipt's READY_FOR_RESUME_DECISION and PARTIAL_LOCAL_NOT_ACCEPTED states are pre-implementation snapshots, not current state. B4 closure authorizes no later work; current_product_task remains the only current product-work authority."
     },
-    "PF02-B/later_slices": "CORE_FLOW_RC1_AUTHORIZED_BY_ISSUE69_OTHER_SLICES_NOT_SCOPED",
+    "PF02-B/later_slices": "RC1_DEVELOPMENT_INTEGRATION_ACCEPTED_OTHER_SLICES_NOT_SCOPED",
     "D01": "RESOLVED_FOR_B1_ONLY",
     "B1I-M01": "CLOSED_BY_B2",
     "B1I-M02": "DOCUMENT_RECONCILED",
@@ -157,7 +157,7 @@
       "implementation_main": "e9144fac807f39544932baac25b11f836658dbb3",
       "acceptance_receipt": "ops/pf02_b_b5_acceptance.md"
     },
-    "Core flow RC1": "B1_BRIDGE_SYNTHETIC_SDK_VERIFIED_LIVE_AUTH0_NOT_RUN_EXPO_BLOCKED_NOT_ACCEPTED"
+    "Core flow RC1": "ACCEPTED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS"
   },
   "acceptance_receipts": [
     {
@@ -223,6 +223,11 @@
     {
       "milestone": "PF02-B/B4 canonical closure and freeze",
       "path": "ops/pf02_b_b4_closure.md",
+      "present_at_baseline": false
+    },
+    {
+      "milestone": "Core flow RC1 development-main acceptance and closure",
+      "path": "ops/core_flow_rc1_acceptance.md",
       "present_at_baseline": false
     }
   ],
@@ -311,8 +316,8 @@
     "membership role mutation",
     "assignment management UI, assignment collection/list API, or lifecycle work beyond the frozen B4 exact-resource API",
     "staff roster, staff search and staff onboarding",
-    "resident / occupancy end-user flow",
-    "ticket flow",
+    "resident / occupancy workflows beyond accepted RC1 invitations",
+    "additional ticket features beyond accepted RC1",
     "Mobile authentication",
     "Kakao login and account linking",
     "billing",
@@ -395,6 +400,12 @@
       "state": "ACCEPTED_LOW_RESIDUAL",
       "source": "docs/superpowers/specs/2026-09-30-pf02-b-b5-organization-membership-termination-last-admin-safety-design.md",
       "note": "Self-termination 204/409 can disclose one bit about whether another effective administrator exists to an already-authorized admin; no user/status row or reason is projected."
+    },
+    {
+      "id": "RC1-development-retained-risks",
+      "state": "ACCEPTED_FOR_DEVELOPMENT_INTEGRATION_ONLY_NOT_RESOLVED",
+      "source": "ops/core_flow_rc1_acceptance.md",
+      "note": "Expo/native/device/APK/LAN; actual-manager Auth0; AC-D06 NOT_VERIFIED; historical Mobile/AC18 PARTIAL with original failures OPEN; dependency and CI maintenance."
     }
   ],
   "resolved_findings": [
@@ -710,19 +721,17 @@
     "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"
   },
   "current_product_task": {
-    "status": "CORE_FLOW_RC1_B1_BRIDGE_SYNTHETIC_SDK_VERIFIED_LIVE_AUTH0_NOT_RUN",
-    "last_closed_slice": "PF02-B/B5",
-    "authorization_receipt": "https://github.com/edward321416-maker/build-manager/issues/69",
-    "implementation_authorized": true,
+    "status": "NONE_AUTHORIZED_BY_THIS_CLOSURE",
+    "last_closed_slice": "Core flow RC1 development integration",
+    "acceptance_receipt": "ops/core_flow_rc1_acceptance.md",
+    "accepted_candidate": "c60501a6e59f0572d98e2f1cb7be96d3db7d1545",
+    "implementation_main": "2cd6dcab67c8ae6fd9fcc91de37e139d07f91f5c",
+    "implementation_authorized": false,
     "ready_or_merge_authorized": false,
-    "implementation_base_sha": "e9144fac807f39544932baac25b11f836658dbb3",
-    "implementation_branch": "feat/core-flow-rc1",
-    "implementation_evidence": "ops/core_flow_rc1_login.md",
+    "next_gate": "SEPARATELY_SCOPED_FOLLOWUP_AUTHORIZATION",
     "run_instructions": "docs/core-flow-rc1-running.md",
-    "next_gate": "ACTUAL_EXPO_RUNTIME_VERIFICATION_AND_CONSOLIDATED_FEEDBACK",
-    "goal": "RUNNABLE_CORE_FLOW_RC1_DELIVERED",
-    "goal_achieved": false,
-    "note": "Existing-login successor authorized fromdf922d7: thin frozen B1 SDK-registry-CSRF consumer, additive0013 actor associations and request-scoped organization binding, workspace-to-core entry, photos/handling/history and existing POSTlogout. Synthetic SDK actual browser5, prior core11, PG315, Web475, shared438, B1browser60/checker21, demo23 and fresh-cache Mobile139 pass. Original0001-0012, B1-B5 security and identity/photo data preserved. LIVE_AUTH0 NOT_RUN/CONFIGURATION_REQUIRED; no Expo retry/bypass or native/device/LAN claim. Prior Mobile risks unchanged. Native Sheets implementation summary A185:D185 verified. Exact-head CI and rolling receipts on Draft70 after publication; no Ready/merge/deployment."
+    "original_two_platform_runtime_goal_achieved": false,
+    "note": "Operator-approved PR70 development merge completed. Booleans concern new work, not historical authority. Native/Expo/device/APK runtime, actual-manager Auth0, AC-D06, historical Mobile/AC18 and dependency/CI maintenance risks remain unresolved. No production, real data, native release or live Auth0 rollout authority. Current main must be read live; exact closure-SHA CI is separate from candidate CI."
   },
   "b3_closure": {
     "state": "VERIFIED_FROZEN",
