@@ -1,3 +1,4 @@
+import { openInspector } from "../core-e2e/presentation";
 import { test,expect } from "@playwright/test";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -39,7 +40,7 @@ for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace ->
   const page=await tenant.context.newPage();await page.setViewportSize(viewport);await page.goto("/workspace");await page.getByRole("link",{name:"내 호실 수리 접수·사진·처리 이력 열기"}).click();
   await expect(page.getByTestId("unit-context")).toBeVisible();await expect(page.getByLabel("개발 접근 코드")).toHaveCount(0);
   const accountBox=(await page.getByRole("region",{name:"로그인과 내 소속"}).boundingBox())!;
-  if(width<1024)expect(accountBox.height).toBeLessThan(300);else expect(accountBox.width).toBe(250);
+  if(width<1024)expect(accountBox.height).toBeLessThan(300);else expect(accountBox.width).toBe(220);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await layout(page,width);
   await page.getByLabel("문제 설명").fill("로그인 연결 합성 누수 — 사진과 처리 이력");
@@ -53,7 +54,7 @@ for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace ->
   // Existing live tenant units are preserved; the manager's first sorted unit may differ.
   await m.getByLabel("건물·호실").selectOption(tenant.fixture.unitA);
   await m.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
-  await expect(saved(m).getByRole("img")).toHaveCount(1);await m.getByLabel("처리 기록").fill("로그인한 관리자가 합성 사진 확인 후 처리 시작");await m.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(m.getByTestId("work-status")).toHaveText("처리중");
+  await expect(saved(m).getByRole("img")).toHaveCount(1);await openInspector(m);await m.getByLabel("처리 기록").fill("로그인한 관리자가 합성 사진 확인 후 처리 시작");await m.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(m.getByTestId("work-status")).toHaveText("처리중");
   await expect.poll(()=>saved(m).getByRole("img").evaluateAll(imgs=>imgs.every(img=>(img as HTMLImageElement).naturalWidth>0))).toBe(true);
   await m.evaluate(()=>scrollTo(0,0));await layout(m,width);await m.screenshot({path:capture("manager"),fullPage:true});
   await page.reload();await page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(page.getByTestId("work-status")).toHaveText("처리중");await expect(saved(page).getByRole("img")).toHaveCount(1);

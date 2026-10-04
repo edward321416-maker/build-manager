@@ -21,11 +21,11 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selected
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),60_000);return()=>clearInterval(timer);},[]);
   const visible=items.filter(x=>(!unit||x.unitId===unit)&&(status==="ALL"||x.workStatus===status)&&(priority==="ALL"||x.priority===priority)).sort((a,b)=>compareManagerWork(a,b,now));
   return <section aria-label="관리 업무함" className={styles.queue}>
-    <div className={styles.title}><div><h2>접수 목록</h2><p>미완료 · 기한 지남 · 긴급도 순</p></div><button disabled={loading||disabled} onClick={()=>{setLoading(true);setRefresh(v=>v+1);}}>새로고침</button></div>
+    <div className={styles.title}><div><h2>접수 목록</h2><p>미완료 · 기한 지남 · 긴급도 순</p></div>{error||conversation.error?<button disabled={loading||disabled} onClick={()=>{setLoading(true);setRefresh(v=>v+1);}}>업무함 다시 불러오기</button>:null}</div>
     <div className={styles.filters}>
-      <label>건물·호실<select aria-label="건물·호실" value={unit} onChange={e=>setUnit(e.target.value)}><option value="">모든 호실</option>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>
-      <label>처리 상태<select value={status} onChange={e=>setStatus(e.target.value)}><option value="ALL">전체</option><option value="OPEN">접수</option><option value="IN_PROGRESS">처리중</option><option value="COMPLETED">완료</option></select></label>
-      <label>긴급도 필터<select value={priority} onChange={e=>setPriority(e.target.value)}><option value="ALL">전체</option><option value="URGENT">긴급</option><option value="HIGH">높음</option><option value="NORMAL">보통</option></select></label>
+      <label>호실<select aria-label="건물·호실" value={unit} onChange={e=>setUnit(e.target.value)}><option value="">모든 호실</option>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>
+      <label>상태<select aria-label="처리 상태" value={status} onChange={e=>setStatus(e.target.value)}><option value="ALL">전체</option><option value="OPEN">접수</option><option value="IN_PROGRESS">처리중</option><option value="COMPLETED">완료</option></select></label>
+      <label>긴급도<select aria-label="긴급도 필터" value={priority} onChange={e=>setPriority(e.target.value)}><option value="ALL">전체</option><option value="URGENT">긴급</option><option value="HIGH">높음</option><option value="NORMAL">보통</option></select></label>
       <p aria-live="polite">{visible.length}건 표시</p>
     </div>
     {conversation.error?<p role="alert">대화 대기 상태를 확인하지 못했습니다. 새로고침을 눌러 주세요.</p>:null}
@@ -56,7 +56,7 @@ export function ManagerWorkDetail({client,ticket,revision}:{client:CoreFlowClien
     }else{setError("저장 결과를 확인하지 못했습니다. 중복 저장하지 말고 최신 정보으로 저장된 내용을 먼저 확인해 주세요.");setUncertain(true);}
   };
   return <section aria-label="업무 관리" className={styles.detail}>
-    <div className={styles.title}><div><h2>업무 관리</h2><p>관리자 전용 정보입니다. 세입자에게 전달되지 않습니다.</p></div><button disabled={busy} onClick={()=>void refresh()}>최신 정보</button></div>
+    <div className={styles.title}><div><p>관리자 전용 · 세입자에게 전달되지 않아요.</p></div><button disabled={busy} onClick={()=>void refresh()}>최신 정보</button></div>
     {error?<p role="alert">{error}</p>:null}{notice?<p role="status">{notice}</p>:null}{!work&&!error?<p role="status">업무 정보 불러오는 중…</p>:null}
     {completed?<p>처리 완료된 업무입니다. 기존 업무 정보와 내부 메모는 조회만 할 수 있습니다.</p>:null}
     <form onSubmit={e=>{e.preventDefault();if(!work)return;const timestamp=due?new Date(due):null;const input=CoreManagerWorkUpdateSchema.safeParse({priority,assigneeLabel:assignee.trim()||null,dueAt:timestamp&&!Number.isNaN(timestamp.valueOf())?timestamp.toISOString():due||null,expectedVersion:work.version});if(!input.success){setError("긴급도·담당자(80자 이하)·처리 예정 날짜와 시간을 확인해 주세요.");return;}setBusy(true);setError("");setNotice("");void client.manager.update(ticket.ticketId,input.data).then(value=>{apply(value);setNotice("업무 정보를 저장했습니다.");}).catch(fail).finally(()=>setBusy(false));}}>

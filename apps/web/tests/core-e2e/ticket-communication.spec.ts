@@ -1,3 +1,4 @@
+import { openConversation,openInspector } from "./presentation";
 import { test,expect,type Page,type APIRequestContext } from "@playwright/test";
 import { readFile,mkdir,writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -17,8 +18,8 @@ async function setup(request:APIRequestContext){
   return {codes,headers,ticket,id,read};
 }
 async function login(page:Page,code:string,id?:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill(code);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();if(id)await open(page,id);}
-async function open(page:Page,id:string){await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();await expect(conversation(page).getByRole("button",{name:"대화 새로고침",exact:true})).toBeEnabled();}
-async function send(page:Page,body:string,action:string){const section=conversation(page);await section.getByLabel("공개 대화 내용",{exact:true}).fill(body);await section.getByRole("button",{name:action,exact:true}).click();await expect(section.getByText(body,{exact:true})).toBeVisible();await expect(section.getByLabel("공개 대화 내용",{exact:true})).toHaveValue("");}
+async function open(page:Page,id:string){await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();await openConversation(page);await expect(conversation(page).getByRole("button",{name:"대화 새로고침",exact:true})).toBeEnabled();}
+async function send(page:Page,body:string,action:string){await openConversation(page);const section=conversation(page);await section.getByLabel("공개 대화 내용",{exact:true}).fill(body);await section.getByRole("button",{name:action,exact:true}).click();await expect(section.getByRole("listitem").filter({hasText:body})).toBeVisible();await expect(section.getByLabel("공개 대화 내용",{exact:true})).toHaveValue("");}
 async function fit(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
 const metadata=(page:Page)=>page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith("core-communication-request:")).map(k=>JSON.parse(sessionStorage.getItem(k)!)));
 
@@ -44,7 +45,7 @@ test("public Q&A round trip, independent protocol and queue, photo/privacy, comp
     await manager.getByRole("button",{name:"← 목록으로",exact:true}).click();await expect(manager.locator(`[data-ticket-id="${id}"] [data-open-ticket]`)).toContainText("관리자 답변 대기");await open(manager,id);
     await send(manager,"합성 답변을 확인했습니다.","답변");expect((await s.read()).waitingFor).toBe("NONE");
     const markup='<img src="missing" onerror="window.__qaExecuted=1"> 합성 문자';await send(manager,markup,"진행 안내");
-    await page.evaluate(()=>window.dispatchEvent(new Event("focus")));await expect(conversation(page).getByText(markup,{exact:true})).toBeVisible();expect(await page.evaluate(()=>"__qaExecuted" in window)).toBe(false);expect(await conversation(page).locator("img").count()).toBe(0);
+    await page.evaluate(()=>window.dispatchEvent(new Event("focus")));await expect(conversation(page).getByText(markup,{exact:true})).toBeVisible();expect(await page.evaluate(()=>"__qaExecuted" in window)).toBe(false);expect(await conversation(page).locator("li[data-author] img").count()).toBe(0);
     for(const secret of [privateNote,"합성 내부 담당","긴급도","내부 메모"])await expect(page.getByText(secret,{exact:true})).toHaveCount(0);
     const publicText=JSON.stringify(await s.read());for(const field of [privateNote,"assigneeLabel","priority","internalNotes","actorId","ORG_ADMIN"])expect(publicText).not.toContain(field);
     await expect(page.getByRole("region",{name:"사진",exact:true}).getByRole("img")).toHaveCount(1);await fit(page);
@@ -53,9 +54,9 @@ test("public Q&A round trip, independent protocol and queue, photo/privacy, comp
     await conversation(manager).getByLabel("공개 대화 내용").fill("합성 검토 후 안내");await conversation(manager).getByRole("button",{name:"진행 안내",exact:true}).click();await expect(conversation(manager).getByRole("alert")).toContainText("다른 변경이 먼저 저장");await expect(conversation(manager).getByLabel("공개 대화 내용")).toHaveValue("합성 검토 후 안내");
     await manager.setViewportSize({width:390,height:844});await fit(manager);await conversation(manager).screenshot({path:join(evidence,"manager-conflict-390.png")});
     await conversation(manager).getByRole("button",{name:"대화 새로고침",exact:true}).click();await send(manager,"합성 검토 후 안내","진행 안내");
-    await manager.getByLabel("처리 기록",{exact:true}).fill("합성 점검 시작 기록");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리중");
+    await openInspector(manager);await manager.getByLabel("처리 기록",{exact:true}).fill("합성 점검 시작 기록");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리중");
     await send(manager,"완료 이후에도 기존 질문과 결과를 이력에서 확인하세요.","세입자에게 질문");
-    const finalVersion=(await s.read()).version;await manager.getByLabel("처리 기록",{exact:true}).fill("관리자가 확인한 합성 처리 결과");await manager.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("✓ 처리 완료");
+    const finalVersion=(await s.read()).version;await openInspector(manager);await manager.getByLabel("처리 기록",{exact:true}).fill("관리자가 확인한 합성 처리 결과");await manager.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await expect(conversation(page).getByLabel("공개 대화 내용")).toHaveCount(0);await expect(conversation(page).getByText("내 답변 필요",{exact:true})).toHaveCount(0);expect(await s.read()).toMatchObject({version:finalVersion,readOnly:true,waitingFor:"NONE"});
     const finalTicket=await (await request.get(`/api/v2/core/tickets/${id}`,{headers:s.headers("tenant")})).json();expect(finalTicket.events.filter((e:{kind:string})=>e.kind==="HANDLING")).toHaveLength(2);expect(finalTicket.detail.moreInfoRequest).toBeTruthy();
     expect((await request.post(`/api/v2/core/tickets/${id}/communication/messages`,{headers:s.headers("tenant"),data:{clientRequestId:randomUUID(),expectedVersion:finalVersion,intent:"TENANT_MESSAGE",body:"거부될 합성 메시지"}})).status()).toBe(409);

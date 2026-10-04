@@ -277,3 +277,129 @@ The operator-protected five dirty paths remain byte-identical to the task baseli
 Actual Auth0 provider login and real manager/tenant accounts, Expo/native/device behavior and hosted CI are **NOT_RUN_THIS_PASS**. AC-D06 remains **NOT_VERIFIED**, unchanged by presentation work. The running3130 still serves its previous build; the redesign was validated in the separate isolated production build. Foreign in-progress ticket-outcome changes are outside this frozen candidate's verification. Existing lint warnings remain. Source push, PR Ready, merge and deployment are **NOT_PERFORMED**.
 
 CHECKPOINT | Apple-Toss UI redesign | evidence=containing commit + fresh local tests + actual before/after capture package | tokens=unknown
+
+## Apple / Toss / Linear spatial architecture pass — 2026-10-04
+
+STATUS: **SPATIAL_ARCHITECTURE_LOCAL_VERIFIED**. This receipt belongs to the containing local commit; it does not claim publication, PR readiness, merge, deployment or visual acceptance by the operator.
+
+### Authority and preserved bases
+
+- Instruction: operator-supplied `CODEX_ASTRA_APPLE_TOSS_LINEAR_SPATIAL_ARCHITECTURE_PASS.md`.
+- POLICY_REF: `e9144fac807f39544932baac25b11f836658dbb3`; live policy blobs were checked against the checkout.
+- REPORTED_DESIGN_BASE: `d27247fae77cda37bd092cf4bb31ef1c6bd09663`, verified locally.
+- ACTUAL_START_HEAD: `c374f4c189c37a9bf32244723f08691b193c3371`, a descendant of that design base. Its completion/followup backend, contracts and migration remain intact. The feature session's untracked outcome UI is outside this design candidate.
+- Observed remote PR70 HEAD: `5032e9b3d080cfcfe4148819f5138e47679298e0`, OPEN/DRAFT. No remote mutation was performed.
+- The earlier `2c84291` design and all intermediate evidence remain preserved through ancestry and separate private evidence folders. No reset, rebase, stash or history rewrite was used.
+
+### Reference application and implemented spatial ownership
+
+- [Apple split views](https://developer.apple.com/design/human-interface-guidelines/split-views), [toolbars](https://developer.apple.com/design/human-interface-guidelines/toolbars), [sidebars](https://developer.apple.com/design/human-interface-guidelines/sidebars), and [layout](https://developer.apple.com/design/human-interface-guidelines/layout): persistent selection, adjacent regions, compact navigation, contextual controls and progressive disclosure. The corresponding official DocC JSON was read because the HTML pages require JavaScript.
+- [Toss task flow](https://toss.tech/article/toss-signup-process): prioritize the current action, shorten prerequisite UI, keep secondary explanation available. The accepted Apple/Toss palette was retained; all existing `--color-*` declarations compare equal to the starting source.
+- [Linear UI refresh](https://linear.app/changelog/2026-03-12-ui-refresh) and [issue conversation](https://linear.app/docs/comment-on-issues): consistent page controls, quieter app navigation, foreground work surface and contextual public conversation. These are layout interpretations, not copies of proprietary components.
+
+App chrome uses a 220px desktop navigation rail. Organization selection and logout live there; the current app view is marked with `aria-current`. Ticket and invitation controllers stay mounted while navigation hides the inactive view, preserving local drafts and the existing organization/session unmount boundaries.
+
+The compact page toolbar owns back navigation, a single page refresh and the manager's inspector jump. The queue's separate refresh becomes an error-recovery action. At 1440px, selected work uses adjacent navigation / 380px queue pane / public content / 320px inspector with separators and no inter-pane gaps. At 1280px, the inspector becomes an explicit disclosure; below 1120px the queue is hidden while detail is selected. The same private input DOM survives resize and disclosure, without duplicating forms. The native disclosure was chosen instead of adding a sheet dependency.
+
+Task Zone is derived only from the existing `waitingFor`, completion and read-only state. A tenant who owes an answer sees the latest public manager question and the existing reply composer above photos. A manager who owes a reply sees the tenant response and existing public actions above the thread. No task-owner state means no empty Task Zone. The existing send/recovery handlers, version checks and manager-only rendering remain unchanged.
+
+Tenant detail order is current status, Task Zone when applicable, saved photos, progress, closed conversation history, full ticket reference and protocol disclosure. Manager detail foregrounds public communication and moves metadata, internal notes and handling into the inspector. A strong in-flow intake submit area was used instead of sticky positioning, avoiding keyboard/viewport obstruction. Only the existing HEATING and LEAK values are offered as native radios.
+
+| Screen | Applied result |
+| --- | --- |
+| 01 Manager queue | Compact toolbar, coherent filter row, denser real work rows, selected state and existing ordering |
+| 02 Manager detail | Adjacent public incident and private inspector with persistent queue selection |
+| 03 Manager mobile | Compact app navigation and list-to-detail transition; no desktop panes stacked above detail |
+| 04 Tenant intake | Exact two-value radio choice, strong submit area and smaller recent-history thumbnails |
+| 05 Tenant detail | Current-action hierarchy above photo/progress, conversation and protocol disclosure |
+| 06 Invitation success | Existing state, complete confirmation reference and security explanation preserved; shared layout spacing only |
+| 07 Manager invitation | Separate navigation view; incoming requests left, creation right; requests first on narrow screens |
+| 08 Public Q&A | Plain chronological thread, contextual composer, public/private visual separation and role-owned Task Zone |
+
+### Exact changed paths
+
+Product presentation (9):
+
+- `apps/web/src/app/core/core-design.module.css`
+- `apps/web/src/app/core/core-screen.tsx`
+- `apps/web/src/app/core/login-screen.tsx`
+- `apps/web/src/app/core/manager-work.module.css`
+- `apps/web/src/app/core/manager-work.tsx`
+- `apps/web/src/app/core/onboarding-panel.tsx`
+- `apps/web/src/app/core/ticket-communication.module.css`
+- `apps/web/src/app/core/ticket-communication.tsx`
+- `apps/web/src/app/core/ui/core-display.tsx`
+
+Browser verification (12):
+
+- `apps/web/tests/core-e2e/core.spec.ts`
+- `apps/web/tests/core-e2e/manager-work.spec.ts`
+- `apps/web/tests/core-e2e/photos.spec.ts`
+- `apps/web/tests/core-e2e/presentation.ts` (new)
+- `apps/web/tests/core-e2e/ticket-communication.spec.ts`
+- `apps/web/tests/core-e2e/usability.spec.ts`
+- `apps/web/tests/core-login-e2e/design.spec.ts`
+- `apps/web/tests/core-login-e2e/login.spec.ts`
+- `apps/web/tests/core-login-e2e/manager-work.spec.ts`
+- `apps/web/tests/core-login-e2e/onboarding.spec.ts`
+- `apps/web/tests/core-login-e2e/spatial.spec.ts` (new)
+- `apps/web/tests/core-login-e2e/ticket-communication.spec.ts`
+
+Receipt (1): `ops/core_design_implementation.md`. No backend/API/schema/client/auth/config/manifest/lockfile/workflow change is included.
+
+### Fresh verification and function preservation
+
+Evidence root: private `%USERPROFILE%/.build-manager-rc1-private/spatial-20261004/`. All gates use Node24.21.0 and an isolated archive of c374f4c with only the reviewed Web candidate copied in. Internal package junctions resolve into that frozen archive; third-party dependencies use the installed modules. Product server configuration is unchanged. All 21 changed Web files were compared to the tested source before staging.
+
+| Gate | Result | Final private evidence |
+| --- | --- | --- |
+| Focused display unit tests |5 passed |`focused-presentation-attempt2.log` |
+| Focused spatial browser tests |2 passed within SDK suite |`login-browser-attempt2.log`, `spatial.spec.ts` |
+| `npm run test:web` |518 passed,49 files |`test-web-attempt2.log` |
+| `npm run typecheck` |PASS |`typecheck-attempt4.log` |
+| `npm run lint` |0 errors,6 existing warnings |`lint-attempt2.log` |
+| `npm run build:web` |PASS, final product source |`build-web-attempt5.log` |
+| `npm run check:deps` |PASS |`check-deps.log` |
+| Core Playwright |18 passed |`core-browser-attempt4.log` |
+| B1 SDK Playwright |24 passed |`login-browser-attempt2.log` |
+| Actual after capture and visual audit |PASS,11 PNGs and18 viewport cases |`after-capture-attempt4.log`, `after-final/visual-audit.json` |
+| Controller AST comparison |106 existing hooks and70 non-navigation event attributes preserved |`contract-preservation.json` |
+| Palette / protected paths / candidate bytes |PASS |`preservation-precommit.json` |
+
+Tenant regression covers intake/protocol, HEATING/LEAK payloads, photo selection/preview/persistence/lost-response recovery, reconnect and completion behavior. Manager regression covers queue order/filters, urgency, assignee/due fields, stale saves, private notes and handling. Public Q&A tests cover real request/reply transitions, concurrency versions, uncertain sends, own receipt lookup, completion read-only state and safe text rendering. Invitation tests retain exact CSRF/Origin, confirmation checkbox, approval/rejection/revocation/expiry and lost-response recovery checks. SDK tests cover organization switch, session expiry, logout and protected-photo denial.
+
+The navigation handler that opened the old invitation disclosure is intentionally replaced by two local view selectors, with one local view-state hook. A presentation-only inspector jump is added. AST evidence is supporting static comparison, not a claim that all JSX callbacks are byte-identical or a replacement for runtime tests.
+
+Existing behavioral assertions, retry counts, timeouts and skip policy remain intact. Locator changes open the actual inspector/conversation/protocol disclosures; geometry assertions describe the new adjacent panes. The conversation XSS assertion targets message rows because the surrounding public region now also contains the legitimate saved-photo gallery; script execution and private-data assertions remain. A mobile-first SDK fixture needed an explicit desktop viewport for the new side-by-side invitation oracle, followed by the retained mobile ordering check.
+
+Earlier failed attempts remain separate private evidence. Corrected issues included the invitation toolbar's negative-margin specificity, undersized toolbar buttons, stale layout oracles and ambiguous conversation disclosure locators. One extra core run reused a test identity revoked by its previous run; renewing only the isolated regression fixture restored the expected authorization baseline. A focused unit command initially used the wrong working directory and discovered no tests; its corrected Web-directory run passed. No failed attempt is presented as a passing gate, and no first-pass evidence is reused for this result.
+
+Visual/keyboard checks passed at320/390/768/1280/1440 CSS pixels and200% root text. They cover visible focus, keyboard radio/composer/queue/disclosure operation, photo dialog Escape/focus return, confirmation gates and draft/File retention. No horizontal overflow or out-of-grid visible font/line-height values was found in the final18 capture-audit cases. The 390x844 focused test verifies the tenant reply action is within the initial viewport. This is bounded accessibility evidence, not full WCAG certification.
+
+### Actual before/after capture package
+
+Share directory: `%USERPROFILE%/.build-manager-rc1-private/spatial-design-review/`.
+
+1. `01-manager-queue-desktop-1440.png`
+2. `02-manager-detail-desktop.png`
+3. `03-manager-queue-mobile-390.png`
+4. `04-tenant-intake-mobile-390.png`
+5. `05-tenant-ticket-photo-mobile-390.png`
+6. `06-tenant-invitation-request-390.png`
+7. `07-manager-invitation-approval-desktop.png`
+8. `08-ticket-public-qa-mobile-or-desktop.png` (390px viewport,350px public-region crop)
+9. `09-manager-detail-inspector-1280.png` (on-demand inspector expanded)
+10. `10-tenant-task-zone-390.png`
+11. `11-manager-task-zone-desktop.png`
+
+`before-c374f4c/` contains eight fresh baseline captures, taken before this integration. Both generations use the same persisted synthetic ticket/unit/photo/invitation identifiers. Real synthetic request/reply actions intentionally add Q&A history between captures, including the tenant and manager Task Zone states; this is not a pixel-identical data comparison. All images are actual browser rendering, without ImageGen or fabricated product features.
+
+`build-manager-spatial-ui.zip` contains exactly19 PNGs:11 after and8 before. Every copied and archived PNG was hash-verified. All19 were visually inspected: only synthetic names, confirmation references and verification photos; no secrets, real contact/address information or raw invitation tokens required redaction. Logs, state/profile files, credentials, source and databases are excluded. Original captures are retained. Direct file attachment is unavailable; delivery uses local links and Windows paths.
+
+### Preservation and remaining limits
+
+The five operator-protected dirty runtime paths and the five foreign untracked outcome UI files remain byte-identical to the task baseline and unstaged. The existing3130 listener remains PID55228 with the original build identifier. All browser work used isolated synthetic profiles and the existing3131/3133 test launchers; no action targeted3130. This owned receipt carries the execution checkpoint instead of editing mixed-author runtime logs. Google sync is **NOT_RUN / PENDING**.
+
+Actual Auth0 provider login, real account flows, Expo/native/device behavior and hosted CI are **NOT_RUN_THIS_PASS**. AC-D06 remains **NOT_VERIFIED**. The c374f4c backend is preserved, but the other session's untracked completion/followup UI is neither integrated nor claimed as verified here. The original3130 continues serving its prior build. Remaining lint warnings are unchanged. Source push, Ready, merge and deployment are **NO**.
+
+CHECKPOINT | spatial architecture pass | evidence=containing local commit + fresh Web/browser gates + actual 11-after/8-before PNG package | tokens=unknown

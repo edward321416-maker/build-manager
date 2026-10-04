@@ -1,3 +1,4 @@
+import { openInspector } from "./presentation";
 import { test,expect,type Page } from "@playwright/test";
 import { readFile,mkdir,writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -26,7 +27,7 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   await page.setViewportSize({width:1440,height:1000});await login(page,codes.manager);
   const queue=page.getByRole("region",{name:"관리 업무함",exact:true});await expect(queue).toBeVisible();
   await expect(queue.locator("select")).toHaveCount(3);
-  await queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();
+  await queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();await openInspector(page);
   const detail=page.getByRole("region",{name:"업무 관리",exact:true});await expect(detail.getByRole("combobox",{name:"긴급도",exact:true})).toBeEnabled();
   await detail.getByRole("combobox",{name:"긴급도",exact:true}).selectOption("URGENT");await detail.getByLabel("담당자",{exact:true}).fill("합성 내부 담당 A");
   // Browser input is explicitly local wall time; the server stores an offset timestamp.
@@ -40,14 +41,14 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   await expect(page.getByRole("region",{name:"사진",exact:true}).getByRole("img")).toHaveCount(1);
   const photoBox=(await page.getByRole("region",{name:"사진",exact:true}).boundingBox())!,workBox=(await detail.boundingBox())!;
   const queueBox=(await queue.boundingBox())!;
-  expect(queueBox.width).toBeGreaterThanOrEqual(450);
+  expect(queueBox.width+1).toBe(380); // The pane includes its one-pixel separator.
   expect(queueBox.x+queueBox.width).toBeLessThanOrEqual(photoBox.x);
-  expect(photoBox.y+photoBox.height).toBeLessThanOrEqual(workBox.y);
+  expect(photoBox.x+photoBox.width).toBeLessThanOrEqual(workBox.x);
   await expect(queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`)).toHaveAttribute("aria-current","true");
   expect((await page.getByLabel("처리 기록",{exact:true}).boundingBox())!.x).toBeGreaterThanOrEqual(workBox.x);
   await fit(page);
   await page.screenshot({path:join(evidence,"manager-detail-desktop.png"),fullPage:true});
-  await page.reload();await page.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();await expect(detail.getByText(memo,{exact:true})).toBeVisible();await expect(detail.getByLabel("담당자",{exact:true})).toHaveValue("합성 내부 담당 A");
+  await page.reload();await page.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();await openInspector(page);await expect(detail.getByText(memo,{exact:true})).toBeVisible();await expect(detail.getByLabel("담당자",{exact:true})).toHaveValue("합성 내부 담당 A");
   await page.getByRole("button",{name:"← 목록으로",exact:true}).click();
   await expect.poll(()=>queue.locator("li[data-ticket-id]").evaluateAll((rows,ids)=>rows.map(x=>x.getAttribute("data-ticket-id")).filter(id=>ids.includes(id!)),tickets)).toEqual(tickets);
   await expect(queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`)).toContainText("기한 지남");
@@ -60,8 +61,8 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   expect(columns).toHaveLength(5);expect(columns[0]).toContain("긴급");expect(columns[1]).toContain("누수");expect(columns[3]).toContain("합성 내부 담당 A");expect(columns[4]).toContain("기한 지남");await expect(row).not.toContainText(tickets[0].slice(0,8));
   await fit(page);await page.screenshot({path:join(evidence,"manager-queue-desktop.png"),fullPage:true});
   await page.setViewportSize({width:390,height:844});await fit(page);await page.screenshot({path:join(evidence,"manager-queue-390.png"),fullPage:true});
-  await queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();await expect(detail.getByText(memo,{exact:true})).toBeVisible();await fit(page);await page.screenshot({path:join(evidence,"manager-detail-390.png"),fullPage:true});
-  await page.getByLabel("처리 기록",{exact:true}).fill("합성 담당자가 확인한 처리 시작");await page.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("처리중");
+  await queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();await openInspector(page);await expect(detail.getByText(memo,{exact:true})).toBeVisible();await fit(page);await page.screenshot({path:join(evidence,"manager-detail-390.png"),fullPage:true});
+  await openInspector(page);await page.getByLabel("처리 기록",{exact:true}).fill("합성 담당자가 확인한 처리 시작");await page.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("처리중");
   const tenantContext=await browser.newContext({viewport:{width:390,height:844}}),tenant=await tenantContext.newPage();
   try{
     await login(tenant,codes.tenant);await tenant.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();
@@ -71,6 +72,6 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
     for(const path of ["manager/work-items",`manager/tickets/${tickets[0]}/work`,`manager/tickets/${tickets[0]}/internal-notes`])expect((await request.get(`/api/v2/core/${path}`,{headers:headers("tenant")})).status()).toBe(403);
     await fit(tenant);await tenant.screenshot({path:join(evidence,"tenant-private-fields-absent-390.png"),fullPage:true});
   }finally{await tenantContext.close();}
-  await page.getByRole("button",{name:"← 목록으로",exact:true}).click();await queue.locator(`[data-ticket-id="${tickets[1]}"] [data-open-ticket]`).click();await page.getByLabel("처리 기록",{exact:true}).fill("합성 점검 결과의 관리자 완료 기록");await page.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");await expect(detail.getByRole("button",{name:"저장",exact:true})).toBeDisabled();await expect(detail.getByRole("button",{name:"내부 메모 추가",exact:true})).toBeDisabled();
+  await page.getByRole("button",{name:"← 목록으로",exact:true}).click();await queue.locator(`[data-ticket-id="${tickets[1]}"] [data-open-ticket]`).click();await openInspector(page);await page.getByLabel("처리 기록",{exact:true}).fill("합성 점검 결과의 관리자 완료 기록");await page.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");await expect(detail.getByRole("button",{name:"저장",exact:true})).toBeDisabled();await expect(detail.getByRole("button",{name:"내부 메모 추가",exact:true})).toBeDisabled();
   await writeFile(join(evidence,"restart-target.private.json"),JSON.stringify({ticketId:tickets[0],tickets,memo,assigneeLabel:"합성 내부 담당 A",version:4}),{flag:"w"});
 });

@@ -1,7 +1,32 @@
+"use client";
 import type { CoreTicketDto, InvitationDto } from "@build-manager/api-contracts";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import styles from "../core-design.module.css";
 import { IntakeStatus, WorkStatusBadge } from "./work-status-badge";
+
+/** One persistent DOM subtree preserves unsaved property and note inputs across collapse. */
+export function ManagerInspector({ children }: { children: ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    const wide = window.matchMedia("(min-width: 1440px)");
+    const update = () => setExpanded(wide.matches);
+    update(); wide.addEventListener("change", update);
+    return () => wide.removeEventListener("change", update);
+  }, []);
+  return <details id="ticket-inspector" className={styles.inspector} open={expanded}
+    onToggle={event => setExpanded(event.currentTarget.open)}>
+    <summary>업무 정보</summary>
+    <aside aria-label="관리자 업무 정보">{children}</aside>
+  </details>;
+}
+
+export function TaskZone({ tenant, children }: { tenant: boolean; children: ReactNode }) {
+  return <section className={styles.taskZone} aria-label="지금 할 일">
+    <h2>지금 할 일</h2>
+    <p>{tenant ? "관리자 질문에 답변해주세요." : "세입자 답변이 도착했습니다. 확인 후 다음 조치를 선택하세요."}</p>
+    {children}
+  </section>;
+}
 
 /** Pure presentation; integration remains with the controller's sole writer. */
 export function EnvironmentNote({ children }: { children: ReactNode }) {

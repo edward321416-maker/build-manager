@@ -1,3 +1,4 @@
+import { openInspector } from "./presentation";
 import { test,expect,type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -7,13 +8,13 @@ const codes=async()=>JSON.parse(await readFile(join(privateRoot,"access-codes.js
 async function login(page:Page,who:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill((await codes())[who]);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();}
 
 test("Web tenant creates, another browser manager handles, tenant reloads and reopens persistent history",async({browser,page})=>{
-  await login(page,"tenant");await page.getByLabel("문제 유형").selectOption("LEAK");await page.getByLabel("문제 설명").fill("RC1 합성 누수 접수 — 브라우저 왕복");
+  await login(page,"tenant");await page.getByRole("radio",{name:"누수",exact:true}).check();await page.getByLabel("문제 설명").fill("RC1 합성 누수 접수 — 브라우저 왕복");
   const created=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");await page.getByRole("button",{name:"접수하기",exact:true}).click();const response=await created;expect(response.status()).toBe(201);const ticket=await response.json();
   await expect(page.getByTestId("work-status")).toHaveText("접수");
   const managerContext=await browser.newContext(),manager=await managerContext.newPage();
   try{await login(manager,"manager");await manager.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
-    await manager.getByLabel("처리 기록").fill("합성 점검 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리중");
-    await manager.getByLabel("처리 기록").fill("합성 조치 결과를 관리자가 확인했습니다");await manager.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("✓ 처리 완료");
+    await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 점검 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리중");
+    await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 조치 결과를 관리자가 확인했습니다");await manager.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");await expect(page.getByText("합성 조치 결과를 관리자가 확인했습니다",{exact:false})).toBeVisible();
     await page.reload();await page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     await page.screenshot({path:join(privateRoot,"web-tenant-result.png"),fullPage:true});await manager.screenshot({path:join(privateRoot,"web-manager-result.png"),fullPage:true});
@@ -47,7 +48,7 @@ test("text intake, manager follow-up and tenant answer use the same persistent p
 });
 
 test("revoked cookie session clears the protected screen on refresh",async({page})=>{
-  await login(page,"tenantOther");await expect(page.getByRole("heading",{name:"호실별 접수 이력"})).toBeVisible();
+  await login(page,"tenantOther");await expect(page.getByRole("heading",{name:/^최근 접수/})).toBeVisible();
   const r=await page.request.post("/api/v2/core/logout",{headers:{Origin:"http://127.0.0.1:3131"},data:{}});expect(r.status()).toBe(200);
-  await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(page.getByRole("heading",{name:"호실별 접수 이력"})).toHaveCount(0);
+  await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(page.getByRole("heading",{name:/^최근 접수/})).toHaveCount(0);
 });

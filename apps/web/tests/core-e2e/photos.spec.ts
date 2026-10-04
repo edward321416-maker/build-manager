@@ -1,3 +1,4 @@
+import { openInspector } from "./presentation";
 import { test,expect,type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -25,7 +26,7 @@ test("320px select-preview-save, manager protected read, enlargement and new bro
   await saved(page).getByRole("button",{name:"저장된 사진 1 확대"}).click();await expect(page.getByRole("dialog")).toBeVisible();await page.screenshot({path:join(privateRoot,"photo-enlarged-320.png"),fullPage:true});await page.getByRole("button",{name:"사진 닫기",exact:true}).click();
   await page.screenshot({path:join(privateRoot,"photo-tenant-saved-320.png"),fullPage:true});
   const ctx=await browser.newContext({viewport:{width:390,height:844}}),manager=await ctx.newPage();
-  try{await login(manager,"manager");await manager.locator(`[data-ticket-id="${t.ticketId}"] [data-open-ticket]`).click();await expect(saved(manager).getByRole("img")).toHaveCount(2);await expect(manager.getByLabel("참고 사진 선택")).toHaveCount(0);await manager.getByLabel("처리 기록").fill("합성 첨부 사진 2장을 확인했습니다");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리중");await manager.screenshot({path:join(privateRoot,"photo-manager-confirmed-390.png"),fullPage:true});}finally{await ctx.close();}
+  try{await login(manager,"manager");await manager.locator(`[data-ticket-id="${t.ticketId}"] [data-open-ticket]`).click();await expect(saved(manager).getByRole("img")).toHaveCount(2);await expect(manager.getByLabel("참고 사진 선택")).toHaveCount(0);await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 첨부 사진 2장을 확인했습니다");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리중");await manager.screenshot({path:join(privateRoot,"photo-manager-confirmed-390.png"),fullPage:true});}finally{await ctx.close();}
   const fresh=await browser.newContext({viewport:{width:320,height:740}}),reconnected=await fresh.newPage();
   try{await login(reconnected);const row=reconnected.locator(`[data-ticket-id="${t.ticketId}"]`);await expect(row.getByRole("img")).toHaveCount(2);await row.locator("[data-open-ticket]").click();await expect(saved(reconnected).getByRole("img")).toHaveCount(2);await expect(reconnected.getByTestId("work-status")).toHaveText("처리중");await reconnected.screenshot({path:join(privateRoot,"photo-reconnected-320.png"),fullPage:true});}finally{await fresh.close();}
 });

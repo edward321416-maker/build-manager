@@ -1,3 +1,4 @@
+import { openInspector } from "../core-e2e/presentation";
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -29,11 +30,11 @@ async function captureLayout(page:Page,name:string){
     await page.setViewportSize(viewport);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     const account=page.getByRole("region",{name:"로그인과 내 소속"});
-    if(viewport.width>=1024)expect((await account.boundingBox())!.width).toBe(250);
+    if(viewport.width>=1024)expect((await account.boundingBox())!.width).toBe(220);
     expect(await account.evaluate(el=>getComputedStyle(el).backgroundColor)).toBe("rgb(242, 242, 247)");
     const workspace=page.getByRole("region",{name:"수리 접수 작업",exact:true});
     await expect(workspace).toHaveCSS("background-color","rgb(255, 255, 255)");
-    await expect(workspace.getByRole("heading",{level:1})).toHaveCSS("font-size",viewport.width<1024?"25px":"30px");
+    await expect(workspace.getByRole("heading",{level:1})).toHaveCSS("font-size","20px");
     const statusColors=await workspace.locator("span[data-work-state]").evaluateAll(items=>items.map(el=>({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color})));
     expect(statusColors.every(s=>s.background==="rgba(0, 0, 0, 0)"&&["rgb(32, 38, 50)","rgb(0, 100, 255)"].includes(s.color))).toBe(true);
     await page.evaluate(()=>scrollTo(0,0));
@@ -73,10 +74,10 @@ test("neutral account and white workspace reflow without remounting drafts; mana
     const m=await manager.context.newPage();await m.goto("/core");
     await m.getByLabel("건물·호실").selectOption(tenant.fixture.unitA);
     await m.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
-    await expect(m.getByLabel("처리 기록")).toBeVisible();await captureLayout(m,"b1-manager-detail");
-    await m.getByLabel("처리 기록").fill("합성 처리 시작 기록");await m.getByRole("button",{name:"처리 시작 기록",exact:true}).click();
+    await openInspector(m);await expect(m.getByLabel("처리 기록")).toBeVisible();await captureLayout(m,"b1-manager-detail");
+    await openInspector(m);await m.getByLabel("처리 기록").fill("합성 처리 시작 기록");await m.getByRole("button",{name:"처리 시작 기록",exact:true}).click();
     await expect(m.getByTestId("work-status")).toHaveText("처리중");
-    await m.getByLabel("처리 기록").fill("합성 관리자 완료 기록");await m.getByRole("button",{name:"처리 완료 기록",exact:true}).click();
+    await openInspector(m);await m.getByLabel("처리 기록").fill("합성 관리자 완료 기록");await m.getByRole("button",{name:"처리 완료 기록",exact:true}).click();
     await expect(m.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     const completed=await (await tenant.context.request.get(`/api/v2/core/tickets/${ticket.ticketId}`,{headers:tenant.headers})).json();
     expect(completed.workStatus).toBe("COMPLETED");expect(completed.detail.status).toBe("PARTIAL");
@@ -104,12 +105,13 @@ test("pending invitations precede creation while full references and confirmatio
     const {link}=await created.json(),token=new URL(link).hash.slice(1);
     const claimed=await tenant.context.request.post("/api/v2/core/onboarding/claim",{headers:{Origin:base,"x-b1-csrf":tenant.csrf},data:{token}});expect(claimed.status()).toBe(200);
     const {requestNumber}=await claimed.json();expect(requestNumber).toMatch(/^[a-f0-9-]{36}$/);
-    const page=await manager.context.newPage();await page.goto("/core");await page.locator("summary").filter({hasText:/^입주 연결$/}).click();
+    const page=await manager.context.newPage();await page.setViewportSize({width:1440,height:900});await page.goto("/core");await page.getByRole("link",{name:"입주 연결",exact:true}).click();
     const pending=page.getByRole("region",{name:"확인할 요청",exact:true}),card=pending.getByRole("article",{name:`${label} 초대`,exact:true});
     await expect(card.getByText(requestNumber,{exact:true})).toBeVisible();
-    expect((await pending.boundingBox())!.y).toBeLessThan((await page.getByRole("heading",{name:"새 초대",exact:true}).boundingBox())!.y);
+    expect((await pending.boundingBox())!.x).toBeLessThan((await page.getByRole("heading",{name:"새 초대",exact:true}).boundingBox())!.x);
     const approve=card.getByRole("button",{name:"승인",exact:true});await expect(approve).toBeDisabled();
     await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    expect((await pending.boundingBox())!.y).toBeLessThan((await page.getByRole("heading",{name:"새 초대",exact:true}).boundingBox())!.y);
     await card.getByRole("checkbox").focus();await page.keyboard.press("Space");await expect(approve).toBeEnabled();
     await page.getByRole("button",{name:"연결 상태 새로고침",exact:true}).click();
     await expect(page.getByRole("button",{name:"연결 상태 새로고침",exact:true})).toBeEnabled();

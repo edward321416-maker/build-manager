@@ -1,3 +1,4 @@
+import { openInspector } from "../core-e2e/presentation";
 import { test,expect,type Page } from "@playwright/test";
 import { createHash,randomUUID } from "node:crypto";
 import { join } from "node:path";
@@ -15,7 +16,7 @@ async function setup(browser:import("@playwright/test").Browser){
  await manager.admin.query("INSERT INTO app.unit(id,org_id,property_id,label,status) VALUES($1,$2,$3,$4,'ACTIVE')",[unit,org,property,name]);
  await manager.admin.query("INSERT INTO app.organization_membership(org_id,user_id,role,status) VALUES($1,$2,'ORG_ADMIN','ACTIVE')",[org,managerId]);
  await manager.admin.query("INSERT INTO core_flow.building_context(org_id,property_id,body) SELECT $1::uuid,$2::uuid,body||jsonb_build_object('id',($2::uuid)::text,'displayName','합성 초대 테스트 건물') FROM core_flow.building_context WHERE org_id=$3 AND property_id=$4",[org,property,manager.fixture.orgA,manager.fixture.propertyA]);
- const headers={...manager.headers,"x-core-organization":org},page=await manager.context.newPage();await page.setViewportSize({width:1280,height:900});await page.goto("/core");await page.locator("summary").filter({hasText:/^입주 연결$/}).click();await expect(page.getByRole("combobox",{name:/^호실/})).toBeVisible();
+ const headers={...manager.headers,"x-core-organization":org},page=await manager.context.newPage();await page.setViewportSize({width:1280,height:900});await page.goto("/core");await page.getByRole("link",{name:"입주 연결",exact:true}).click();await expect(page.getByRole("combobox",{name:/^호실/})).toBeVisible();
  return {manager,tenant,page,org,unit,name,headers,async close(){await manager.close();await tenant.close();}};
 }
 async function create(page:Page){const reply=page.waitForResponse(r=>r.url().endsWith("/onboarding/create"));await page.getByRole("button",{name:"초대 링크 만들기",exact:true}).click();const response=await reply;expect(response.status()).toBe(201);return await response.json() as {link:string;invitation:{invitationId:string}};}
@@ -39,10 +40,10 @@ test("UI invitation -> zero-org SDK request -> manager approval -> unit/photo ->
   const root=join(privateRoot,"onboarding-sdk");await mkdir(root,{recursive:true});await tenant.screenshot({path:join(root,"requested-390.png"),fullPage:true});await f.page.screenshot({path:join(root,"manager-requested-1280.png"),fullPage:true});
   await approve(f.page);await tenant.getByRole("button",{name:"요청 상태 확인"}).click();await expect(tenant.getByText("연결 승인",{exact:true})).toBeVisible();
   await tenant.getByRole("link",{name:"내 호실로 돌아가기"}).click();await expect(tenant.getByTestId("unit-context")).toContainText(f.name);
-  await tenant.getByLabel("문제 유형").selectOption("LEAK");await tenant.getByLabel("문제 설명").fill("초대 승인 후 합성 누수 글과 사진 접수");
+  await tenant.getByRole("radio",{name:"누수",exact:true}).check();await tenant.getByLabel("문제 설명").fill("초대 승인 후 합성 누수 글과 사진 접수");
   const bytes=await sharp({create:{width:240,height:140,channels:3,background:"#84aa96"}}).png().toBuffer();await tenant.getByLabel("참고 사진 선택",{exact:true}).setInputFiles({name:"synthetic-invitation.png",mimeType:"image/png",buffer:bytes});await expect(tenant.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();
   const created=tenant.waitForResponse(r=>r.url().endsWith("/core/tickets")&&r.request().method()==="POST");await tenant.getByRole("button",{name:"접수하기",exact:true}).click();const ticket=await (await created).json();await expect(saved(tenant).getByRole("img")).toHaveCount(1);
-  await f.page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await f.page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(saved(f.page).getByRole("img")).toHaveCount(1);await f.page.getByLabel("처리 기록").fill("합성 초대 연결 사진을 확인하고 처리 시작");await f.page.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(f.page.getByTestId("work-status")).toHaveText("처리중");
+  await f.page.getByRole("link",{name:"업무함",exact:true}).click();await f.page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await f.page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(saved(f.page).getByRole("img")).toHaveCount(1);await openInspector(f.page);await f.page.getByLabel("처리 기록").fill("합성 초대 연결 사진을 확인하고 처리 시작");await f.page.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(f.page.getByTestId("work-status")).toHaveText("처리중");
   await tenant.reload();await tenant.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(tenant.getByTestId("work-status")).toHaveText("처리중");await expect(saved(tenant).getByRole("img")).toHaveCount(1);
   expect(await tenant.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await tenant.screenshot({path:join(root,"connected-photo-reentry-390.png"),fullPage:true});
   const row=(await f.manager.admin.query("SELECT i.state,count(m.id)::int n FROM core_onboarding.invitation i JOIN app.occupancy_member m ON m.id=i.occupant_id AND m.occupancy_id=i.occupancy_id WHERE i.id=$1 GROUP BY i.state",[invitation.invitationId])).rows[0];expect(row).toEqual({state:"APPROVED",n:1});
