@@ -25,6 +25,13 @@ export function createCoreFlowPort(database: PostgresDatabase,orgId?:string): Co
         const session=await call<CoreScope["session"]>("SELECT core_flow.session($1) AS value",[hash]);
         return operation({
           session,
+          manager:{
+            list:()=>call("SELECT core_flow.list_manager_work($1) AS value",[hash]),
+            read:id=>call("SELECT core_flow.read_manager_work($1,$2) AS value",[hash,id]),
+            update:(id,input)=>call("SELECT core_flow.update_manager_work($1,$2,$3,$4,$5,$6) AS value",[hash,id,input.priority,input.assigneeLabel,input.dueAt,input.expectedVersion]),
+            notes:id=>call("SELECT core_flow.list_internal_notes($1,$2) AS value",[hash,id]),
+            appendNote:(id,body)=>call("SELECT core_flow.append_internal_note($1,$2,$3) AS value",[hash,id,body]),
+          },
           units:()=>call("SELECT core_flow.units($1) AS value",[hash]),
           building:unit=>call("SELECT core_flow.building($1,$2) AS value",[hash,unit]),
           read:(id,lock=false)=>call("SELECT core_flow.read_ticket($1,$2,$3) AS value",[hash,id,lock]),

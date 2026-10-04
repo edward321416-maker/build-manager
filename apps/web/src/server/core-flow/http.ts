@@ -6,6 +6,7 @@ import { parseRouteCode } from "../http/route-code";
 import { getCoreFlowContainer,type CoreHTTPDependencies } from "./container";
 import { handlePhotoRequest,PhotoRequestError } from "./photos";
 import { handleOnboarding } from "./onboarding";
+import { CoreManagerWorkItemsSchema,CoreManagerWorkItemSchema,CoreManagerWorkUpdateSchema,CoreManagerInternalNotesSchema,CoreManagerInternalNoteSchema,CoreManagerInternalNoteCreateSchema } from "@build-manager/api-contracts";
 
 const cookie="rc1_session";
 const digest=(value:string)=>createHash("sha256").update(value).digest("hex");
@@ -70,6 +71,23 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
     }
     if(segments[0]==="tickets"&&segments[2]==="photos")return await handlePhotoRequest(request,segments,hash,port,headers);
     return await port.run(hash,async scope=>{
+      if(segments[0]==="manager"){
+        if(scope.session.role!=="ORG_ADMIN"&&scope.session.role!=="PROPERTY_STAFF")fail("FORBIDDEN");
+        if(route==="manager/work-items"&&request.method==="GET")return json(CoreManagerWorkItemsSchema.parse(await scope.manager.list()));
+        const id=segments[2];
+        if(segments[1]!=="tickets"||segments.length!==4)fail("NOT_FOUND");
+        if(!id||!/^[a-f0-9-]{36}$/.test(id))fail("INVALID_INPUT");
+        if(segments[3]==="work"){
+          if(request.method==="GET")return json(CoreManagerWorkItemSchema.parse(await scope.manager.read(id)));
+          return json(CoreManagerWorkItemSchema.parse(await scope.manager.update(id,parse(CoreManagerWorkUpdateSchema,await body(request)))));
+        }
+        if(segments[3]==="internal-notes"){
+          if(request.method==="GET")return json(CoreManagerInternalNotesSchema.parse(await scope.manager.notes(id)));
+          const input=parse(CoreManagerInternalNoteCreateSchema,await body(request));
+          return json(CoreManagerInternalNoteSchema.parse(await scope.manager.appendNote(id,input.body)),201);
+        }
+        fail("NOT_FOUND");
+      }
       if(route==="session" && request.method==="GET")return json(CoreSessionSchema.parse({role:scope.session.role,synthetic:true}));
       if(route==="logout" && request.method==="POST"){
         parse(FinalizeTicketRequestSchema,await body(request));await d.revoke(hash);
