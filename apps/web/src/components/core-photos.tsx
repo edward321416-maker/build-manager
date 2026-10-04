@@ -10,19 +10,21 @@ function Preview({file,index}:{file:File;index:number}){
   useEffect(()=>{const url=URL.createObjectURL(file);if(image.current)image.current.src=url;return()=>URL.revokeObjectURL(url);},[file]);
   return <img ref={image} alt={`전송 전 사진 ${index+1} 미리보기`} />;
 }
-export function PhotoPicker({files,onChange,disabled=false}:{files:PendingPhoto[];onChange:(files:PendingPhoto[])=>void;disabled?:boolean}){
+export function PhotoPicker({files,onChange,disabled=false,compact=false}:{files:PendingPhoto[];onChange:(files:PendingPhoto[])=>void;disabled?:boolean;compact?:boolean}){
   const [error,setError]=useState("");
-  return <section className="core-photos" aria-label="사진 선택 및 미리보기">
-    <PhotoSelectionSurface selectionCount={files.length} disabled={disabled}><input aria-label="참고 사진 선택" type="file" accept="image/jpeg,image/png" multiple disabled={disabled} onChange={e=>{
+  const constraints=<p>한 장당 5MiB·2천만 화소 이하입니다. 사진은 참고 첨부이며 자동 분석이나 필수 증빙 판정에 사용하지 않습니다.</p>;
+  const recovery=<p>선택한 사진은 아직 저장되지 않았습니다. 전송 실패 시 이 화면에서 다시 시도할 수 있습니다. 페이지를 닫거나 새로고침하면 미전송 선택은 사라집니다.</p>;
+  return <section className="core-photos" data-compact={compact} aria-label="사진 선택 및 미리보기">
+    <PhotoSelectionSurface selectionCount={files.length} disabled={disabled} compact={compact}><input aria-label="참고 사진 선택" type="file" accept="image/jpeg,image/png" multiple disabled={disabled} onChange={e=>{
       const added=Array.from(e.target.files??[]);e.target.value="";
       if(files.length+added.length>3){setError("한 접수에 사진은 최대 3장입니다.");return;}
       if(added.some(f=>!['image/jpeg','image/png'].includes(f.type)||f.size>CORE_PHOTO_MAX_BYTES)){setError("JPEG·PNG만 선택하세요. 한 장당 5MiB 이하입니다.");return;}
       setError("");onChange([...files,...added.map(file=>({file,uploadId:crypto.randomUUID()}))]);
     }} /></PhotoSelectionSurface>
-    <details><summary>사진 도움말</summary><p>한 장당 5MiB·2천만 화소 이하입니다. 사진은 참고 첨부이며 자동 분석이나 필수 증빙 판정에 사용하지 않습니다.</p></details>
+    {!compact?<details><summary>사진 도움말</summary>{constraints}</details>:null}
     {error?<p role="alert">{error}</p>:null}
     <div className="photo-grid">{files.map((p,i)=><figure key={p.uploadId}><Preview file={p.file} index={i} /><figcaption>전송 전 사진 {i+1}</figcaption><button type="button" disabled={disabled} onClick={()=>onChange(files.filter(f=>f.uploadId!==p.uploadId))}>사진 {i+1} 선택 취소</button></figure>)}</div>
-    {files.length?<p>선택한 사진은 아직 저장되지 않았습니다. 전송 실패 시 이 화면에서 다시 시도할 수 있습니다. 페이지를 닫거나 새로고침하면 미전송 선택은 사라집니다.</p>:null}
+    {compact?<div className="photo-intake-help"><p>JPEG·PNG · 최대 3장</p><details><summary>사진 도움말</summary>{constraints}{recovery}</details></div>:files.length?recovery:null}
   </section>;
 }
 

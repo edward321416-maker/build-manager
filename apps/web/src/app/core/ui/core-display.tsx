@@ -1,22 +1,37 @@
 "use client";
 import type { CoreTicketDto, InvitationDto } from "@build-manager/api-contracts";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import styles from "../core-design.module.css";
 import { IntakeStatus, WorkStatusBadge } from "./work-status-badge";
 
 /** One persistent DOM subtree preserves unsaved property and note inputs across collapse. */
-export function ManagerInspector({ children }: { children: ReactNode }) {
-  const [expanded, setExpanded] = useState(false);
+export function ManagerInspector({ children, expanded, onExpandedChange }: {
+  children: ReactNode; expanded: boolean; onExpandedChange(value: boolean): void;
+}) {
+  const summary = useRef<HTMLElement>(null);
+  const contextual = () => window.matchMedia("(min-width: 1120px) and (max-width: 1439px)").matches;
+  const close = () => { onExpandedChange(false); document.getElementById("ticket-inspector-trigger")?.focus(); };
   useEffect(() => {
     const wide = window.matchMedia("(min-width: 1440px)");
-    const update = () => setExpanded(wide.matches);
+    const update = () => onExpandedChange(wide.matches);
     update(); wide.addEventListener("change", update);
     return () => wide.removeEventListener("change", update);
-  }, []);
+  }, [onExpandedChange]);
+  useEffect(() => { if (expanded && contextual()) summary.current?.focus(); }, [expanded]);
+  useEffect(() => {
+    if (!expanded) return;
+    const followFocus = (event: FocusEvent) => {
+      const next = event.target, panel = summary.current?.parentElement;
+      if (contextual() && next instanceof Node && !panel?.contains(next) && next !== document.getElementById("ticket-inspector-trigger")) onExpandedChange(false);
+    };
+    document.addEventListener("focusin", followFocus);
+    return () => document.removeEventListener("focusin", followFocus);
+  }, [expanded, onExpandedChange]);
   return <details id="ticket-inspector" className={styles.inspector} open={expanded}
-    onToggle={event => setExpanded(event.currentTarget.open)}>
-    <summary>업무 정보</summary>
-    <aside aria-label="관리자 업무 정보">{children}</aside>
+    onToggle={event => onExpandedChange(event.currentTarget.open)}
+    onKeyDown={event => { if (event.key === "Escape" && contextual()) { event.preventDefault(); close(); } }}>
+    <summary ref={summary}>업무 정보</summary>
+    <aside aria-label="관리자 업무 정보"><button type="button" className={styles.inspectorClose} onClick={close}>업무 정보 닫기</button>{children}</aside>
   </details>;
 }
 
@@ -70,17 +85,18 @@ export function TicketProgress({ workStatus, intakeStatus, children }: {
 }
 
 /** The caller retains the native input, its accessible name and all handlers. */
-export function PhotoSelectionSurface({ children, selectionCount, disabled }: {
+export function PhotoSelectionSurface({ children, selectionCount, disabled, compact = false }: {
   children: ReactNode;
   selectionCount: number;
   disabled: boolean;
+  compact?: boolean;
 }) {
   return <div className={styles.photoSelectionSurface}>
     <label className={styles.photoSelectionControl} data-disabled={disabled}>
       <span aria-hidden="true">＋</span> 사진 추가
       {children}
     </label>
-    <p className={styles.photoSelectionHint}>JPEG·PNG · 최대 3장</p>
+    {!compact ? <p className={styles.photoSelectionHint}>JPEG·PNG · 최대 3장</p> : null}
     {selectionCount > 0 ? <p className={styles.photoSelectionCount}>사진 {selectionCount}장 선택됨</p> : null}
   </div>;
 }

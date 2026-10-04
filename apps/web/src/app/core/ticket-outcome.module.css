@@ -1,0 +1,10 @@
+.card{min-width:0;padding:1.1rem;border:1px solid #c7d4e1;border-radius:12px;background:#fff;color:#20384b;overflow-wrap:anywhere}
+.card h2{margin:0 0 .65rem;font-size:1.1rem}
+.card p{margin:.65rem 0;line-height:1.6}
+.actions{display:flex;gap:.65rem;flex-wrap:wrap}
+.actions button,.card>button{min-height:44px;max-width:100%;white-space:normal;padding:.6rem .9rem;border:1px solid #8b9fb2;border-radius:8px;background:#f2f6fa;color:inherit;font:inherit}
+.actions button:focus-visible,.card>button:focus-visible{outline:3px solid #2161ad;outline-offset:3px}
+.actions button:disabled{opacity:.55;cursor:not-allowed}
+.status{padding:.75rem;background:#edf5ff;border-radius:8px}
+.error{padding:.75rem;border-left:3px solid #a63535;background:#fff4f4}
+.hint{font-size:.9rem;color:#526b7c}

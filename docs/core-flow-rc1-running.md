@@ -19,6 +19,14 @@ The dedicated browser regression adds a three-ticket manager round trip to each 
 
 Use the `feat/core-flow-rc1` worktree, Node **24.21.0**, npm **11.19.0**, Docker Desktop and the existing lockfile. These are development commands, not deployment. All accounts, buildings and reports must remain synthetic.
 
+## Completion confirmation and follow-up
+
+On a completed ticket, the tenant can choose **해결됐어요**, **아직 문제가 있어요** or **다시 문제가 생겼어요**. A tenant assertion is separate from the manager's completed handling record. A follow-up opens the normal intake form with empty text/photos and an editable issue type; enter the current problem and select only new photos. The new ticket, assertion and source relation save atomically. The source remains completed and unchanged. A previously resolved ticket permits one recurrence claim; each completed source permits at most one direct follow-up.
+
+Use **후속 접수 보기** and **이전 완료 접수 보기** to navigate authorized records. Managers see tenant-reported outcome wording without tenant mutation controls. After an uncertain response, use **저장 여부 확인** first. The current tab can explicitly retry its identical input/request; reloading never restores raw text or photos. Logout or lost scope clears recovery metadata.
+
+The same existing prepare/serve commands above retain the database and photos; no Auth0 or Expo configuration change is needed. Use separate browser profiles for synthetic tenant/manager accounts. The final integration's [evidence and limitations](../ops/core_flow_rc1_completion_followup.md#final-ui-integration--2026-10-04) separate actual Web from synthetic authentication. After running the Core browser suite, `node scripts/core-ticket-outcome-restart-check.mjs` checks five saved cases across its own two server processes on the existing free3132 test port. Do not stop unrelated processes or remove the database volume.
+
 ## Existing login bridge
 
 The B1 login bridge is implemented and exercised with **synthetic SDK sessions**, separately from the development access-code mode below. Actual Auth0 provider login is **NOT_RUN / CONFIGURATION_REQUIRED** on this machine. No Auth0 settings, accounts or identities were changed. Existing photo/ticket data remains available in its original mode; separate SDK test actors have their own synthetic records.

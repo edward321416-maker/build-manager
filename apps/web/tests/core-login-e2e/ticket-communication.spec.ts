@@ -30,10 +30,10 @@ test("B1 organization change, session replacement and POST logout clear non-body
   try{
     const page=await manager.context.newPage();await page.goto("/core");await expect(page.getByLabel("내 소속",{exact:true})).toBeVisible();
     const value={ticketId:randomUUID(),clientRequestId:randomUUID(),expectedVersion:0,intent:"MANAGER_UPDATE"};
-    const put=()=>page.evaluate(v=>sessionStorage.setItem("core-communication-request:"+v.ticketId,JSON.stringify(v)),value);
-    const count=()=>page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith("core-communication-request:")).length);
+    const put=()=>page.evaluate(v=>{sessionStorage.setItem("core-communication-request:"+v.ticketId,JSON.stringify(v));sessionStorage.setItem("core-outcome-request:"+v.ticketId,JSON.stringify({sourceTicketId:v.ticketId,clientRequestId:v.clientRequestId,claimKind:"RESOLVED"}));},value);
+    const count=()=>page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith("core-communication-request:")||k.startsWith("core-outcome-request:")).length);
     await put();await page.getByLabel("내 소속",{exact:true}).selectOption("");expect(await count()).toBe(0);await page.getByLabel("내 소속",{exact:true}).selectOption(manager.fixture.orgA);await expect(page.getByRole("region",{name:"관리 업무함",exact:true})).toBeVisible();
-    await put();let sends=0;page.on("request",r=>{if(r.method()==="POST"&&r.url().endsWith("/communication/messages"))sends++;});
+    await put();let sends=0;page.on("request",r=>{if(r.method()==="POST"&&/\/(communication\/messages|outcome\/resolved|follow-up)$/.test(r.url()))sends++;});
     const replacement=await sdkSession(browser,"tenant",manager.context);
     try{await page.evaluate(()=>document.dispatchEvent(new Event("visibilitychange")));await expect(page.getByRole("link",{name:"계정으로 로그인",exact:true})).toBeVisible();expect(await count()).toBe(0);expect(sends).toBe(0);
       await page.reload();await expect(page.getByTestId("unit-context")).toBeVisible();await put();const ending=page.waitForResponse(r=>r.url()===base+"/api/v2/session/logout");await page.getByRole("button",{name:"로그아웃",exact:true}).click();expect((await ending).status()).toBe(503);expect(await count()).toBe(0);

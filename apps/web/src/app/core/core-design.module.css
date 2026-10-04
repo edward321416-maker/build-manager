@@ -169,6 +169,7 @@
 .inspector { border-top: 1px solid var(--color-border); background: var(--color-fill-subtle); min-width: 0; }
 .inspector > summary { min-height: 3.75rem; padding: .9375rem 1.25rem; font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; border-bottom: 1px solid var(--color-border); }
 .inspector > aside { padding: 1.25rem; }
+.inspectorClose { display: none; }
 .actionRail { display: grid; gap: 1.25rem; }
 .root .actionRail form { gap: .9375rem; margin-top: .9375rem; }
 .root .actionRail form.handling { padding-top: 1.25rem; }
@@ -210,7 +211,26 @@
   .root .heading button,.root .detailToolbar button,.root :global(.core-account .core-logout),.root button[aria-label="대화 새로고침"] { min-height: 3.125rem; }
 }
 @media (max-width: 1023px) {
+  .root :global(.core-b1-shell .core-account) { padding-block: 0; row-gap: 0; }
+  .root :global(.core-account nav) { min-height: 3.125rem; align-items: center; flex-wrap: nowrap; }
+  .root :global(.core-account label select) { text-overflow: ellipsis; }
   .root :global(.core-org-label) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+}
+/* Only intake previews are compact; ticket detail and stored photos retain their layout. */
+.root :global(.core-photos[data-compact="true"]) .photoSelectionSurface { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; }
+.root :global(.core-photos[data-compact="true"]) .photoSelectionCount { margin: 0; }
+.root :global(.core-photos[data-compact="true"] .photo-grid) { grid-template-columns: repeat(3,minmax(0,1fr)); gap: .625rem; margin-top: .625rem; }
+.root :global(.core-photos[data-compact="true"] .photo-grid figure) { min-width: 0; margin: 0; }
+.root :global(.core-photos[data-compact="true"] .photo-grid img) { aspect-ratio: 1; }
+.root :global(.core-photos[data-compact="true"] .photo-grid button) { width: 100%; padding: .3125rem; }
+.root :global(.photo-intake-help) { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 .625rem; }
+.root :global(.photo-intake-help details) { min-width: 0; }
+.root :global(.photo-intake-help details[open]) { flex-basis: 100%; }
+@media (min-width: 1120px) and (max-width: 1439px) {
+  .managerWorkspace .selectedPane { position: relative; }
+  .managerWorkspace .selectedPane > .inspector { position: absolute; z-index: 2; top: 0; right: 0; width: 320px; max-width: 100%; max-height: calc(100dvh - 3.75rem); overflow-y: auto; background: var(--color-surface); border-top: 0; border-left: 1px solid var(--color-border); }
+  .managerWorkspace .selectedPane > .inspector:not([open]) { display: none; }
+  .root .inspectorClose { display: block; margin-bottom: 1.25rem; }
 }
 @media (min-width: 768px) {
   .invitationWorkspace { grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); }
