@@ -1,5 +1,22 @@
 # Run the synthetic core flow
 
+## Manager Work Queue v1
+
+The existing manager workspace now opens **관리 업무함** across all authorized units. Filter by 건물·호실, 처리 상태 and 긴급도. Open a ticket for **업무 관리**, save priority/assignee display label/target time, or append an **내부 메모**. Notes and work metadata are manager-only. The label grants no access; completed records cannot be changed. The existing photo, route-decision and handling flow remains below it.
+
+Reuse the existing local database, project-isolated Node24.21.0/npm11.19.0 and installed dependencies. From the repository root:
+
+```powershell
+node --experimental-transform-types scripts/core-flow-dev.mjs --prepare
+node --experimental-transform-types scripts/core-flow-dev.mjs --serve
+```
+
+Open **http://127.0.0.1:3130/core** and use the existing private `manager` development code in one browser profile and `tenant` in another. Preparation applies only outstanding migrations and renews the existing synthetic sessions; it preserves saved tickets and photos. The terminal prints the private code-file location, never the codes. Sessions last55 minutes; after expiry prepare again and sign in with the renewed code. This is explicitly development authentication, not an actual Auth0 login.
+
+For the already prepared B1 SDK fixture, the existing `--serve-synthetic-sdk` and `core-flow-b1-open.mjs --manager` commands below also open this queue on3133. No new account or Auth0 setting is needed. Do not launch another server on an occupied port. Current server processes can simply be stopped/restarted without deleting the PostgreSQL volume. Build once with `npm run build:web` when product code changes and while this worktree's Web servers are stopped.
+
+The dedicated browser regression adds a three-ticket manager round trip to each existing core/B1 SDK suite. The read-only `scripts/core-manager-work-restart-check.mjs` verifies the saved synthetic case across two owned Web server processes on3132; run it after the core browser suite with the same private test-home setting and a free3132 port. See [work queue evidence](../ops/core_flow_rc1_manager_work_queue.md) for measured counts, retained failed attempts and privacy/byte-preservation checks. Screenshots and private fixture data remain outside Git.
+
 Use the `feat/core-flow-rc1` worktree, Node **24.21.0**, npm **11.19.0**, Docker Desktop and the existing lockfile. These are development commands, not deployment. All accounts, buildings and reports must remain synthetic.
 
 ## Existing login bridge

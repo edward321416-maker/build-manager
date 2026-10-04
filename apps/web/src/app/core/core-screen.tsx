@@ -8,6 +8,7 @@ import { TicketReview } from "../../components/landlord/ticket-review";
 import { PhotoPicker,PhotoGallery,photoError,type PendingPhoto } from "../../components/core-photos";
 import { WorkStatusBadge,IntakeStatus } from "./ui/work-status-badge";
 import styles from "./core-design.module.css";
+import { ManagerWorkQueue,ManagerWorkDetail } from "./manager-work";
 
 const eventLabels:Record<string,string>={CREATED:"접수 내용 저장",ANSWERED:"답변 저장",FINALIZED:"수리 요청 제출",MORE_INFO:"추가 확인 요청",DECISION:"추천 경로 결정",HANDLING:"처리 기록"};
 const sessionMessage="접속이 만료되었거나 코드가 유효하지 않습니다. 개발 환경에서 새 코드를 발급받아 다시 들어가 주세요.";
@@ -61,7 +62,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
     try{const s=await client.session(),u=await client.units(),t=await client.tickets();setSession(s);setUnits(u);setUnit(u[0]?.id??"");setTickets(t);}
     catch(e){if(e instanceof ApiClientError&&e.status===401)clearAccess();else throw e;}
   };
-  const refresh=async()=>{const u=await client.units();setUnits(u);setUnit(current=>u.some(item=>item.id===current)?current:(u[0]?.id??""));setTickets(await client.tickets());if(selected){setSelected(await client.read(selected.ticketId));setRevision(r=>r+1);}};
+  const refresh=async()=>{const u=await client.units();setUnits(u);setUnit(current=>u.some(item=>item.id===current)?current:(u[0]?.id??""));setTickets(await client.tickets());if(selected)setSelected(await client.read(selected.ticketId));setRevision(r=>r+1);};
   const login=()=>run(async()=>{const s=await client.login(code),u=await client.units(),t=await client.tickets();setSession(s);setCode("");setUnits(u);setUnit(u[0]?.id??"");setTickets(t);});
   const selectedUnit=units.find(u=>u.id===selected?.unitId);
   const upload=async(ticketId:string,files:PendingPhoto[])=>{
@@ -107,6 +108,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
           {selected.workStatus!=="COMPLETED"?<div className="core-actions"><button disabled={busy||!pending.length} onClick={()=>void run(()=>upload(selected.ticketId,pending),true)}>사진만 전송</button><button disabled={busy} onClick={()=>void run(checkPhotos)}>사진 저장 상태 확인</button></div>:null}
         </>:null}
         </div>
+        {session.role!=="TENANT"?<ManagerWorkDetail key={selected.ticketId} client={client} ticket={selected} revision={revision}/>:null}
         {session.role!=="TENANT"&&selected.workStatus!=="COMPLETED"?<form className={styles.handling} onSubmit={e=>{e.preventDefault();void run(async()=>{const starting=selected.workStatus==="OPEN";setSelected(await client.handling(selected.ticketId,{status:starting?"IN_PROGRESS":"COMPLETED",message}));setMessage("");setNotice(starting?"처리 시작 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.":"처리 완료 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.");detailHeading.current?.focus();},true);}}>
           <label>처리 기록 <textarea aria-label="처리 기록" maxLength={2000} required value={message} onChange={e=>setMessage(e.target.value)} /></label>
           <button className={styles.primary} disabled={busy||!message.trim()}>{selected.workStatus==="OPEN"?"처리 시작 기록":"처리 완료 기록"}</button>
@@ -115,7 +117,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
         <section className={styles.history} aria-label="접수 및 처리 이력"><h2>접수 및 처리 이력</h2>{selected.events.map(event=><p key={event.id}><time dateTime={event.at}>{new Date(event.at).toLocaleString()}</time> · {event.actorRole==="TENANT"?"세입자":"관리자"} · {eventLabels[event.kind]??"접수 정보 변경"}{event.message?` · ${event.message}`:""}</p>)}</section>
         </div>
         {selected.workStatus==="COMPLETED"?<p>관리자의 완료 기록을 확인했습니다. 목록에서 이력을 다시 볼 수 있습니다.</p>:session.role==="TENANT"?<TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow />:<TicketReview key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow />}
-      </>:<>
+      </>:session.role!=="TENANT"?<ManagerWorkQueue client={client} units={units} revision={revision} disabled={busy} onOpen={id=>void run(async()=>{setSelected(await client.read(id));setMessage("");})}/>:<>
         <label>건물·호실 <select aria-label="건물·호실" disabled={!units.length} value={unit} onChange={e=>setUnit(e.target.value)}>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>
         {!units.length?<p>접근 가능한 호실이 없습니다. 관리자에게 소속·호실 배정을 확인한 뒤 전체 새로고침을 눌러 주세요.</p>:null}
         {session.role==="TENANT"&&unit?<form onSubmit={e=>{e.preventDefault();void run(async()=>{const ticket=await client.create({unitId:unit,issueType:issue,rawUserText:text});setSelected(ticket);setText("");setNotice("접수 내용이 저장되었습니다. 아래 질문과 제출 상태를 확인해 주세요.");await upload(ticket.ticketId,pending);},true);}}>
