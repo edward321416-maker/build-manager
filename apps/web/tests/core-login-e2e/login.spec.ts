@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir,writeFile } from "node:fs/promises";
 import sharp from "sharp";
 import { sdkSession,base,privateRoot } from "./session";
-const saved=(page:import("@playwright/test").Page)=>page.getByRole("region",{name:"저장된 참고 사진",exact:true});
+const saved=(page:import("@playwright/test").Page)=>page.getByRole("region",{name:"사진",exact:true});
 const evidenceRoot=join(privateRoot,"desktop-presentation");
 async function layout(page:import("@playwright/test").Page,width:number){
  await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toHaveCount(1);
@@ -37,8 +37,9 @@ for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace ->
  const capture=(actor:string)=>join(evidenceRoot,`login-${actor}-${width===1280?'desktop':'mobile'}-${width}.png`);
  try{
   const page=await tenant.context.newPage();await page.setViewportSize(viewport);await page.goto("/workspace");await page.getByRole("link",{name:"내 호실 수리 접수·사진·처리 이력 열기"}).click();
-  await expect(page.getByLabel("건물·호실")).toBeVisible();await expect(page.getByLabel("개발 접근 코드")).toHaveCount(0);
-  expect((await page.getByRole("region",{name:"로그인과 내 소속"}).boundingBox())!.height).toBeLessThan(300);
+  await expect(page.getByTestId("unit-context")).toBeVisible();await expect(page.getByLabel("개발 접근 코드")).toHaveCount(0);
+  const accountBox=(await page.getByRole("region",{name:"로그인과 내 소속"}).boundingBox())!;
+  if(width<1024)expect(accountBox.height).toBeLessThan(300);else expect(accountBox.width).toBe(250);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await layout(page,width);
   await page.getByLabel("문제 설명").fill("로그인 연결 합성 누수 — 사진과 처리 이력");
@@ -51,24 +52,24 @@ for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace ->
   const m=await manager.context.newPage();await m.setViewportSize(viewport);await m.goto("/core");
   // Existing live tenant units are preserved; the manager's first sorted unit may differ.
   await m.getByLabel("건물·호실").selectOption(tenant.fixture.unitA);
-  await m.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();
+  await m.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
   await expect(saved(m).getByRole("img")).toHaveCount(1);await m.getByLabel("처리 기록").fill("로그인한 관리자가 합성 사진 확인 후 처리 시작");await m.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(m.getByTestId("work-status")).toHaveText("처리중");
   await expect.poll(()=>saved(m).getByRole("img").evaluateAll(imgs=>imgs.every(img=>(img as HTMLImageElement).naturalWidth>0))).toBe(true);
   await m.evaluate(()=>scrollTo(0,0));await layout(m,width);await m.screenshot({path:capture("manager"),fullPage:true});
-  await page.reload();await page.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();await expect(page.getByTestId("work-status")).toHaveText("처리중");await expect(saved(page).getByRole("img")).toHaveCount(1);
+  await page.reload();await page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(page.getByTestId("work-status")).toHaveText("처리중");await expect(saved(page).getByRole("img")).toHaveCount(1);
   const photos=await (await tenant.context.request.get(`/api/v2/core/tickets/${ticket.ticketId}/photos`,{headers:tenant.headers})).json();
   await page.evaluate(()=>scrollTo(0,0));await layout(page,width);await page.screenshot({path:capture("reconnected"),fullPage:true});
   const ending=page.waitForResponse(r=>r.url().endsWith("/api/v2/session/logout"));await page.getByRole("button",{name:"로그아웃",exact:true}).click();
   // No provider exists in this synthetic run. Local registry revoke still precedes its failure.
   expect((await ending).status()).toBe(503);
   expect((await tenant.context.request.get(photos[0].path,{headers:tenant.headers})).status()).toBe(401);
-  await page.goto("/core");await expect(page.getByRole("link",{name:"계정으로 로그인"})).toBeVisible();await expect(page.getByRole("img",{name:/저장된 참고 사진/})).toHaveCount(0);
+  await page.goto("/core");await expect(page.getByRole("link",{name:"계정으로 로그인"})).toBeVisible();await expect(page.getByRole("img",{name:/사진/})).toHaveCount(0);
   await page.screenshot({path:capture("logged-out"),fullPage:true});
  }finally{await tenant.close();await manager.close();}
 });
 test("768px tablet uses the available width with account above workspace",async({browser})=>{
  const tenant=await sdkSession(browser);
- try{const page=await tenant.context.newPage();await page.setViewportSize({width:768,height:1024});await page.goto("/core");await expect(page.getByLabel("건물·호실")).toBeVisible();await layout(page,768);await page.screenshot({path:join(evidenceRoot,"login-tenant-tablet-768.png"),fullPage:true});}
+ try{const page=await tenant.context.newPage();await page.setViewportSize({width:768,height:1024});await page.goto("/core");await expect(page.getByTestId("unit-context")).toBeVisible();await layout(page,768);await page.screenshot({path:join(evidenceRoot,"login-tenant-tablet-768.png"),fullPage:true});}
  finally{await tenant.close();}
 });
 test("ended occupancy, assignment and membership revoke B1 raw photo access",async({browser})=>{
@@ -94,7 +95,7 @@ test("no-association and account switch clear prior actor UI, never offer develo
   const page=await tenant.context.newPage();await page.goto("/core");await expect(page.getByLabel("문제 설명")).toBeVisible();await tenant.context.addCookies([{name:"__session",value:none.cookie,url:base,httpOnly:true,sameSite:"Lax"}]);
   // Visibility revalidation can already clear the old screen after cookie switch.
   // If still mounted, dispatch its refresh atomically rather than waiting for a removed button.
-  await page.evaluate(()=>{const refresh=Array.from(document.querySelectorAll("button")).find(b=>b.textContent==="전체 새로고침");refresh?.click();});await expect(page.getByRole("link",{name:"계정으로 로그인"})).toBeVisible();await expect(page.getByLabel("문제 설명")).toHaveCount(0);await expect(page.getByLabel("개발 접근 코드")).toHaveCount(0);
+  await page.evaluate(()=>{const refresh=Array.from(document.querySelectorAll("button")).find(b=>b.textContent==="새로고침");refresh?.click();});await expect(page.getByRole("link",{name:"계정으로 로그인"})).toBeVisible();await expect(page.getByLabel("문제 설명")).toHaveCount(0);await expect(page.getByLabel("개발 접근 코드")).toHaveCount(0);
  }finally{await tenant.close();await none.close();}
 });
 test("B1 photo authorization, spoofed credentials, exact CSRF/Origin and registry expiry",async({browser,request})=>{
@@ -121,7 +122,7 @@ test("two tabs retain request organization; arbitrary org is denied and old-org 
   const first=await a.context.newPage(),second=await a.context.newPage();await first.goto("/core");await second.goto("/core");
   await first.getByLabel("내 소속",{exact:true}).selectOption(a.fixture.orgA);await second.getByLabel("내 소속",{exact:true}).selectOption(a.fixture.orgB);
   await expect(first.getByLabel("건물·호실")).toContainText("건물 A");await expect(second.getByLabel("건물·호실")).toContainText("건물 B");
-  await first.getByRole("button",{name:"전체 새로고침"}).click();await expect(first.getByLabel("건물·호실")).toContainText("건물 A");
+  await first.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침"}).click();await expect(first.getByLabel("건물·호실")).toContainText("건물 A");
   const results=await Promise.all([a.fixture.orgA,a.fixture.orgB].map(org=>a.context.request.get("/api/v2/core/units",{headers:{...a.headers,"x-core-organization":org}}).then(r=>r.json())));
   expect(results[0].every((u:{buildingId:string})=>u.buildingId===a.fixture.propertyA)).toBe(true);expect(results[1].every((u:{buildingId:string})=>u.buildingId===a.fixture.propertyB)).toBe(true);
   expect((await a.context.request.post("/api/v2/core/organization",{headers:{...a.headers,"x-core-organization":randomUUID()},data:{}})).status()).toBe(403);

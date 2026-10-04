@@ -11,11 +11,11 @@ test("Web tenant creates, another browser manager handles, tenant reloads and re
   const created=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");await page.getByRole("button",{name:"접수하기",exact:true}).click();const response=await created;expect(response.status()).toBe(201);const ticket=await response.json();
   await expect(page.getByTestId("work-status")).toHaveText("접수");
   const managerContext=await browser.newContext(),manager=await managerContext.newPage();
-  try{await login(manager,"manager");await manager.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();
+  try{await login(manager,"manager");await manager.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
     await manager.getByLabel("처리 기록").fill("합성 점검 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리중");
-    await manager.getByLabel("처리 기록").fill("합성 조치 결과를 관리자가 확인했습니다");await manager.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리 완료 (관리자 기록)");
-    await page.getByRole("button",{name:"전체 새로고침",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("처리 완료 (관리자 기록)");await expect(page.getByText("합성 조치 결과를 관리자가 확인했습니다",{exact:false})).toBeVisible();
-    await page.reload();await page.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();await expect(page.getByTestId("work-status")).toHaveText("처리 완료 (관리자 기록)");
+    await manager.getByLabel("처리 기록").fill("합성 조치 결과를 관리자가 확인했습니다");await manager.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("✓ 처리 완료");
+    await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");await expect(page.getByText("합성 조치 결과를 관리자가 확인했습니다",{exact:false})).toBeVisible();
+    await page.reload();await page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     await page.screenshot({path:join(privateRoot,"web-tenant-result.png"),fullPage:true});await manager.screenshot({path:join(privateRoot,"web-manager-result.png"),fullPage:true});
   }finally{await managerContext.close();}
 });
@@ -49,5 +49,5 @@ test("text intake, manager follow-up and tenant answer use the same persistent p
 test("revoked cookie session clears the protected screen on refresh",async({page})=>{
   await login(page,"tenantOther");await expect(page.getByRole("heading",{name:"호실별 접수 이력"})).toBeVisible();
   const r=await page.request.post("/api/v2/core/logout",{headers:{Origin:"http://127.0.0.1:3131"},data:{}});expect(r.status()).toBe(200);
-  await page.getByRole("button",{name:"전체 새로고침",exact:true}).click();await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(page.getByRole("heading",{name:"호실별 접수 이력"})).toHaveCount(0);
+  await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(page.getByRole("heading",{name:"호실별 접수 이력"})).toHaveCount(0);
 });

@@ -19,7 +19,7 @@ export function PhotoPicker({files,onChange,disabled=false}:{files:PendingPhoto[
       if(added.some(f=>!['image/jpeg','image/png'].includes(f.type)||f.size>CORE_PHOTO_MAX_BYTES)){setError("JPEG·PNG만 선택하세요. 한 장당 5MiB 이하입니다.");return;}
       setError("");onChange([...files,...added.map(file=>({file,uploadId:crypto.randomUUID()}))]);
     }} /></PhotoSelectionSurface>
-    <p>JPEG·PNG, 한 장당 5MiB·2천만 화소 이하, 접수당 최대 3장. 사진은 참고 첨부이며 자동 분석이나 필수 증빙 판정에 사용하지 않습니다.</p>
+    <details><summary>사진 도움말</summary><p>한 장당 5MiB·2천만 화소 이하입니다. 사진은 참고 첨부이며 자동 분석이나 필수 증빙 판정에 사용하지 않습니다.</p></details>
     {error?<p role="alert">{error}</p>:null}
     <div className="photo-grid">{files.map((p,i)=><figure key={p.uploadId}><Preview file={p.file} index={i} /><figcaption>전송 전 사진 {i+1}</figcaption><button type="button" disabled={disabled} onClick={()=>onChange(files.filter(f=>f.uploadId!==p.uploadId))}>사진 {i+1} 선택 취소</button></figure>)}</div>
     {files.length?<p>선택한 사진은 아직 저장되지 않았습니다. 전송 실패 시 이 화면에서 다시 시도할 수 있습니다. 페이지를 닫거나 새로고침하면 미전송 선택은 사라집니다.</p>:null}
@@ -42,9 +42,9 @@ function LoadedGallery({client,ticketId,compact,retry}:{client:CoreFlowClient;ti
     return()=>{live=false;urls.forEach(URL.revokeObjectURL);};
   },[client,ticketId]);
   useEffect(()=>{if(zoom)dialog.current?.showModal();else dialog.current?.close();},[zoom]);
-  return <section className="core-photos" aria-label={compact?"이력의 첨부 사진":"저장된 참고 사진"}>
-    {!compact?<h2>저장된 참고 사진</h2>:null}
-    {loading?<p>사진 불러오는 중…</p>:error?<p role="alert">사진을 불러오지 못했습니다. <button type="button" onClick={retry}>사진 다시 불러오기</button></p>:!photos.length?(!compact?<p>저장된 사진이 없습니다. 글만으로도 접수할 수 있습니다.</p>:null):<div className="photo-grid">{photos.map(({photo,url},i)=><figure key={photo.photoId}><button type="button" aria-label={`저장된 사진 ${i+1} 확대`} onClick={()=>setZoom(url)}><img src={url} alt={`접수 참고 사진 ${i+1}`} /></button>{!compact?<figcaption>사진 {i+1} · <time dateTime={photo.createdAt}>{new Date(photo.createdAt).toLocaleString()}</time></figcaption>:null}</figure>)}</div>}
+  return <section className="core-photos" aria-label={compact?"이력의 첨부 사진":"사진"}>
+    {!compact?<h2>사진</h2>:null}
+    {loading?<p>사진 불러오는 중…</p>:error?<p role="alert">사진을 불러오지 못했습니다. <button type="button" onClick={retry}>사진 다시 불러오기</button></p>:!photos.length?(!compact?<p>저장된 사진이 없습니다. 글만으로도 접수할 수 있습니다.</p>:null):<div className="photo-grid">{photos.map(({photo,url},i)=><figure key={photo.photoId}><button type="button" aria-label={`저장된 사진 ${i+1} 확대`} onClick={()=>setZoom(url)}><img src={url} alt={`접수 참고 사진 ${i+1}`} /></button>{!compact?<figcaption>사진 {i+1} · <time dateTime={photo.createdAt}>{new Date(photo.createdAt).toLocaleString("ko-KR")}</time></figcaption>:null}</figure>)}</div>}
     <dialog ref={dialog} className="photo-dialog" onClose={()=>setZoom(null)} aria-label="첨부 사진 확대"><button type="button" onClick={()=>setZoom(null)}>사진 닫기</button>{zoom?<img src={zoom} alt="확대한 접수 참고 사진" />:null}</dialog>
   </section>;
 }

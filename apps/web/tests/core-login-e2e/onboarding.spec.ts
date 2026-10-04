@@ -15,14 +15,14 @@ async function setup(browser:import("@playwright/test").Browser){
  await manager.admin.query("INSERT INTO app.unit(id,org_id,property_id,label,status) VALUES($1,$2,$3,$4,'ACTIVE')",[unit,org,property,name]);
  await manager.admin.query("INSERT INTO app.organization_membership(org_id,user_id,role,status) VALUES($1,$2,'ORG_ADMIN','ACTIVE')",[org,managerId]);
  await manager.admin.query("INSERT INTO core_flow.building_context(org_id,property_id,body) SELECT $1::uuid,$2::uuid,body||jsonb_build_object('id',($2::uuid)::text,'displayName','합성 초대 테스트 건물') FROM core_flow.building_context WHERE org_id=$3 AND property_id=$4",[org,property,manager.fixture.orgA,manager.fixture.propertyA]);
- const headers={...manager.headers,"x-core-organization":org},page=await manager.context.newPage();await page.setViewportSize({width:1280,height:900});await page.goto("/core");await page.getByText("세입자 초대·연결 관리",{exact:true}).click();await expect(page.getByLabel("초대할 빈 호실")).toBeVisible();
+ const headers={...manager.headers,"x-core-organization":org},page=await manager.context.newPage();await page.setViewportSize({width:1280,height:900});await page.goto("/core");await page.locator("summary").filter({hasText:/^입주 연결$/}).click();await expect(page.getByRole("combobox",{name:/^호실/})).toBeVisible();
  return {manager,tenant,page,org,unit,name,headers,async close(){await manager.close();await tenant.close();}};
 }
 async function create(page:Page){const reply=page.waitForResponse(r=>r.url().endsWith("/onboarding/create"));await page.getByRole("button",{name:"초대 링크 만들기",exact:true}).click();const response=await reply;expect(response.status()).toBe(201);return await response.json() as {link:string;invitation:{invitationId:string}};}
 async function openInvitation(page:Page,link:string){try{await page.goto(link);}catch{throw new Error("INVITATION_NAVIGATION_FAILED");}await expect.poll(()=>page.url()===base+"/core/join").toBe(true);}
 async function request(page:Page,link:string){await openInvitation(page,link);await page.getByRole("button",{name:"초대 내용 확인",exact:true}).click();await expect(page.getByText("신청 대기",{exact:true})).toBeVisible();const response=page.waitForResponse(r=>r.url().endsWith("/onboarding/claim"));await page.getByRole("button",{name:"연결 요청 보내기",exact:true}).click();expect((await response).status()).toBe(200);await expect(page.getByText("관리자 확인 대기",{exact:true})).toBeVisible();}
-async function approve(page:Page){await page.getByRole("button",{name:"연결 상태 새로고침",exact:true}).click();await expect(page.getByRole("button",{name:"연결 상태 새로고침",exact:true})).toBeEnabled();const card=page.getByRole("article",{name:"합성 초대 테스트 호실 초대"});await card.getByRole("checkbox").check();await card.getByRole("button",{name:"호실 연결 승인",exact:true}).click();await expect(card.getByText("연결 승인",{exact:true})).toBeVisible();}
-const saved=(page:Page)=>page.getByRole("region",{name:"저장된 참고 사진",exact:true});
+async function approve(page:Page){await page.getByRole("button",{name:"연결 상태 새로고침",exact:true}).click();await expect(page.getByRole("button",{name:"연결 상태 새로고침",exact:true})).toBeEnabled();const card=page.getByRole("article",{name:"합성 초대 테스트 호실 초대"});await card.getByRole("checkbox").check();await card.getByRole("button",{name:"승인",exact:true}).click();await expect(card.getByText("연결 승인",{exact:true})).toBeVisible();}
+const saved=(page:Page)=>page.getByRole("region",{name:"사진",exact:true});
 const error=(page:Page)=>page.getByRole("region",{name:"호실 연결",exact:true}).getByRole("alert");
 test("UI invitation -> zero-org SDK request -> manager approval -> unit/photo -> manager handling -> tenant reconnect at1280/390",async({browser})=>{
  const f=await setup(browser);try{
@@ -35,15 +35,15 @@ test("UI invitation -> zero-org SDK request -> manager approval -> unit/photo ->
   const requestNumber=await tenant.locator(".request-number").innerText();expect(requestNumber).toMatch(/^[a-f0-9-]{36}$/);
   expect((await (await f.tenant.context.request.get("/api/v2/core/access")).json()).organizations).toEqual([]);
   await f.page.getByRole("button",{name:"연결 상태 새로고침",exact:true}).click();await expect(f.page.getByText(requestNumber,{exact:true})).toBeVisible();
-  await expect(f.page.getByRole("button",{name:"호실 연결 승인",exact:true})).toBeDisabled();
+  await expect(f.page.getByRole("button",{name:"승인",exact:true})).toBeDisabled();
   const root=join(privateRoot,"onboarding-sdk");await mkdir(root,{recursive:true});await tenant.screenshot({path:join(root,"requested-390.png"),fullPage:true});await f.page.screenshot({path:join(root,"manager-requested-1280.png"),fullPage:true});
-  await approve(f.page);await tenant.getByRole("button",{name:"요청 저장 상태 확인"}).click();await expect(tenant.getByText("연결 승인",{exact:true})).toBeVisible();
-  await tenant.getByRole("link",{name:"내 소속·호실과 연결 요청으로 돌아가기"}).click();await expect(tenant.getByLabel("건물·호실")).toContainText(f.name);
+  await approve(f.page);await tenant.getByRole("button",{name:"요청 상태 확인"}).click();await expect(tenant.getByText("연결 승인",{exact:true})).toBeVisible();
+  await tenant.getByRole("link",{name:"내 호실로 돌아가기"}).click();await expect(tenant.getByTestId("unit-context")).toContainText(f.name);
   await tenant.getByLabel("문제 유형").selectOption("LEAK");await tenant.getByLabel("문제 설명").fill("초대 승인 후 합성 누수 글과 사진 접수");
   const bytes=await sharp({create:{width:240,height:140,channels:3,background:"#84aa96"}}).png().toBuffer();await tenant.getByLabel("참고 사진 선택",{exact:true}).setInputFiles({name:"synthetic-invitation.png",mimeType:"image/png",buffer:bytes});await expect(tenant.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();
   const created=tenant.waitForResponse(r=>r.url().endsWith("/core/tickets")&&r.request().method()==="POST");await tenant.getByRole("button",{name:"접수하기",exact:true}).click();const ticket=await (await created).json();await expect(saved(tenant).getByRole("img")).toHaveCount(1);
-  await f.page.getByRole("button",{name:"전체 새로고침",exact:true}).click();await f.page.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();await expect(saved(f.page).getByRole("img")).toHaveCount(1);await f.page.getByLabel("처리 기록").fill("합성 초대 연결 사진을 확인하고 처리 시작");await f.page.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(f.page.getByTestId("work-status")).toHaveText("처리중");
-  await tenant.reload();await tenant.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();await expect(tenant.getByTestId("work-status")).toHaveText("처리중");await expect(saved(tenant).getByRole("img")).toHaveCount(1);
+  await f.page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await f.page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(saved(f.page).getByRole("img")).toHaveCount(1);await f.page.getByLabel("처리 기록").fill("합성 초대 연결 사진을 확인하고 처리 시작");await f.page.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(f.page.getByTestId("work-status")).toHaveText("처리중");
+  await tenant.reload();await tenant.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(tenant.getByTestId("work-status")).toHaveText("처리중");await expect(saved(tenant).getByRole("img")).toHaveCount(1);
   expect(await tenant.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await tenant.screenshot({path:join(root,"connected-photo-reentry-390.png"),fullPage:true});
   const row=(await f.manager.admin.query("SELECT i.state,count(m.id)::int n FROM core_onboarding.invitation i JOIN app.occupancy_member m ON m.id=i.occupant_id AND m.occupancy_id=i.occupancy_id WHERE i.id=$1 GROUP BY i.state",[invitation.invitationId])).rows[0];expect(row).toEqual({state:"APPROVED",n:1});
  }finally{await f.close();}
@@ -54,7 +54,7 @@ test("create and claim lost responses recover by reading status without duplicat
   await f.page.unroute("**/onboarding/create");await f.page.getByRole("button",{name:"연결 상태 새로고침",exact:true}).click();const card=f.page.getByRole("article",{name:"합성 초대 테스트 호실 초대"});await card.getByRole("button",{name:"초대 취소",exact:true}).click();await expect(card.getByText("초대 취소",{exact:true})).toBeVisible();
   const {link,invitation}=await create(f.page),t=await f.tenant.context.newPage();await openInvitation(t,link);await t.getByRole("button",{name:"초대 내용 확인"}).click();
   await t.route("**/onboarding/claim",async route=>{await route.fetch();await route.abort("failed");});await t.getByRole("button",{name:"연결 요청 보내기"}).click();await expect(t.getByRole("alert").filter({hasText:"응답을 확인하지 못했습니다."})).toBeVisible();await expect(t.getByRole("button",{name:"연결 요청 보내기"})).toBeDisabled();
-  await t.getByRole("button",{name:"요청 저장 상태 확인"}).click();await expect(t.getByText("관리자 확인 대기",{exact:true})).toBeVisible();
+  await t.getByRole("button",{name:"요청 상태 확인"}).click();await expect(t.getByText("관리자 확인 대기",{exact:true})).toBeVisible();
   expect((await f.manager.admin.query("SELECT count(*)::int n FROM core_onboarding.invitation WHERE id=$1 AND applicant_id IS NOT NULL",[invitation.invitationId])).rows[0].n).toBe(1);
  }finally{await f.close();}
 });
@@ -70,7 +70,7 @@ test("clipboard denial explains recovery without exposing or recreating the toke
 test("lost approval response is read back; repeated approval creates only one occupancy",async({browser})=>{
  const f=await setup(browser);try{
   const {link,invitation}=await create(f.page),t=await f.tenant.context.newPage();await request(t,link);await f.page.getByRole("button",{name:"연결 상태 새로고침",exact:true}).click();
-  const card=f.page.getByRole("article",{name:"합성 초대 테스트 호실 초대"});await card.getByRole("checkbox").check();await f.page.route("**/onboarding/approve",async route=>{await route.fetch();await route.abort("failed");});await card.getByRole("button",{name:"호실 연결 승인",exact:true}).click();await expect(error(f.page)).toBeVisible();await expect(card.getByRole("button",{name:"호실 연결 승인",exact:true})).toBeDisabled();
+  const card=f.page.getByRole("article",{name:"합성 초대 테스트 호실 초대"});await card.getByRole("checkbox").check();await f.page.route("**/onboarding/approve",async route=>{await route.fetch();await route.abort("failed");});await card.getByRole("button",{name:"승인",exact:true}).click();await expect(error(f.page)).toBeVisible();await expect(card.getByRole("button",{name:"승인",exact:true})).toBeDisabled();
   await f.page.getByRole("button",{name:"연결 상태 새로고침",exact:true}).click();await expect(card.getByText("연결 승인",{exact:true})).toBeVisible();
   const row=(await f.manager.admin.query("SELECT request_id,count(occupancy_id)::int n FROM core_onboarding.invitation WHERE id=$1 GROUP BY request_id",[invitation.invitationId])).rows[0];expect(row.n).toBe(1);
   expect((await f.manager.context.request.post("/api/v2/core/onboarding/approve",{headers:f.headers,data:{invitationId:invitation.invitationId,requestNumber:row.request_id}})).status()).toBe(200);
@@ -81,7 +81,7 @@ for(const kind of ["reject","revoke","expire"] as const)test(`${kind} preserves 
  const f=await setup(browser);try{
   const {link,invitation}=await create(f.page),t=await f.tenant.context.newPage();await request(t,link);
   if(kind==="expire")await f.manager.admin.query("UPDATE core_onboarding.invitation SET created_at=clock_timestamp()-interval '25 hours',expires_at=clock_timestamp()-interval '1 hour' WHERE id=$1",[invitation.invitationId]);
-  else{await f.page.getByRole("button",{name:"연결 상태 새로고침",exact:true}).click();const card=f.page.getByRole("article",{name:"합성 초대 테스트 호실 초대"});if(kind==="reject")await card.getByRole("checkbox").check();await card.getByRole("button",{name:kind==="reject"?"연결 요청 거절":"초대 취소",exact:true}).click();await expect(card.getByText(kind==="reject"?"연결 거절":"초대 취소",{exact:true})).toBeVisible();}
+  else{await f.page.getByRole("button",{name:"연결 상태 새로고침",exact:true}).click();const card=f.page.getByRole("article",{name:"합성 초대 테스트 호실 초대"});if(kind==="reject")await card.getByRole("checkbox").check();await card.getByRole("button",{name:kind==="reject"?"거절":"초대 취소",exact:true}).click();await expect(card.getByText(kind==="reject"?"연결 거절":"초대 취소",{exact:true})).toBeVisible();}
   await t.goto("/core");await expect(t.getByText(kind==="expire"?"초대 만료":kind==="reject"?"연결 거절":"초대 취소",{exact:true})).toBeVisible();expect((await (await f.tenant.context.request.get("/api/v2/core/access")).json()).organizations).toEqual([]);
   expect((await f.manager.admin.query("SELECT count(*)::int n FROM app.occupancy WHERE unit_id=$1",[f.unit])).rows[0].n).toBe(0);
  }finally{await f.close();}

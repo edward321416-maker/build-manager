@@ -18,8 +18,8 @@ test("B1 SDK public conversation keeps exact Origin, CSRF, organization and own-
     }
     expect((await tenant.context.request.get(path+"/requests/"+key,{headers:tenant.headers})).status()).toBe(404);
     expect((await manager.context.request.get(path+"/requests/"+key,{headers:manager.headers})).status()).toBe(200);
-    const page=await tenant.context.newPage();await page.goto("/core");await page.getByRole("button",{name:new RegExp(id.slice(0,8))}).click();
-    const chat=page.getByRole("region",{name:"세입자와 공유하는 대화",exact:true});await expect(chat.getByText("내 답변 필요",{exact:true})).toBeVisible();await chat.getByLabel("공개 대화 내용").fill("B1 합성 응답");await chat.getByRole("button",{name:"답변 보내기",exact:true}).click();await expect(chat.getByText("B1 합성 응답",{exact:true})).toBeVisible();
+    const page=await tenant.context.newPage();await page.goto("/core");await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();
+    const chat=page.getByRole("region",{name:"세입자와 공유하는 대화",exact:true});await expect(chat.getByText("내 답변 필요",{exact:true})).toBeVisible();await chat.getByLabel("공개 대화 내용").fill("B1 합성 응답");await chat.getByRole("button",{name:"답변 보내기",exact:true}).click();await expect(chat.getByRole("listitem").filter({hasText:"B1 합성 응답"})).toBeVisible();
     const body=await (await manager.context.request.get(path,{headers:manager.headers})).json();expect(body).toMatchObject({version:2,waitingFor:"MANAGER"});expect(body.messages).toHaveLength(2);
   }finally{await tenant.close();await manager.close();await peer.close();await other.close();}
 });
@@ -35,7 +35,7 @@ test("B1 organization change, session replacement and POST logout clear non-body
     await put();let sends=0;page.on("request",r=>{if(r.method()==="POST"&&r.url().endsWith("/communication/messages"))sends++;});
     const replacement=await sdkSession(browser,"tenant",manager.context);
     try{await page.evaluate(()=>document.dispatchEvent(new Event("visibilitychange")));await expect(page.getByRole("link",{name:"계정으로 로그인",exact:true})).toBeVisible();expect(await count()).toBe(0);expect(sends).toBe(0);
-      await page.reload();await expect(page.getByLabel("건물·호실",{exact:true})).toBeVisible();await put();const ending=page.waitForResponse(r=>r.url()===base+"/api/v2/session/logout");await page.getByRole("button",{name:"로그아웃",exact:true}).click();expect((await ending).status()).toBe(503);expect(await count()).toBe(0);
+      await page.reload();await expect(page.getByTestId("unit-context")).toBeVisible();await put();const ending=page.waitForResponse(r=>r.url()===base+"/api/v2/session/logout");await page.getByRole("button",{name:"로그아웃",exact:true}).click();expect((await ending).status()).toBe(503);expect(await count()).toBe(0);
     }finally{await replacement.close();}
   }finally{await manager.close();}
 });

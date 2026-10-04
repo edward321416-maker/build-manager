@@ -27,7 +27,7 @@ class DesignScreen {
 test("design reflow keeps the same draft and File through five widths, text scaling and keyboard photo dialog", async ({page}) => {
   await mkdir(evidence,{recursive:true});
   const screen=new DesignScreen(page);await screen.login();
-  await expect(page.getByText("개발 환경 · 합성 데이터",{exact:true})).toBeVisible();
+  await expect(page.getByText("개발 환경 · 샘플 데이터",{exact:true})).toBeVisible();
   const disclosure=page.getByRole("complementary",{name:"개발 환경 안내"}).locator("details");
   await expect(disclosure).not.toHaveAttribute("open","");
   const description="합성 디자인 검사: 난방에 대한 긴 설명입니다. ".repeat(8);
@@ -63,14 +63,14 @@ test("design reflow keeps the same draft and File through five widths, text scal
   await page.keyboard.press("Shift+Tab");await page.keyboard.press("Tab");await expect(submit).toBeFocused();
   expect(await submit.evaluate(el=>getComputedStyle(el).outlineStyle)).toBe("solid");
   await page.keyboard.press("Enter");
-  const saved=page.getByRole("region",{name:"저장된 참고 사진",exact:true});
+  const saved=page.getByRole("region",{name:"사진",exact:true});
   const enlarge=saved.getByRole("button",{name:"저장된 사진 1 확대"});await expect(enlarge).toBeVisible();
-  await expect(page.getByRole("heading",{name:"접수 상세",exact:true})).toBeFocused();
+  await expect(page.getByTestId("ticket-heading")).toBeFocused();
   await enlarge.focus();await page.keyboard.press("Enter");await expect(page.getByRole("dialog")).toBeVisible();
   await page.screenshot({path:join(evidence,"photo-dialog-320.png"),fullPage:true});
   await page.keyboard.press("Escape");await expect(page.getByRole("dialog")).not.toBeVisible();await expect(enlarge).toBeFocused();
   await screen.fits();
-  const labelChooser=page.waitForEvent("filechooser");await page.getByText("참고 사진 추가",{exact:false}).click();
+  const labelChooser=page.waitForEvent("filechooser");await page.getByText("사진 추가",{exact:false}).click();
   await (await labelChooser).setFiles({name:"pending-design.png",mimeType:"image/png",buffer:bytes});
   await page.setViewportSize({width:1440,height:900});await expect(page.getByRole("button",{name:"← 목록으로",exact:true})).toBeDisabled();
   await expect(page.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();

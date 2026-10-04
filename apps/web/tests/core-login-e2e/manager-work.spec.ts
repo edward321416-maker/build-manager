@@ -11,9 +11,9 @@ test("B1 SDK manager queue preserves organization selection, CSRF and tenant pri
     expect((await tenant.context.request.get(path,{headers:tenant.headers})).status()).toBe(403);
     const page=await manager.context.newPage();await page.setViewportSize({width:1280,height:900});await page.goto("/core");
     const org=page.getByLabel("내 소속",{exact:true});await expect(org).toBeVisible();await org.selectOption(manager.fixture.orgA);
-    await page.getByRole("region",{name:"관리 업무함",exact:true}).getByRole("button",{name:new RegExp(id.slice(0,8))}).click();
+    await page.getByRole("region",{name:"관리 업무함",exact:true}).locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();
     const panel=page.getByRole("region",{name:"업무 관리",exact:true});await expect(panel.getByRole("combobox",{name:"긴급도",exact:true})).toBeEnabled();
-    await panel.getByRole("combobox",{name:"긴급도",exact:true}).selectOption("HIGH");await panel.getByLabel("담당 표시명",{exact:true}).fill(input.assigneeLabel);await panel.getByRole("button",{name:"업무 정보 저장",exact:true}).click();await expect(panel.getByText("업무 정보를 저장했습니다.",{exact:true})).toBeVisible();
+    await panel.getByRole("combobox",{name:"긴급도",exact:true}).selectOption("HIGH");await panel.getByLabel("담당자",{exact:true}).fill(input.assigneeLabel);await panel.getByRole("button",{name:"저장",exact:true}).click();await expect(panel.getByText("업무 정보를 저장했습니다.",{exact:true})).toBeVisible();
     await panel.getByLabel("내부 메모 입력",{exact:true}).fill("B1 합성 내부 점검 메모");await panel.getByRole("button",{name:"내부 메모 추가",exact:true}).click();await expect(panel.getByText("B1 합성 내부 점검 메모",{exact:true})).toBeVisible();
     const result=await manager.context.request.get(path,{headers:manager.headers});expect(result.status()).toBe(200);expect(await result.json()).toMatchObject({priority:input.priority,assigneeLabel:input.assigneeLabel,dueAt:null,version:2});
     const publicResult=await tenant.context.request.get(`/api/v2/core/tickets/${id}`,{headers:tenant.headers});expect(publicResult.status()).toBe(200);const text=await publicResult.text();for(const privateValue of [input.assigneeLabel,"B1 합성 내부 점검 메모","priority","assigneeLabel"])expect(text).not.toContain(privateValue);

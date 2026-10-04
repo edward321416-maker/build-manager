@@ -167,3 +167,113 @@ The other session's five dirty runtime documents were byte-preserved and exclude
 Local disposition: **UI_SECOND_PASS_LOCAL_VERIFIED**. Actual Auth0 manager, Expo/native/device and hosted CI are **NOT_RUN_THIS_PASS**. No source push is included; hosted feature-base checks are not attributed to this design change. AC-D06 is unchanged. No Ready transition, merge or deployment is included. The original running server continues its earlier build; the new UI was verified in the isolated production build.
 
 CHECKPOINT | UI second pass integration | evidence=containing commit + fresh local tests + private capture package | tokens=unknown
+
+## Apple-Toss local redesign receipt — 2026-10-04
+
+Disposition: **APPLE_TOSS_UI_LOCAL_VERIFIED**, limited to the frozen Web candidate described below. Earlier first-pass and second-pass evidence remains historical and is not reused as verification of this change.
+
+- Authority: `CODEX_ASTRA_APPLE_TOSS_UI_REDESIGN_OPERATOR_AUTHORIZED.md`, with the operator's explicit transfer of overlapping UI writer ownership. No further feature-session handoff was required.
+- Policy reference: `e9144fac807f39544932baac25b11f836658dbb3`.
+- Feature base and observed remote Draft PR70 HEAD: `5032e9b3d080cfcfe4148819f5138e47679298e0` (public Q&A / next-action v1 included).
+- First-pass ancestor `2c84291e9f06d506b1312ef8119f9155af91e986` and Manager Work Queue ancestor `7370dc4097e7cd73277eb93bff9664272e35496c` remain in history. No reset or history rewrite occurred.
+- Candidate identity: the commit containing this receipt. A private post-commit receipt compares its24 Web blobs against the tested isolated source, normalizing only CRLF/LF checkout conversion.
+
+### Applied design system and screens
+
+Official sources consulted were [Apple split views](https://developer.apple.com/design/human-interface-guidelines/split-views), [Apple lists and tables](https://developer.apple.com/design/human-interface-guidelines/lists-and-tables), [Apple branding](https://developer.apple.com/design/human-interface-guidelines/branding), [Toss brand](https://brand.toss.im), [Toss design system accessibility](https://toss.tech/article/toss-design-system), and [Toss semantic color guidance](https://toss.tech/article/43385). Reference assets stayed in private research storage and were not copied into the product.
+
+The main application uses a light250px sidebar, white content panes, separators and compact queue rows. At1280px and above the queue remains beside the selected detail; narrow layouts retain the existing back navigation. The action column becomes separate only when enough width exists. Ordinary rows have no decorative shadow or nested cards. Ticket IDs move into detail disclosure while complete invitation confirmation numbers remain visible and selectable.
+
+The base palette is exactly `#F2F2F7`, `#FFFFFF`, `#202632`, `#0064FF`, and `#FF3B30`. Blue denotes primary actions, selection/focus and active progress; red denotes urgent/overdue or destructive actions. Completion uses a neutral check and text rather than a colored pill. The prescribed62% secondary text blend measured about4.40:1 on white; displayed small secondary text instead uses a70% blend of the same text/surface colors, without adding another hue. Final contrast checks use composited rendered colors.
+
+Visible text uses15/20/25/30px equivalents in rem, with20/25/30/35/40px line heights; spacing uses5px increments, radii5/10/15px and ordinary action controls50px. One-pixel borders remain the explicit exception. Visible text and line-height checks passed across the sampled final screens. Long content can increase row height rather than clip or shrink text.
+
+Seven required screens were redesigned: desktop manager queue, manager detail,390px manager queue,390px tenant intake, tenant ticket/photos, invitation request and manager approval. Public Q&A also received the same surfaces, typography and restrained primary-action emphasis. Development disclosure moves to the footer; account/scope controls stay available. Photos retain the real native file input under the visible action. Request confirmations emphasize the result and next action before technical metadata.
+
+### Function preservation
+
+- Manager queue: existing pending-first ordering, filters, timer, overdue calculation, metadata save and stale handling remain. The persistent split view refreshes queue state on selection/version/back, preserving the prior remount refresh behavior.
+- Tenant: existing intake/protocol questions, status axes, draft recovery, processing history and new-ticket path remain. COMPLETED/PARTIAL still coexist independently; the completion explanation still states that it is a manager record.
+- Photos: accept/multiple/disabled/onChange, File identity, previews/removal, limits, upload identifiers, pending navigation, saved-photo checks, failure/uncertain-write recovery and dialog keyboard behavior remain.
+- Onboarding: exact full request references, direct-confirmation checkbox, expiry, approval/rejection/revocation, unknown-outcome recovery and raw-token protections remain.
+- Privacy and communication: private notes stay manager-only; public Q&A intents, version guard, waiting state, session/organization boundaries, CSRF/Origin, recovery and read-only completion behavior remain.
+
+AST comparison against5032e9b preserved70 existing event-handler attributes and106 React hook calls across seven integration components, after explicitly normalizing Korean presentation-copy substitutions. One navigation handler opens the existing onboarding disclosure. This is supporting static evidence, not a claim of byte-identical presentation callbacks or a replacement for browser tests.
+
+No backend/API/client/DTO/persistence/migration/auth/session/provider/config/global CSS/Mobile/manifests/lockfile/workflow/script change is part of this design commit. Another feature session began ticket-outcome work during validation; its foreign dirty and untracked files were excluded from the candidate and staging. Its new functionality is not included in this receipt's success claims.
+
+### Exact changed paths
+
+- `apps/web/src/app/core/core-design.module.css`
+- `apps/web/src/app/core/core-screen.tsx`
+- `apps/web/src/app/core/join/join-screen.tsx`
+- `apps/web/src/app/core/login-screen.tsx`
+- `apps/web/src/app/core/manager-work.module.css`
+- `apps/web/src/app/core/manager-work.tsx`
+- `apps/web/src/app/core/onboarding-panel.tsx`
+- `apps/web/src/app/core/ticket-communication.module.css`
+- `apps/web/src/app/core/ticket-communication.tsx`
+- `apps/web/src/app/core/ui/core-display.test.tsx`
+- `apps/web/src/app/core/ui/core-display.tsx`
+- `apps/web/src/app/core/ui/work-status-badge.tsx`
+- `apps/web/src/components/core-photos.tsx`
+- `apps/web/tests/core-e2e/core.spec.ts`
+- `apps/web/tests/core-e2e/design.spec.ts`
+- `apps/web/tests/core-e2e/manager-work.spec.ts`
+- `apps/web/tests/core-e2e/photos.spec.ts`
+- `apps/web/tests/core-e2e/ticket-communication.spec.ts`
+- `apps/web/tests/core-e2e/usability.spec.ts`
+- `apps/web/tests/core-login-e2e/design.spec.ts`
+- `apps/web/tests/core-login-e2e/login.spec.ts`
+- `apps/web/tests/core-login-e2e/manager-work.spec.ts`
+- `apps/web/tests/core-login-e2e/onboarding.spec.ts`
+- `apps/web/tests/core-login-e2e/ticket-communication.spec.ts`
+- `ops/core_design_implementation.md`
+
+### Fresh verification of the final candidate
+
+Evidence root: private `apple-toss-20261004/` beneath `.build-manager-rc1-private`. All final gates below use Node24.21.0 and a private5032e9b archive plus the24 reviewed Web paths. Internal workspace packages resolve into that frozen archive; only installed third-party dependencies use junctions. The private Turbopack root setting accommodates those junctions; product configuration is unchanged.
+
+| Gate | Final result | Private log |
+| --- | --- | --- |
+| Focused display presentation tests |5 passed,1 file |`focused-presentation.log` |
+| `npm run test:web` |510 passed,48 files |`test-web-attempt4.log` |
+| `npm run lint` |0 errors;6 pre-existing warnings retained |`lint-attempt4.log` |
+| `npm run typecheck` |PASS |`typecheck-attempt5.log` |
+| `npm run build:web` |PASS, final product source |`build-web-attempt7.log` |
+| `npm run check:deps` |PASS |`check-deps-attempt2.log` |
+| Core Playwright |18 passed,28.2s |`core-browser-attempt3.log` |
+| B1 SDK Playwright |22 passed,34.3s |`login-browser-attempt4.log` |
+| Final actual browser capture and visual audit |PASS |`after-capture-attempt5.log`, `after-final/visual-audit.json` |
+| Static callback/hook preservation |PASS,70 handlers and106 hooks |`contract-preservation.json` |
+
+Browser tests preserve the existing behavioral assertions; presentation locators were migrated to accessible names, semantic regions and stable ticket attributes. The SDK Q&A assertion now waits for a persisted message list item, avoiding a false match on text still inside the composer. The same version2/waiting-manager/message-count assertions remain. No retry, timeout increase or skip was added.
+
+Responsive/keyboard checks cover320/390/768/1280/1440 CSS pixels,200% root text, long Korean text, draft/File identity, queue Enter, visible focus, native photo Space/label activation, dialog Escape/focus return and invitation checkbox gates. The final capture audit adds18 screen/viewport cases with no horizontal overflow; visible font and line-height checks found no out-of-grid values. Contrast assertions cover selected final rendered controls and text; this is not full WCAG conformance.
+
+Playwright used independent synthetic profiles and its existing3131 core /3133 SDK launchers sequentially. The original3130 process (PID55228 at verification), its build identifier and original runtime profile were preserved. No server restart or browser action targeted3130. Captures and regression use separate synthetic fixtures so test mutations cannot change the comparison records.
+
+Earlier failed attempts are preserved in private logs and are not presented as final evidence. An initially shared internal-package junction picked up another session's `CoreScope.outcome` delta; the final environment freezes all internal packages. Other corrected attempts include presentation locators/layout oracles, a CSS decorative pseudo-element that altered an approval button's accessible name, the pre-existing Q&A composer/persistence race, and a private capture helper accidentally making a new invitee identity. The final capture preserves the original invitee session. Fontconfig, tooling and intentionally unreachable synthetic-provider discovery diagnostics remain in logs; the final suites passed.
+
+### Actual captures and delivery
+
+The share directory is `%USERPROFILE%/.build-manager-rc1-private/apple-toss-design-review/`. Root PNGs are the final candidate; `before-5032e9b/` contains seven newly captured baseline PNGs from the feature base. The same persisted synthetic ticket/photo/invitation records were used. The after set additionally records a real synthetic Q&A question through the existing API, so the conversation content is intentionally richer than the empty baseline.
+
+1. `01-manager-queue-desktop-1440.png`
+2. `02-manager-detail-desktop.png`
+3. `03-manager-queue-mobile-390.png`
+4. `04-tenant-intake-mobile-390.png`
+5. `05-tenant-ticket-photo-mobile-390.png`
+6. `06-tenant-invitation-request-390.png`
+7. `07-manager-invitation-approval-desktop.png`
+8. `08-ticket-public-qa-mobile-or-desktop.png` (390px viewport,350px conversation-region crop)
+
+`build-manager-apple-toss-ui.zip` includes exactly15 PNGs (8 after +7 before), with no logs, credentials, profile/state, source, env or database files. All15 images were visually inspected: synthetic names, confirmation references and verification photos only; no real contact data, secrets, codes or raw invitation tokens required redaction. A private package receipt verifies every copied/archived PNG by SHA256. Original captures remain unchanged. No image-generation tool was used. Direct file attachment is unavailable in this environment; local links and absolute paths are the delivery mechanism.
+
+### Preservation and limits
+
+The operator-protected five dirty paths remain byte-identical to the task baseline and excluded from staging: `STATUS.md`, `ops/AI_Execution_Log.csv`, `ops/CHAT_HANDOFF.md`, `ops/core_flow_rc1_onboarding.md`, and `ops/pending_external_sync.md`. This owned receipt carries the checkpoint rather than modifying those mixed-author runtime records. External Google synchronization is **NOT_RUN / PENDING** for this pass.
+
+Actual Auth0 provider login and real manager/tenant accounts, Expo/native/device behavior and hosted CI are **NOT_RUN_THIS_PASS**. AC-D06 remains **NOT_VERIFIED**, unchanged by presentation work. The running3130 still serves its previous build; the redesign was validated in the separate isolated production build. Foreign in-progress ticket-outcome changes are outside this frozen candidate's verification. Existing lint warnings remain. Source push, PR Ready, merge and deployment are **NOT_PERFORMED**.
+
+CHECKPOINT | Apple-Toss UI redesign | evidence=containing commit + fresh local tests + actual before/after capture package | tokens=unknown

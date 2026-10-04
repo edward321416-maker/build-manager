@@ -4,6 +4,7 @@ import { CoreAccessSchema,type CoreAccessDto } from "@build-manager/api-contract
 import CoreFlowPage from "./core-screen";
 import { OnboardingPanel } from "./onboarding-panel";
 import { clearCommunicationRecovery } from "./communication-recovery";
+import { EnvironmentNote } from "./ui/core-display";
 
 export function CoreLoginScreen(){
  const [access,setAccess]=useState<CoreAccessDto|null>(null),[scope,setScope]=useState<{orgId:string;csrf:string;generation:number}|undefined>();
@@ -42,7 +43,7 @@ export function CoreLoginScreen(){
  const logout=()=>{clearCommunicationRecovery();generation.current++;setScope(undefined);setAccess(null);setError("");setPhase("logout");logoutForm.current?.submit();};
  return <div className="core-b1-shell">
   <section className="page-shell core-flow core-account" aria-label="로그인과 내 소속">
-   <h1>내 소속·호실</h1><p>B1 계정 로그인 · RC1 합성 주거 데이터</p>
+   <h1>내 소속·호실</h1>
    {error?<p role="alert">{error}</p>:null}
    {phase==="loading"?<p role="status">로그인과 소속을 확인하는 중…</p>:null}
    {phase==="login"?<><p>기존 계정으로 로그인하면 내 호실의 접수·사진·처리 이력을 이용할 수 있습니다.</p><a className="primary-button" href="/auth/login">계정으로 로그인</a></>:null}
@@ -53,11 +54,13 @@ export function CoreLoginScreen(){
     {access.organizations.length>1?<p>소속을 바꾸면 저장하지 않은 입력과 사진 선택은 초기화됩니다. 저장된 접수·사진은 해당 소속의 이력에 남습니다.</p>:null}
     {!scope?<button onClick={logout}>로그아웃</button>:null}
    </>:null}
+   {scope?<nav aria-label="작업 이동"><a href="#core-tickets">{access?.organizations.find(o=>o.id===scope.orgId)?.role==="TENANT"?"접수":"업무함"}</a><a href="#core-invitations" onClick={()=>{const target=document.getElementById("core-invitations");if(target instanceof HTMLDetailsElement){target.open=true;target.querySelector("summary")?.focus();}}}>입주 연결</a></nav>:null}
    <form ref={logoutForm} action="/api/v2/session/logout" method="post"><input type="hidden" name="csrf" value={logoutCsrf}/></form>
   </section>
   <div className="core-workspace">
    {scope?<CoreFlowPage key={scope.orgId+scope.csrf} b1={scope} onDenied={scopedDenied} onLogout={logout}/>:null}
    {phase==="ready"&&access?<OnboardingPanel key={"onboarding-"+(scope?.orgId??"none")+access.csrf} csrf={access.csrf} orgId={scope?.orgId} manager={access.organizations.some(o=>o.id===scope?.orgId&&o.role==="ORG_ADMIN")} onRefreshAccess={()=>void load()} onDenied={denied}/>:null}
+   <footer className="core-environment"><EnvironmentNote>검증용 환경으로 실제 업체 배정이나 알림은 전송되지 않습니다.</EnvironmentNote></footer>
   </div>
  </div>;
 }

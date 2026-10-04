@@ -6,7 +6,7 @@ import { IntakeStatus, WorkStatusBadge } from "./work-status-badge";
 /** Pure presentation; integration remains with the controller's sole writer. */
 export function EnvironmentNote({ children }: { children: ReactNode }) {
   return <aside className={styles.environmentNote} aria-label="개발 환경 안내">
-    <span className={styles.environmentBadge}>개발 환경 · 합성 데이터</span>
+    <span className={styles.environmentBadge}>개발 환경 · 샘플 데이터</span>
     <details className={styles.environmentDetails}>
       <summary>검증 환경 안내</summary>
       <div>{children}</div>
@@ -19,16 +19,16 @@ export function InvitationMetadata({ invite }: {
 }) {
   return <dl className={styles.requestMetadata}>
     {invite.requestNumber ? <>
-      <dt>확인용 요청번호</dt>
+      <dt>확인 번호</dt>
       <dd className={`request-number ${styles.requestNumber}`}>{invite.requestNumber}</dd>
     </> : null}
     {invite.requestedAt ? <>
       <dt>신청 시각</dt>
-      <dd><time dateTime={invite.requestedAt}>{new Date(invite.requestedAt).toLocaleString()}</time></dd>
+      <dd><time dateTime={invite.requestedAt}>{new Date(invite.requestedAt).toLocaleString("ko-KR")}</time></dd>
     </> : null}
     <dt>만료 시각</dt>
-    <dd><time dateTime={invite.expiresAt}>{new Date(invite.expiresAt).toLocaleString()}</time></dd>
-    {invite.decidedAt ? <><dt>확인 시각</dt><dd><time dateTime={invite.decidedAt}>{new Date(invite.decidedAt).toLocaleString()}</time></dd></> : null}
+    <dd><time dateTime={invite.expiresAt}>{new Date(invite.expiresAt).toLocaleString("ko-KR")}</time></dd>
+    {invite.decidedAt ? <><dt>확인 시각</dt><dd><time dateTime={invite.decidedAt}>{new Date(invite.decidedAt).toLocaleString("ko-KR")}</time></dd></> : null}
   </dl>;
 }
 
@@ -52,7 +52,7 @@ export function PhotoSelectionSurface({ children, selectionCount, disabled }: {
 }) {
   return <div className={styles.photoSelectionSurface}>
     <label className={styles.photoSelectionControl} data-disabled={disabled}>
-      <span aria-hidden="true">＋</span> 참고 사진 추가
+      <span aria-hidden="true">＋</span> 사진 추가
       {children}
     </label>
     <p className={styles.photoSelectionHint}>JPEG·PNG · 최대 3장</p>

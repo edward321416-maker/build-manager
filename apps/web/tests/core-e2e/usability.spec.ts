@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 const privateRoot=join(homedir(),".build-manager-rc1-private");
-const alerts=(page:Page)=>page.getByRole("main").filter({has:page.getByRole("heading",{name:"우리 집 수리 접수",exact:true})}).getByRole("alert");
+const alerts=(page:Page)=>page.getByRole("main",{name:"수리 접수 작업"}).getByRole("alert");
 class CoreScreen {
   constructor(readonly page:Page){}
   async login(who:string){
@@ -32,22 +32,22 @@ test("320px tenant and manager can save and read a clear handling result",async(
   const response=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");
   await page.getByRole("button",{name:"접수하기",exact:true}).click();const created=await response;expect(created.status()).toBe(201);const ticket=await created.json();
   await expect(page.getByRole("status").filter({hasText:"접수 내용이 저장되었습니다"})).toHaveText("접수 내용이 저장되었습니다. 아래 질문과 제출 상태를 확인해 주세요.");
-  await expect(page.getByRole("region",{name:"접수 및 처리 이력"})).toContainText("접수 내용 저장");
-  await expect(page.getByRole("heading",{name:"접수 상세",exact:true})).toBeFocused();
+  await expect(page.getByRole("region",{name:"진행 이력"})).toContainText("접수 내용 저장");
+  await expect(page.getByTestId("ticket-heading")).toBeFocused();
   const managerContext=await browser.newContext({viewport:{width:320,height:740}}),manager=await managerContext.newPage();
   try{
     const managerScreen=new CoreScreen(manager);await managerScreen.login("manager");
-    await manager.getByRole("button",{name:new RegExp(ticket.ticketId.slice(0,8))}).click();
-    await expect(manager.getByRole("heading",{name:`수리 요청 ${ticket.ticketId}`,exact:true})).toBeVisible();
+    await manager.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
+    await manager.getByText("추가 확인·결정 기록",{exact:true}).click();await expect(manager.getByRole("heading",{name:`수리 요청 ${ticket.ticketId}`,exact:true})).toBeVisible();
     await managerScreen.assertFits();
     await manager.screenshot({path:join(privateRoot,"usability-manager-active-320.png"),fullPage:true});
     await manager.getByLabel("처리 기록").fill("합성 현장 확인 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();
     await expect(manager.getByRole("status").filter({hasText:"처리 시작 기록을 저장했습니다"})).toHaveText("처리 시작 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.");
     await manager.getByLabel("처리 기록").fill("합성 누수 조치 결과 확인");await manager.getByRole("button",{name:"처리 완료 기록",exact:true}).click();
     await expect(manager.getByRole("status").filter({hasText:"처리 완료 기록을 저장했습니다"})).toHaveText("처리 완료 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.");await managerScreen.assertFits();
-    await page.getByRole("button",{name:"전체 새로고침",exact:true}).click();
-    await expect(page.getByTestId("work-status")).toHaveText("처리 완료 (관리자 기록)");
-    await expect(page.getByRole("region",{name:"접수 및 처리 이력"})).toContainText("합성 누수 조치 결과 확인");await tenant.assertFits();
+    await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();
+    await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");
+    await expect(page.getByRole("region",{name:"진행 이력"})).toContainText("합성 누수 조치 결과 확인");await tenant.assertFits();
     await page.screenshot({path:join(privateRoot,"usability-tenant-result-320.png"),fullPage:true});
     await manager.screenshot({path:join(privateRoot,"usability-manager-result-320.png"),fullPage:true});
     for(const width of [390,768,1280]){await page.setViewportSize({width,height:900});await tenant.assertFits();}
@@ -77,8 +77,8 @@ test("load failure offers a read-only retry and empty lists explain the next act
   await page.getByRole("button",{name:"다시 불러오기",exact:true}).click();
   await expect(alerts(page)).toHaveCount(0);expect(submissions).toBe(1);
   await page.route("**/api/v2/core/units",route=>route.fulfill({json:[]}));
-  await page.getByRole("button",{name:"전체 새로고침",exact:true}).click();
-  await expect(page.getByText("접근 가능한 호실이 없습니다. 관리자에게 소속·호실 배정을 확인한 뒤 전체 새로고침을 눌러 주세요.",{exact:true})).toBeVisible();
+  await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();
+  await expect(page.getByText("접근 가능한 호실이 없습니다. 관리자에게 소속·호실 배정을 확인한 뒤 새로고침을 눌러 주세요.",{exact:true})).toBeVisible();
   await expect(page.getByRole("button",{name:"접수하기",exact:true})).toHaveCount(0);
 });
 
@@ -90,6 +90,6 @@ test("a missing session during a nested ticket action clears protected content a
   await page.getByTestId("refresh").click();
   await expect(alerts(page)).toContainText("접속이 만료되었거나 코드가 유효하지 않습니다");
   await expect(page.getByLabel("개발 접근 코드")).toBeVisible();
-  await expect(page.getByRole("heading",{name:"접수 상세",exact:true})).toHaveCount(0);
+  await expect(page.getByTestId("ticket-heading")).toHaveCount(0);
   await page.screenshot({path:join(privateRoot,"usability-session-ended-320.png"),fullPage:true});
 });

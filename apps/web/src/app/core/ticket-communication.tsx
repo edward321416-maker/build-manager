@@ -84,10 +84,10 @@ export function TicketCommunication({client,ticketId,tenant,revision,completed,o
     {recovery?<div className={styles.recovery}><p>확인이 필요한 전송이 있습니다. 저장 여부를 확인하기 전에는 새 메시지를 보내지 않습니다.</p><button disabled={busy} onClick={()=>void check()}>저장 여부 확인</button>{notFound?<button disabled={busy||loading} onClick={()=>{clearCommunicationRecovery(ticketId);setRecovery(null);setNotFound(false);setText("");setError("");}}>확인 후 새 메시지 작성</button>:null}</div>:null}
     {readOnly?<p>관리자의 완료 기록이 있는 접수입니다. 이전 대화만 볼 수 있으며 새 메시지는 보낼 수 없습니다.</p>:<div className={styles.composer}>
       <label>공개 대화 내용<textarea aria-label="공개 대화 내용" rows={4} maxLength={2000} value={text} disabled={busy||Boolean(recovery)} onChange={e=>setText(e.target.value)}/></label><p>{text.length}/2000자 · 사진은 기존 참고 사진 영역에서 확인하세요.</p>
-      <div className={styles.actions}>{tenant?<button disabled={busy||loading||!page||Boolean(recovery)||!text.trim()} onClick={()=>void send("TENANT_MESSAGE")}>{page?.waitingFor==="TENANT"?"답변 보내기":"추가 문의 보내기"}</button>:<>
-        <button disabled={busy||loading||!page||Boolean(recovery)||!text.trim()||page.waitingFor==="TENANT"} onClick={()=>void send("REQUEST_REPLY")}>세입자에게 질문</button>
-        <button disabled={busy||loading||!page||Boolean(recovery)||!text.trim()||page.waitingFor!=="MANAGER"} onClick={()=>void send("MANAGER_REPLY")}>답변</button>
-        <button disabled={busy||loading||!page||Boolean(recovery)||!text.trim()} onClick={()=>void send("MANAGER_UPDATE")}>진행 안내</button>
+      <div className={styles.actions}>{tenant?<button data-primary="true" disabled={busy||loading||!page||Boolean(recovery)||!text.trim()} onClick={()=>void send("TENANT_MESSAGE")}>{page?.waitingFor==="TENANT"?"답변 보내기":"추가 문의 보내기"}</button>:<>
+        <button data-primary={page?.waitingFor!=="MANAGER"} disabled={busy||loading||!page||Boolean(recovery)||!text.trim()||page.waitingFor==="TENANT"} onClick={()=>void send("REQUEST_REPLY")}>세입자에게 질문</button>
+        <button data-primary={page?.waitingFor==="MANAGER"} disabled={busy||loading||!page||Boolean(recovery)||!text.trim()||page.waitingFor!=="MANAGER"} onClick={()=>void send("MANAGER_REPLY")}>답변</button>
+        <button data-primary={page?.waitingFor==="TENANT"} disabled={busy||loading||!page||Boolean(recovery)||!text.trim()} onClick={()=>void send("MANAGER_UPDATE")}>진행 안내</button>
       </>}</div>
       {!tenant?<p>질문은 세입자의 답변을 요청하고, 답변은 관리자 답변 대기를 마칩니다. 진행 안내는 대기 상태를 바꾸지 않습니다.</p>:null}
     </div>}
