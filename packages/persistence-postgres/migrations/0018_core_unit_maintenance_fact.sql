@@ -98,6 +98,8 @@ BEGIN
  THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT';END IF;
  -- Serializes a reused actor/key even across different source tickets. No retry of COMMIT.
  PERFORM pg_advisory_xact_lock(hashtextextended(t.org_id::text||':'||(s->>'actorId')||':'||p_key::text,0));
+ -- A cross-source receipt key can itself wait after the source lock. Recheck again.
+ t:=core_flow.maintenance_ticket(p_digest,p_id,true);s:=core_flow.session(p_digest);
  fp:=core_flow.maintenance_request_fingerprint(t.id,NULL,p_action,p_label,NULL);
  SELECT * INTO f FROM core_flow.unit_maintenance_fact WHERE org_id=t.org_id AND recorded_by=(s->>'actorId')::uuid AND client_request_id=p_key;
  IF f.id IS NOT NULL THEN
@@ -122,6 +124,7 @@ BEGIN
  IF p_key IS NULL OR p_action IS NULL OR p_action NOT IN ('INSPECTION','REPAIR','PART_REPLACEMENT','ADJUSTMENT','OTHER') OR NOT core_flow.maintenance_valid_component(p_label)
  OR p_reason IS NULL OR p_reason NOT IN ('ACTION_CLASSIFICATION','COMPONENT_LABEL','OTHER') THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT';END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended(t.org_id::text||':'||(s->>'actorId')||':'||p_key::text,0));
+ t:=core_flow.maintenance_ticket(p_digest,old_fact.source_ticket_id,true);s:=core_flow.session(p_digest);
  fp:=core_flow.maintenance_request_fingerprint(t.id,p_expected,p_action,p_label,p_reason);
  SELECT * INTO f FROM core_flow.unit_maintenance_fact WHERE org_id=t.org_id AND recorded_by=(s->>'actorId')::uuid AND client_request_id=p_key;
  IF f.id IS NOT NULL THEN

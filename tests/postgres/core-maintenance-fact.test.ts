@@ -140,6 +140,15 @@ it("bounds 101 source chains to exactly 100 leaves in completion-time then fact-
  const first=await list();expect(first).toHaveLength(100);expect(first.map(x=>x.factId)).toEqual(first.map(x=>x.factId).sort());
  const oldest=(await create(id)).fact;await correct(oldest.factId);const result=await list();expect(result).toEqual(first);expect(result.every(x=>new Date(x.sourceCompletedAt).getFullYear()===2040)).toBe(true);
 });
+it("rechecks authority after an observed idempotency-key wait as well as the source lock",async()=>{
+ const assignment=(await f.p.admin.query("SELECT id FROM app.property_assignment WHERE membership_id=$1 AND status='ACTIVE'",[data.accounts.staff.membershipId])).rows[0].id;
+ for(const mode of ["create","correct"]){const id=(await source()).ticket.id,root=mode==="correct"?(await create(id)).fact:null,r=root?correction(root.factId):input(),a=await controlled(),b=await controlled("staff");let pending:Promise<unknown>|undefined;
+  try{await a.client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))",[data.orgA+":"+data.accounts.staff.userId+":"+r.clientRequestId]);pending=root?b.correct(root.factId,r as CoreMaintenanceFactCorrection):b.create(id,r);void pending.catch(()=>{});await waitB4Lock(f.p.admin,b.pid,a.pid);
+   await f.p.admin.query("UPDATE app.property_assignment SET status='ENDED',ended_at=clock_timestamp() WHERE id=$1",[assignment]);await a.client.query("COMMIT");await expect(pending).rejects.toMatchObject({code:"P0002"});
+  }finally{await a.close();await b.close();await pending?.catch(()=>{});await f.p.admin.query("UPDATE app.property_assignment SET status='ACTIVE',ended_at=NULL WHERE id=$1",[assignment]);}
+  expect(await ledger(id)).toHaveLength(root?1:0);
+ }
+});
 it("rechecks assignment after the observed source-lock wait and denies earlier root/correction replays",async()=>{
  const oldId=(await source()).ticket.id,r=input(),root=await create(oldId,r,"staff"),c=correction(root.fact.factId);await correct(root.fact.factId,c,"staff");const id=(await source()).ticket.id;
  const a=await controlled(),b=await controlled("staff");let pending:Promise<unknown>|undefined;
