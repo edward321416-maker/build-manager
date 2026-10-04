@@ -2,7 +2,7 @@
 
 Repository: `edward321416-maker/build-manager`
 
-Current milestone: **RC1 ACCEPTED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS**. Read the [canonical closure receipt](core_flow_rc1_acceptance.md) and current `STATUS.md` first after policy bootstrap. Dated implementation entries below are historical execution records; their old no-merge/NOT_ACCEPTED statements do not override the operator's 2026-10-04 acceptance and completed development merge.
+Current milestone: **UNIT MAINTENANCE FACT TIMELINE V1 ACCEPTED_AND_INTEGRATED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS**. Read the [unit-maintenance acceptance](core_flow_rc1_unit_maintenance_fact_acceptance.md), the earlier [RC1 closure](core_flow_rc1_acceptance.md), and current `STATUS.md` first after policy bootstrap. Historical Draft/NOT_ACCEPTED statements describe their original stage and do not override the accepted merges.
 
 ## Purpose
 
@@ -70,6 +70,7 @@ Acceptance receipts are the milestone evidence. Read the receipt, not a summary 
 | PF02-B / B4 | VERIFIED / FROZEN | [Canonical closure receipt](pf02_b_b4_closure.md); PR #58 accepted HEAD `6f8d98e5abaf8edb68585f3029459c4df0d91307` merged as `6cf71049c479d100ec6e949002c2e30c8df81eba`; retained B4I-L01/B4R-L01 LOW and B4D-L01..L04 boundaries remain disclosed. [Erratum publication](pf02_b_b4_erratum_publication.md) is a historical pre-implementation snapshot. |
 | PF02-B / B5 | ACCEPTED_AND_MERGED_WITH_DISCLOSED_LOCAL_MOBILE_RISK | [Successor receipt](pf02_b_b5_acceptance.md), original failures and AC18 PARTIAL retained. |
 | Core flow RC1 | ACCEPTED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS | [Canonical acceptance/closure](core_flow_rc1_acceptance.md); accepted candidate c60501a, actual development merge 2cd6dca. Production/native/live-manager-Auth0 readiness is not established. |
+| Unit Maintenance Fact Timeline v1 | ACCEPTED_AND_INTEGRATED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS | [Canonical acceptance](core_flow_rc1_unit_maintenance_fact_acceptance.md); accepted FIX_HEAD be2733f, PR71 merge fd9dffd; manager-only facts/corrections/timeline frozen at this boundary. |
 
 Foundation design context (not milestone evidence):
 `docs/production-foundation/README.md`, `docs/production-foundation/00_foundation_blueprint.md`,
@@ -94,6 +95,7 @@ Closed. Do not re-derive, re-propose or re-ask these. Each is evidenced by the r
 - B3 Building Registration Foundation is VERIFIED / FROZEN at the approved design/plan and accepted implementation boundary. Retained B3D-L01/L02, AC04 PG-513 evidence limit and Local Mobile risk remain disclosed; none authorizes reopening or later product work.
 - B4 Property Assignment Mutation Foundation is VERIFIED / FROZEN: exact-resource GET/PUT/DELETE for an ORG_ADMIN on a current same-org ACTIVE PROPERTY_STAFF membership and ACTIVE Property, migration 0009, `bm_b4_assignment_owner` SECURITY DEFINER boundary and canonical B4D-L04 method boundary. Retained B4I-L01/B4R-L01 and B4D-L01..L04 do not authorize reopening or later work.
 - B5 design/plan approval, implementation review and candidate-specific Mobile-risk acceptance are completed history. [Successor receipt](pf02_b_b5_acceptance.md) records merge e9144fa. RC1 now has its own [operator-approved development acceptance](core_flow_rc1_acceptance.md); prior B5 exceptions are not future waivers. RC1 functional contracts and the accepted Apple/Toss/spatial/responsive UI remain frozen.
+- Unit Maintenance Fact Timeline v1 is now frozen at the accepted manager-only boundary: explicit completed-ticket facts, append-only corrections, dynamic outcome/follow-up projection and no tenant maintenance-history API. Tenant-facing history, automated fact extraction, costs/vendors/warranty, analytics and preventive maintenance remain outside this acceptance.
 
 ## Do not reopen without new evidence
 
@@ -201,7 +203,7 @@ current canonical documents.
 
 ## Current authorized next task
 
-**CURRENT ADDITIONAL PRODUCT TASK = UNIT_MAINTENANCE_FACT_TIMELINE_V1.** The operator separately approved the reviewed spec/plan and execution after RC1 closure. Base/POLICY_REF8d5b9c6; new isolated `feat/unit-maintenance-fact-v1` worktree; PR70 is merged and must not be reused. Read [the current execution/34-AC receipt](core_flow_rc1_unit_maintenance_fact.md) and [run instructions](../docs/core-flow-rc1-running.md). The new Draft's publication receipt owns its final exact HEAD and required9 CI evidence. Preserve old dirty workspaces/data/photos; no reset/rebase/stash/force push, Ready/merge/deploy, Auth0/IAM or Expo/native work.
+**CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED_BY_THIS_CLOSURE.** Unit Maintenance Fact Timeline v1 is accepted and integrated in development main through PR #71. Read [the canonical acceptance](core_flow_rc1_unit_maintenance_fact_acceptance.md) for exact refs, CI generations, independent review and retained risks. Any further product slice requires separate scope and authorization.
 
 The prior closure's **NONE_AUTHORIZED_BY_THIS_CLOSURE** remains historical: it did not itself authorize this new task. [RC1 acceptance](core_flow_rc1_acceptance.md) retains its exact candidate, merge, acceptance and risk dispositions. This successor does not retroactively resolve Mobile, AC18, AC-D06, actual-manager Auth0 or native limitations.
 
