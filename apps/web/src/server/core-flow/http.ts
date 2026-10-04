@@ -9,6 +9,8 @@ import { handleOnboarding } from "./onboarding";
 import { CoreManagerWorkItemsSchema,CoreManagerWorkItemSchema,CoreManagerWorkUpdateSchema,CoreManagerInternalNotesSchema,CoreManagerInternalNoteSchema,CoreManagerInternalNoteCreateSchema } from "@build-manager/api-contracts";
 import { sendCoreCommunication } from "@build-manager/application";
 import { CoreCommunicationPageSchema,CoreCommunicationSendSchema,CorePublicMessageSchema,CoreCommunicationSummariesSchema } from "@build-manager/api-contracts";
+import { confirmCoreResolved,createCoreFollowUp } from "@build-manager/application";
+import { CoreTicketOutcomeSchema,CoreConfirmResolvedSchema,CoreCreateFollowUpSchema,CoreFollowUpResultSchema,CoreOutcomeReceiptSchema,CoreFollowUpSourceSchema } from "@build-manager/api-contracts";
 
 const cookie="rc1_session";
 const digest=(value:string)=>createHash("sha256").update(value).digest("hex");
@@ -117,6 +119,23 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
       }
       if(segments[0]!=="tickets")fail("NOT_FOUND");
       const id=segments[1];if(id && !/^[a-f0-9-]{36}$/.test(id))fail("INVALID_INPUT");
+      if(id&&segments[2]==="outcome"){
+        if(segments.length===3&&request.method==="GET")return json(CoreTicketOutcomeSchema.parse(await scope.outcome.read(id)));
+        if(segments.length===4&&segments[3]==="resolved"&&request.method==="POST"){
+          const result=await confirmCoreResolved(scope,id,parse(CoreConfirmResolvedSchema,await body(request)));
+          return json(CoreTicketOutcomeSchema.parse(result.outcome),result.created?201:200);
+        }
+        if(segments.length===5&&segments[3]==="requests"&&request.method==="GET"){
+          const key=segments[4];if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(key))fail("INVALID_INPUT");
+          return json(CoreOutcomeReceiptSchema.parse(await scope.outcome.receipt(id,key)));
+        }
+        fail("NOT_FOUND");
+      }
+      if(id&&segments.length===3&&segments[2]==="follow-up"){
+        if(request.method==="GET")return json(CoreFollowUpSourceSchema.parse(await scope.outcome.source(id)));
+        const result=await createCoreFollowUp(scope,id,parse(CoreCreateFollowUpSchema,await body(request)));
+        return json(CoreFollowUpResultSchema.parse({sourceOutcome:result.sourceOutcome,ticket:project(result.ticket,scope.session)}),result.created?201:200);
+      }
       if(id&&segments[2]==="communication"){
         if(communicationPage)return json(CoreCommunicationPageSchema.parse(await scope.communication.read(id,beforeSequence,limit)));
         if(segments.length===4&&segments[3]==="messages"&&request.method==="POST"){

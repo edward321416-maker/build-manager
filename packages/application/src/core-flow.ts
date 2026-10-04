@@ -9,6 +9,7 @@ import { approveRecommendation } from "./use-cases/approve-recommendation";
 import { overrideRoute } from "./use-cases/override-route";
 import type { CoreManagerScope } from "./core-manager-work";
 import type { CoreTicketCommunicationScope } from "./core-ticket-communication";
+import type { CoreOutcomeScope } from "./core-ticket-outcome";
 
 export type CoreSession = { actorId: string; orgId: string; role: "TENANT" | "ORG_ADMIN" | "PROPERTY_STAFF" };
 export type CoreUnit = { id: string; buildingId: string; buildingName: string; label: string };
@@ -18,6 +19,7 @@ export type CoreRecord = { ticket: Ticket; building: Building; workStatus: CoreW
 export type CorePhoto = {photoId:string;uploadId:string;createdAt:string;mime:"image/jpeg"|"image/png";byteSize:number;width:number;height:number};
 export type CorePhotoInput = {uploadId:string;mime:CorePhoto["mime"];width:number;height:number;bytes:Uint8Array};
 export type CoreScope = {
+  outcome: CoreOutcomeScope;
   communication: CoreTicketCommunicationScope;
   manager: CoreManagerScope;
   session: CoreSession;

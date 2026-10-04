@@ -1,4 +1,5 @@
-import { CoreFlowError, type CoreFlowPort, type CoreScope,type CoreAccessPort,type CoreOrganization } from "@build-manager/application";
+import { CoreFlowError,buildCoreFollowUpTicket,type CoreFollowUpResult,type CoreRecord, type CoreFlowPort, type CoreScope,type CoreAccessPort,type CoreOrganization } from "@build-manager/application";
+import { randomUUID } from "node:crypto";
 import type { PostgresDatabase } from "./database";
 import { withTransaction } from "./transaction";
 
@@ -25,6 +26,22 @@ export function createCoreFlowPort(database: PostgresDatabase,orgId?:string): Co
         const session=await call<CoreScope["session"]>("SELECT core_flow.session($1) AS value",[hash]);
         return operation({
           session,
+          outcome:{
+            read:id=>call("SELECT core_flow.read_ticket_outcome($1,$2) AS value",[hash,id]),
+            confirmResolved:(id,input)=>call("SELECT core_flow.confirm_ticket_resolved($1,$2,$3) AS value",[hash,id,input.clientRequestId]),
+            createFollowUp:async(id,input)=>{
+              const sql="SELECT core_flow.create_ticket_follow_up($1,$2,$3,$4,$5,$6,$7) AS value";
+              const args=[hash,id,input.clientRequestId,input.claimKind,input.issueType,input.rawUserText];
+              // NULL-body preparation authorizes, locks and recovers a saved request before building anything.
+              // Both calls and normal domain intake remain inside this one transaction; no intermediate COMMIT.
+              const prior=await call<CoreFollowUpResult|null>(sql,[...args,null]);if(prior)return prior;
+              const source=await call<CoreRecord>("SELECT core_flow.read_ticket($1,$2,false) AS value",[hash,id]);
+              const ticket=await buildCoreFollowUpTicket(source,input,{now:()=>new Date().toISOString()},{next:()=>randomUUID()});
+              return call<CoreFollowUpResult>(sql,[...args,JSON.stringify(ticket)]);
+            },
+            receipt:(id,key)=>call("SELECT core_flow.outcome_receipt($1,$2,$3) AS value",[hash,id,key]),
+            source:id=>call("SELECT core_flow.read_follow_up_source($1,$2) AS value",[hash,id]),
+          },
           communication:{
             read:(id,before,limit=50)=>call("SELECT core_flow.read_communication($1,$2,$3,$4) AS value",[hash,id,before??null,limit]),
             send:(id,input)=>call("SELECT core_flow.send_communication($1,$2,$3,$4,$5,$6) AS value",[hash,id,input.clientRequestId,input.expectedVersion,input.intent,input.body]),
