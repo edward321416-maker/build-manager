@@ -138,7 +138,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
           </TicketProgress>
 
         </section>
-        <TicketOutcome key={selected.ticketId} client={client} ticket={selected} tenant={session.role==="TENANT"} revision={revision} onFollowUp={beginFollowUp} onOpen={openOutcome}/>
+        <TicketOutcome key={`outcome-${selected.ticketId}`} client={client} ticket={selected} tenant={session.role==="TENANT"} revision={revision} onFollowUp={beginFollowUp} onOpen={openOutcome}/>
         <TicketCommunication key={selected.ticketId} client={client} ticketId={selected.ticketId} tenant={session.role==="TENANT"} revision={revision} completed={selected.workStatus==="COMPLETED"} onVersion={setCommunicationVersion}>        <div className={styles.photoArea}>
         <PhotoGallery client={client} ticketId={selected.ticketId} revision={revision} />
         {session.role==="TENANT"?<>

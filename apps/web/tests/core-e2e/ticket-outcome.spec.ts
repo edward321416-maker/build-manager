@@ -92,8 +92,16 @@ for(const kind of ["UNRESOLVED","RECURRENCE_CLAIM"] as const)test(kind+" fresh f
  await page.screenshot({path:join(evidence,kind.toLowerCase()+"-target-390.png"),fullPage:true});
  const ctx=await browser.newContext({viewport:{width:390,height:844}}),manager=await ctx.newPage();try{
   await login(manager,s.codes.manager,target);await expect(card(manager).getByRole("button",{name:"이전 완료 접수 보기",exact:true})).toBeVisible();await openInspector(manager);await expect(manager.getByRole("region",{name:"업무 관리",exact:true}).getByRole("combobox",{name:"긴급도",exact:true})).toHaveValue("NORMAL");await fit(manager);
-  await card(manager).getByRole("button",{name:"이전 완료 접수 보기",exact:true}).click();await expect(card(manager).getByText(kind==="UNRESOLVED"?"세입자가 아직 문제가 있다고 알려 후속 접수 생성":"세입자가 다시 문제가 생겼다고 알려 후속 접수 생성",{exact:true})).toBeVisible();await manager.screenshot({path:join(evidence,kind.toLowerCase()+"-manager-390.png"),fullPage:true});
+  for(let round=0;round<2;round++){
+   await card(manager).getByRole("button",{name:"이전 완료 접수 보기",exact:true}).click();await expect(card(manager).getByText(kind==="UNRESOLVED"?"세입자가 아직 문제가 있다고 알려 후속 접수 생성":"세입자가 다시 문제가 생겼다고 알려 후속 접수 생성",{exact:true})).toBeVisible();await expect(card(manager)).toHaveCount(1);
+   await card(manager).getByRole("button",{name:"후속 접수 보기",exact:true}).click();await expect(card(manager).getByRole("button",{name:"이전 완료 접수 보기",exact:true})).toBeVisible();await expect(card(manager)).toHaveCount(1);
+  }
+  await card(manager).getByRole("button",{name:"이전 완료 접수 보기",exact:true}).click();await expect(card(manager).getByRole("button",{name:"후속 접수 보기",exact:true})).toBeVisible();await expect(card(manager)).toHaveCount(1);await manager.screenshot({path:join(evidence,kind.toLowerCase()+"-manager-390.png"),fullPage:true});
  }finally{await ctx.close();}
+ for(let round=0;round<2;round++){
+  await card(page).getByRole("button",{name:"이전 완료 접수 보기",exact:true}).click();await expect(card(page).getByRole("button",{name:"후속 접수 보기",exact:true})).toBeVisible();await expect(card(page)).toHaveCount(1);
+  await card(page).getByRole("button",{name:"후속 접수 보기",exact:true}).click();await expect(card(page).getByRole("button",{name:"이전 완료 접수 보기",exact:true})).toBeVisible();await expect(card(page)).toHaveCount(1);await fit(page);
+ }
  const next=await request.post("/api/v2/core/"+s.path+"/follow-up",{headers:s.headers(),data:{clientRequestId:randomUUID(),claimKind:kind,issueType:"LEAK",rawUserText:"두 번째 직접 후속 거부"}});expect(next.status()).toBe(409);
  for(const who of ["tenantPeer","tenantOther","otherTenant","otherManager"])for(const suffix of ["/outcome","/follow-up"])expect((await request.get("/api/v2/core/"+s.path+suffix,{headers:s.headers(who)})).status()).toBe(404);
  expect(await s.get(s.path)).toEqual(source);expect(await frozen(s.id)).toEqual(before);

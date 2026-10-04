@@ -208,3 +208,10 @@ CHECKPOINT | Completion follow-up integrated local evidence | evidence=PG377/35 
 The staged candidate scanner `python scripts/verify_repository.py --history` exited0:624 files,300 internal links,1614 reachable history blobs,0 findings. Both scanner regression suites passed3+14 cases. The final committed-head recheck and9hosted jobs are recorded in the Draft receipt without manufacturing another code change.
 
 The final local build is serving `http://127.0.0.1:3130/core`. Separate visible synthetic tenant390px and manager1440px browser contexts read the saved follow-up photo, its previous completed source and the reciprocal link;390px has no horizontal overflow. These are actual Web screenshots with synthetic authentication, not Auth0 or Expo/device execution.
+
+
+### Final navigation correction before publication
+
+A separate live-browser readback after local checkpoint `2a9e6b1` exposed a duplicate result card on source/target navigation: the new outcome component and the existing conversation component had equal sibling React keys. A strengthened actual browser assertion failed with expected1/received2; the outcome key is now distinct. Tenant and manager tests repeat both navigation directions and require exactly one result card. No backend/data change was needed.
+
+After this correction: `npm run verify` PASS (shared447/40, lint/types/build/dependencies); full Core browser27/27, synthetic B1 SDK browser30/30 and Web533/52 PASS; the5-case restart helper PASS with distinct processes and identical source/target/assertion/relation/receipt/Q&A/photo evidence. The final running build on3130 was re-read with separate tenant390px/manager1440px contexts: source remains completed, exactly one outcome card, reciprocal navigation works, fresh target photo remains and390px has no horizontal overflow. The initial duplicate-card failure is retained, not recast as a pass. Backend/PG files, migrations and frozen boundaries are unchanged; the377/35 full PG result above remains the direct backend evidence.
