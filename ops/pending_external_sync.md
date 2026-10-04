@@ -363,3 +363,6 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event RC1-LIVE-TENANT-FLOW-PASS-5968939198: current sanitized runtime summary synced/read back in native execution Sheet A204:D204 and nine existing rolling fields. Earlier authentication-only A196, coordinator rows and old pending events retained. Private identity/settings/screenshots were not uploaded; no new schema cache. Product HEAD unchanged; append-only runtime records remain uncommitted.
 
 - Event RC1-ONBOARDING-LOCAL-VERIFIED-5969526294: sanitized implementation/local-check summary appended/read back in native Sheet A208:D208; eight rolling fields updated with revision guard and exact readback. Actual-account invitation continuation is pending login, separate from passing SDK cases and prior live flow. No token, identity or private screenshot uploaded; no new schema acquisition/cache write. Final HEAD/hosted CI receipt follows publication; historical queues remain unchanged.
+
+
+- Event RC1-PUBLIC-QA-LOCAL-20261004: sanitized current-phase result appended through native Sheets at A236:D236; all four values exactly read back. Final exact-head CI and rolling-handoff receipt follow after publication. Earlier pending rows and private destinations are preserved. No new schema-cache acquisition or private data upload.

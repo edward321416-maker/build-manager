@@ -3,20 +3,21 @@ import { useCallback,useEffect,useRef,useState } from "react";
 import { CoreAccessSchema,type CoreAccessDto } from "@build-manager/api-contracts";
 import CoreFlowPage from "./core-screen";
 import { OnboardingPanel } from "./onboarding-panel";
+import { clearCommunicationRecovery } from "./communication-recovery";
 
 export function CoreLoginScreen(){
  const [access,setAccess]=useState<CoreAccessDto|null>(null),[scope,setScope]=useState<{orgId:string;csrf:string;generation:number}|undefined>();
  const [phase,setPhase]=useState<"loading"|"login"|"ready"|"unavailable"|"logout">("loading"),[error,setError]=useState("");
  const generation=useRef(0),logoutForm=useRef<HTMLFormElement>(null);
  const [logoutCsrf,setLogoutCsrf]=useState("");
- const denied=useCallback(()=>{generation.current++;setScope(undefined);setAccess(null);setPhase("login");setError("세션이 만료되었거나 접근 권한이 변경되었습니다. 다시 로그인하거나 소속을 확인해 주세요.");},[]);
+ const denied=useCallback(()=>{clearCommunicationRecovery();generation.current++;setScope(undefined);setAccess(null);setPhase("login");setError("세션이 만료되었거나 접근 권한이 변경되었습니다. 다시 로그인하거나 소속을 확인해 주세요.");},[]);
  const scopedDenied=useCallback(()=>{if(scope?.generation===generation.current)denied();},[scope,denied]);
  const load=useCallback(async()=>{
   const g=++generation.current;setScope(undefined);setAccess(null);setPhase("loading");setError("");
   try{
    const r=await fetch("/api/v2/core/access",{cache:"no-store",credentials:"same-origin"});
    if(g!==generation.current)return;
-   if(r.status===401){setPhase("login");return;}if(!r.ok)throw new Error();
+   if(r.status===401||r.status===403){clearCommunicationRecovery();setPhase("login");return;}if(!r.ok)throw new Error();
    const a=CoreAccessSchema.parse(await r.json());if(g!==generation.current)return;
    setLogoutCsrf(a.csrf);setAccess(a);setPhase("ready");
    if(a.organizations.length===1){
@@ -32,12 +33,13 @@ export function CoreLoginScreen(){
   document.addEventListener("visibilitychange",recheck);return()=>document.removeEventListener("visibilitychange",recheck);
  },[access,scope,denied]);
  const select=async(orgId:string)=>{
+  clearCommunicationRecovery();
   const g=++generation.current;setScope(undefined);setError("");if(!orgId||!access)return;
   try{const r=await fetch("/api/v2/core/organization",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json","x-core-organization":orgId,"x-b1-csrf":access.csrf},body:"{}"});
    if(g!==generation.current)return;if(r.status===401||r.status===403){denied();return;}if(!r.ok)throw new Error();setScope({orgId,csrf:access.csrf,generation:g});
   }catch{if(g===generation.current)setError("소속을 선택하지 못했습니다. 다시 선택해 주세요.");}
  };
- const logout=()=>{generation.current++;setScope(undefined);setAccess(null);setError("");setPhase("logout");logoutForm.current?.submit();};
+ const logout=()=>{clearCommunicationRecovery();generation.current++;setScope(undefined);setAccess(null);setError("");setPhase("logout");logoutForm.current?.submit();};
  return <div className="core-b1-shell">
   <section className="page-shell core-flow core-account" aria-label="로그인과 내 소속">
    <h1>내 소속·호실</h1><p>B1 계정 로그인 · RC1 합성 주거 데이터</p>

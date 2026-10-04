@@ -5,6 +5,7 @@ import { CoreManagerWorkUpdateSchema,CoreManagerInternalNoteCreateSchema,type Co
 import { WorkStatusBadge } from "./ui/work-status-badge";
 import { compareManagerWork,isOverdue,priorityLabels } from "./manager-work-order";
 import styles from "./manager-work.module.css";
+import { CommunicationBadge,useCommunicationSummaries } from "./ticket-communication";
 
 const dateText=(value:string)=>new Date(value).toLocaleString("ko-KR");
 function localInput(value:string|null){
@@ -15,6 +16,7 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled}:{client
   const [items,setItems]=useState<CoreManagerWorkItem[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(false);
   const [status,setStatus]=useState("ALL"),[priority,setPriority]=useState("ALL"),[now,setNow]=useState(()=>Date.now()),[refresh,setRefresh]=useState(0);
   const [unit,setUnit]=useState("");
+  const conversation=useCommunicationSummaries(client,items.map(x=>x.ticketId),revision+refresh);
   useEffect(()=>{let live=true;void client.manager.list().then(rows=>{if(live){setItems(rows);setError(false);setNow(Date.now());}}).catch(()=>{if(live)setError(true);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[client,revision,refresh]);
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),60_000);return()=>clearInterval(timer);},[]);
   const visible=items.filter(x=>(!unit||x.unitId===unit)&&(status==="ALL"||x.workStatus===status)&&(priority==="ALL"||x.priority===priority)).sort((a,b)=>compareManagerWork(a,b,now));
@@ -26,11 +28,12 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled}:{client
       <label>긴급도 필터<select value={priority} onChange={e=>setPriority(e.target.value)}><option value="ALL">전체</option><option value="URGENT">긴급</option><option value="HIGH">높음</option><option value="NORMAL">보통</option></select></label>
       <p aria-live="polite">{visible.length}건 표시</p>
     </div>
+    {conversation.error?<p role="alert">대화 대기 상태를 확인하지 못했습니다. 업무함 새로고침을 눌러 주세요.</p>:null}
     {error?<p role="alert">업무함을 불러오지 못했습니다. 연결을 확인하고 업무함 새로고침을 눌러 주세요.</p>:loading?<p role="status">업무함 불러오는 중…</p>:visible.length===0?<p>{items.length?"선택한 조건의 업무가 없습니다. 필터를 전체로 바꿔 주세요.":"접근 가능한 접수 내역이 없습니다. 새 접수가 들어오면 업무함 새로고침으로 확인해 주세요."}</p>:<ul className={styles.items}>{visible.map(item=><li key={item.ticketId} data-ticket-id={item.ticketId} data-work-state={item.workStatus}>
       <button className={styles.row} disabled={disabled} onClick={()=>onOpen(item.ticketId)}>
         <span className={styles.priority} data-priority={item.priority}>긴급도 {priorityLabels[item.priority]}</span>
         <span className={styles.subject}><strong>{item.buildingName} · {item.unitLabel}</strong><span>{item.issueType==="HEATING"?"난방":"누수"}</span></span>
-        <span className={styles.workState}><WorkStatusBadge status={item.workStatus}/></span>
+        <span className={styles.workState}><WorkStatusBadge status={item.workStatus}/><CommunicationBadge summary={conversation.summaries[item.ticketId]}/></span>
         <span><small>담당 표시명</small>{item.assigneeLabel??"미지정"}</span>
         <span><small>처리 예정</small>{item.dueAt?<time dateTime={item.dueAt}>{dateText(item.dueAt)}</time>:"미정"}{isOverdue(item,now)?<strong className={styles.overdue}>기한 지남</strong>:null}</span>
         <span className={styles.identifier}>#{item.ticketId.slice(0,8)}</span>

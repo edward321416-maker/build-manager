@@ -43,7 +43,10 @@ it("keeps conversation, first pending anchor, protocol and handling history inde
   expect(await run("manager",s=>s.communication.read(id))).toMatchObject({waitingFor:"TENANT",version:7});
 });
 it("returns exact actor-owned receipts, one row on replay, and conflicts for changed payload or ticket",async()=>{
-  const t=await create(),id=t.ticket.id,request=input("TENANT_MESSAGE",0),first=await run("tenant",s=>s.communication.send(id,request));
+  const t=await create(),id=t.ticket.id,request=input("TENANT_MESSAGE",0);
+  const parallel=await Promise.all([run("tenant",s=>s.communication.send(id,request)),run("tenant",s=>s.communication.send(id,request))]);
+  expect(parallel.map(r=>r.created).sort()).toEqual([false,true]);expect(parallel[0].message).toEqual(parallel[1].message);
+  const first=parallel.find(r=>r.created)!;
   expect(await run("tenant",s=>s.communication.send(id,request))).toEqual({...first,created:false});
   expect(await run("tenant",s=>s.communication.receipt(id,request.clientRequestId))).toEqual(first.message);
   for(const changed of [{body:"다른 합성 문장"},{expectedVersion:1},{intent:"MANAGER_UPDATE" as const}])await expect(run("tenant",s=>s.communication.send(id,{...request,...changed}))).rejects.toMatchObject({code:"STATE_CONFLICT"});
@@ -172,9 +175,15 @@ it("preserves original ownership after turnover and rejects ended or revoked act
   const photo=await run("tenant",s=>s.savePhoto(id,{uploadId:randomUUID(),mime:"image/png",width:20,height:10,bytes}));
   const before=(await f.p.admin.query("SELECT tenant_id,body,version FROM core_flow.ticket WHERE id=$1",[id])).rows[0];
   await f.p.admin.query("UPDATE app.occupancy_member SET status='ENDED',ended_at=clock_timestamp() WHERE user_id=$1",[data.accounts.tenant.userId]);
+  // A different existing synthetic actor joins this unit only after the old owner ends.
+  const nextOccupancy=(await f.p.admin.query("SELECT id FROM app.occupancy WHERE org_id=$1 AND unit_id=$2 AND status='ACTIVE'",[data.orgA,data.unitA])).rows[0].id;
+  await f.p.admin.query("INSERT INTO app.occupancy_member(org_id,occupancy_id,user_id,joined_at,status) VALUES($1,$2,$3,clock_timestamp(),'ACTIVE')",[data.orgA,nextOccupancy,data.accounts.tenantOther.userId]);
   for(const op of [(s:CoreScope)=>s.communication.read(id),(s:CoreScope)=>s.communication.receipt(id,req.clientRequestId),(s:CoreScope)=>s.communication.send(id,input("TENANT_MESSAGE",1)),(s:CoreScope)=>s.communication.summaries([id])])await expect(run<unknown>("tenant",op)).rejects.toMatchObject({code:"FORBIDDEN"});
-  for(const op of [(s:CoreScope)=>s.read(id),(s:CoreScope)=>s.photo(id,photo.photo.photoId),(s:CoreScope)=>s.communication.read(id),(s:CoreScope)=>s.communication.receipt(id,req.clientRequestId)])await expect(run<unknown>("tenantPeer",op)).rejects.toMatchObject({code:"NOT_FOUND"});
-  expect(await run("tenantPeer",s=>s.communication.summaries([id]))).toEqual([]);
+  for(const who of ["tenantPeer","tenantOther"]){
+    expect((await run(who,s=>s.units())).map(u=>u.id)).toContain(data.unitA);
+    for(const op of [(s:CoreScope)=>s.read(id),(s:CoreScope)=>s.photo(id,photo.photo.photoId),(s:CoreScope)=>s.communication.read(id),(s:CoreScope)=>s.communication.receipt(id,req.clientRequestId)])await expect(run<unknown>(who,op)).rejects.toMatchObject({code:"NOT_FOUND"});
+    expect(await run(who,s=>s.communication.summaries([id]))).toEqual([]);
+  }
   expect((await f.p.admin.query("SELECT tenant_id,body,version FROM core_flow.ticket WHERE id=$1",[id])).rows[0]).toEqual(before);
   await f.web.query("SELECT authn.revoke_session($1)",[Buffer.from(data.accounts.manager.digest,"hex")]);
   for(const op of [(s:CoreScope)=>s.communication.read(id),(s:CoreScope)=>s.communication.receipt(id,req.clientRequestId),(s:CoreScope)=>s.communication.send(id,input("MANAGER_UPDATE",1))])await expect(run<unknown>("manager",op)).rejects.toMatchObject({code:"UNAUTHENTICATED"});
