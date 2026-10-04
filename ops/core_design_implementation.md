@@ -96,3 +96,74 @@ Failed setup/diagnostic attempts remain in private logs: initial npm invocation 
 - READY / MERGE / DEPLOY: **NOT_PERFORMED**. No source push or PR mutation is included in this local implementation task. Existing3100/3133 continue their prior builds; the new design was verified in the separate private execution environment.
 
 Implementation disposition: **DESIGN_IMPLEMENTED_WITH_DECLARED_LIMITS** for the tested Web presentation and native source/component scope. This is not native-device, real-provider, whole-product acceptance or release approval.
+
+## Second-pass integration receipt — 2026-10-04
+
+This section records fresh Web second-pass evidence. The first-pass checks above are historical and are not reused as second-pass verification.
+
+- Design ancestor retained: `2c84291e9f06d506b1312ef8119f9155af91e986`.
+- Feature baseline retained: `7370dc4097e7cd73277eb93bff9664272e35496c` (Manager Work Queue).
+- Authority: the operator's `CODEX_ASTRA_UIUX_SECOND_PASS_RESUME_AFTER_MANAGER_QUEUE.md` and its explicit integration/resource handoff. The earlier HOLD ended at that handoff.
+- Validation identity: the presentation and test blobs in the commit containing this receipt. A private post-commit manifest compares those blobs with the tested source snapshot, normalizing only Git CRLF/LF checkout conversion.
+
+### Applied presentation and preserved behavior
+
+The prepared `core-display.tsx`, its tests and the prepared CSS delta were reused. The queue presents priority, building/unit and issue, work state, assignee, due/overdue and short ID; completed rows retain their actions with quieter styling. The native filters, pending-first comparator, minute refresh, request callbacks and persisted metadata remain unchanged.
+
+Desktop detail places photos beside the existing work-information, internal-note and handling controls; history remains below. Narrow screens stack these sections. The native file input covers its visible label surface with opacity rather than a one-pixel clipped control; its accept/multiple/disabled attributes, onChange body, File objects, upload IDs, preview/remove/save and pending-navigation rules remain. Work and intake states remain independent, including COMPLETED/PARTIAL.
+
+Loaded REQUESTED invitation cards appear before creation without changing each subset's server order or pagination. Complete request references and actual timestamps remain visible. Join guidance precedes secondary metadata. The header retains a visible synthetic-environment badge and moves lengthy limitations into disclosure. Navy account controls now receive the intended light keyboard-focus outline.
+
+Static AST comparison against the feature baseline preserves all52 event-handler attributes and78 React hook calls across core screen, manager work, onboarding, join and photos. This complements fresh browser evidence rather than replacing it. Backend/API, DTO/client/persistence, migrations001–015, auth/session/provider/config, manifests/lockfile/scripts/workflows, Mobile, global CSS, login controller and work-order comparator have no task delta. No generated product data or unsupported function was added.
+
+Exact changed paths:
+
+- `apps/web/src/app/core/ui/core-display.tsx`
+- `apps/web/src/app/core/ui/core-display.test.tsx`
+- `apps/web/src/app/core/core-design.module.css`
+- `apps/web/src/app/core/core-screen.tsx`
+- `apps/web/src/app/core/manager-work.tsx`
+- `apps/web/src/app/core/manager-work.module.css`
+- `apps/web/src/app/core/onboarding-panel.tsx`
+- `apps/web/src/app/core/join/join-screen.tsx`
+- `apps/web/src/components/core-photos.tsx`
+- `apps/web/tests/core-e2e/design.spec.ts`
+- `apps/web/tests/core-e2e/manager-work.spec.ts`
+- `apps/web/tests/core-login-e2e/design.spec.ts`
+- `apps/web/tests/core-login-e2e/onboarding.spec.ts`
+- `ops/core_design_implementation.md`
+
+The extra `onboarding.spec.ts` change is the small presentation-test correction permitted by resume instruction section18: wait until the existing refresh button is enabled before confirming the request. The prior helper could check an old card while its in-flight refresh subsequently cleared confirmation. Product `load()` and approval callbacks are unchanged; no functional assertion, retry or timeout was weakened. The new design test also verifies that refresh clears confirmation and uses a distinct synthetic unit label per execution.
+
+### Fresh local verification
+
+Evidence root: private `design-second-pass-20261004/resume/` beneath `.build-manager-rc1-private`.
+
+| Gate | Final result | Private log |
+| --- | --- | --- |
+| Focused display and queue-order tests |7 passed,2 files; `npm exec --workspace @build-manager/web -- vitest run --config vitest.config.ts src/app/core/ui/core-display.test.tsx src/app/core/manager-work-order.test.ts` |`focused-final.log` |
+| `npm run test:web` |498 passed,45 files |`test-web-attempt4.log` |
+| `npm run lint` |0 errors;6 pre-existing warnings retained |`lint-attempt6.log` |
+| `npm run typecheck` |PASS, repo gate |`typecheck-attempt6.log` |
+| `npm run build:web` |PASS, final product CSS/TSX |`build-web-attempt4.log` |
+| `npm run check:deps` |PASS, unchanged installed dependency tree |`check-deps.log` |
+| Core Playwright |13 passed,22.0s; original functional inventory retained |`core-browser-attempt4.log` |
+| B1 SDK Playwright |20 passed,35.8s; existing19 plus invitation-presentation case |`login-browser-attempt3.log` |
+| Same-record actual capture and keyboard checks |PASS; queue Tab/Shift+Tab/Enter, action controls and light/navy focus |`after-capture-attempt7.log` |
+| Settled390px queue capture |PASS; all6 synthetic records loaded before capture |`mobile-capture-final-attempt2.log` |
+
+Browser coverage preserves queue filters/order/open, metadata save/stale recovery, internal notes, tenant privacy, stored photos, handling start/completion, invitation approval/rejection/revocation/expiry, uncertain-write recovery, exact CSRF/Origin and organization separation. Responsive checks cover320/390/768/1280/1440 CSS px,200% root text scaling, draft/File identity, keyboard Space and label file selection, dialog Escape/focus return and visible focus. This is not a full WCAG conformance claim.
+
+The original3130 listener (PID19588 at verification) and its `.next/BUILD_ID` were preserved. Validation used a private snapshot of the feature baseline plus the reviewed presentation files, existing installed dependencies and Node24.21.0. The only private build setting adds a common Turbopack filesystem root for dependency junctions. The existing module-resolution hook was supplied through process-local NODE_OPTIONS. Existing core3131 and synthetic-SDK3133 Playwright launchers ran sequentially with independent private synthetic fixtures; original credentials, state and real identities were not renewed or replaced. Captures use another independent fixture so regression mutations cannot change comparison records.
+
+Failed attempts remain recorded separately: initial private module-resolution setup failure; an early separate-profile preparation failure with no confirmed diagnostic cause; capture setup expecting200 instead of the existing201 note-create response; one-pixel native-input target failure; a new Enter-only chooser assertion timeout (the final native keyboard assertion uses Space after bounded native diagnostics); reuse of a deliberately revoked synthetic code before renewal; a repeated synthetic unit-label collision; refresh/confirmation test timing; and the navy focus-specificity defect. Corrections are explicit; earlier green runs are not substituted for the final executions. Synthetic-provider discovery/Fontconfig/tooling warnings remain in logs. A mobile capture caught the existing queue refresh loading state; that candidate and initial ZIP were preserved privately, and the delivered mobile image waits for all records. A private capture grep typo also remains logged.
+
+### Capture delivery and limits
+
+The share directory is `%USERPROFILE%/.build-manager-rc1-private/design-second-pass-after/`. Seven current PNGs and seven baseline PNGs under `before-7370dc4/` show the same persisted synthetic ticket/photo/invitation records. The `build-manager-uiux-second-pass.zip` allowlist contains only those14 PNGs, separated into before/after directories. Every source capture is preserved. Private hash receipts verify copied PNGs and ZIP inventory. Visual review found synthetic building/unit labels and verification photos only; no real identity, credential, cookie, code or raw invitation token required redaction. No generated-image tool was used.
+
+The other session's five dirty runtime documents were byte-preserved and excluded from staging: STATUS, CHAT_HANDOFF, onboarding runbook, execution CSV and pending-sync record. This owned receipt carries the design checkpoint; external Google synchronization was not run or claimed for this pass.
+
+Local disposition: **UI_SECOND_PASS_LOCAL_VERIFIED**. Actual Auth0 manager, Expo/native/device and hosted CI are **NOT_RUN_THIS_PASS**. No source push is included; hosted feature-base checks are not attributed to this design change. AC-D06 is unchanged. No Ready transition, merge or deployment is included. The original running server continues its earlier build; the new UI was verified in the isolated production build.
+
+CHECKPOINT | UI second pass integration | evidence=containing commit + fresh local tests + private capture package | tokens=unknown

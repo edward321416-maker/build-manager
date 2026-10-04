@@ -2,6 +2,7 @@
 import { useEffect,useRef,useState } from "react";
 import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
 import { CORE_PHOTO_MAX_BYTES,type CorePhotoDto } from "@build-manager/api-contracts";
+import { PhotoSelectionSurface } from "../app/core/ui/core-display";
 
 export type PendingPhoto={uploadId:string;file:File};
 function Preview({file,index}:{file:File;index:number}){
@@ -12,12 +13,12 @@ function Preview({file,index}:{file:File;index:number}){
 export function PhotoPicker({files,onChange,disabled=false}:{files:PendingPhoto[];onChange:(files:PendingPhoto[])=>void;disabled?:boolean}){
   const [error,setError]=useState("");
   return <section className="core-photos" aria-label="사진 선택 및 미리보기">
-    <label>참고 사진 (선택)<input aria-label="참고 사진 선택" type="file" accept="image/jpeg,image/png" multiple disabled={disabled} onChange={e=>{
+    <PhotoSelectionSurface selectionCount={files.length} disabled={disabled}><input aria-label="참고 사진 선택" type="file" accept="image/jpeg,image/png" multiple disabled={disabled} onChange={e=>{
       const added=Array.from(e.target.files??[]);e.target.value="";
       if(files.length+added.length>3){setError("한 접수에 사진은 최대 3장입니다.");return;}
       if(added.some(f=>!['image/jpeg','image/png'].includes(f.type)||f.size>CORE_PHOTO_MAX_BYTES)){setError("JPEG·PNG만 선택하세요. 한 장당 5MiB 이하입니다.");return;}
       setError("");onChange([...files,...added.map(file=>({file,uploadId:crypto.randomUUID()}))]);
-    }} /></label>
+    }} /></PhotoSelectionSurface>
     <p>JPEG·PNG, 한 장당 5MiB·2천만 화소 이하, 접수당 최대 3장. 사진은 참고 첨부이며 자동 분석이나 필수 증빙 판정에 사용하지 않습니다.</p>
     {error?<p role="alert">{error}</p>:null}
     <div className="photo-grid">{files.map((p,i)=><figure key={p.uploadId}><Preview file={p.file} index={i} /><figcaption>전송 전 사진 {i+1}</figcaption><button type="button" disabled={disabled} onClick={()=>onChange(files.filter(f=>f.uploadId!==p.uploadId))}>사진 {i+1} 선택 취소</button></figure>)}</div>

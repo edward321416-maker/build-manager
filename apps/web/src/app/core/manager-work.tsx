@@ -26,13 +26,14 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled}:{client
       <label>긴급도 필터<select value={priority} onChange={e=>setPriority(e.target.value)}><option value="ALL">전체</option><option value="URGENT">긴급</option><option value="HIGH">높음</option><option value="NORMAL">보통</option></select></label>
       <p aria-live="polite">{visible.length}건 표시</p>
     </div>
-    {error?<p role="alert">업무함을 불러오지 못했습니다. 연결을 확인하고 업무함 새로고침을 눌러 주세요.</p>:loading?<p role="status">업무함 불러오는 중…</p>:visible.length===0?<p>{items.length?"선택한 조건의 업무가 없습니다. 필터를 전체로 바꿔 주세요.":"접근 가능한 접수 내역이 없습니다. 새 접수가 들어오면 업무함 새로고침으로 확인해 주세요."}</p>:<ul className={styles.items}>{visible.map(item=><li key={item.ticketId} data-ticket-id={item.ticketId}>
+    {error?<p role="alert">업무함을 불러오지 못했습니다. 연결을 확인하고 업무함 새로고침을 눌러 주세요.</p>:loading?<p role="status">업무함 불러오는 중…</p>:visible.length===0?<p>{items.length?"선택한 조건의 업무가 없습니다. 필터를 전체로 바꿔 주세요.":"접근 가능한 접수 내역이 없습니다. 새 접수가 들어오면 업무함 새로고침으로 확인해 주세요."}</p>:<ul className={styles.items}>{visible.map(item=><li key={item.ticketId} data-ticket-id={item.ticketId} data-work-state={item.workStatus}>
       <button className={styles.row} disabled={disabled} onClick={()=>onOpen(item.ticketId)}>
-        <span className={styles.subject}><strong>{item.buildingName} · {item.unitLabel}</strong><span>{item.issueType==="HEATING"?"난방":"누수"} · {item.ticketId.slice(0,8)}</span></span>
-        <span><WorkStatusBadge status={item.workStatus}/></span>
         <span className={styles.priority} data-priority={item.priority}>긴급도 {priorityLabels[item.priority]}</span>
+        <span className={styles.subject}><strong>{item.buildingName} · {item.unitLabel}</strong><span>{item.issueType==="HEATING"?"난방":"누수"}</span></span>
+        <span className={styles.workState}><WorkStatusBadge status={item.workStatus}/></span>
         <span><small>담당 표시명</small>{item.assigneeLabel??"미지정"}</span>
         <span><small>처리 예정</small>{item.dueAt?<time dateTime={item.dueAt}>{dateText(item.dueAt)}</time>:"미정"}{isOverdue(item,now)?<strong className={styles.overdue}>기한 지남</strong>:null}</span>
+        <span className={styles.identifier}>#{item.ticketId.slice(0,8)}</span>
       </button>
     </li>)}</ul>}
     <p className={styles.help}>담당 표시명과 예정일은 업무 정리용입니다. 권한 부여·업체 배정·자동 출동을 뜻하지 않습니다.</p>

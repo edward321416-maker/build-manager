@@ -31,10 +31,12 @@ export function JoinScreen(){
   {phase==="ready"?<>
    {!hasToken&&!invite?<p>초대 링크 정보가 없습니다. 관리자에게 받은 원래 링크를 다시 열어 주세요. 이미 신청했다면 내 연결 요청에서 상태를 확인할 수 있습니다.</p>:null}
    {hasToken&&!invite?<button className={styles.primary} disabled={busy||uncertain} onClick={()=>void run(async()=>setInvite(await client.inspect(token.current!)))}>초대 내용 확인</button>:null}
-   {invite?<section className="core-result" aria-label="초대 확인"><InvitationSummary invite={invite}/>
-    {invite.state==="OPEN"?<><p>위 호실이 본인의 입주 예정 호실인지 확인한 뒤 신청하세요.</p><button className={styles.primary} disabled={busy||uncertain||!hasToken} onClick={()=>void run(async()=>{setInvite(await client.claim(token.current!));setUncertain(false);token.current="";setHasToken(false);},true)}>연결 요청 보내기</button></>:null}
-    {invite.state==="REQUESTED"?<p>연결 요청을 저장했습니다. 위 요청번호를 관리자에게 전달해 주세요. 승인 전에는 이 호실의 접수·사진에 접근할 수 없습니다.</p>:null}
+   {invite?<section className="core-result" aria-label="초대 확인"><InvitationSummary invite={invite}>
+    {invite.state==="OPEN"?<p>위 호실이 본인의 입주 예정 호실인지 확인한 뒤 신청하세요.</p>:null}
+     {invite.state==="REQUESTED"?<p>연결 요청을 저장했습니다. 요청번호를 관리자에게 전달해 주세요. 승인 전에는 이 호실의 접수·사진에 접근할 수 없습니다.</p>:null}
     {invite.state==="APPROVED"?<p>연결이 승인되었습니다. 내 소속·호실에서 새 호실을 확인하고 글·사진을 접수하세요.</p>:null}
+    </InvitationSummary>
+    {invite.state==="OPEN"?<button className={styles.primary} disabled={busy||uncertain||!hasToken} onClick={()=>void run(async()=>{setInvite(await client.claim(token.current!));setUncertain(false);token.current="";setHasToken(false);},true)}>연결 요청 보내기</button>:null}
    </section>:null}
    {uncertain?<p>응답이 확인되지 않았습니다. 요청을 다시 보내기 전에 저장 상태를 확인해 주세요.</p>:null}
    <button disabled={busy} onClick={()=>void run(async()=>{let page=await client.mine();let found=page.items.find(i=>i.invitationId===invite?.invitationId);while(!found&&page.nextCursor){page=await client.mine(page.nextCursor);found=page.items.find(i=>i.invitationId===invite?.invitationId);}if(found){setInvite(found);token.current="";setHasToken(false);}setUncertain(false);setMessage(found?"저장된 연결 상태를 확인했습니다.":"이 초대에 저장된 요청이 없습니다. 원래 링크의 호실을 다시 확인한 뒤 신청해 주세요.");})}>요청 저장 상태 확인</button>

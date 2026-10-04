@@ -27,10 +27,22 @@ class DesignScreen {
 test("design reflow keeps the same draft and File through five widths, text scaling and keyboard photo dialog", async ({page}) => {
   await mkdir(evidence,{recursive:true});
   const screen=new DesignScreen(page);await screen.login();
+  await expect(page.getByText("개발 환경 · 합성 데이터",{exact:true})).toBeVisible();
+  const disclosure=page.getByRole("complementary",{name:"개발 환경 안내"}).locator("details");
+  await expect(disclosure).not.toHaveAttribute("open","");
   const description="합성 디자인 검사: 난방에 대한 긴 설명입니다. ".repeat(8);
   await page.getByLabel("문제 설명").fill(description);
   const bytes=await sharp({create:{width:240,height:160,channels:3,background:"#d7dde5"}}).png().toBuffer();
-  await page.getByLabel("참고 사진 선택",{exact:true}).setInputFiles({name:"synthetic-design.png",mimeType:"image/png",buffer:bytes});
+  const picker=page.getByLabel("참고 사진 선택",{exact:true});
+  await expect(picker).toHaveAttribute("type","file");await expect(picker).toHaveAttribute("accept","image/jpeg,image/png");await expect(picker).toHaveAttribute("multiple","");
+  await picker.focus();await expect(picker).toBeFocused();
+  expect(await picker.evaluate(el=>getComputedStyle(el.parentElement!).outlineStyle)).toBe("solid");
+  expect(await picker.evaluate(el=>getComputedStyle(el.parentElement!).display)).toBe("flex");
+  await expect(picker).toBeEnabled();await expect(picker).toBeFocused();
+  // Space activates the focused native file control without the form's Enter semantics.
+  const keyboardChooser=page.waitForEvent("filechooser");await picker.press("Space");
+  await (await keyboardChooser).setFiles({name:"synthetic-design.png",mimeType:"image/png",buffer:bytes});
+  await expect(page.getByText("사진 1장 선택됨",{exact:true})).toBeVisible();
   const original=await page.getByLabel("문제 설명").elementHandle();
   const preview=await page.getByAltText("전송 전 사진 1 미리보기").getAttribute("src");
   for(const viewport of viewports){
@@ -58,7 +70,8 @@ test("design reflow keeps the same draft and File through five widths, text scal
   await page.screenshot({path:join(evidence,"photo-dialog-320.png"),fullPage:true});
   await page.keyboard.press("Escape");await expect(page.getByRole("dialog")).not.toBeVisible();await expect(enlarge).toBeFocused();
   await screen.fits();
-  await page.getByLabel("참고 사진 선택",{exact:true}).setInputFiles({name:"pending-design.png",mimeType:"image/png",buffer:bytes});
+  const labelChooser=page.waitForEvent("filechooser");await page.getByText("참고 사진 추가",{exact:false}).click();
+  await (await labelChooser).setFiles({name:"pending-design.png",mimeType:"image/png",buffer:bytes});
   await page.setViewportSize({width:1440,height:900});await expect(page.getByRole("button",{name:"← 목록으로",exact:true})).toBeDisabled();
   await expect(page.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();
   await page.getByRole("button",{name:"사진 1 선택 취소",exact:true}).click();

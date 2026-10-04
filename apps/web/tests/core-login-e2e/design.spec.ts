@@ -1,7 +1,8 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { sdkSession, privateRoot } from "./session";
+import { randomUUID } from "node:crypto";
+import { sdkSession, privateRoot, base } from "./session";
 
 const evidence=join(privateRoot,"design-20261004");
 const viewports=[{width:320,height:844},{width:390,height:844},{width:768,height:1024},{width:1280,height:900},{width:1440,height:900}];
@@ -35,6 +36,10 @@ test("navy account and light workspace reflow without remounting drafts; manager
   try{
     const page=await tenant.context.newPage();await page.goto("/core");
     await expect(page.getByLabel("문제 설명")).toBeVisible();
+    const account=page.getByRole("region",{name:"로그인과 내 소속"}).getByRole("combobox");
+    await account.focus();await page.keyboard.press("Tab");await page.keyboard.press("Shift+Tab");await expect(account).toBeFocused();
+    expect(await account.evaluate(el=>getComputedStyle(el).outlineStyle)).toBe("solid");
+    expect(await account.evaluate(el=>getComputedStyle(el).outlineColor)).toBe("rgb(182, 211, 255)");
     await page.getByLabel("문제 설명").fill("합성 디자인 상태 구분 검사");
     await readable(page.getByRole("button",{name:"접수하기",exact:true}));
     const input=await page.getByLabel("문제 설명").elementHandle();
@@ -67,12 +72,42 @@ test("navy account and light workspace reflow without remounting drafts; manager
     await readable(page.getByTestId("work-status").locator("span"));
     await expect(page.getByText("접수·검토 상태: 정보 부족",{exact:true})).toBeVisible();
     await expect(page.getByText("관리자가 남긴 완료 기록입니다.",{exact:false})).toBeVisible();
+    const work=await page.getByTestId("work-status").boundingBox(),intake=await page.getByText("접수·검토 상태: 정보 부족",{exact:true}).boundingBox(),explanation=await page.getByText("관리자가 남긴 완료 기록입니다.",{exact:false}).boundingBox();
+    expect(work!.y+work!.height).toBeLessThanOrEqual(intake!.y);expect(intake!.y+intake!.height).toBeLessThanOrEqual(explanation!.y);
     await expect(page.getByLabel("참고 사진 선택",{exact:true})).toHaveCount(0);
     await captureLayout(page,"b1-tenant-completed");
     await page.setViewportSize({width:1280,height:900});await page.evaluate(()=>document.documentElement.style.fontSize="200%");
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:join(evidence,"b1-completed-text-200.png"),fullPage:true});
   }finally{await tenant.close();await manager.close();}
+});
+
+test("pending invitations precede creation while full references and confirmation gates remain usable at 390px",async({browser})=>{
+  const manager=await sdkSession(browser,"manager"),tenant=await sdkSession(browser,"design-request-"+randomUUID());
+  try{
+    const unit=randomUUID(),label=`합성 디자인 요청 호실 ${unit.slice(0,8)}`;
+    await manager.admin.query("INSERT INTO app.unit(id,org_id,property_id,label,status) VALUES($1,$2,$3,$4,'ACTIVE')",[unit,manager.fixture.orgA,manager.fixture.propertyA,label]);
+    const created=await manager.context.request.post("/api/v2/core/onboarding/create",{headers:manager.headers,data:{unitId:unit}});expect(created.status()).toBe(201);
+    const {link}=await created.json(),token=new URL(link).hash.slice(1);
+    const claimed=await tenant.context.request.post("/api/v2/core/onboarding/claim",{headers:{Origin:base,"x-b1-csrf":tenant.csrf},data:{token}});expect(claimed.status()).toBe(200);
+    const {requestNumber}=await claimed.json();expect(requestNumber).toMatch(/^[a-f0-9-]{36}$/);
+    const page=await manager.context.newPage();await page.goto("/core");await page.getByText("세입자 초대·연결 관리",{exact:true}).click();
+    const pending=page.getByRole("region",{name:"확인할 요청",exact:true}),card=pending.getByRole("article",{name:`${label} 초대`,exact:true});
+    await expect(card.getByText(requestNumber,{exact:true})).toBeVisible();
+    expect((await pending.boundingBox())!.y).toBeLessThan((await page.getByRole("heading",{name:"새 초대 만들기",exact:true}).boundingBox())!.y);
+    const approve=card.getByRole("button",{name:"호실 연결 승인",exact:true});await expect(approve).toBeDisabled();
+    await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await card.getByRole("checkbox").focus();await page.keyboard.press("Space");await expect(approve).toBeEnabled();
+    await page.getByRole("button",{name:"연결 상태 새로고침",exact:true}).click();
+    await expect(page.getByRole("button",{name:"연결 상태 새로고침",exact:true})).toBeEnabled();
+    await expect(card.getByRole("checkbox")).not.toBeChecked();await expect(approve).toBeDisabled();
+    const joinPage=await tenant.context.newPage();await joinPage.setViewportSize({width:390,height:844});await joinPage.goto(link);
+    await expect.poll(()=>new URL(joinPage.url()).hash).toBe("");await joinPage.getByRole("button",{name:"초대 내용 확인",exact:true}).click();
+    await expect(joinPage.getByText(requestNumber,{exact:true})).toBeVisible();
+    const status=await joinPage.getByText("관리자 확인 대기",{exact:true}).boundingBox(),reference=await joinPage.getByText(requestNumber,{exact:true}).boundingBox();
+    expect(status!.y+status!.height).toBeLessThan(reference!.y);expect(await joinPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await expect(joinPage.locator("body")).not.toContainText(token);
+  }finally{await manager.close();await tenant.close();}
 });
 
 test("zero-association requests and missing-link guidance remain reachable at 320 CSS px",async({browser})=>{

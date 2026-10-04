@@ -6,7 +6,8 @@ import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { TicketIntake } from "../../components/tenant/ticket-intake";
 import { TicketReview } from "../../components/landlord/ticket-review";
 import { PhotoPicker,PhotoGallery,photoError,type PendingPhoto } from "../../components/core-photos";
-import { WorkStatusBadge,IntakeStatus } from "./ui/work-status-badge";
+import { WorkStatusBadge } from "./ui/work-status-badge";
+import { EnvironmentNote,TicketProgress } from "./ui/core-display";
 import styles from "./core-design.module.css";
 import { ManagerWorkQueue,ManagerWorkDetail } from "./manager-work";
 
@@ -74,7 +75,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
   const Workspace=b1?"section":"main";
   return <Workspace className="page-shell core-flow" aria-label="수리 접수 작업">
     <header className={styles.heading}><h1>우리 집 수리 접수</h1>
-    <p>{b1?"B1 로그인 세션 · RC1 합성 주거 데이터 · 참고 사진 첨부 지원 · 업체 출동·알림은 지원하지 않습니다.":"RC1 합성 개발 계정 전용 · 참고 사진 첨부 지원 · 실제 로그인·업체 출동·알림은 지원하지 않습니다."}</p>
+    <EnvironmentNote>{b1?"B1 로그인 세션 · RC1 합성 주거 데이터 · 참고 사진 첨부 지원 · 업체 출동·알림은 지원하지 않습니다.":"RC1 합성 개발 계정 전용 · 참고 사진 첨부 지원 · 실제 로그인·업체 출동·알림은 지원하지 않습니다."}</EnvironmentNote>
     </header>
     {error?<div className="state-error" role="alert" tabIndex={-1} ref={errorPanel}><p>{error}</p><button disabled={busy} onClick={()=>void run(session?refresh:restore)}>다시 불러오기</button></div>:null}
     {busy?<p role="status">불러오는 중…</p>:notice?<p className="save-ok" role="status">{notice}</p>:null}
@@ -94,10 +95,11 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
         <div className={styles.detailGrid}>
         <section className={`core-result ${styles.summary}`} aria-label="접수 요약">
           <h2 ref={detailHeading} tabIndex={-1}>접수 상세</h2>
-          <p>{selectedUnit?`${selectedUnit.buildingName} · ${selectedUnit.label} · `:""}{selected.detail.issueType==="HEATING"?"난방":"누수"} · {selected.ticketId.slice(0,8)}</p>
-          <p className="core-work-status" data-testid="work-status"><WorkStatusBadge status={selected.workStatus}/></p>
-          <IntakeStatus status={selected.detail.status}/>
-          <p>{selected.workStatus==="COMPLETED"?"관리자가 남긴 완료 기록입니다. 아래 처리 이력에서 결과를 확인해 주세요.":selected.workStatus==="IN_PROGRESS"?"관리자가 처리 시작을 기록했습니다. 아래에서 질문과 처리 이력을 확인해 주세요.":"입력 내용은 저장됩니다. 아래 질문과 제출 상태를 확인해 주세요. 추천 경로 결정과 수리 완료는 별개입니다."}</p>
+          <p className={styles.ticketSubject}>{selected.detail.issueType==="HEATING"?"난방":"누수"}{selectedUnit?` · ${selectedUnit.buildingName} · ${selectedUnit.label}`:""}</p>
+          <TicketProgress workStatus={selected.workStatus} intakeStatus={selected.detail.status}>
+            {selected.workStatus==="COMPLETED"?"관리자가 남긴 완료 기록입니다. 아래 처리 이력에서 결과를 확인해 주세요.":selected.workStatus==="IN_PROGRESS"?"관리자가 처리 시작을 기록했습니다. 아래에서 질문과 처리 이력을 확인해 주세요.":"입력 내용은 저장됩니다. 아래 질문과 제출 상태를 확인해 주세요. 추천 경로 결정과 수리 완료는 별개입니다."}
+          </TicketProgress>
+          <p className={styles.ticketId}>접수번호 {selected.ticketId.slice(0,8)}</p>
         </section>
         <div className={styles.photoArea}>
         <PhotoGallery client={client} ticketId={selected.ticketId} revision={revision} />
@@ -108,12 +110,14 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
           {selected.workStatus!=="COMPLETED"?<div className="core-actions"><button disabled={busy||!pending.length} onClick={()=>void run(()=>upload(selected.ticketId,pending),true)}>사진만 전송</button><button disabled={busy} onClick={()=>void run(checkPhotos)}>사진 저장 상태 확인</button></div>:null}
         </>:null}
         </div>
+        <div className={styles.actionRail}>
         {session.role!=="TENANT"?<ManagerWorkDetail key={selected.ticketId} client={client} ticket={selected} revision={revision}/>:null}
         {session.role!=="TENANT"&&selected.workStatus!=="COMPLETED"?<form className={styles.handling} onSubmit={e=>{e.preventDefault();void run(async()=>{const starting=selected.workStatus==="OPEN";setSelected(await client.handling(selected.ticketId,{status:starting?"IN_PROGRESS":"COMPLETED",message}));setMessage("");setNotice(starting?"처리 시작 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.":"처리 완료 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.");detailHeading.current?.focus();},true);}}>
           <label>처리 기록 <textarea aria-label="처리 기록" maxLength={2000} required value={message} onChange={e=>setMessage(e.target.value)} /></label>
           <button className={styles.primary} disabled={busy||!message.trim()}>{selected.workStatus==="OPEN"?"처리 시작 기록":"처리 완료 기록"}</button>
           <p>담당자가 확인한 사실을 기록하세요. 자동 출동이나 수리 검증을 뜻하지 않습니다.</p>
         </form>:null}
+        </div>
         <section className={styles.history} aria-label="접수 및 처리 이력"><h2>접수 및 처리 이력</h2>{selected.events.map(event=><p key={event.id}><time dateTime={event.at}>{new Date(event.at).toLocaleString()}</time> · {event.actorRole==="TENANT"?"세입자":"관리자"} · {eventLabels[event.kind]??"접수 정보 변경"}{event.message?` · ${event.message}`:""}</p>)}</section>
         </div>
         {selected.workStatus==="COMPLETED"?<p>관리자의 완료 기록을 확인했습니다. 목록에서 이력을 다시 볼 수 있습니다.</p>:session.role==="TENANT"?<TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow />:<TicketReview key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow />}

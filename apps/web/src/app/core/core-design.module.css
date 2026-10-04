@@ -23,7 +23,7 @@
   padding: 1rem;
   color: var(--core-text);
 }
-.root :global(.core-flow) > * + * { margin-top: 1.5rem; }
+.root :global(.core-flow) > * + * { margin-top: 1rem; }
 .root h1 { font-size: 1.5rem; line-height: 1.3334; font-weight: 700; letter-spacing: -.025em; }
 .root h2 { font-size: 1.25rem; line-height: 1.4; font-weight: 700; }
 .root h3 { font-size: 1rem; line-height: 1.5; font-weight: 700; }
@@ -70,7 +70,7 @@
 }
 .root textarea { min-height: 8rem; }
 .root input[type="checkbox"] { accent-color: var(--core-action); }
-.root :global(.core-flow) form:not(:has(input[type="hidden"]):not(:has(button))) {
+.root :global(.core-flow) :where(form:not(:has(input[type="hidden"]):not(:has(button)))) {
   margin-block: 1.5rem;
   padding: 1rem;
   gap: 1rem;
@@ -84,7 +84,7 @@
 .root :is([role="alert"], :global(.state-error)) { color: #b42318; background: #fef3f2; border: 1px solid #b42318; border-radius: .5rem; padding: 1rem; }
 .root :is([role="status"], :global(.save-ok)) { color: #1d4ed8; background: #eff6ff; border-radius: .5rem; padding: .75rem 1rem; }
 
-.heading { padding-bottom: 1.5rem; border-bottom: 1px solid var(--core-rule); }
+.heading { padding-bottom: 1rem; border-bottom: 1px solid var(--core-rule); }
 .heading p { color: var(--core-muted); font-size: .875rem; line-height: 1.5; margin-top: .5rem; }
 .root > :global(.core-flow):not(:global(.core-join)) > .heading {
   margin: -1rem -1rem 0;
@@ -104,9 +104,9 @@
   border: 0;
   border-radius: 0;
 }
-.root :global(.core-account) p { color: #d8e3f0; font-size: .875rem; line-height: 1.5; }
+.root :global(.core-account) p { color: #d8e3f0; font-size: .8125rem; line-height: 1.5; }
 .root :global(.core-account) :is([role="alert"], [role="status"]) { color: var(--core-text); background: #edf2f9; }
-.root :global(.core-account) :focus-visible { outline-color: #b6d3ff; }
+.root :global(.core-account) :is(button, a, input, select, textarea, summary):focus-visible { outline-color: #b6d3ff; }
 .root :global(.core-account) form { padding: 0; border: 0; margin: 0; }
 .root :global(.core-account h1) { font-size: 1.5rem; line-height: 1.3334; }
 .root :global(.core-workspace) { min-width: 0; width: 100%; background: var(--core-canvas); }
@@ -141,19 +141,30 @@
 .ticketList :global(.photo-grid img) { height: 4.5rem; }
 .root .ticketList :global(.photo-grid button) { padding: .25rem; border-color: var(--core-rule); }
 .ticketTitle { font-weight: 700; }
-.ticketId { color: var(--core-muted); font-size: .875rem; font-weight: 400; }
+.ticketId { color: var(--core-muted); font-size: .8125rem; font-weight: 400; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.ticketSubject { font-weight: 600; margin-block: .75rem; }
 .detailGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: start; }
 .detailGrid > * { min-width: 0; }
 .summary { grid-column: 1 / -1; }
 .photoArea { min-width: 0; }
 .photoArea > * + * { margin-top: 1rem; }
+.actionRail { min-width: 0; display: grid; gap: 1rem; align-self: start; }
+.actionRail:empty { display: none; }
+.root .actionRail form { margin: 1rem 0 0; padding: 0; border: 0; border-radius: 0; }
+.root .actionRail form.handling { margin: 0; padding: 1rem; border: 1px solid var(--core-rule); border-radius: .75rem; }
+.root .actionRail form.handling > p { color: var(--core-muted); font-size: .8125rem; }
+.root .actionRail input { width: 100%; min-width: 0; min-height: 2.75rem; padding: .625rem; border: 1px solid var(--core-border); border-radius: .5rem; background: var(--core-surface); }
+.root .actionRail textarea { min-height: 6rem; }
 .root .detailGrid .handling { margin: 0; }
 .history { grid-column: 1 / -1; border-top: 1px solid var(--core-rule); padding-top: 1.5rem; }
-.history p { margin-top: 1rem; padding-left: 1rem; border-left: 2px solid var(--core-rule); }
+.history p { margin-top: .75rem; padding-left: 1rem; border-left: 2px solid var(--core-rule); font-size: .875rem; }
 .history time { display: block; color: var(--core-muted); font-size: .875rem; }
 .root :global(.core-photos) { min-width: 0; }
-.root :global(.photo-grid) { grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); }
-.root :global(.photo-grid img) { background: #e9edf2; border-radius: .5rem; object-fit: contain; }
+.root :global(.photo-grid) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 8rem), 10rem)); gap: .75rem; }
+.root :global(.photo-grid img) { width: 100%; height: auto; aspect-ratio: 4 / 3; background: #e9edf2; border-radius: .5rem; object-fit: contain; }
+.root :global(.photo-grid figcaption) { font-size: .8125rem; color: var(--core-muted); }
+.root :global(.core-photos[aria-label="사진 선택 및 미리보기"]) > p:not([role="alert"]) { color: var(--core-muted); font-size: .8125rem; line-height: 1.5; }
+.root :global(.core-photos[aria-label="저장된 참고 사진"]) > p { color: var(--core-muted); font-size: .875rem; }
 .root :global(.photo-dialog) { color: var(--core-text); background: white; border: 1px solid var(--core-rule); border-radius: .75rem; box-shadow: 0 1rem 3rem #17283b33; }
 .root :global(.photo-dialog)::backdrop { background: #17283bcc; }
 .root :global(.core-onboarding) { border-top: 1px solid var(--core-rule); }
@@ -161,6 +172,9 @@
 .root :global(.invitation-card) { margin-block: 1rem; }
 .root :global(.invitation-card) > * + * { margin-top: .75rem; }
 .root :global(.invitation-card) > button { margin-right: .5rem; }
+.pendingRequests { padding-top: 1rem; }
+.pendingRequests > h2 { color: var(--core-text); }
+.root .secondaryHeading { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--core-rule); font-size: 1.125rem; }
 .root :global(.invitation-confirm) { align-items: start; padding-block: .5rem; }
 .root :global(.invitation-confirm input) { margin-top: .125rem; }
 .root :global(.core-join) { max-width: 48rem; padding-top: 2rem; }
@@ -172,7 +186,7 @@
 
 @media (min-width: 768px) {
   .root :global(.page-shell.core-flow), .root :global(.core-workspace > .core-flow) { padding: 1.5rem; }
-  .root :global(.core-flow) form:not(:has(input[type="hidden"]):not(:has(button))) { padding: 1.5rem; }
+  .root :global(.core-flow) :where(form:not(:has(input[type="hidden"]):not(:has(button)))) { padding: 1.5rem; }
   .root > :global(.core-flow):not(:global(.core-join)) > .heading { margin: -1.5rem -1.5rem 0; padding: 1.5rem; }
 }
 @media (min-width: 1024px) {
@@ -182,8 +196,30 @@
   .root h1, .root :global(.core-workspace h1) { font-size: 1.75rem; line-height: 1.2858; }
   .root :global(.core-account h1) { font-size: 1.5rem; line-height: 1.3334; }
   .root > :global(.core-flow):not(:global(.core-join)) > .heading { margin: -2rem -2rem 0; padding: 2rem; }
-  .detailGrid:has(.handling) { grid-template-columns: minmax(0, 1fr) minmax(16rem, .8fr); }
+  .detailGrid:has(.actionRail:not(:empty)) { grid-template-columns: minmax(0, 1fr) minmax(20rem, 22.5rem); }
 }
 @media (prefers-reduced-motion: reduce) {
   .root *, .root *::before, .root *::after { transition: none; animation: none; scroll-behavior: auto; }
 }
+
+/* Second-pass surfaces share the existing route boundary and native controls. */
+.environmentNote { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .75rem; font-size: .8125rem; }
+.environmentBadge { display: inline-flex; padding: .25rem .5rem; border: 1px solid var(--core-rule); border-radius: .375rem; color: var(--core-muted); background: var(--core-surface); }
+.environmentDetails { color: var(--core-muted); }
+.environmentDetails summary { min-height: 2.75rem; display: list-item; align-content: center; cursor: pointer; }
+.environmentDetails > div { max-width: 65ch; padding-block: .25rem .5rem; }
+.root > :global(.core-flow):not(:global(.core-join)) .environmentDetails { color: #d8e3f0; }
+.root :global(.core-account) .environmentBadge { color: #d8e3f0; background: transparent; border-color: #60748a; }
+.root :global(.core-account) .environmentDetails { color: #d8e3f0; }
+.requestMetadata { display: grid; grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr); gap: .5rem .75rem; margin-top: 1rem; padding: .875rem; border-radius: .625rem; background: var(--core-canvas); color: var(--core-muted); font-size: .8125rem; }
+.requestMetadata :is(dt, dd) { min-width: 0; margin: 0; }
+.requestNumber { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 400; overflow-wrap: anywhere; white-space: normal; }
+.progressSummary { display: grid; gap: .625rem; }
+.progressSummary > * { margin: 0; }
+.progressMessage { font-size: 1rem; line-height: 1.6; }
+.photoSelectionSurface { min-width: 0; }
+.root .photoSelectionControl { position: relative; display: flex; width: fit-content; max-width: 100%; min-height: 2.75rem; align-items: center; gap: .375rem; padding: .625rem 1rem; border: 1px solid var(--core-border); border-radius: .5rem; background: var(--core-surface); font-weight: 600; cursor: pointer; }
+.photoSelectionControl:focus-within { outline: 3px solid var(--core-action); outline-offset: 3px; }
+.photoSelectionControl[data-disabled="true"] { color: var(--core-muted); background: #e9edf2; cursor: not-allowed; }
+.root .photoSelectionControl input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; min-height: 2.75rem; padding: 0; margin: 0; border: 0; opacity: 0; cursor: inherit; }
+.root .photoSelectionHint, .root .photoSelectionCount { margin-block: .5rem 0; font-size: .875rem; color: var(--core-muted); }
