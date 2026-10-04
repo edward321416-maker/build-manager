@@ -53,10 +53,12 @@ export function ManagerMaintenanceFactEditor(props:EditorProps){return props.tic
 function CompletedFactEditor({client,ticket,revision,onOpenTicket,onChanged,onViewUnit}:EditorProps){
  const [detail,setDetail]=useState<CoreMaintenanceFactDetail|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [action,setAction]=useState<CoreMaintenanceActionKind>("INSPECTION"),[label,setLabel]=useState(""),[reason,setReason]=useState<CoreMaintenanceCorrectionReason>("ACTION_CLASSIFICATION"),[editing,setEditing]=useState(false),[reviewRequired,setReviewRequired]=useState(false),[uncertain,setUncertain]=useState(false);
- const alive=useRef(false),generation=useRef(0),sending=useRef(false),attempt=useRef<Attempt|null>(null);
+ const alive=useRef(false),generation=useRef(0),sending=useRef(false),attempt=useRef<Attempt|null>(null),correctionBase=useRef<string|null>(null);
  const load=useCallback(async()=>{
   const g=++generation.current;setLoading(true);
-  try{const value=await client.maintenance.readForTicket(ticket.ticketId);if(alive.current&&g===generation.current){setDetail(value);return value;}}
+  try{const value=await client.maintenance.readForTicket(ticket.ticketId);if(alive.current&&g===generation.current){setDetail(value);
+   if(correctionBase.current&&value.current?.factId!==correctionBase.current&&!attempt.current){setReviewRequired(true);setError("다른 기록이 먼저 저장되었습니다. 입력은 유지했습니다. 최신 기록을 확인한 뒤 다시 제출해 주세요.");}
+   return value;}}
   catch{if(alive.current&&g===generation.current){setDetail(null);setError("정비 사실을 불러오지 못했습니다. 현재 접근 권한과 연결을 확인해 주세요.");}}
   finally{if(alive.current&&g===generation.current)setLoading(false);}
  },[client,ticket.ticketId]);
@@ -64,7 +66,7 @@ function CompletedFactEditor({client,ticket,revision,onOpenTicket,onChanged,onVi
  const send=async(request:Attempt)=>{
   if(sending.current)return;sending.current=true;attempt.current=request;setBusy(true);setError("");setNotice("");
   try{if(request.kind==="CREATE")await client.maintenance.create(request.id,request.input);else await client.maintenance.correct(request.id,request.input);
-   if(!alive.current)return;attempt.current=null;setUncertain(false);setReviewRequired(false);setEditing(false);await load();if(alive.current){setNotice("정비 사실 요청의 저장을 확인했습니다.");onChanged();}
+   if(!alive.current)return;attempt.current=null;correctionBase.current=null;setUncertain(false);setReviewRequired(false);setEditing(false);await load();if(alive.current){setNotice("정비 사실 요청의 저장을 확인했습니다.");onChanged();}
   }catch(e){if(!alive.current)return;const status=e instanceof ApiClientError?e.status:undefined;
    if(status===409){attempt.current=null;setUncertain(false);setEditing(true);setReviewRequired(true);await load();if(alive.current)setError("다른 기록이 먼저 저장되었습니다. 입력은 유지했습니다. 최신 기록을 확인한 뒤 다시 제출해 주세요.");}
    else if(status&&[400,401,403,404].includes(status)){attempt.current=null;setUncertain(false);if(status!==400)setDetail(null);setError("저장할 수 없습니다. 입력과 현재 접근 권한을 확인해 주세요.");}
@@ -74,13 +76,13 @@ function CompletedFactEditor({client,ticket,revision,onOpenTicket,onChanged,onVi
  const submit=()=>{
   if(!detail||busy||uncertain||reviewRequired)return;
   const current=detail.current,base={clientRequestId:crypto.randomUUID(),actionKind:action,componentLabel:label===""?null:label};
-  if(current){const parsed=CoreMaintenanceFactCorrectionSchema.safeParse({...base,expectedCurrentFactId:current.factId,correctionReason:reason});if(!parsed.success){setError("명칭은 80자 이하로 입력하고 공백·제어 문자를 확인해 주세요.");return;}void send({kind:"CORRECT",id:current.factId,input:parsed.data});}
+  if(current){const expected=correctionBase.current;if(!expected)return;const parsed=CoreMaintenanceFactCorrectionSchema.safeParse({...base,expectedCurrentFactId:expected,correctionReason:reason});if(!parsed.success){setError("명칭은 80자 이하로 입력하고 공백·제어 문자를 확인해 주세요.");return;}void send({kind:"CORRECT",id:expected,input:parsed.data});}
   else{const parsed=CoreMaintenanceFactCreateSchema.safeParse(base);if(!parsed.success){setError("명칭은 80자 이하로 입력하고 공백·제어 문자를 확인해 주세요.");return;}void send({kind:"CREATE",id:ticket.ticketId,input:parsed.data});}
  };
  return <MaintenanceEditorView completed detail={detail} loading={loading} error={error} notice={notice} busy={busy} editing={editing} uncertain={uncertain} reviewRequired={reviewRequired} action={action} label={label} reason={reason}
  onAction={setAction} onLabel={setLabel} onReason={setReason} onSubmit={submit} onOpenTicket={onOpenTicket} onViewUnit={id=>onViewUnit?.(id)}
- onEdit={()=>{if(detail?.current){setAction(detail.current.actionKind);setLabel(detail.current.componentLabel??"");setEditing(true);setNotice("");}}}
- onRefresh={()=>{setError("");void load();}} onRetry={()=>{if(attempt.current)void send(attempt.current);}} onReview={()=>{if(detail){setReviewRequired(false);setError("");}}}/>;
+ onEdit={()=>{if(detail?.current){correctionBase.current=detail.current.factId;setAction(detail.current.actionKind);setLabel(detail.current.componentLabel??"");setEditing(true);setNotice("");}}}
+ onRefresh={()=>{setError("");void load();}} onRetry={()=>{if(attempt.current)void send(attempt.current);}} onReview={()=>{if(detail){correctionBase.current=detail.current?.factId??null;setReviewRequired(false);setError("");}}}/>;
 }
 export function ManagerMaintenanceTimeline({client,units,revision,disabled,onOpenTicket,initialUnit}:{client:CoreFlowClient;units:CoreUnitDto[];revision:number;disabled:boolean;onOpenTicket(id:string):void;initialUnit?:string}){
  const [selected,setSelected]=useState(initialUnit??units[0]?.id??""),[items,setItems]=useState<CoreUnitMaintenanceFact[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(""),[refresh,setRefresh]=useState(0);

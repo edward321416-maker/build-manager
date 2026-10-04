@@ -12,7 +12,7 @@ The operator approved the reviewed design and plan and then authorized execution
 - Artifact freeze: `76edb0f54114884521f9b3a0dc63aeba1e9829a5`; no approved artifact bytes were rewritten. A narrow `.gitattributes` rule preserves the spec's intentional Markdown hard breaks, consistent with existing immutable-spec handling.
 - Final publication HEAD, new Draft number, CI run IDs/attempts and merge-test SHA/tree belong to the post-publication receipt on that new PR. Earlier main/PR70 CI is not evidence for this candidate.
 
-All runtime evidence below is synthetic. Screenshots, raw test logs, fixture identifiers and private connection settings are outside Git. This is executor verification, not operator acceptance or an independent implementation review.
+All runtime evidence below is synthetic. Screenshots, raw test logs, fixture identifiers and private connection settings are outside Git. This is executor verification, not operator acceptance. The single fresh-context branch review below is an implementation aid, not the operator's independent acceptance review. This file records the pre-publication freeze; the new Draft's final receipt completes AC32/AC34 and records final HEAD/run IDs without a self-referential evidence commit.
 
 ## Implemented behavior
 
@@ -40,7 +40,7 @@ Environment: Windows, project-isolated Node **24.21.0**, npm **11.19.0**, Docker
 | `npm run test:postgres` | final396 tests /36 suites PASS; earlier394 and395 full runs retained separately |
 | `npm run verify` | PASS: shared, lint, types, Web build, dependency checks; existing4 Web +1 Mobile lint warnings retained |
 | `npm run test:mobile -- --cacheDirectory <fresh-private-cache>` | first cold run141 PASS /1 timeout,16 suites; serial fresh-cache comparison142/142,16 suites PASS |
-| Core browser suite | 31/31 PASS; includes4 new maintenance cases and all existing27 |
+| Core browser suite | final32/32 PASS; includes5 new maintenance cases and all existing27 |
 | B1 SDK browser suite | 32/32 PASS, including2 new cases; synthetic SDK authentication, not actual Auth0 |
 | `npm run test:e2e:web` after fresh build, prebuilt flag | 23/23 PASS |
 | `npm run test:e2e:b1` and exact result checker | 60/60 PASS,21 negative controls,0 skips/retries; full report checked |
@@ -62,6 +62,8 @@ The final integration uses the unchanged current browser configurations. Develop
 6. The initial scanner14 command lacked process-local `PYTHONPATH` and failed import; the exact workflow setup then passed14/14. No scanner exception was added.
 7. The added B5 test initially exposed an optional fixture-membership type at compile time; explicit fixture validation fixed it. The full `verify` command then passed.
 8. After fresh-actor isolation the full SDK run had31 PASS /1 failure: three new test properties from earlier attempts broke an existing orgA fixture assertion that all units belong to the baseline property. The new case now uses its own unit within the baseline property. Only those three identified task-created synthetic properties were marked ARCHIVED; every row and all tickets/photos remain. Existing assertions were not changed.
+9. A single fresh-context review of base8d5b9c6 through3afd28e found0 Critical /1 Important /0 Minor. Refreshing an open correction draft silently advanced its expected fact ID. A real browser test reproduced the missing review gate (RED). The fix pins the expected fact at edit/explicit review and preserves the draft while blocking submission after a changed baseline. Full Core32, SDK32, Web549, verify, standard Web23, final types and the3-case restart passed after the bounded fix. No unresolved Critical/Important finding remains. The review is not a new plan approval or operator acceptance. Deferred review surfaces are the still-required publication gates and the explicitly excluded Auth0/native/production/historical dispositions.
+10. The first post-fix full Core run was31 PASS /1 failure: the committed-root response-loss recovery button remained disabled during the readback. Its test removed the interception from inside the aborted request handler. The fixture now intercepts exactly one POST, like the already-passing correction-loss case, leaving the recovery GET untouched. The same201 commit/200 replay/409 changed-input/no-duplicate assertions remain; no timeout or retry count changed. Full Core32 then passed. This fixture ordering issue is not asserted to be a production root cause.
 
 During development the marked local synthetic DB had already applied an earlier unpublished0018 definition. Only the two new command functions were refreshed to the tracked0018 definitions under the existing migration role, with grants preserved. No existing migration, table, row or schema baseline was reset. Fresh disposable PostgreSQL tests apply0018 from scratch.
 
@@ -85,7 +87,7 @@ Abbreviations: **DB** = `tests/postgres/core-maintenance-fact.test.ts`; **HTTP**
 | 12 | PASS | root row hashes unchanged after appended corrections; Core source hashes unchanged |
 | 13 | PASS | leaf selection after multiple corrections; Core current card and timeline |
 | 14 | PASS | recursive topology order under adversarial recorded timestamps; UI revision history |
-| 15 | PASS | observed correction lock race gives one success /one conflict; Core stale409 retains input |
+| 15 | PASS | observed correction lock race gives one success /one conflict; Core stale409 retains input; refresh also requires explicit review before rebasing a draft |
 | 16 | PASS | DB composite correction FK, self-cycle/second-child controls, strict immutable DTO/input |
 | 17 | PASS | later RESOLVED/RECURRENCE claim changes projection while ledger hashes stay identical |
 | 18 | PASS | source/follow-up IDs join existing relation; no source/target content copy; actual navigation |
@@ -112,6 +114,6 @@ The final remote receipt must identify the pushed HEAD, new Draft PR, both workf
 
 Historical dispositions remain unchanged: Expo/native/device/APK NOT_RUN, phone LAN and actual-manager Auth0 NOT_VERIFIED, AC-D06 NOT_VERIFIED, B5 AC18 PARTIAL, original Mobile failures/root cause OPEN, dependency-security and CI-maintenance backlog retained. Current tests do not establish real tenant, production or native readiness.
 
-The existing single Google rolling handoff was corrected in place and read back at Task0; the native execution sheet append was read back. Major implementation/final publication sync follows with actual transport/readback receipts. Historical pending rows are not removed or reconstructed.
+The existing single Google rolling handoff was corrected in place and read back at Task0; the native execution sheet append was read back. Tasks1–7 and the review-fix freeze were appended through native Sheets and read back; the existing rolling Google Doc was updated to3afd28e and read back. Final publication sync is a separate receipt. Historical pending rows are not removed or reconstructed.
 
 See [run instructions](../docs/core-flow-rc1-running.md) for the isolated worktree's synthetic Web flow. No private codes, credentials, external destination IDs or raw test identifiers belong in this repository.
