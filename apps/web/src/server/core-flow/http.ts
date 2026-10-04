@@ -11,6 +11,8 @@ import { sendCoreCommunication } from "@build-manager/application";
 import { CoreCommunicationPageSchema,CoreCommunicationSendSchema,CorePublicMessageSchema,CoreCommunicationSummariesSchema } from "@build-manager/api-contracts";
 import { confirmCoreResolved,createCoreFollowUp } from "@build-manager/application";
 import { CoreTicketOutcomeSchema,CoreConfirmResolvedSchema,CoreCreateFollowUpSchema,CoreFollowUpResultSchema,CoreOutcomeReceiptSchema,CoreFollowUpSourceSchema } from "@build-manager/api-contracts";
+import { createCoreMaintenanceFact,correctCoreMaintenanceFact } from "@build-manager/application";
+import { CoreUnitMaintenanceFactsSchema,CoreMaintenanceFactDetailSchema,CoreUnitMaintenanceFactSchema,CoreMaintenanceFactCreateSchema,CoreMaintenanceFactCorrectionSchema } from "@build-manager/api-contracts";
 
 const cookie="rc1_session";
 const digest=(value:string)=>createHash("sha256").update(value).digest("hex");
@@ -93,6 +95,19 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
         if(scope.session.role!=="ORG_ADMIN"&&scope.session.role!=="PROPERTY_STAFF")fail("FORBIDDEN");
         if(route==="manager/work-items"&&request.method==="GET")return json(CoreManagerWorkItemsSchema.parse(await scope.manager.list()));
         const id=segments[2];
+        if(segments.length===4&&((segments[1]==="units"&&segments[3]==="maintenance-timeline")||(segments[1]==="tickets"&&segments[3]==="maintenance-fact")||(segments[1]==="maintenance-facts"&&segments[3]==="corrections"))){
+          if(!id||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id))fail("INVALID_INPUT");
+          if(segments[1]==="units"){
+            if(request.method!=="GET")fail("NOT_FOUND");
+            return json(CoreUnitMaintenanceFactsSchema.parse(await scope.maintenance.listUnit(id)));
+          }
+          if(segments[1]==="tickets"&&request.method==="GET")return json(CoreMaintenanceFactDetailSchema.parse(await scope.maintenance.readForTicket(id)));
+          if(request.method!=="POST")fail("NOT_FOUND");
+          const result=segments[1]==="tickets"
+            ? await createCoreMaintenanceFact(scope,id,parse(CoreMaintenanceFactCreateSchema,await body(request)))
+            : await correctCoreMaintenanceFact(scope,id,parse(CoreMaintenanceFactCorrectionSchema,await body(request)));
+          return json(CoreUnitMaintenanceFactSchema.parse(result.fact),result.created?201:200);
+        }
         if(segments[1]!=="tickets"||segments.length!==4)fail("NOT_FOUND");
         if(!id||!/^[a-f0-9-]{36}$/.test(id))fail("INVALID_INPUT");
         if(segments[3]==="work"){
