@@ -12,7 +12,7 @@ export function MaintenanceEditorView(p:EditorViewProps){
  if(!p.completed)return null;
  const current=p.detail?.current,form=Boolean(p.detail)&&(!current||p.editing||p.uncertain);
  return <section className={styles.editor} aria-label="호실 정비 사실 기록"><h2>호실 정비 사실 기록</h2>
-  <p className={styles.hint}>관리자가 완료 접수에서 확인한 작업 사실을 따로 남깁니다. 객관적인 수리 검증을 뜻하지 않습니다.</p>
+  <p className={styles.hint}>세입자 대화나 내부메모가 아니라, 호실에 남길 최소한의 정비 사실만 기록하세요. 객관적인 수리 검증을 뜻하지 않습니다.</p>
   {p.loading?<p role="status">정비 사실 불러오는 중…</p>:null}{p.error?<p role="alert">{p.error}</p>:null}{p.notice?<p role="status">{p.notice}</p>:null}
   <button disabled={p.busy||p.loading} onClick={p.onRefresh}>정비 사실 다시 불러오기</button>
   {!p.loading&&current?<><MaintenanceFactCard fact={current} onOpenTicket={p.onOpenTicket}/><div className={styles.actions}><button onClick={()=>p.onViewUnit(current.unitId)}>호실 이력에서 보기</button>{!p.editing&&!p.uncertain?<button onClick={p.onEdit}>정정 기록 추가</button>:null}</div>
@@ -34,7 +34,7 @@ export function MaintenanceEditorView(p:EditorViewProps){
 export function MaintenanceFactCard({fact,onOpenTicket}:{fact:CoreUnitMaintenanceFact;onOpenTicket(id:string):void}){
  return <article className={styles.fact} data-fact-id={fact.factId}>
   <h3>{fact.issueType==="HEATING"?"난방":"누수"} · {actionLabels[fact.actionKind]}</h3><p className={styles.component}>{fact.componentLabel??"부품·위치 명칭 미기록"}</p>
-  <p>{fact.buildingName} · {fact.unitLabel}</p><dl><div><dt>원본 접수 완료</dt><dd><time dateTime={fact.sourceCompletedAt}>{dateText(fact.sourceCompletedAt)}</time></dd></div><div><dt>사실 기록</dt><dd><time dateTime={fact.recordedAt}>{dateText(fact.recordedAt)}</time></dd></div></dl>
+  <p>{fact.buildingName} · {fact.unitLabel}</p><dl><div><dt>관리자 처리 완료 기록</dt><dd><time dateTime={fact.sourceCompletedAt}>{dateText(fact.sourceCompletedAt)}</time></dd></div><div><dt>사실 기록</dt><dd><time dateTime={fact.recordedAt}>{dateText(fact.recordedAt)}</time></dd></div></dl>
   {fact.corrected?<p>정정 {fact.correctionCount}회 · 현재 기록</p>:null}<p>{outcomeLabels[fact.tenantOutcome]}</p>
   <div className={styles.actions}><button onClick={()=>onOpenTicket(fact.sourceTicketId)}>근거 접수 보기</button>
    {fact.previousTicketId?<button onClick={()=>onOpenTicket(fact.previousTicketId!)}>이전 완료 접수에서 이어진 건</button>:null}

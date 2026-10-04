@@ -117,3 +117,49 @@ Historical dispositions remain unchanged: Expo/native/device/APK NOT_RUN, phone 
 The existing single Google rolling handoff was corrected in place and read back at Task0; the native execution sheet append was read back. Tasks1–7 and the review-fix freeze were appended through native Sheets and read back; the existing rolling Google Doc was updated to3afd28e and read back. Final publication sync is a separate receipt. Historical pending rows are not removed or reconstructed.
 
 See [run instructions](../docs/core-flow-rc1-running.md) for the isolated worktree's synthetic Web flow. No private codes, credentials, external destination IDs or raw test identifiers belong in this repository.
+
+## Acceptance remediation after the independent review of963a7ef
+
+The operator supplied the independent acceptance review and remediation packet. That review returned **FIX_REQUIRED: BLOCKER0 / HIGH1 / MEDIUM2 / LOW1 advisory** for `963a7ef0360c1c8f3ca9a07f3a63c17089ba7bd1`. Earlier runnable delivery and CI remain historical evidence, not acceptance of this remediation. POLICY_REF remains `8d5b9c6c5723b29ed4c0b5efb1173365fee3f6a5`.
+
+### Findings and bounded changes
+
+- **H01:** one maintenance-originated ticket-navigation callback serves both the timeline and completed-ticket editor, including source/previous/follow-up links. Existing authorized ticket reads remain. An ApiClientError401/403/404 clears protected state through the existing clearAccess path and is rethrown into the existing sanitized error surface. Unrelated ordinary ticket404 behavior is unchanged.
+- **M01:** the source timestamp is labelled exactly **관리자 처리 완료 기록**. The focused assertion requires that text and rejects **실제 수리 완료 시각**.
+- **M02:** the editor says exactly **세입자 대화나 내부메모가 아니라, 호실에 남길 최소한의 정비 사실만 기록하세요.** The separate personal-name/contact/access-information warning remains.
+- **Separately authorized test-only correction:** the required Core suite exposed a Q&A receipt-test selector matching both loading and success status elements. The operator explicitly authorized one selector line in `apps/web/tests/core-e2e/ticket-communication.spec.ts`. It now selects the existing success notice by expected text. Expected text, message count, receipt assertions and timeout are unchanged.
+- **L01 advisory:** STATUS/manifest lifecycle wording remains deferred to eventual acceptance/merge closure; no advisory-only rewrite is included.
+
+The delta is five Web product/test paths plus this append-only receipt and the execution log. No migration0018 or earlier migration, API contract, application/persistence implementation, dependency manifest/lockfile, workflow, Auth0/IAM or Expo/native source changed. Both earlier worktrees' heads, original dirty bytes and Git status were checked and preserved. No data/photo deletion, reset, rebase, stash or force push was performed.
+
+### RED, failures and GREEN are separate evidence
+
+1. On the unchanged963a7ef production build, the new SDK regression received the actual ordinary ticket GET404 after ending its task-created PROPERTY_STAFF assignment. Without refreshing, the old timeline still had one region: H01 behavioral RED. Actual390px screenshots remain private. The exact-copy tests also failed:8 PASS /2 FAIL.
+2. After the minimal fix, focused copy tests passed10/10. The first targeted SDK run passed3/4; its new editor setup assertion matched both the current card and revision row. The current-card text selector was made exact; the editor case passed, then the final whole SDK passed34/34.
+3. The first complete Core run passed31/32. The unchanged RESOLVED response-loss case reached the existing30-second test timeout while waiting for page.reload. One bounded trace run passed in3.9seconds with reload85.3ms. The initial delay's cause remains **UNESTABLISHED**; a later pass does not establish its cause.
+4. The full traced Core run passed31/32, including RESOLVED, but exposed the Q&A status-selector ambiguity. Its trace showed loading and the correct success notice simultaneously. After the separately authorized selector correction, the focused case passed1/1 and the final traced complete Core run passed32/32. No automatic test retry, skip, timeout increase or weaker product oracle was added.
+
+### Remediation local verification
+
+Environment: Windows; isolated Node24.21.0/npm11.19.0; existing marked synthetic PostgreSQL fixture. Commands, environment, start/end, exit codes and full logs remain private. No application install or dependency change was required.
+
+| Command / surface | Current observed result |
+| --- | --- |
+| Focused maintenance UI tests | final10/10 PASS; initial2 expected failures retained |
+| `npm run test:web` | 551 tests /54 suites PASS |
+| `npm run verify` | shared458/41, lint, types, build:web and dependencies PASS; existing4 Web +1 Mobile lint warnings remain |
+| `npm run typecheck:tests` after the Q&A selector change | PASS |
+| Core Playwright config | final32/32 PASS with trace; both earlier31/32 runs retained |
+| B1 SDK Playwright config | 34/34 PASS; refresh, timeline-source and editor-source revocation plus unaffected manager reads |
+| `npm run test:e2e:web`, prebuilt convention | 23/23 PASS |
+| `npm run test:e2e:b1` then exact full-report checker | 60/60 PASS;21 negative controls,0 skips,0 retries |
+| Existing root/scripts scanner regressions | 3/3 and14/14 PASS |
+| Initial staged tree / full reachable history | 641 files,321 links,1719 history blobs;0 findings; final candidate scan remains a separate receipt |
+| Local PostgreSQL/Mobile/Doctor/export/restart reruns | NOT_RUN for this Web-only remediation; earlier evidence is preserved, not copied as a new execution |
+| New exact-head Repository + App CI | pending publication; final PR receipt must record all9 jobs and every attempt |
+
+The synthetic app was restarted through the existing pinned runtime/serve path at `http://127.0.0.1:3150/core`, returning HTTP200. This is synthetic browser evidence, not real Auth0 or native execution. Screenshots/traces remain outside Git; raw cookies and private destination identifiers are not published.
+
+### Remediation gate
+
+The findings have executor-side GREEN evidence; **independent delta review has not run**. The post-push receipt must identify FIX_HEAD, changed paths, exact-head CI runs/attempts, merge-test SHA/tree, final scan and remaining uncertainty. Required status is **PR71_ACCEPTANCE_REMEDIATION_READY_FOR_DELTA_REVIEW** only after publication and CI gates succeed. PR stays **OPEN / DRAFT / NOT_ACCEPTED / NOT_MERGED**. Ready/merge/deploy remain NOT_AUTHORIZED / NOT_PERFORMED. Historical Mobile/AC18, AC-D06 NOT_VERIFIED and Expo constraints remain.

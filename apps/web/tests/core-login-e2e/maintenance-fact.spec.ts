@@ -2,7 +2,7 @@ import { test,expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { sdkSession } from "./session";
 import { openInspector } from "../core-e2e/presentation";
-test("B1 SDK manager/staff fact flow, current assignment revocation and tenant/foreign denial",async({browser})=>{
+for(const deniedAction of ["refresh","timeline source","editor source"] as const)test(`B1 SDK manager/staff fact flow, current assignment revocation via ${deniedAction} and tenant/foreign denial`,async({browser},testInfo)=>{
  const tenant=await sdkSession(browser,"none"),manager=await sdkSession(browser,"manager"),staff=await sdkSession(browser,"none"),foreign=await sdkSession(browser,"otherManager");
  try{
   const {admin,fixture}=tenant,property=fixture.propertyA,unit=randomUUID(),occ=randomUUID(),assignment=randomUUID(),membership=randomUUID();
@@ -15,15 +15,25 @@ test("B1 SDK manager/staff fact flow, current assignment revocation and tenant/f
   expect((await staff.context.request.get(list,{headers:staff.headers})).status()).toBe(404);expect((await staff.context.request.post(path,{headers:staff.headers,data:{clientRequestId:randomUUID(),actionKind:"REPAIR",componentLabel:null}})).status()).toBe(404);
   await admin.query("INSERT INTO app.property_assignment(id,org_id,membership_id,property_id,status) VALUES($1,$2,$3,$4,'ACTIVE')",[assignment,fixture.orgA,membership,property]);
   const page=await staff.context.newPage();await page.setViewportSize({width:390,height:844});await page.goto("/core");await page.getByLabel("건물·호실",{exact:true}).selectOption(unit);await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();await openInspector(page);const editor=page.getByRole("region",{name:"호실 정비 사실 기록",exact:true});
-  await editor.getByLabel("정비 작업 종류").selectOption("REPAIR");const posted=page.waitForResponse(r=>r.url().endsWith(path)&&r.request().method()==="POST");await editor.getByRole("button",{name:"정비 사실 저장",exact:true}).click();const response=await posted;expect(response.status()).toBe(201);const fact=await response.json(),input=response.request().postDataJSON(),correctPath=`/api/v2/core/manager/maintenance-facts/${fact.factId}/corrections`,correction={clientRequestId:randomUUID(),expectedCurrentFactId:fact.factId,actionKind:"ADJUSTMENT",componentLabel:null,correctionReason:"OTHER"};
+  await editor.getByLabel("정비 작업 종류").selectOption("REPAIR");const posted=page.waitForResponse(r=>r.url().endsWith(path)&&r.request().method()==="POST");await editor.getByRole("button",{name:"정비 사실 저장",exact:true}).click();const response=await posted;expect(response.status()).toBe(201);const fact=await response.json(),input=response.request().postDataJSON(),correctPath=`/api/v2/core/manager/maintenance-facts/${fact.factId}/corrections`,correction={clientRequestId:randomUUID(),expectedCurrentFactId:fact.factId,actionKind:"ADJUSTMENT",componentLabel:"합성 회수 확인 부품",correctionReason:"OTHER"};
+  const factLabel=correction.componentLabel;
   const corrected=await staff.context.request.post(correctPath,{headers:staff.headers,data:correction});expect(corrected.status()).toBe(201);
   for(const actor of [tenant,foreign]){const status=actor===tenant?403:404;for(const p of [path,list]){const r=await actor.context.request.get(p,{headers:actor.headers});expect(r.status()).toBe(status);expect(await r.text()).not.toContain(fact.factId);}expect((await actor.context.request.post(path,{headers:actor.headers,data:input})).status()).toBe(status);expect((await actor.context.request.post(correctPath,{headers:actor.headers,data:correction})).status()).toBe(status);}
   for(const p of [path,correctPath])expect((await staff.context.request.post(p,{headers:{...staff.headers,"x-b1-csrf":"invalid"},data:p===path?input:correction})).status()).toBe(403);
-  await editor.getByRole("button",{name:"호실 이력에서 보기",exact:true}).click();await expect(page.getByRole("region",{name:"호실 정비 이력",exact:true}).getByText("조정",{exact:false})).toBeVisible();
+  const timeline=page.getByRole("region",{name:"호실 정비 이력",exact:true});
+  if(deniedAction==="editor source"){await editor.getByRole("button",{name:"정비 사실 다시 불러오기",exact:true}).click();await expect(editor.getByText(factLabel,{exact:true})).toBeVisible();}
+  else{await editor.getByRole("button",{name:"호실 이력에서 보기",exact:true}).click();await expect(timeline.getByText("조정",{exact:false})).toBeVisible();await expect(timeline.getByText(factLabel,{exact:false})).toBeVisible();}
+  await page.screenshot({path:testInfo.outputPath("before-assignment-revocation.png")});
   await admin.query("UPDATE app.property_assignment SET status='ENDED',ended_at=clock_timestamp() WHERE id=$1",[assignment]);
-  await page.getByRole("button",{name:"이력 다시 불러오기",exact:true}).click();await expect(page.getByRole("region",{name:"호실 정비 이력",exact:true})).toHaveCount(0);await expect(page.getByRole("region",{name:"선택한 접수",exact:true})).toHaveCount(0);
+  const deniedPath=deniedAction==="refresh"?list:`/api/v2/core/tickets/${id}`,denied=page.waitForResponse(r=>r.url().endsWith(deniedPath)&&r.request().method()==="GET");
+  if(deniedAction==="refresh")await page.getByRole("button",{name:"이력 다시 불러오기",exact:true}).click();
+  else await (deniedAction==="timeline source"?timeline:editor).getByRole("button",{name:"근거 접수 보기",exact:true}).click();
+  expect((await denied).status()).toBe(404);
+  await expect(page.getByRole("alert").filter({hasText:deniedAction==="refresh"?"접근 권한":"접수 내역을 열 수 없습니다"})).toBeVisible();
+  await page.screenshot({path:testInfo.outputPath("after-denied-navigation.png")});
+  await expect(timeline).toHaveCount(0);await expect(page.getByText(factLabel,{exact:false})).toHaveCount(0);await expect(page.getByRole("region",{name:"선택한 접수",exact:true})).toHaveCount(0);await expect(page.getByRole("navigation",{name:"관리자 보기"})).toHaveCount(0);await expect(page.locator("#core-tickets[data-role]")).toHaveCount(0);await expect(page.getByLabel("건물·호실",{exact:true})).toHaveCount(0);
   for(const p of [path,list])expect((await staff.context.request.get(p,{headers:staff.headers})).status()).toBe(404);expect((await staff.context.request.post(path,{headers:staff.headers,data:input})).status()).toBe(404);expect((await staff.context.request.post(correctPath,{headers:staff.headers,data:correction})).status()).toBe(404);
-  expect((await manager.context.request.get(path,{headers:manager.headers})).status()).toBe(200);
+  for(const p of [path,list,`/api/v2/core/tickets/${id}`])expect((await manager.context.request.get(p,{headers:manager.headers})).status()).toBe(200);
  }finally{await tenant.close();await manager.close();await staff.close();await foreign.close();}
 });
 test("new occupancy member cannot read manager facts or old source after isolated unit turnover",async({browser})=>{

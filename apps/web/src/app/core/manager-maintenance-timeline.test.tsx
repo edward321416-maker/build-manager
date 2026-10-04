@@ -7,6 +7,13 @@ const noop=()=>{};
 const base:ComponentProps<typeof MaintenanceEditorView>={completed:true,detail:{current:null,revisions:[]},loading:false,error:"",notice:"",busy:false,editing:false,uncertain:false,reviewRequired:false,action:"INSPECTION",label:"",reason:"ACTION_CLASSIFICATION",onAction:noop,onLabel:noop,onReason:noop,onSubmit:noop,onEdit:noop,onRefresh:noop,onRetry:noop,onReview:noop,onOpenTicket:noop,onViewUnit:noop};
 const view=(props:Partial<typeof base>={})=>renderToStaticMarkup(<MaintenanceEditorView {...base} {...props}/>);
 const fact:CoreUnitMaintenanceFact={factId:"fact",unitId:"unit",buildingId:"building",buildingName:"합성 건물",unitLabel:"합성 호실",sourceTicketId:"source",issueType:"HEATING",actionKind:"REPAIR",componentLabel:"합성 펌프",sourceCompletedAt:"2026-10-04T00:00:00Z",recordedAt:"2026-10-04T01:00:00Z",corrected:false,correctionCount:0,tenantOutcome:"UNCONFIRMED",previousTicketId:null,followUpTicketId:null};
+it("labels the source timestamp as the manager completion record without claiming actual repair time",()=>{
+ const html=renderToStaticMarkup(<MaintenanceFactCard fact={fact} onOpenTicket={noop}/>);
+ expect(html).toContain("관리자 처리 완료 기록");expect(html).not.toContain("실제 수리 완료 시각");
+});
+it("asks for minimum unit maintenance facts rather than tenant conversations or internal notes",()=>{
+ const html=view();expect(html).toContain("세입자 대화나 내부메모가 아니라, 호실에 남길 최소한의 정비 사실만 기록하세요.");expect(html).toContain("개인 이름·연락처·출입정보는 적지 마세요.");
+});
 it("shows creation only for completed tickets with five reviewed actions and privacy warning",()=>{
  expect(view({completed:false})).toBe("");const html=view();expect(html).toContain("호실 정비 사실 기록");expect(html).toContain("개인 이름·연락처·출입정보는 적지 마세요.");
  for(const label of ["점검","수리","부품 교체","조정","기타"])expect(html).toContain(label);
