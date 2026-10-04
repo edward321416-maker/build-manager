@@ -30,3 +30,8 @@ export * from "./b4/property-assignment";
 export * from "./b5/errors";
 export * from "./b5/ports";
 export * from "./b5/membership-termination";
+export * from "./core-flow";
+export * from "./core-onboarding";
+export * from "./core-manager-work";
+export * from "./core-ticket-communication";
+export * from "./core-ticket-outcome";

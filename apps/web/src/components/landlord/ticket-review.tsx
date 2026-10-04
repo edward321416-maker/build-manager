@@ -25,7 +25,7 @@ type LoadState =
   | { kind: "error"; message: string }
   | { kind: "ready"; ticket: LandlordTicketDetailDto };
 
-export function TicketReview({ ticketId }: { ticketId: string }) {
+export function TicketReview({ ticketId, client, coreFlow=false }: { ticketId: string; client?: ReturnType<typeof createBrowserApiClient>; coreFlow?: boolean }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -45,12 +45,12 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
   /** Reads the next state rather than setting it, so callers own the timing. */
   const fetchTicket = useCallback(async (): Promise<LoadState> => {
     try {
-      const ticket = await createBrowserApiClient().getLandlordTicket(ticketId);
+      const ticket = await (client ?? createBrowserApiClient()).getLandlordTicket(ticketId);
       return { kind: "ready", ticket };
     } catch (error) {
       return { kind: "error", message: describeApiError(error) };
     }
-  }, [ticketId]);
+  }, [client, ticketId]);
 
   /** Applies a settled result, including the route the selector defaults to. */
   const apply = useCallback((next: LoadState) => {
@@ -89,7 +89,7 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
     setBusy(true);
     setActionError(null);
     try {
-      const ticket = await action(createBrowserApiClient());
+      const ticket = await action(client ?? createBrowserApiClient());
       setState({ kind: "ready", ticket });
       setSelectedRoute(overrideOptions(ticket)[0]?.routeCode ?? "");
     } catch (error) {
@@ -101,9 +101,9 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
 
   return (
     <main className="landlord-page">
-      <DemoBanner />
+      {coreFlow ? null : <DemoBanner />}
       <p>
-        <Link href="/demo/landlord">← 임대인 데모 홈</Link>
+        <Link href={coreFlow ? "/core" : "/demo/landlord"}>{coreFlow ? "← 접수 목록" : "← 임대인 데모 홈"}</Link>
       </p>
 
       {state.kind === "loading" ? <StateMessage kind="loading" /> : null}
@@ -267,7 +267,7 @@ export function TicketReview({ ticketId }: { ticketId: string }) {
                 ))}
               </fieldset>
 
-              <fieldset className="follow-up-options">
+              <fieldset className="follow-up-options" hidden={coreFlow} disabled={coreFlow}>
                 <legend>다시 제출받을 DEMO 증빙</legend>
                 {state.ticket.followUpOptions.evidence.map((requirement) => (
                   <div className="field-check" key={requirement.evidenceType}>

@@ -19,6 +19,7 @@ export default function RoleHomeScreen() {
       </View>
 
       <SectionHeading>데모 시작하기</SectionHeading>
+      <ActionButton label="RC1 수리 접수·처리" onPress={() => router.push("/core")} testID="start-core" />
       <View style={styles.group}>
         <ActionButton
           label="세입자로 시작"

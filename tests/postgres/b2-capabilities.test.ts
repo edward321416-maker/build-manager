@@ -119,12 +119,14 @@ it("AC15 exactB2CapabilityCatalog", async () => {
     am.admin_option,am.inherit_option,am.set_option FROM pg_auth_members am
     JOIN pg_roles granted ON granted.oid=am.roleid JOIN pg_roles member ON member.oid=am.member
     WHERE (granted.rolname LIKE 'bm_%' OR member.rolname LIKE 'bm_%')
-      AND granted.rolname NOT IN ('bm_b4_assignment_owner','bm_b5_membership_owner','bm_b5_effective_admin_probe_owner') ORDER BY granted.rolname,member.rolname`)).rows;
+      AND granted.rolname NOT IN ('bm_b4_assignment_owner','bm_b5_membership_owner','bm_b5_effective_admin_probe_owner','bm_core_flow_owner','bm_core_access_owner','bm_core_onboarding_owner') ORDER BY granted.rolname,member.rolname`)).rows;
   expect(memberships).toEqual([{ granted: "bm_b1_capability_owner", member: owner.rolname,
     admin_option: false, inherit_option: false, set_option: true }]);
   // Keep this frozen regression scoped to the B1/B2 policy inventory. B3 policies
   // are asserted independently in b3-capabilities.test.ts; B4 additions in b4-capabilities.test.ts.
-  const policies = (await catalog()).filter(policy => !policy.polname.startsWith("b3_") && !policy.polname.startsWith("b4_") && !policy.polname.startsWith("b5_"));
+  // Exact successor additions are checked in core-onboarding.test.ts; do not exclude arbitrary new policies.
+  const onboardingPolicies=new Set(["onboarding_org_ceiling","onboarding_member_ceiling","onboarding_property_ceiling","onboarding_unit_ceiling","onboarding_occupancy_ceiling","onboarding_resident_ceiling"]);
+  const policies = (await catalog()).filter(policy => !policy.polname.startsWith("b3_") && !policy.polname.startsWith("b4_") && !policy.polname.startsWith("b5_") && !policy.polname.startsWith("core_access_") && !onboardingPolicies.has(policy.polname));
   const capOid = roleRows.find(r => r.rolname === "bm_b1_capability_owner")!.oid;
   const webOid = roleRows.find(r => r.rolname === "bm_b1_web")!.oid;
   const m = "user_id=authn.context_actor() AND status='ACTIVE' AND role=ANY(ARRAY['ORG_ADMIN','PROPERTY_STAFF'])";
@@ -180,7 +182,8 @@ it("AC15 exactB2CapabilityCatalog", async () => {
       WHERE p.oid=$1::regprocedure`, [signature])).rows[0];
     expect(f, signature).toEqual({ owner: "bm_b1_capability_owner", provolatile: volatility, lanname: language,
       prosecdef: definer, proconfig: ["search_path=pg_catalog"], args, result,
-      executors: name === "can_read_property" ? ["bm_b1_capability_owner", "bm_b1_web", "bm_b4_assignment_owner"]
+      executors: name === "can_read_property" ? ["bm_b1_capability_owner", "bm_b1_web", "bm_b4_assignment_owner", "bm_core_flow_owner"]
+        : name === "current_actor" ? ["bm_b1_capability_owner", "bm_b1_web", "bm_core_access_owner", "bm_core_flow_owner", "bm_core_onboarding_owner"]
         : web ? ["bm_b1_capability_owner", "bm_b1_web"] : ["bm_b1_capability_owner"], grantable: false });
     for (const role of ["bm_b1_login", "bm_pf02a_runtime"])
       expect((await h.migration.query("SELECT has_function_privilege($1,$2,'EXECUTE') AS allowed", [role, signature])).rows[0].allowed).toBe(false);

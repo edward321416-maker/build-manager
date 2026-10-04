@@ -60,11 +60,34 @@ const frozen: Record<string,string> = {
 };
 it("AC17 frozen foundation, dependency and workflow inventory retains canonical bytes",async()=>{
   for(const [path,expected] of Object.entries(frozen)) {
-    const canonical=(await readFile(path,"utf8")).replaceAll("\r\n","\n");
+    let canonical=(await readFile(path,"utf8")).replaceAll("\r\n","\n");
+    // The operator's RC1 photo directive explicitly permits only this existing
+    // codec as a pinned direct dependency. Reverse that exact additive delta,
+    // then retain every original B5 hash and all other dependency bytes.
+    if(path==="apps/web/package.json"){
+      const manifest=JSON.parse(canonical);expect(manifest.dependencies.sharp).toBe("0.35.4");delete manifest.dependencies.sharp;
+      canonical=JSON.stringify(manifest,null,2)+"\n";
+    }
+    if(path==="package-lock.json"){
+      const lock=JSON.parse(canonical);expect(lock.packages["apps/web"].dependencies.sharp).toBe("0.35.4");delete lock.packages["apps/web"].dependencies.sharp;
+      const codec=lock.packages["node_modules/sharp"];expect(codec.version).toBe("0.35.4");
+      expect(codec.resolved).toBe("https://registry.npmjs.org/sharp/-/sharp-0.35.4.tgz");
+      expect(codec.integrity).toBe("sha512-n++8XWcj+jCOr2IOl7h8LbKnGBDY4aPbmprMONBNFdn0ImXqpGVv5zliDs0V9HbmbCQLpbuo2ej9rAoOQTvMDA==");
+      delete codec.resolved;delete codec.integrity;
+      for(const key of ["node_modules/sharp","node_modules/@img/colour","node_modules/sharp/node_modules/semver"]){
+        expect(lock.packages[key].optional).toBeUndefined();
+        lock.packages[key]=Object.fromEntries(Object.entries(lock.packages[key]).flatMap(([k,v])=>k==="license"?[[k,v],["optional",true]]:[[k,v]]));
+      }
+      canonical=JSON.stringify(lock,null,2)+"\n";
+    }
     expect(createHash("sha256").update(canonical).digest("hex"),path).toBe(expected);
   }
   const manifest=JSON.parse(await readFile("packages/persistence-postgres/package.json","utf8"));
   expect(manifest.exports["./b5"]).toBe("./src/b5/index.ts"); delete manifest.exports["./b5"];
+  // Successor scope issue69 adds an isolated entry; the original public root stays frozen.
+  expect(manifest.exports["./core-flow"]).toBe("./src/core-flow.ts"); delete manifest.exports["./core-flow"];
+  // PR70 authorization5969526294 adds only this successor capability entry.
+  expect(manifest.exports["./core-onboarding"]).toBe("./src/core-onboarding.ts"); delete manifest.exports["./core-onboarding"];
   expect(manifest).toEqual({"name": "@build-manager/persistence-postgres", "version": "0.0.0", "private": true, "type": "module", "exports": {".": "./src/index.ts", "./testing": "./src/testing/index.ts", "./b1": "./src/b1/index.ts", "./b3": "./src/b3/index.ts", "./b4": "./src/b4/index.ts"}, "dependencies": {"pg": "8.23.0", "@build-manager/application": "0.0.0"}, "devDependencies": {"@testcontainers/postgresql": "12.1.0", "@types/pg": "8.23.1", "node-pg-migrate": "9.0.0"}});
 });
 it("AC01 B5 server graph excludes raw driver/demo/testing and exposes only the exact individual route",async()=>{

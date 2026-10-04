@@ -169,9 +169,11 @@ function EvidenceStage({
 export function TenantTicket({
   client,
   ticketId,
+  coreFlow=false,
 }: {
   client: ApiClient;
   ticketId: string;
+  coreFlow?: boolean;
 }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [busy, setBusy] = useState(false);
@@ -257,7 +259,7 @@ export function TenantTicket({
 
   return (
     <Screen>
-      <DemoBanner />
+      {coreFlow ? null : <DemoBanner />}
 
       {state.kind === "loading" ? <LoadingState /> : null}
 
@@ -320,7 +322,7 @@ export function TenantTicket({
             />
           ) : null}
 
-          {stage === "EVIDENCE" ? (
+          {stage === "EVIDENCE" && !coreFlow ? (
             <EvidenceStage
               busy={busy}
               onSubmit={submitEvidence}
@@ -329,7 +331,8 @@ export function TenantTicket({
             />
           ) : null}
 
-          {stage === "READY_TO_FINALIZE" ? (
+          {coreFlow && stage === "EVIDENCE" ? <Text>사진 업로드는 아직 지원하지 않습니다. 현재 정보로 제출하면 관리자가 부족한 정보를 확인합니다.</Text> : null}
+          {stage === "READY_TO_FINALIZE" || (coreFlow && stage === "EVIDENCE") ? (
             <View style={styles.card}>
               <SectionHeading>제출할 준비가 되었습니다</SectionHeading>
               <Text style={styles.body}>
