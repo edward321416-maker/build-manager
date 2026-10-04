@@ -201,7 +201,9 @@ current canonical documents.
 
 ## Current authorized next task
 
-**CURRENT ADDITIONAL PRODUCT TASK = NONE_AUTHORIZED_BY_THIS_CLOSURE.** RC1 development integration has been accepted with retained risks. Use the final [issue69 receipt](https://github.com/edward321416-maker/build-manager/issues/69) to verify the closure's publication SHA, canonical readback and fresh main CI. Read [RC1 acceptance](core_flow_rc1_acceptance.md) for the exact candidate, merge and scope. Do not treat historical Expo or release goals as standing authority for runtime changes, production deployment, real data, native release or live Auth0 rollout. Preserve existing dirty runtime files and running resources.
+**CURRENT ADDITIONAL PRODUCT TASK = UNIT_MAINTENANCE_FACT_TIMELINE_V1.** The operator separately approved the reviewed spec/plan and execution after RC1 closure. Base/POLICY_REF8d5b9c6; new isolated `feat/unit-maintenance-fact-v1` worktree; PR70 is merged and must not be reused. Read [the current execution/34-AC receipt](core_flow_rc1_unit_maintenance_fact.md) and [run instructions](../docs/core-flow-rc1-running.md). The new Draft's publication receipt owns its final exact HEAD and required9 CI evidence. Preserve old dirty workspaces/data/photos; no reset/rebase/stash/force push, Ready/merge/deploy, Auth0/IAM or Expo/native work.
+
+The prior closure's **NONE_AUTHORIZED_BY_THIS_CLOSURE** remains historical: it did not itself authorize this new task. [RC1 acceptance](core_flow_rc1_acceptance.md) retains its exact candidate, merge, acceptance and risk dispositions. This successor does not retroactively resolve Mobile, AC18, AC-D06, actual-manager Auth0 or native limitations.
 
 ## Historical RC1 implementation handoff (superseded current-task status)
 

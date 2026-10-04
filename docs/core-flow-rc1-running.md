@@ -1,5 +1,24 @@
 # Run the synthetic core flow
 
+## Unit Maintenance Fact Timeline v1
+
+Use the new isolated `feat/unit-maintenance-fact-v1` worktree based on8d5b9c6. Keep the previous RC1 worktree and running services intact. With the existing project-isolated Node24.21.0/npm11.19.0, Docker Desktop and installed dependencies, build while this worktree's server is stopped:
+
+```powershell
+npm run build:web
+node --experimental-transform-types scripts/core-flow-dev.mjs --prepare
+$env:CORE_FLOW_PORT = '3150'
+node --experimental-transform-types scripts/core-flow-dev.mjs --serve
+```
+
+Use a free3150 port; do not stop another process to take it. Open **http://127.0.0.1:3150/core**. Preparation preserves the existing synthetic database/tickets/photos and renews development codes for55 minutes. It prints only the private code-file location. Use the private `manager` code in a separate browser profile; this is synthetic authentication, not actual Auth0.
+
+Open a completed ticket, choose **정비 작업 종류**, optionally enter a short non-personal component/location label, and save **정비 사실 저장**. Choose **정정 기록 추가** to append a correction with a reason. Existing records and the completed source remain unchanged. **호실 이력에서 보기** or **호실 정비 이력** opens authorized unit history; **근거 접수 보기** uses the existing authorized source-ticket view. Tenant statements appear with neutral claim wording. The timeline is manager-only and does not copy text, photos, conversation or private work notes.
+
+After an uncertain response, **같은 요청으로 저장 확인** retries the same request only on explicit action. A stale correction requires **최신 기록을 확인했습니다** before resubmission. Refresh/re-entry and an owned-server restart preserve the facts and correction chain. The maximum100 rows are ordered by source completion time, then fact ID; corrections do not pretend to be newer repairs.
+
+Verification commands and the34-AC map are in the [execution receipt](../ops/core_flow_rc1_unit_maintenance_fact.md). Run the existing Core and SDK browser suites with their prepared synthetic sessions; after the Core suite, the new `node scripts/core-maintenance-fact-restart-check.mjs` uses only its two owned processes on free3132. It preserves the database volume. Expo/native, live Auth0 and production deployment are outside this slice.
+
 ## Manager Work Queue v1
 
 The existing manager workspace now opens **관리 업무함** across all authorized units. Filter by 건물·호실, 처리 상태 and 긴급도. Open a ticket for **업무 관리**, save priority/assignee display label/target time, or append an **내부 메모**. Notes and work metadata are manager-only. The label grants no access; completed records cannot be changed. The existing photo, route-decision and handling flow remains below it.
