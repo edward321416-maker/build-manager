@@ -2,7 +2,19 @@
 
 Repository: `edward321416-maker/build-manager`
 
-Current milestone: **UNIT MAINTENANCE FACT TIMELINE V1 ACCEPTED_AND_INTEGRATED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS**. Read the [unit-maintenance acceptance](core_flow_rc1_unit_maintenance_fact_acceptance.md), the earlier [RC1 closure](core_flow_rc1_acceptance.md), and current `STATUS.md` first after policy bootstrap. Historical Draft/NOT_ACCEPTED statements describe their original stage and do not override the accepted merges.
+Current milestone: **VENDOR SECURE HANDOFF, SCHEDULING & CLOSEOUT V1 — DESIGN_APPROVED / PLAN_READY_FOR_OPERATOR_APPROVAL** on branch `docs/vendor-secure-handoff-scheduling-closeout-v1-design`. The last closed canonical main milestone remains **UNIT MAINTENANCE FACT TIMELINE V1 ACCEPTED_AND_INTEGRATED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS**. Read the approved vendor spec and self-reviewed plan after the unit-maintenance acceptance / RC1 closure and current `STATUS.md`. Product implementation is **NOT_AUTHORIZED** until the operator separately approves the plan and execution method.
+
+## Current planning successor
+
+- **CURRENT_TASK:** Vendor Secure Handoff, Scheduling & Closeout v1 implementation-plan review.
+- **CURRENT_BRANCH:** `docs/vendor-secure-handoff-scheduling-closeout-v1-design`.
+- **BASE / POLICY_REF:** `954ef347efef9db29465aefa2e72003b176ee150`.
+- **APPROVED_SPEC:** `docs/superpowers/specs/2026-10-05-vendor-secure-handoff-scheduling-closeout-v1-design.md`.
+- **PLAN:** `docs/superpowers/plans/2026-10-05-vendor-secure-handoff-scheduling-closeout-v1.md` — `READY_FOR_OPERATOR_PLAN_APPROVAL`.
+- **IMPLEMENTATION_AUTHORIZED:** false.
+- **READY / MERGE / DEPLOY:** not authorized.
+- **NEXT_GATE:** operator plan approval + execution-method choice (Subagent-driven or Native).
+- **DO_NOT_REPEAT:** do not reopen the approved Vendor Secure Link / VendorAssignment / Work Packet / SchedulingRound / closeout design without new specific evidence; do not restart Timeline v1 review; do not publish product code from this planning branch.
 
 ## Purpose
 
