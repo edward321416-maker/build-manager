@@ -549,6 +549,8 @@ Rules:
 Manager function to `bm_b1_web`:
 - `issue_vendor_link(bytea,uuid,uuid,bigint,bytea)`
 
+On first PREPARING → OFFERED issue, this function already owns the source-ticket/assignment transaction. If the source ticket is OPEN, call the existing `core_flow.store_ticket` function with the unchanged ticket body, `kind='HANDLING'`, `message='처리를 시작했습니다.'`, and `work='IN_PROGRESS'` before committing the OFFERED transition. If the ticket is already IN_PROGRESS, do not append a duplicate handling-start event. Any later link reissue must not alter ticket workStatus or handling history.
+
 Vendor runtime functions to `bm_core_vendor_web` only:
 - `redeem_vendor_capability(bytea,bytea,bytea)`
 - `validate_vendor_session(bytea,bytea,boolean)`
@@ -1014,10 +1016,23 @@ npm run test:postgres -- --run tests/postgres/core-vendor-closeout.test.ts
 - [ ] **Step 3: Implement migration `0024_core_vendor_closeout.sql`**
 
 Manager functions:
-- prepare/finish vendor closeout primitives needed by application orchestration;
+- `close_vendor_assignment`;
 - revoke;
 - reassign;
 - follow-up from Completion Report.
+
+`close_vendor_assignment` performs the full closeout in one PostgreSQL transaction/function:
+1. lock/recheck source ticket;
+2. lock/recheck current assignment;
+3. lock/recheck current unsuperseded Completion Report and no blocker/OPEN round/pending correction;
+4. call existing `core_flow.guard_communication_completion` with the supplied expected communication version;
+5. require source workStatus IN_PROGRESS;
+6. call existing `core_flow.store_ticket` with the unchanged ticket body, `kind='HANDLING'`, the manager-supplied handling message and `work='COMPLETED'`;
+7. set assignment ENDED/CLOSED;
+8. revoke active capability/session;
+9. return current closeout projection.
+
+Do not duplicate ticket-event insertion or public-Q&A completion logic in a new implementation.
 
 Use consistent lock order:
 
@@ -1031,30 +1046,25 @@ Recheck authorization after waits.
 
 No direct table DML grant to Web roles.
 
-- [ ] **Step 4: Implement application closeout orchestration**
+- [ ] **Step 4: Implement application closeout wrapper**
 
 Add exact helper:
 
 ~~~ts
-export async function closeCoreVendorAssignment(
+export function closeCoreVendorAssignment(
   scope:CoreScope,
   assignmentId:string,
   input:CoreVendorCloseoutCommand,
-  clock:Clock,
-  ids:IdGenerator,
 ):Promise<CoreVendorCloseoutResult>;
 ~~~
 
-Sequence in the existing CoreFlow transaction:
-1. lock/read source ticket;
-2. prepare/lock current assignment/report;
-3. call existing `performCoreAction(... HANDLING COMPLETED ...)` so existing event/public-Q&A semantics remain authoritative;
-4. finish assignment CLOSED + revoke vendor access;
-5. return current ticket + assignment.
+The helper performs only application role/boundary validation and delegates to `scope.vendor.manager.closeout`. The persistence function from Step 3 is the atomic owner of ticket completion + assignment closeout and reuses the existing SQL completion/store functions.
+
+Do not call `performCoreAction(HANDLING COMPLETED)` from this helper; that generic path intentionally receives the direct-completion guard in Step 5.
 
 - [ ] **Step 5: Guard generic direct completion**
 
-Inside the existing HANDLING COMPLETED branch, before communication completion:
+Inside the existing generic HANDLING COMPLETED branch, before the existing communication completion guard:
 
 ~~~ts
 await scope.vendor.manager.guardDirectCompletion(action.ticketId);
@@ -1062,7 +1072,10 @@ await scope.vendor.manager.guardDirectCompletion(action.ticketId);
 
 The guard:
 - returns normally when no non-ended assignment exists;
+- returns normally when only historical ENDED assignments exist;
 - STATE_CONFLICT when PREPARING/OFFERED/ACTIVE exists.
+
+The dedicated vendor closeout endpoint does **not** enter this generic HANDLING branch; its SQL closeout function already performs the approved vendor-specific checks and then reuses `guard_communication_completion` + `store_ticket`.
 
 Do not change HANDLING IN_PROGRESS behavior.
 
@@ -1128,7 +1141,7 @@ Assert:
 - preview states exact vendor-visible fields and excludes private data;
 - explicit source-photo selection;
 - accessPolicy only two approved values;
-- link issue shows raw link once with copy action and warns that product does not send it;
+- link issue offers a one-time **copy** action and warns that product does not send it; the raw capability/link is never rendered as visible text and must not appear in screenshots;
 - OFFERED/ACTIVE state shows progress/revoke/reassign;
 - COMPLETION_REPORTED shows exactly three manager dispositions: closeout, correction request, follow-up;
 - vendor completion photos visible manager-only;
