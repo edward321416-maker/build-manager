@@ -372,3 +372,13 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Events UNIT-FACT-T0 and UNIT-FACT-T1-T3 / T4-T6 / T7-20261004: native Google Sheets append/readback confirmed; existing rolling handoff updated in place and read back at3afd28e. Historical pending items above remain pending. Final publication/CI and the bounded review correction are separate later receipts. No new plugin installation, schema-cache download or private-data upload.
 
 - Events PR71-ACCEPTED-MERGE-20261004 and PR71-IMPLEMENTATION-MAIN-CI-20261004: repository closure publication is being prepared after verified merge/main CI. External rolling-handoff and Sheet sync remain to be written/read back after canonical closure publication; no private test data is included.
+
+## 2026-10-05 Vendor Secure Handoff v1 written-spec checkpoint
+
+- Event `VENDOR-HANDOFF-V1-SPEC-DRAFT-20261005`; sync_status=pending; tokens=unknown.
+- The integrated Ticket-scoped Vendor Secure Link / VendorAssignment / Work Packet / SchedulingRound / visit-blocker / CompletionReport / manager closeout design is written on the dedicated docs branch as `DRAFT_FOR_USER_REVIEW`.
+- Self-review corrected three material specification issues before handoff: manager packet policy no longer fabricates tenant preauthorization; SchedulingRound distinguishes opened-packet provenance from current packet revision; completion-report correction is explicitly allowed while other vendor mutations remain frozen during manager review.
+- Existing manager-only completion, tenant outcome/follow-up, and explicit Unit Maintenance Fact semantics remain preserved.
+- Product/source/SQL/migration/test implementation, plan drafting, Ready/merge, production/IAM and real-data work remain NOT_AUTHORIZED.
+- No Google Docs/Sheets write/readback was performed for this checkpoint; historical pending/synced entries are preserved.
+
