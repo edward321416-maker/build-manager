@@ -1,12 +1,13 @@
 # Vendor Secure Handoff, Scheduling & Closeout v1 — Design Specification
 
-**Status:** DRAFT_FOR_USER_REVIEW  
+**Status:** DESIGN_APPROVED / IMPLEMENTATION_PLAN_DRAFTING_AUTHORIZED  
 **Project:** 모두의 창업 2기 / build-manager  
 **Repository:** edward321416-maker/build-manager  
 **POLICY_REF at authoring:** 954ef347efef9db29465aefa2e72003b176ee150  
 **TARGET_REF at authoring:** 954ef347efef9db29465aefa2e72003b176ee150  
 **Design class:** Architectural — new external vendor capability, scheduling, work-execution and closeout subsystem  
-**Implementation authority:** NOT_GRANTED_BY_THIS_SPEC  
+**Implementation-plan authority:** GRANTED_BY_OPERATOR_2026-10-05  
+**Product implementation authority:** NOT_GRANTED  
 **Production / real-data authority:** NOT_GRANTED
 
 ---
