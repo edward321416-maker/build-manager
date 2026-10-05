@@ -488,7 +488,7 @@ git commit -m "feat: add vendor assignment work packets"
 **Interfaces:**
 - Consumes current assignment/packet from Task 2.
 - Produces `bm_core_vendor_web` development/test connection and `createVendorFlowPort(database)`.
-- Produces manager link issue, vendor redeem/job/read, accept/decline/withdraw.
+- Produces manager link issue plus vendor redeem/job/read/decline. Vendor accept/withdraw are intentionally deferred to Task 4 so ACTIVE is created only together with its INITIAL SchedulingRound.
 
 - [ ] **Step 1: Write RED role and capability PostgreSQL tests**
 
@@ -555,9 +555,9 @@ Vendor runtime functions to `bm_core_vendor_web` only:
 - `redeem_vendor_capability(bytea,bytea,bytea)`
 - `validate_vendor_session(bytea,bytea,boolean)`
 - `read_vendor_job(bytea)`
-- `accept_vendor_assignment(bytea,uuid,bigint,uuid)`
 - `decline_vendor_assignment(bytea,uuid,bigint,uuid,text,text)`
-- `withdraw_vendor_assignment(bytea,uuid,bigint,uuid,text)`
+
+Do not implement ACCEPT or WITHDRAW in migration 0020. Those transitions are scheduling-aware and belong to migration 0021.
 
 Private helpers remain executable only by owner:
 - vendor session resolver;
@@ -604,9 +604,9 @@ Routes:
 - POST `/api/v2/vendor/session/redeem`
 - POST `/api/v2/vendor/session/logout`
 - GET `/api/v2/vendor/job`
-- POST `/api/v2/vendor/job/accept`
 - POST `/api/v2/vendor/job/decline`
-- POST `/api/v2/vendor/job/withdraw`
+
+ACCEPT and WITHDRAW routes are added in Task 4 with scheduling-aware persistence.
 
 - [ ] **Step 8: Wire manager link issue**
 
@@ -686,8 +686,8 @@ Cover:
 - stale `expectedRoundVersion` rejects;
 - stale packet revision during OPEN round rejects vendor mutation while the round remains intact;
 - foreign/cross-assignment scheduling IDs do not leak.
-- exact replay of availability/proposal/confirm/reschedule produces one durable action;
-- same clientRequestId with changed slot/window/round payload returns STATE_CONFLICT.
+- exact replay of accept/withdraw/availability/proposal/confirm/reschedule produces one durable action;
+- same clientRequestId with changed assignment/slot/window/round payload returns STATE_CONFLICT.
 
 - [ ] **Step 2: Run RED**
 
@@ -718,10 +718,14 @@ Authenticated `bm_b1_web` functions:
 - request tenant reschedule.
 
 Vendor `bm_core_vendor_web` functions:
+- accept assignment;
+- withdraw active assignment;
 - propose slots;
 - request vendor reschedule.
 
-Migration `0021` must `CREATE OR REPLACE FUNCTION` the Task 3 accept function so successful `OFFERED → ACTIVE` atomically creates the single INITIAL OPEN SchedulingRound. There is no separate client command to “start scheduling.”
+Successful ACCEPT atomically performs `OFFERED → ACTIVE` and creates the single INITIAL OPEN SchedulingRound. There is no separate client command to “start scheduling.”
+
+WITHDRAW atomically performs `ACTIVE → ENDED/WITHDRAWN`, supersedes/cancels any OPEN scheduling work owned by that assignment, invalidates future unoccurred appointments, preserves occurred visits/history, and revokes vendor access.
 
 - [ ] **Step 4: Implement authenticated tenant HTTP/client**
 
@@ -736,6 +740,8 @@ Keep current tenant ownership/occupancy checks server-side.
 - [ ] **Step 5: Implement vendor scheduling HTTP/client**
 
 Routes:
+- POST `/api/v2/vendor/job/accept`
+- POST `/api/v2/vendor/job/withdraw`
 - POST `/api/v2/vendor/scheduling/proposals`
 - POST `/api/v2/vendor/scheduling/reschedule`
 
