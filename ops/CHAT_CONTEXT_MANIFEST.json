@@ -6,8 +6,8 @@
     "baseline_main": "5670a6246805cadc9e6cb2c0ccff3eaaf01a2c2d",
     "baseline_meaning": "canonical B2 closure main used to build this bootstrap package; provenance only, not a permanent claim about the current main",
     "current_main": "LIVE_READ_REQUIRED",
-    "status": "RC1_ACCEPTED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS",
-    "snapshot_date": "2026-10-04",
+    "status": "VENDOR_HANDOFF_V1_PLAN_READY_FOR_OPERATOR_APPROVAL",
+    "snapshot_date": "2026-10-05",
     "staleness_rule": [
       "Always read the live main SHA yourself; never take current_main from this file.",
       "Compare live main against baseline_main. A newer main is expected and normal, because publishing this package is itself a commit.",
@@ -157,7 +157,15 @@
       "implementation_main": "e9144fac807f39544932baac25b11f836658dbb3",
       "acceptance_receipt": "ops/pf02_b_b5_acceptance.md"
     },
-    "Core flow RC1": "ACCEPTED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS"
+    "Core flow RC1": "ACCEPTED_IN_DEVELOPMENT_MAIN_WITH_RETAINED_RISKS",
+    "Vendor Secure Handoff v1": {
+      "state": "DESIGN_APPROVED_PLAN_READY_FOR_OPERATOR_APPROVAL",
+      "branch": "docs/vendor-secure-handoff-scheduling-closeout-v1-design",
+      "approved_spec": "docs/superpowers/specs/2026-10-05-vendor-secure-handoff-scheduling-closeout-v1-design.md",
+      "plan": "docs/superpowers/plans/2026-10-05-vendor-secure-handoff-scheduling-closeout-v1.md",
+      "implementation_authorized": false,
+      "ready_or_merge_authorized": false
+    }
   },
   "acceptance_receipts": [
     {
@@ -281,6 +289,16 @@
       "implementation_plan_authorized": false,
       "implementation_authorized": false,
       "note": "B5D2-L02 remains ACCEPTED_LOW_RESIDUAL; F15/F25/F39 remain NOT_RUN. Design publication alone authorizes no implementation work."
+    },
+    {
+      "slice": "Vendor Secure Handoff v1",
+      "path": "docs/superpowers/specs/2026-10-05-vendor-secure-handoff-scheduling-closeout-v1-design.md",
+      "canonical_blob": "1b07ba5714ab0c6eefa46fdaa6e2215d2e109de6",
+      "approval": "operator_approved",
+      "branch_local": true,
+      "implementation_plan_authorized": true,
+      "implementation_authorized": false,
+      "note": "Approved design on planning branch; plan is ready for separate operator approval. Not yet canonical main."
     }
   ],
   "frozen_decisions": [
@@ -721,18 +739,19 @@
     "publication_provenance": "https://github.com/edward321416-maker/build-manager/pull/48"
   },
   "current_product_task": {
-    "status": "NONE_AUTHORIZED_BY_THIS_CLOSURE",
+    "status": "VENDOR_SECURE_HANDOFF_V1_PLAN_REVIEW_ONLY",
     "last_closed_slice": "Unit Maintenance Fact Timeline v1",
-    "acceptance_receipt": "ops/core_flow_rc1_unit_maintenance_fact_acceptance.md",
-    "accepted_candidate": "be2733fc03dc67941896972cf72850e8e1b52104",
-    "implementation_main": "fd9dffdee5aaaea089607ac28db27b7fcb77b056",
-    "previous_rc1_acceptance_receipt": "ops/core_flow_rc1_acceptance.md",
+    "prior_acceptance_receipt": "ops/core_flow_rc1_unit_maintenance_fact_acceptance.md",
+    "branch": "docs/vendor-secure-handoff-scheduling-closeout-v1-design",
+    "policy_ref": "954ef347efef9db29465aefa2e72003b176ee150",
+    "approved_spec": "docs/superpowers/specs/2026-10-05-vendor-secure-handoff-scheduling-closeout-v1-design.md",
+    "plan": "docs/superpowers/plans/2026-10-05-vendor-secure-handoff-scheduling-closeout-v1.md",
+    "plan_status": "READY_FOR_OPERATOR_PLAN_APPROVAL",
+    "implementation_plan_authorized_for_drafting": true,
     "implementation_authorized": false,
     "ready_or_merge_authorized": false,
-    "next_gate": "SEPARATELY_SCOPED_FOLLOWUP_AUTHORIZATION",
-    "run_instructions": "docs/core-flow-rc1-running.md",
-    "original_two_platform_runtime_goal_achieved": false,
-    "note": "PR #71 was independently reviewed, remediated, delta-accepted and merged into development main. Candidate and implementation-main required checks both passed 9/9. Historical Expo/native/device/APK, actual-manager Auth0, AC-D06, Mobile/AC18 and dependency/CI-maintenance risks remain unresolved. No production, real data, tenant-facing maintenance history, native release or Auth0/IAM authority."
+    "next_gate": "OPERATOR_PLAN_APPROVAL_AND_EXECUTION_METHOD_DECISION",
+    "note": "Operator approved the written Vendor Secure Handoff, Scheduling & Closeout v1 design on 2026-10-05. The plan is self-reviewed and ready for operator review. No product/source/SQL/test implementation, Ready, merge, deployment, production/IAM or real-data authority is granted yet."
   },
   "b3_closure": {
     "state": "VERIFIED_FROZEN",
