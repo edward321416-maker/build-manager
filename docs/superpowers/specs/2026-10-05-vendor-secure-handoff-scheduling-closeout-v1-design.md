@@ -651,7 +651,7 @@ Success:
 OFFERED → ACTIVE
 ~~~
 
-The first SchedulingRound can then be opened according to schedulingMode.
+The first SchedulingRound can then be opened. Its effective scheduling mode is derived from the current packet accessPolicy and the tenant’s current availability/consent.
 
 ### 21.2 Decline
 
@@ -885,12 +885,12 @@ An occurred appointment is never relabeled SUPERSEDED merely because another vis
 Before an Appointment is confirmed:
 
 - workSummary/sharedDetails/sharedPhotos may change through a new packet revision;
-- accessMode/schedulingMode/service location changes supersede incompatible OPEN proposals/rounds.
+- accessPolicy or service-location changes supersede incompatible OPEN proposals/rounds.
 
 After an Appointment is confirmed:
 
 - non-scheduling packet information may be revised;
-- serviceAddress, unitLabel, accessMode or schedulingMode cannot silently change underneath that appointment.
+- serviceAddress, unitLabel or accessPolicy cannot silently change underneath that appointment.
 
 A consequential access/location change requires cancellation/rescheduling before the new contract becomes operative.
 
@@ -1650,7 +1650,7 @@ Vendor Completion Report
 14. Exactly one OPEN SchedulingRound per assignment.
 15. Appointment start/end are immutable.
 16. RESCHEDULE and FOLLOW_UP are different histories.
-17. ENTRY_PREAUTHORIZED Appointment references the exact tenant authorization.
+17. A PREAUTHORIZED_ENTRY_WINDOW Appointment references the exact tenant authorization.
 18. Preauthorized visit start rechecks current occupancy authority.
 19. One VISIT_STARTED per Appointment.
 20. At most one current blocker per assignment.
