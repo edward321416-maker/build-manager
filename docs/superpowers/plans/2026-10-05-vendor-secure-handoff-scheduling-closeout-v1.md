@@ -1,5 +1,7 @@
 # Vendor Secure Handoff, Scheduling & Closeout v1 Implementation Plan
 
+**Status:** READY_FOR_OPERATOR_PLAN_APPROVAL
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a development-only ticket-scoped vendor handoff that lets one external vendor securely receive a reviewed work packet, coordinate appointments with the current tenant, record visit/blocker/completion evidence, and reach atomic manager closeout without creating vendor IAM or changing existing tenant outcome / Maintenance Fact semantics.
