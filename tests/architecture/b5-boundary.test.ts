@@ -61,15 +61,156 @@ const frozen: Record<string,string> = {
 it("AC17 frozen foundation, dependency and workflow inventory retains canonical bytes",async()=>{
   for(const [path,expected] of Object.entries(frozen)) {
     let canonical=(await readFile(path,"utf8")).replaceAll("\r\n","\n");
+    // Issue72 authorization5996150407 permits only this exact successor block.
+    if(path===".github/workflows/app-check.yml"){
+      const successorBlock=String.raw`      - name: Prepare Core synthetic state
+        shell: bash
+        run: |
+          node --experimental-transform-types scripts/core-flow-dev.mjs --prepare
+      - name: Run complete Core release gate
+        working-directory: apps/web
+        shell: bash
+        run: |
+          npm exec -- playwright test --config playwright.core.config.ts --workers=1 --retries=0
+      - name: Prepare SDK synthetic state
+        shell: bash
+        run: |
+          node --experimental-transform-types scripts/core-flow-b1-dev.mjs --prepare-synthetic-sdk
+      - name: Run complete SDK Core release gate
+        working-directory: apps/web
+        shell: bash
+        run: |
+          npm exec -- playwright test --config playwright.core-login.config.ts --workers=1 --retries=0
+`;
+      expect(canonical.split(successorBlock)).toHaveLength(2);
+      const jobStart=canonical.indexOf("  web-e2e:\n");
+      const jobEnd=canonical.indexOf("  mobile-health:\n",jobStart);
+      expect(jobStart).toBeGreaterThanOrEqual(0);
+      expect(jobEnd).toBeGreaterThan(jobStart);
+      const steps=[
+        "      - name: Build Web once for both browser suites\n",
+        "      - name: Prepare Core synthetic state\n",
+        "      - name: Run complete Core release gate\n",
+        "      - name: Prepare SDK synthetic state\n",
+        "      - name: Run complete SDK Core release gate\n",
+        "      - name: Run Web E2E with existing synthetic-state configuration\n",
+        "      - name: Run B1 Web with PostgreSQL and synthetic SDK sessions\n",
+      ];
+      let previous=jobStart;
+      for(const step of steps){
+        expect(canonical.split(step),step).toHaveLength(2);
+        const position=canonical.indexOf(step);
+        expect(position,step).toBeGreaterThan(previous);
+        expect(position,step).toBeLessThan(jobEnd);
+        previous=position;
+      }
+      canonical=canonical.replace(successorBlock,"");
+    }
     // The operator's RC1 photo directive explicitly permits only this existing
     // codec as a pinned direct dependency. Reverse that exact additive delta,
     // then retain every original B5 hash and all other dependency bytes.
     if(path==="apps/web/package.json"){
-      const manifest=JSON.parse(canonical);expect(manifest.dependencies.sharp).toBe("0.35.4");delete manifest.dependencies.sharp;
+      const manifest=JSON.parse(canonical);
+      expect(manifest.dependencies.next).toBe("16.3.8");
+      expect(manifest.devDependencies["eslint-config-next"]).toBe("16.3.8");
+      manifest.dependencies.next="16.3.4";
+      manifest.devDependencies["eslint-config-next"]="16.3.4";
+      expect(manifest.dependencies.sharp).toBe("0.35.4");delete manifest.dependencies.sharp;
       canonical=JSON.stringify(manifest,null,2)+"\n";
     }
     if(path==="package-lock.json"){
-      const lock=JSON.parse(canonical);expect(lock.packages["apps/web"].dependencies.sharp).toBe("0.35.4");delete lock.packages["apps/web"].dependencies.sharp;
+      const lock=JSON.parse(canonical);
+      // Complete field-level delta from base954ef347, derived before this edit.
+      // Assert every successor value before reversing only those exact fields.
+      const ABSENT=Symbol("ABSENT");
+      const successorDelta=[
+        [["packages","apps/web","dependencies","next"],"16.3.4","16.3.8"],
+        [["packages","apps/web","devDependencies","eslint-config-next"],"16.3.4","16.3.8"],
+        [["packages","node_modules/@next/env","integrity"],ABSENT,"sha512-Al9zqHVV7TJv0eFuOU4U7Lvv74PTih4Ch63sk2xCIpSTkE3udFnaOcnzP2lQVymiL7yS9Cj2iClUXlR3EQ5sEw=="],
+        [["packages","node_modules/@next/env","resolved"],ABSENT,"https://registry.npmjs.org/@next/env/-/env-16.3.8.tgz"],
+        [["packages","node_modules/@next/env","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/@next/eslint-plugin-next","integrity"],ABSENT,"sha512-eCR9RcLTZrVS+K3+VOhi0xMdUUGNuriCHHhU1ZoABC/QQ/Gp0OWbLKQxV2/9DkmihYdYRcQWFmZXW8M1AMUXYw=="],
+        [["packages","node_modules/@next/eslint-plugin-next","resolved"],ABSENT,"https://registry.npmjs.org/@next/eslint-plugin-next/-/eslint-plugin-next-16.3.8.tgz"],
+        [["packages","node_modules/@next/eslint-plugin-next","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/@next/eslint-plugin-next/node_modules/@eslint-community/eslint-utils","integrity"],ABSENT,"sha512-phrYmNiYppR7znFEdqgfWHXR6NCkZEK7hwWDHZUjit/2/U0r6XvkDl0SYnoM51Hq7FhCGdLDT6zxCCOY1hexsQ=="],
+        [["packages","node_modules/@next/eslint-plugin-next/node_modules/@eslint-community/eslint-utils","resolved"],ABSENT,"https://registry.npmjs.org/@eslint-community/eslint-utils/-/eslint-utils-4.9.1.tgz"],
+        [["packages","node_modules/@next/eslint-plugin-next/node_modules/eslint-visitor-keys","integrity"],ABSENT,"sha512-wpc+LXeiyiisxPlEkUzU6svyS1frIO3Mgxj1fdy7Pm8Ygzguax2N3Fa/D/ag1WqbOprdI+uY6wMUl8/a2G+iag=="],
+        [["packages","node_modules/@next/eslint-plugin-next/node_modules/eslint-visitor-keys","resolved"],ABSENT,"https://registry.npmjs.org/eslint-visitor-keys/-/eslint-visitor-keys-3.4.3.tgz"],
+        [["packages","node_modules/@next/swc-darwin-arm64","integrity"],"sha512-iBr3I5LZNk5/bgl5//iTgD2tcym14MX0Xo7fD//u9dYAEgGzza1y9oywluPtf74YnOswVdH1908aK9xVz7zQTw==","sha512-2JPRMh2nmQG5CiL7cXGL9AGwnPWJQ//cTtAUCT+w511QHk79SYz3LGv/pc5X643B/WEO0rvu3Yww0hqwt3kgeA=="],
+        [["packages","node_modules/@next/swc-darwin-arm64","resolved"],"https://registry.npmjs.org/@next/swc-darwin-arm64/-/swc-darwin-arm64-16.3.4.tgz","https://registry.npmjs.org/@next/swc-darwin-arm64/-/swc-darwin-arm64-16.3.8.tgz"],
+        [["packages","node_modules/@next/swc-darwin-arm64","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/@next/swc-darwin-x64","integrity"],"sha512-2dpiSyl2Jw/NrBPaU2MAKGSa+2MR82pJIn4Sm5Rjr+gxAeuh0z158Su3Z2O8zn7UNNq+ej4bToed6RcRN/Lydg==","sha512-GZtCCOBKJ4leVIT/Th0llWKhD1ca92lzbQiS5R5ON9QkoiFnilFsebDae1JU2a3HWoKMEmEZWGs1AGLavVM72Q=="],
+        [["packages","node_modules/@next/swc-darwin-x64","resolved"],"https://registry.npmjs.org/@next/swc-darwin-x64/-/swc-darwin-x64-16.3.4.tgz","https://registry.npmjs.org/@next/swc-darwin-x64/-/swc-darwin-x64-16.3.8.tgz"],
+        [["packages","node_modules/@next/swc-darwin-x64","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/@next/swc-linux-arm64-gnu","integrity"],"sha512-+t+U8HZT+fApePCS5h89CSH3datz29MkzyfCn+6fpsZBG/oiEOhINcb9rtkv6sdpToLGFn2e6146NzaKCXkqrA==","sha512-O659ygeQYqneJ1fBKMpFxIFqYkYswu8IAS1OCKK/4f3ZgJJm1dRz4fVJZRi/kLLWjnBKnebOePA4WNv+sV1pVA=="],
+        [["packages","node_modules/@next/swc-linux-arm64-gnu","resolved"],"https://registry.npmjs.org/@next/swc-linux-arm64-gnu/-/swc-linux-arm64-gnu-16.3.4.tgz","https://registry.npmjs.org/@next/swc-linux-arm64-gnu/-/swc-linux-arm64-gnu-16.3.8.tgz"],
+        [["packages","node_modules/@next/swc-linux-arm64-gnu","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/@next/swc-linux-arm64-musl","integrity"],"sha512-mx03GNs1ocQA5JQ4FxDMmIsNkdrZh8cuezKCrId28e5/gIPU/l7Kcy2+vmCCzdjnnmXJy+iOAu+7K0QppO6Urg==","sha512-dSjKSyWpzxoO1d3DIZZcP4XJcNaKeLmxQMFOiYl5vuBRMmweIqnAhty8tAmRsvTss779cK1FtYnDMj40e4TQlg=="],
+        [["packages","node_modules/@next/swc-linux-arm64-musl","resolved"],"https://registry.npmjs.org/@next/swc-linux-arm64-musl/-/swc-linux-arm64-musl-16.3.4.tgz","https://registry.npmjs.org/@next/swc-linux-arm64-musl/-/swc-linux-arm64-musl-16.3.8.tgz"],
+        [["packages","node_modules/@next/swc-linux-arm64-musl","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/@next/swc-linux-x64-gnu","integrity"],"sha512-YIhGY6fSMfha52bnVxnzc9zaVBzJg+cqQTOD8tXIBSx4fuv0pVMxQTE0PaS59YhnMOiYiG09IMwxJAf/CFm/Dw==","sha512-lbqOuz3RPRcv+o9msNsJw5x4+Y1ZwPTs6vmL6DCf7i0fZfvng/F59wyeDwqHIvV0mK//RBy/jJkZ+nCKsSMXjQ=="],
+        [["packages","node_modules/@next/swc-linux-x64-gnu","resolved"],"https://registry.npmjs.org/@next/swc-linux-x64-gnu/-/swc-linux-x64-gnu-16.3.4.tgz","https://registry.npmjs.org/@next/swc-linux-x64-gnu/-/swc-linux-x64-gnu-16.3.8.tgz"],
+        [["packages","node_modules/@next/swc-linux-x64-gnu","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/@next/swc-linux-x64-musl","integrity"],"sha512-+eaaX6axpDb0yF1GCpiERe6njplvdC+nks/fKfcHu3XPGRrald8P3/X7yv7QLdjA51knnxwl9pxdIJsg+w1L+Q==","sha512-+316WswI8ScVgZeUd+1KGaXkHhaYQzCjvH/05TZSpJ8zBizb1a4G7DtO7F12jcBIqMOtsz9ji1t48fmKtzqsGA=="],
+        [["packages","node_modules/@next/swc-linux-x64-musl","resolved"],"https://registry.npmjs.org/@next/swc-linux-x64-musl/-/swc-linux-x64-musl-16.3.4.tgz","https://registry.npmjs.org/@next/swc-linux-x64-musl/-/swc-linux-x64-musl-16.3.8.tgz"],
+        [["packages","node_modules/@next/swc-linux-x64-musl","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/@next/swc-win32-arm64-msvc","integrity"],"sha512-0jcXW7Xs/uzICrmgV3MhDYDeRy++1CqnpDIerlPIqYO4bhzB4WNbX/aRnQclustsAyTkFKB0z6rbcjmNg5tR8A==","sha512-ji0gd4kMYUxO+1fJBIbiBVRCjzG/lloiyCccnlebvb1ZJ5qXCPZqYg4Jl1DrrixnWNMKylzgpmMWx0yNDYXlzw=="],
+        [["packages","node_modules/@next/swc-win32-arm64-msvc","resolved"],"https://registry.npmjs.org/@next/swc-win32-arm64-msvc/-/swc-win32-arm64-msvc-16.3.4.tgz","https://registry.npmjs.org/@next/swc-win32-arm64-msvc/-/swc-win32-arm64-msvc-16.3.8.tgz"],
+        [["packages","node_modules/@next/swc-win32-arm64-msvc","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/@next/swc-win32-x64-msvc","integrity"],ABSENT,"sha512-WcTlaKt/TWkh5kUjdJcUmB1XgZ+1c6fz4Y9fDHL73YNSdGaUWjceeWrrlwF0nv19iABYWC4iAq1oX1w4Bn0vfg=="],
+        [["packages","node_modules/@next/swc-win32-x64-msvc","resolved"],ABSENT,"https://registry.npmjs.org/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-16.3.8.tgz"],
+        [["packages","node_modules/@next/swc-win32-x64-msvc","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/@nodelib/fs.scandir","integrity"],ABSENT,"sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g=="],
+        [["packages","node_modules/@nodelib/fs.scandir","resolved"],ABSENT,"https://registry.npmjs.org/@nodelib/fs.scandir/-/fs.scandir-2.1.5.tgz"],
+        [["packages","node_modules/@nodelib/fs.stat","integrity"],ABSENT,"sha512-RkhPPp2zrqDAQA/2jNhnztcPAlv64XdhIp7a7454A5ovI7Bukxgt7MX7udwAu3zg1DcpPU0rz3VV1SeaqvY4+A=="],
+        [["packages","node_modules/@nodelib/fs.stat","resolved"],ABSENT,"https://registry.npmjs.org/@nodelib/fs.stat/-/fs.stat-2.0.5.tgz"],
+        [["packages","node_modules/@nodelib/fs.walk","integrity"],ABSENT,"sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
+        [["packages","node_modules/@nodelib/fs.walk","resolved"],ABSENT,"https://registry.npmjs.org/@nodelib/fs.walk/-/fs.walk-1.2.8.tgz"],
+        [["packages","node_modules/eslint-config-next","dependencies","@next/eslint-plugin-next"],"16.3.4","16.3.8"],
+        [["packages","node_modules/eslint-config-next","integrity"],ABSENT,"sha512-81vovwMe6NGnoFsl0KUJWzlS+y239i3fdsxs49gSEX3pDQW2cuKy+fxUPXNkQqqx6OCPheYPtBlSufc9aZ0k+w=="],
+        [["packages","node_modules/eslint-config-next","resolved"],ABSENT,"https://registry.npmjs.org/eslint-config-next/-/eslint-config-next-16.3.8.tgz"],
+        [["packages","node_modules/eslint-config-next","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/fast-glob","integrity"],ABSENT,"sha512-kNFPyjhh5cKjrUltxs+wFx+ZkbRaxxmZ+X0ZU31SOsxCEtP9VPgtq2teZw1DebupL5GmDaNQ6yKMMVcM41iqDg=="],
+        [["packages","node_modules/fast-glob","resolved"],ABSENT,"https://registry.npmjs.org/fast-glob/-/fast-glob-3.3.1.tgz"],
+        [["packages","node_modules/fast-glob/node_modules/glob-parent","integrity"],ABSENT,"sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow=="],
+        [["packages","node_modules/fast-glob/node_modules/glob-parent","resolved"],ABSENT,"https://registry.npmjs.org/glob-parent/-/glob-parent-5.1.2.tgz"],
+        [["packages","node_modules/fastq","integrity"],ABSENT,"sha512-XKv5nnLs6nLF71NgiKJLIZFLkPyIEuOselLG7ujZnGrRfQK8HpvY+WqKhAJUAdLomwVHErVS4LfxFlPq0/FTAw=="],
+        [["packages","node_modules/fastq","resolved"],ABSENT,"https://registry.npmjs.org/fastq/-/fastq-1.20.3.tgz"],
+        [["packages","node_modules/merge2","integrity"],ABSENT,"sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg=="],
+        [["packages","node_modules/merge2","resolved"],ABSENT,"https://registry.npmjs.org/merge2/-/merge2-1.4.1.tgz"],
+        [["packages","node_modules/next","dependencies","@next/env"],"16.3.4","16.3.8"],
+        [["packages","node_modules/next","integrity"],ABSENT,"sha512-U7QEZaTini6wKrb8A8hqLLqYQyCetegKjCpJOyxk642vWoMoU1x5PyZCJFvgYgiptA8xc5j/9xYlZFO7w9Sjmw=="],
+        [["packages","node_modules/next","optionalDependencies","@next/swc-darwin-arm64"],"16.3.4","16.3.8"],
+        [["packages","node_modules/next","optionalDependencies","@next/swc-darwin-x64"],"16.3.4","16.3.8"],
+        [["packages","node_modules/next","optionalDependencies","@next/swc-linux-arm64-gnu"],"16.3.4","16.3.8"],
+        [["packages","node_modules/next","optionalDependencies","@next/swc-linux-arm64-musl"],"16.3.4","16.3.8"],
+        [["packages","node_modules/next","optionalDependencies","@next/swc-linux-x64-gnu"],"16.3.4","16.3.8"],
+        [["packages","node_modules/next","optionalDependencies","@next/swc-linux-x64-musl"],"16.3.4","16.3.8"],
+        [["packages","node_modules/next","optionalDependencies","@next/swc-win32-arm64-msvc"],"16.3.4","16.3.8"],
+        [["packages","node_modules/next","optionalDependencies","@next/swc-win32-x64-msvc"],"16.3.4","16.3.8"],
+        [["packages","node_modules/next","resolved"],ABSENT,"https://registry.npmjs.org/next/-/next-16.3.8.tgz"],
+        [["packages","node_modules/next","version"],"16.3.4","16.3.8"],
+        [["packages","node_modules/queue-microtask","integrity"],ABSENT,"sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A=="],
+        [["packages","node_modules/queue-microtask","resolved"],ABSENT,"https://registry.npmjs.org/queue-microtask/-/queue-microtask-1.2.3.tgz"],
+        [["packages","node_modules/reusify","integrity"],ABSENT,"sha512-g6QUff04oZpHs0eG5p83rFLhHeV00ug/Yf9nZM6fLeUrPguBTkTQOdpAWWspMh55TZfVQDPaN3NQJfbVRAxdIw=="],
+        [["packages","node_modules/reusify","resolved"],ABSENT,"https://registry.npmjs.org/reusify/-/reusify-1.1.0.tgz"],
+        [["packages","node_modules/run-parallel","integrity"],ABSENT,"sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA=="],
+        [["packages","node_modules/run-parallel","resolved"],ABSENT,"https://registry.npmjs.org/run-parallel/-/run-parallel-1.2.0.tgz"],
+      ] as const;
+      for(const [jsonPath,baseline,successor] of successorDelta){
+        const label=JSON.stringify(jsonPath);
+        let parent: Record<string,unknown>=lock;
+        for(const part of jsonPath.slice(0,-1)){
+          expect(Object.hasOwn(parent,part),label).toBe(true);
+          parent=parent[part] as Record<string,unknown>;
+        }
+        const field=jsonPath[jsonPath.length-1];
+        expect(Object.hasOwn(parent,field),label).toBe(true);
+        expect(parent[field],label).toBe(successor);
+        if(baseline===ABSENT)delete parent[field];
+        else parent[field]=baseline;
+      }
+      expect(lock.packages["apps/web"].dependencies.sharp).toBe("0.35.4");delete lock.packages["apps/web"].dependencies.sharp;
       const codec=lock.packages["node_modules/sharp"];expect(codec.version).toBe("0.35.4");
       expect(codec.resolved).toBe("https://registry.npmjs.org/sharp/-/sharp-0.35.4.tgz");
       expect(codec.integrity).toBe("sha512-n++8XWcj+jCOr2IOl7h8LbKnGBDY4aPbmprMONBNFdn0ImXqpGVv5zliDs0V9HbmbCQLpbuo2ej9rAoOQTvMDA==");
