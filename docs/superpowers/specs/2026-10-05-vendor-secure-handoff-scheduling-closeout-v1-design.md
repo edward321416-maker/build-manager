@@ -345,6 +345,8 @@ Sensitive vendor pages and APIs use at minimum:
 - X-Content-Type-Options: nosniff;
 - frame embedding protection.
 
+The vendor capability surface must not load third-party analytics or other third-party scripts that could observe the raw fragment or vendor-session context.
+
 ### 10.4 Vendor session
 
 Successful redemption creates an opaque vendor session.
@@ -422,11 +424,10 @@ A published Work Packet contains only:
 - explicitly allowed completion-source/input photo references for vendor viewing
 
 ### Access
-- accessMode
+- accessPolicy
 - accessInstruction
 
-### Scheduling policy
-- schedulingMode
+Scheduling mode is not pre-declared by the manager. The effective scheduling mode is derived later from accessPolicy plus the tenant’s current availability/consent.
 
 The vendor sees only the current published revision by default.
 
@@ -554,26 +555,32 @@ Vendor contracts must not contain:
 
 ---
 
-## 18. Access modes
+## 18. Access policy
 
-v1 supports exactly two access modes:
+The Work Packet stores what the manager permits, not a tenant consent that has not happened yet.
 
-- TENANT_PRESENT
-- ENTRY_PREAUTHORIZED
+v1 supports exactly two accessPolicy values:
+
+- TENANT_PRESENT_REQUIRED
+- TENANT_PREAUTHORIZATION_ALLOWED
 
 MANAGER_COORDINATED is intentionally excluded from v1 because it would require a separate provenance model for manager-recorded tenant consent.
 
-### 18.1 TENANT_PRESENT
+### 18.1 TENANT_PRESENT_REQUIRED
 
-The resident must explicitly confirm the final appointment.
+The tenant must explicitly confirm the final appointment.
 
-### 18.2 ENTRY_PREAUTHORIZED
+Tenant preauthorization is not accepted for this assignment.
 
-The tenant explicitly authorizes access within one or more availability windows.
+### 18.2 TENANT_PREAUTHORIZATION_ALLOWED
 
-The eventual Appointment records the exact availability submission/window that supplied the authorization.
+The tenant may still use normal resident-confirmation scheduling, or may explicitly authorize unattended access within one or more submitted availability windows.
 
-A vendor cannot self-declare preauthorization.
+The manager cannot create that tenant authorization.
+
+The vendor cannot create that tenant authorization.
+
+The eventual Appointment records the exact availability submission/window that supplied preauthorization when that path is used.
 
 ---
 
@@ -598,18 +605,22 @@ The product does not claim perfect secret detection from free text.
 
 ---
 
-## 20. Scheduling modes
+## 20. Effective scheduling modes
 
-schedulingMode is exactly one of:
+The manager does not choose the realized scheduling mode directly.
+
+The effective scheduling mode is a server-derived projection and is exactly one of:
 
 - RESIDENT_CONFIRMATION_REQUIRED
 - PREAUTHORIZED_ENTRY_WINDOW
 
-TENANT_PRESENT maps to RESIDENT_CONFIRMATION_REQUIRED.
+Rules:
 
-ENTRY_PREAUTHORIZED maps to PREAUTHORIZED_ENTRY_WINDOW.
+- TENANT_PRESENT_REQUIRED always derives RESIDENT_CONFIRMATION_REQUIRED.
+- TENANT_PREAUTHORIZATION_ALLOWED derives PREAUTHORIZED_ENTRY_WINDOW only when the current tenant explicitly preauthorizes the relevant submitted windows.
+- TENANT_PREAUTHORIZATION_ALLOWED otherwise derives RESIDENT_CONFIRMATION_REQUIRED.
 
-A packet revision that changes the access/scheduling contract is consequential to existing scheduling and follows the invalidation rules below.
+A packet revision that changes accessPolicy is consequential to existing scheduling and follows the invalidation rules below.
 
 ---
 
@@ -694,12 +705,15 @@ Fields include conceptually:
 
 - id
 - assignmentId
-- packetRevisionId
+- openedPacketRevisionId
 - purpose
-- mode
 - status
 - version
 - createdAt
+
+openedPacketRevisionId records the packet revision current when the round opened. It is provenance, not a promise that the packet can never receive a non-scheduling revision while the round remains open.
+
+Each vendor proposal and each confirmed Appointment records the current packetRevisionId used for that action. Vendor mutations also supply expectedPacketRevisionId and conflict if the assignment has since published another current packet.
 
 purpose is one of:
 
@@ -741,7 +755,9 @@ Each window:
 - uses an offset-aware timestamp;
 - does not overlap another window in the same submission.
 
-For ENTRY_PREAUTHORIZED, the submission additionally records explicit access authorization for those windows.
+When current accessPolicy is TENANT_PREAUTHORIZATION_ALLOWED, the submission may additionally record explicit access authorization for those windows.
+
+When current accessPolicy is TENANT_PRESENT_REQUIRED, a preauthorization flag is rejected.
 
 The tenant must be the currently authorized tenant for the source ticket/unit at the time of submission.
 
@@ -765,7 +781,9 @@ VendorSchedulingProposal contains one to five future candidate slots.
 
 The tenant selects one offered slot.
 
-If the tenant needs another time, the current proposal can be superseded and a new availability/proposal cycle occurs within the round or a replacement round according to the implementation contract.
+If the tenant needs another time before an Appointment has been confirmed, the current proposal is superseded and a new availability/proposal cycle stays inside the same OPEN SchedulingRound.
+
+A replacement SchedulingRound is created only after a confirmed Appointment needs RESCHEDULE, or after an occurred visit requires FOLLOW_UP.
 
 Manager routine approval is not required.
 
@@ -776,7 +794,9 @@ Manager routine approval is not required.
 For PREAUTHORIZED_ENTRY_WINDOW:
 
 ~~~text
-tenant preauthorized window
+Work Packet accessPolicy = TENANT_PREAUTHORIZATION_ALLOWED
+→ current tenant explicitly preauthorizes submitted window
+→ effective mode = PREAUTHORIZED_ENTRY_WINDOW
 → vendor selects a slot fully inside that window
 → server validates containment
 → Appointment
@@ -970,6 +990,8 @@ BLOCKER_CLEARED:
 
 A follow-up SchedulingRound may be created when another visit is required.
 
+A FOLLOW_UP round opened from a current blocker or completion-report disposition records the source evidence that caused the follow-up. Any blocker cleared as part of opening that round is cleared atomically and remains in history.
+
 ---
 
 ## 34. VendorCompletionReport
@@ -992,7 +1014,7 @@ Submission requires:
 - no active blocker;
 - no OPEN SchedulingRound;
 - current packet version acknowledged;
-- no unresolved prior completion-report correction request.
+- either no unresolved completion-report correction request, or this submission is the correction revision that exactly responds to the current request and supersedes the report named by that request.
 
 ---
 
@@ -1085,7 +1107,11 @@ During COMPLETION_REPORTED:
 - new packet publication is forbidden;
 - new scheduling proposals are forbidden;
 - new visit starts are forbidden;
-- a second unrelated completion report is forbidden.
+- a second unrelated completion report is forbidden;
+- reassignment/revocation that would bypass manager disposition is forbidden;
+- the one allowed vendor mutation is a correction-report submission that exactly satisfies the current durable correction request.
+
+The manager must first choose closeout, report correction, or follow-up work. After a follow-up disposition is committed, normal follow-up scheduling/reassignment rules apply again.
 
 ---
 
@@ -1097,7 +1123,8 @@ The correction request:
 
 - is durable and audited;
 - references the current report;
-- contains a bounded manager reason;
+- contains a required plain-text manager reason of 1 to 500 characters;
+- has at most one unresolved request for the assignment;
 - does not mutate the report.
 
 The vendor submits a new VendorCompletionReport revision:
@@ -1298,7 +1325,7 @@ The vendor handoff section supports:
 - vendorLabel;
 - prepare and preview exact Work Packet;
 - select input photos;
-- choose access/scheduling mode;
+- choose accessPolicy (tenant presence required or tenant preauthorization allowed);
 - publish packet;
 - issue/reissue/revoke secure link;
 - observe assignment/scheduling/current waiting state;
@@ -1374,6 +1401,7 @@ Candidate manager routes:
 - POST /api/v2/core/manager/vendor-assignments/:assignmentId/reassign
 - POST /api/v2/core/manager/vendor-assignments/:assignmentId/completion-correction
 - POST /api/v2/core/manager/vendor-assignments/:assignmentId/follow-up
+- POST /api/v2/core/manager/vendor-assignments/:assignmentId/reschedule
 - POST /api/v2/core/manager/vendor-assignments/:assignmentId/closeout
 
 ### Existing authenticated tenant namespace
@@ -1396,6 +1424,7 @@ Candidate vendor routes:
 - POST /api/v2/vendor/job/decline
 - POST /api/v2/vendor/job/withdraw
 - POST /api/v2/vendor/scheduling/proposals
+- POST /api/v2/vendor/scheduling/reschedule
 - POST /api/v2/vendor/appointments/:appointmentId/visit-start
 - POST /api/v2/vendor/blockers
 - POST /api/v2/vendor/blockers/:blockerId/clear
@@ -1714,7 +1743,7 @@ Only one OPEN SchedulingRound exists per assignment.
 RESIDENT_CONFIRMATION_REQUIRED requires explicit tenant slot confirmation before Appointment creation.
 
 ### AC22 — preauthorized containment
-PREAUTHORIZED_ENTRY_WINDOW only confirms a vendor slot fully inside an explicitly authorized tenant window.
+PREAUTHORIZED_ENTRY_WINDOW is possible only when accessPolicy permits it and the current tenant explicitly authorized the relevant window; the confirmed vendor slot must be fully contained inside that window.
 
 ### AC23 — preauthorized occupancy recheck
 If the authorizing tenant is no longer current for the unit, vendor VISIT_STARTED is denied.
@@ -1999,8 +2028,9 @@ If the operator approves this written spec, the following design decisions becom
 - manager-reviewed immutable Work Packet revisions;
 - separate vendor DTO, no filtered Ticket reuse;
 - explicit input-photo allowlist;
-- TENANT_PRESENT / ENTRY_PREAUTHORIZED only;
-- RESIDENT_CONFIRMATION_REQUIRED / PREAUTHORIZED_ENTRY_WINDOW only;
+- Work Packet accessPolicy limited to TENANT_PRESENT_REQUIRED / TENANT_PREAUTHORIZATION_ALLOWED;
+- realized scheduling limited to RESIDENT_CONFIRMATION_REQUIRED / PREAUTHORIZED_ENTRY_WINDOW;
+- only the current tenant can create the preauthorization that enables PREAUTHORIZED_ENTRY_WINDOW;
 - SchedulingRound aggregate;
 - RESCHEDULE distinct from FOLLOW_UP;
 - immutable Appointment times;
