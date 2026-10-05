@@ -372,3 +372,13 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Events UNIT-FACT-T0 and UNIT-FACT-T1-T3 / T4-T6 / T7-20261004: native Google Sheets append/readback confirmed; existing rolling handoff updated in place and read back at3afd28e. Historical pending items above remain pending. Final publication/CI and the bounded review correction are separate later receipts. No new plugin installation, schema-cache download or private-data upload.
 
 - Events PR71-ACCEPTED-MERGE-20261004 and PR71-IMPLEMENTATION-MAIN-CI-20261004: repository closure publication is being prepared after verified merge/main CI. External rolling-handoff and Sheet sync remain to be written/read back after canonical closure publication; no private test data is included.
+
+- Event RR01-PREDEPLOY-STATIC-20261005: sync_status=pending; tokens=unknown. Authorized isolated Next16.3.8 and four-step Core/SDK CI patch passed the static scope gate and clean install. No external Google write/readback or new skill installation/schema upload was performed. Previous queues are preserved.
+
+- Event RR01-PREDEPLOY-STOP-20261005: sync_status=pending; tokens=unknown. First required verify failed at frozen B5 inventory (Shared457/458); no repeat or downstream gates. Sanitized STOP publication is authorized in Issue72. Local partial patch and failure evidence retained; no external Google write/readback. See [hardening STOP receipt](rr01_predeployment_hardening.md).
+
+- Event RR01-AC17-EXACT-DELTA-20261005: sync_status=pending; tokens=unknown. Preserved original failed generation and derived exact72-field successor normalization under Issue72 authority5996150407. No external Google write/readback or new installation. Earlier records remain unchanged.
+
+- Event RR01-AC17-VERIFY-PASS-20261005: sync_status=pending; tokens=unknown. New focused AC17/full verify/Web-unit generation passed; old457/458 failure retained. External transport/write/readback not performed. Remaining runtime/security/hosted evidence is separate.
+
+- Event RR01-PREDEPLOY-LOCAL-CANDIDATE-20261005: sync_status=pending; tokens=unknown. Local required gates/security and technical-tree/history scan passed after exact AC17 normalization. Both verification generations preserved. Draft publication and exact hosted results will be recorded separately in Issue72; no external Google transport/readback is claimed. No new skill/schema acquisition.
