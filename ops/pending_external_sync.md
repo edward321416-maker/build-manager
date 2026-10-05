@@ -382,3 +382,14 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Product/source/SQL/migration/test implementation, plan drafting, Ready/merge, production/IAM and real-data work remain NOT_AUTHORIZED.
 - No Google Docs/Sheets write/readback was performed for this checkpoint; historical pending/synced entries are preserved.
 
+## 2026-10-05 Vendor Secure Handoff v1 plan-ready checkpoint
+
+- Event `VENDOR-HANDOFF-V1-PLAN-READY-20261005`; sync_status=pending; tokens=unknown.
+- Operator approved the written design. The ten-task implementation plan is self-reviewed and marked `READY_FOR_OPERATOR_PLAN_APPROVAL`.
+- Current branch: `docs/vendor-secure-handoff-scheduling-closeout-v1-design`.
+- Approved spec: `docs/superpowers/specs/2026-10-05-vendor-secure-handoff-scheduling-closeout-v1-design.md`.
+- Plan: `docs/superpowers/plans/2026-10-05-vendor-secure-handoff-scheduling-closeout-v1.md`.
+- Product/source/SQL/migration/test implementation remains NOT_AUTHORIZED pending separate plan approval and execution-method decision.
+- Ready/merge/deploy, production/IAM, real data, vendor Auth0 accounts, notifications, estimates/cost/payments remain unauthorized.
+- Google rolling-handoff write/readback is attempted separately; historical pending/synced entries are preserved.
+
