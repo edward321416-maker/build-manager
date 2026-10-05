@@ -192,6 +192,40 @@ Define strict schemas/types for:
 - Completion Report + report correction request;
 - vendor completion photo metadata.
 
+Use these exact exported schema/type stems so later tasks do not invent aliases:
+
+~~~text
+CoreVendorAssignmentSummary
+CoreVendorAssignmentDetail
+CoreVendorAssignmentCreate
+CoreVendorPacketPublish
+CoreVendorLinkIssue
+CoreVendorAssignmentCommand
+CoreVendorReassign
+CoreVendorCompletionCorrectionRequest
+CoreVendorFollowUpCommand
+CoreVendorCloseoutCommand
+CoreVendorTenantSchedulingView
+CoreVendorAvailabilityCreate
+CoreVendorAppointmentConfirm
+CoreVendorTenantReschedule
+VendorRedeem
+VendorRedeemResult
+VendorJob
+VendorAccept
+VendorDecline
+VendorWithdraw
+VendorSchedulingProposalCreate
+VendorReschedule
+VendorVisitStart
+VendorBlockerCreate
+VendorBlockerClear
+VendorCompletionPhoto
+VendorCompletionReportCreate
+~~~
+
+Each has matching `...Schema` and inferred TypeScript type in `@build-manager/api-contracts`. Persistence-only inputs containing token/session/CSRF **digests** use application-only `...PersistenceInput` types and are never API DTOs.
+
 Reuse existing Core photo byte/pixel constants; add `CORE_VENDOR_COMPLETION_PHOTO_MAX_COUNT = 5`.
 
 - [ ] **Step 4: Define application scope signatures**
@@ -297,6 +331,8 @@ Test names:
 - `persists only allowlisted sharedDetails and selected same-ticket photos`
 - `concurrent assignment create commits at most one non-ended row`
 - `stale packet publish version returns STATE_CONFLICT`
+- `exact replay of assignment create / packet publish returns one durable row and same result`
+- `same clientRequestId with changed assignment or packet payload returns STATE_CONFLICT`
 - `vendor tables are FORCE RLS and runtime has no direct DML`
 
 Synthetic fixture change:
@@ -467,6 +503,8 @@ Assert:
 - new redemption revokes previous active session;
 - expired/revoked capability cannot redeem;
 - assignment end invalidates session reads.
+- exact manager link-issue replay returns the same capability receipt without a second live capability;
+- same manager link-issue key with changed assignment/version/token digest returns STATE_CONFLICT.
 
 - [ ] **Step 2: Run RED**
 
@@ -646,6 +684,8 @@ Cover:
 - stale `expectedRoundVersion` rejects;
 - stale packet revision during OPEN round rejects vendor mutation while the round remains intact;
 - foreign/cross-assignment scheduling IDs do not leak.
+- exact replay of availability/proposal/confirm/reschedule produces one durable action;
+- same clientRequestId with changed slot/window/round payload returns STATE_CONFLICT.
 
 - [ ] **Step 2: Run RED**
 
@@ -753,6 +793,8 @@ Cover:
 - FOLLOW_UP from blocker preserves OCCURRED appointment;
 - opening FOLLOW_UP can atomically clear the source blocker and records source evidence;
 - foreign assignment/vendor session cannot touch events.
+- exact replay of VISIT_STARTED / BLOCKER_RECORDED / BLOCKER_CLEARED produces one event each;
+- same key with changed appointment/blocker payload returns STATE_CONFLICT.
 
 - [ ] **Step 2: Run RED**
 
@@ -869,6 +911,11 @@ Rules:
 - no active blocker / no OPEN round at report submit;
 - report submit does not update source ticket workStatus or assignment status.
 
+Idempotency requirements:
+- completion photo uses assignment-scoped `uploadId`; exact replay returns the same stored photo, changed bytes/metadata conflict;
+- Completion Report uses `clientRequestId`; exact replay returns the same current report, changed payload conflicts;
+- correction-report submission must replay only against the same correction request/superseded report.
+
 Vendor functions:
 - completion photo preflight/save/read;
 - submit completion report/revision.
@@ -955,6 +1002,8 @@ Cover:
 - report correction/follow-up racing closeout yields one valid disposition;
 - reassign atomically ends old assignment, revokes session, supersedes OPEN round/future Appointment, preserves OCCURRED/work/report history, creates one PREPARING new assignment;
 - revoke preserves history and does not complete ticket.
+- exact closeout/reassign/revoke/follow-up replay returns the same committed disposition;
+- same key with changed completion report/new vendor/follow-up intent returns STATE_CONFLICT.
 
 - [ ] **Step 2: Run RED**
 
@@ -1084,6 +1133,7 @@ Assert:
 - COMPLETION_REPORTED shows exactly three manager dispositions: closeout, correction request, follow-up;
 - vendor completion photos visible manager-only;
 - 409 preserves entered packet/correction text until refresh/review.
+- a committed closeout response loss must reload authoritative ticket/assignment state before any replay and must not create a duplicate HANDLING event.
 
 - [ ] **Step 2: Write RED tenant component tests**
 
@@ -1184,6 +1234,7 @@ Cases:
 - no tenant identity/contact/Q&A/manager-private fields;
 - no external-notification claims;
 - no horizontal overflow at 390 px.
+- a committed completion-report response loss reloads authoritative VendorJob/report state and replays only the same clientRequestId; no duplicate report appears.
 
 - [ ] **Step 2: Run RED**
 
