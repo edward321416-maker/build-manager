@@ -410,13 +410,13 @@ git commit -m "feat(vendor): add secure handoff persistence boundary"
 - Modify: `apps/web/src/app/core/core-screen.tsx`
 
 **Interfaces:**
-- Core Manager endpoints under existing authenticated boundary:
+- Core Manager endpoints under existing authenticated boundary use the exact Task 1 matrix routes:
   - `GET /api/v2/core/manager/tickets/:ticketId/vendor-handoff`
-  - `POST .../vendor-assignment`
-  - `POST .../work-packets`
-  - `POST .../secure-link`
-  - `POST .../secure-link/reissue`
-  - `POST .../revoke`
+  - `POST /api/v2/core/manager/tickets/:ticketId/vendor-assignment`
+  - `POST /api/v2/core/manager/vendor-assignments/:assignmentId/packet-revisions`
+  - `POST /api/v2/core/manager/vendor-assignments/:assignmentId/link`
+  - `POST /api/v2/core/manager/vendor-assignments/:assignmentId/link/reissue`
+  - `POST /api/v2/core/manager/vendor-assignments/:assignmentId/revoke`
 - Link issue response is `VendorLinkIssueDto`: on first committed issue it carries a one-time deliverable `/vendor/job#<raw-token>`; replay/reconciliation carries issuance metadata but no recoverable raw token.
 - Manager UI lives in the existing private Inspector/action rail; no fifth pane and no global Vendor dashboard.
 
@@ -743,7 +743,7 @@ git commit -m "feat(vendor): record visit and blocker evidence"
 
 ---
 
-### Task 8: Add bounded completion reports, photo sanitization, and correction revisions
+### Task 8: Add bounded initial completion reports, photo sanitization, and Manager review projection
 
 **Files:**
 - Create: `packages/persistence-postgres/migrations/0022_vendor_handoff_completion.sql`
@@ -753,28 +753,34 @@ git commit -m "feat(vendor): record visit and blocker evidence"
 - Modify: `apps/web/src/server/vendor-handoff/http.ts`
 - Modify: `apps/web/src/app/vendor/job/vendor-job-screen.tsx`
 - Modify: `packages/api-client/src/vendor-job.ts`
+- Modify: `apps/web/src/server/core-flow/vendor-handoff.ts`
+- Modify: `apps/web/src/server/core-flow/vendor-handoff.test.ts`
+- Modify: `packages/api-client/src/core-vendor-handoff.ts`
+- Modify: `apps/web/src/app/core/vendor-handoff-manager.tsx`
+- Modify: `apps/web/src/app/core/vendor-handoff-manager.test.tsx`
 - Create: `tests/postgres/vendor-handoff-completion.test.ts`
 
 **Interfaces:**
-- Tables `completion_report`, `completion_photo`, `manager_disposition`.
-- Report revision chain is append-only; correction creates a new report referencing prior report.
+- Tables `completion_report`, `completion_photo`, `manager_disposition`. The schema includes nullable revision/provenance columns needed by Task 9, but Task 8 only accepts an initial report with no correction request and `supersedesReportId = null`.
+- Report history is append-only. The actual Manager correction-request + Vendor correction-report transition is owned by Task 9 so it cannot precede the durable Manager disposition that authorizes it.
 - Submission requires valid OCCURRED visit, no current blocker, no OPEN SchedulingRound, current packet acknowledgment, and either 1–5 sanitized photos or one approved omission reason.
 - Vendor photo upload uses the accepted `normalizePhoto` decode/re-encode path from Core photo handling without changing the frozen Core photo implementation.
 - `COMPLETION_REPORTED` is a derived presentation/eligibility phase from the current pending report, not a fifth `VendorAssignment.status`; durable assignment status remains `ACTIVE` until an allowed end transition.
-- Vendor report moves assignment presentation to `COMPLETION_REPORTED` read-mostly state without ending assignment or ticket.
+- Vendor report moves assignment presentation to `COMPLETION_REPORTED` read-only in Task 8 without ending assignment or ticket. Task 9 later enables the one exact correction-report exception only after a durable REQUEST_CORRECTION.
 - Manager disposition is exactly `CLOSEOUT | REQUEST_CORRECTION | MORE_WORK`. `REQUEST_CORRECTION` stores the required 1–500-character Manager reason; `MORE_WORK` preserves the prior report and creates a FOLLOW_UP round with `sourceCompletionReportId`.
-- Completion photo routes are exact: Vendor upload `POST /api/v2/vendor/job/completion-photos` with `X-Upload-Id`; Vendor own read `GET /api/v2/vendor/job/completion-photos/:photoId`; Manager read `GET /api/v2/core/manager/tickets/:ticketId/vendor-completion-photos/:photoId`. There is no Tenant completion-photo route.
+- Completion photo routes are exact: Vendor upload `POST /api/v2/vendor/job/completion-photos` with `X-Upload-Id`; Vendor own read `GET /api/v2/vendor/job/completion-photos/:photoId`; Manager read `GET /api/v2/core/manager/tickets/:ticketId/vendor-completion-photos/:photoId`. Task 8 owns all three server/client projections and Manager report/photo review UI. There is no Tenant completion-photo route.
 
 - [ ] **Step 1: Write RED tests for report prerequisites and revisions**
 
-Cover AC32–AC37:
-- blocker/open round rejects report;
+Cover Task-8 portions of AC32–AC37:
+- blocker/open round rejects initial report;
 - 0 or >5 photos rejects without omission reason;
 - omission reason versus photos is exclusive;
-- workSummary 1–1000;
+- workSummary 1–1000 and optional `componentOrPartNote` bound;
 - packet acknowledgment must be current;
-- correction preserves prior report and creates new current revision;
-- COMPLETION_REPORTED rejects packet publication, scheduling/visit/blocker/withdraw, reassignment, revoke, and unrelated report actions until Manager chooses CLOSEOUT, REQUEST_CORRECTION, or MORE_WORK.
+- initial report requires `supersedesReportId = null` and no pending correction request;
+- Manager can read the current report and raw completion photos; Tenant cannot;
+- COMPLETION_REPORTED rejects packet publication, scheduling/visit/blocker/withdraw, reassignment, revoke, and any second unrelated report. The exact correction exception is deliberately RED/absent until Task 9 creates the durable correction request.
 
 Run:
 ```bash
@@ -807,7 +813,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/persistence-postgres/migrations/0022_vendor_handoff_completion.sql packages/persistence-postgres/src/vendor-handoff apps/web/src/server/vendor-handoff/photos.ts apps/web/src/server/vendor-handoff/http.ts apps/web/src/app/vendor/job/vendor-job-screen.tsx packages/api-client/src/vendor-job.ts tests/postgres/vendor-handoff-completion.test.ts
+git add packages/persistence-postgres/migrations/0022_vendor_handoff_completion.sql packages/persistence-postgres/src/vendor-handoff apps/web/src/server/vendor-handoff/photos.ts apps/web/src/server/vendor-handoff/http.ts apps/web/src/app/vendor/job/vendor-job-screen.tsx packages/api-client/src/vendor-job.ts apps/web/src/server/core-flow/vendor-handoff.ts apps/web/src/server/core-flow/vendor-handoff.test.ts packages/api-client/src/core-vendor-handoff.ts apps/web/src/app/core/vendor-handoff-manager.tsx apps/web/src/app/core/vendor-handoff-manager.test.tsx tests/postgres/vendor-handoff-completion.test.ts
 git commit -m "feat(vendor): add completion report evidence"
 ```
 
@@ -829,7 +835,7 @@ git commit -m "feat(vendor): add completion report evidence"
 **Interfaces:**
 - Migration `0023_vendor_handoff_manager_actions.sql` owns all new Manager disposition/reassign/revoke/closeout SQL introduced by this task; do not back-edit `0019–0022` to add Task 9 behavior.
 - Universal lock order for direct completion, assignment create, reassign, revoke and closeout is: source `core_flow.ticket FOR UPDATE` → current VendorAssignment → current round/appointment/blocker/report as required → command receipt. No new per-ticket advisory lock.
-- `REQUEST_CORRECTION`: preserves report, stores a required Manager reason (1–500 plain text), and only the exact correction report becomes actionable.
+- `REQUEST_CORRECTION`: preserves the current report, stores a required Manager reason (1–500 plain text), and creates the only durable authorization for a correction report. Task 9 extends `external.submitCompletionReport(...)` so that an exact `expectedCorrectionRequestId` creates a new report revision with `supersedesReportId` equal to the report named by that request; no other report mutation is re-enabled.
 - `MORE_WORK`: preserves prior report/visit and atomically creates FOLLOW_UP/OPEN with `sourceCompletionReportId`.
 - Core-owned closeout bridge: `core_flow.vendor_handoff_complete(p_digest bytea,p_ticket text,p_expected_communication_version bigint,p_message text) RETURNS jsonb`, SECURITY DEFINER owned by `bm_core_flow_owner`, EXECUTE granted only to `bm_vendor_handoff_owner`. It rechecks current Manager B1 authorization, participates in the already-held ticket-row lock, runs the frozen public-Q&A completion guard, enforces `IN_PROGRESS→COMPLETED`, records the existing Manager-authored HANDLING event/message semantics, and never invokes `vendor_handoff.guard_direct_completion`.
 - `vendor_handoff.closeout(...)` is the sole Vendor-managed closeout command. In one transaction it:
@@ -846,7 +852,8 @@ git commit -m "feat(vendor): add completion report evidence"
 
 - [ ] **Step 1: Write concurrency/atomicity RED tests**
 
-Cover AC38–AC42 and reassignment:
+Cover the remaining correction portion of AC35 plus AC38–AC42, reassignment/revoke, and Manager reschedule:
+- REQUEST_CORRECTION reason is durable; exact Vendor correction produces a new current report revision, preserves the old report, and consumes only that request; stale/wrong correction request conflicts;
 - communication-first => closeout conflict/no partial transition;
 - closeout-first => later message conflict/no partial message;
 - Manager auth revocation while waiting => no closeout;
