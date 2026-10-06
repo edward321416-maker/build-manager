@@ -28,7 +28,8 @@
 - All new database changes are additive. At drafting time migrations `0001–0018` are frozen; planned files are `0019–0022`. If Task 0 finds a newer live migration head, renumber the four new migrations without rewriting any existing migration.
 - Manager/Vendor/Tenant consequential mutations require a `clientRequestId` UUID and exact request fingerprint. Exact replay returns the same durable result; changed replay returns conflict.
 - Raw capability tokens, raw Vendor session values, CSRF values, real tenant/vendor data, reusable access secrets, and private completion photos never enter Git, public logs, public receipts, screenshots, or durable plaintext database fields.
-- Raw Vendor link is transient and one-time redeem. Reissue invalidates the old unredeemed capability but does not terminate a currently active Vendor session until replacement redemption; Revoke terminates access immediately.
+- Raw Vendor link is transient and one-time redeem with the frozen default raw-link expiry of 72 hours. Reissue invalidates the old unredeemed capability but does not terminate a currently active Vendor session until replacement redemption; Revoke terminates access immediately.
+- Vendor session absolute lifetime is at most 7 days, and v1 permits at most one active Vendor browser session per assignment.
 - Vendor link delivery is manual. No SMS/Kakao/email/push subsystem or delivery claim.
 - Work Packet revisions are immutable. Current Vendor sees the current published revision by default; older revisions remain Manager audit history.
 - Vendor DTO is a minimum-data DTO, not a filtered Ticket/LandlordRepairPacket. Tenant contact/raw text/full Q&A/private Manager fields never enter it.
@@ -195,6 +196,7 @@ Use `superpowers:using-git-worktrees`. Do not create implementation commits duri
   - `VendorSchedulingRoundStatus = "OPEN"|"CONFIRMED"|"SUPERSEDED"|"CANCELLED"`
   - `VendorAppointmentStatus = "SCHEDULED"|"OCCURRED"|"SUPERSEDED"|"CANCELLED"`
 - Produces DTOs `ManagerVendorHandoffDto`, `TenantVendorSchedulingDto`, `VendorJobDto`, `VendorLinkIssueDto`, `VendorCompletionReportDto`.
+- Contract bounds fixed by this plan: `vendorLabel` plain text 1–80 characters; optional `accessInstruction` plain text 1–500 characters; optional decline/withdraw/blocker operational note 1–500 characters; Vendor/Manager work/completion summaries retain the frozen 1–1000-character bound. Control/format characters are rejected consistently with existing text validators.
 - Produces strict mutation schemas with required `clientRequestId` and expected version/revision fields for assignment create, packet publish, link issue/reissue/revoke, accept/decline/withdraw, availability, unattended-entry authorization, proposal, slot confirmation/selection, visit start, blocker record/clear, completion report, correction, more-work and closeout.
 - Produces application ports `VendorHandoffManagerPort`, `VendorHandoffTenantPort`, `VendorHandoffExternalPort` and `VendorHandoffError`.
 - No raw capability/session/CSRF type appears in any durable DTO.
@@ -275,7 +277,8 @@ git commit -m "feat(vendor): define secure handoff contracts"
   - `command_receipt` — actor scope/id + request key + SHA-256 fingerprint + safe result JSON.
 - Manager/Tenant runtime remains `bm_b1_web`; external Vendor runtime gets EXECUTE only on external functions through `bm_vendor_web`.
 - Neither runtime has direct table DML or SET ROLE to owner.
-- Cross-schema Core helpers project only the minimum manager-authorized source and current-Tenant occupancy identity. If existing Core functions are insufficient, add exact read-only helpers owned by `bm_core_flow_owner`; do not grant Vendor owner broad Core table access.
+- Cross-schema Core helpers project only the minimum manager-authorized source and current-Tenant occupancy identity. Foundation signatures are `core_flow.vendor_handoff_source(p_digest bytea,p_ticket text,p_photo_ids uuid[],p_lock boolean) RETURNS jsonb` and `core_flow.vendor_handoff_current_tenant(p_digest bytea,p_ticket text,p_lock boolean) RETURNS jsonb`, owned by `bm_core_flow_owner` and executable only by the Vendor handoff owner/runtime path that needs them. Do not grant Vendor owner broad Core table access.
+- `vendor_handoff.guard_direct_completion(p_digest bytea,p_ticket text) RETURNS void` shares the same per-ticket advisory-lock key used by assignment create/reassign/closeout. It returns conflict while any non-ended assignment exists, so legacy direct completion and assignment creation cannot win concurrently.
 - Persistence factories:
   - `createVendorHandoffManagerPort(database, orgId): VendorHandoffManagerPort`
   - `createVendorHandoffTenantPort(database, orgId): VendorHandoffTenantPort`
@@ -438,6 +441,7 @@ git commit -m "feat(vendor): add manager secure handoff flow"
 - `GET /api/v2/vendor/session` authenticates the session and rotates/returns a fresh server-issued CSRF value.
 - Vendor mutations require `X-Vendor-CSRF`.
 - `GET /api/v2/vendor/job`, `POST /job/accept`, `POST /job/decline`, `POST /job/withdraw`.
+- `GET /api/v2/vendor/job/source-photos/:photoId` serves only an explicitly allowlisted current Work Packet source photo after assignment/session recheck; guessed or cross-assignment photo IDs use the same hidden-resource response.
 - `/vendor/job#<raw-token>` extracts the fragment client-side, calls redeem, and executes `history.replaceState` after successful redemption.
 - Vendor surface headers: `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, frame embedding denied. No analytics/CDN/external scripts.
 
@@ -681,8 +685,10 @@ git commit -m "feat(vendor): record visit and blocker evidence"
 - Report revision chain is append-only; correction creates a new report referencing prior report.
 - Submission requires valid OCCURRED visit, no current blocker, no OPEN SchedulingRound, current packet acknowledgment, and either 1–5 sanitized photos or one approved omission reason.
 - Vendor photo upload uses the accepted `normalizePhoto` decode/re-encode path from Core photo handling without changing the frozen Core photo implementation.
+- `COMPLETION_REPORTED` is a derived presentation/eligibility phase from the current pending report, not a fifth `VendorAssignment.status`; durable assignment status remains `ACTIVE` until an allowed end transition.
 - Vendor report moves assignment presentation to `COMPLETION_REPORTED` read-mostly state without ending assignment or ticket.
 - Manager disposition is exactly `CLOSEOUT | REQUEST_CORRECTION | MORE_WORK`.
+- Completion photo routes are exact: Vendor upload `POST /api/v2/vendor/job/completion-photos` with `X-Upload-Id`; Vendor own read `GET /api/v2/vendor/job/completion-photos/:photoId`; Manager read `GET /api/v2/core/manager/tickets/:ticketId/vendor-completion-photos/:photoId`. There is no Tenant completion-photo route.
 
 - [ ] **Step 1: Write RED tests for report prerequisites and revisions**
 
@@ -736,6 +742,7 @@ git commit -m "feat(vendor): add completion report evidence"
 
 **Files:**
 - Modify: `packages/persistence-postgres/src/vendor-handoff/manager.ts`
+- Modify: `packages/persistence-postgres/src/core-flow.ts`
 - Modify: `packages/persistence-postgres/src/vendor-handoff/external.ts`
 - Modify: `apps/web/src/server/core-flow/vendor-handoff.ts`
 - Modify: `apps/web/src/app/core/vendor-handoff-manager.tsx`
@@ -756,6 +763,7 @@ git commit -m "feat(vendor): add completion report evidence"
   7. persist disposition/receipt;
   8. expose one authoritative result.
 - Reassignment atomically ends old assignment `SUPERSEDED`, revokes old capabilities/sessions, and creates a new PREPARING assignment without rewriting old evidence.
+- Existing direct `HANDLING status=COMPLETED` stays on the frozen application path, but `createCoreFlowPort(...).communication.guardCompletion` must, in the same existing transaction, run both `core_flow.guard_communication_completion(...)` and `vendor_handoff.guard_direct_completion(...)` before `scope.store(...)`. This rejects backend direct-completion bypass whenever a non-ended VendorAssignment exists and serializes with assignment create/reassign/closeout without changing the public Core action contract.
 
 - [ ] **Step 1: Write concurrency/atomicity RED tests**
 
@@ -766,6 +774,8 @@ Cover AC38–AC42 and reassignment:
 - current report changed while waiting => no closeout;
 - ticket COMPLETED iff assignment CLOSED in successful closeout;
 - Vendor access denied after closeout;
+- active assignment => existing direct Manager completion returns STATE_CONFLICT with no partial completion;
+- assignment-create versus direct-completion race => exactly one wins under the shared per-ticket advisory lock;
 - no active assignment => existing direct Manager completion still works;
 - historical ENDED assignment => direct Manager completion still works;
 - reassign preserves old visits/reports and revokes old access.
@@ -795,7 +805,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/persistence-postgres/src/vendor-handoff apps/web/src/server/core-flow/vendor-handoff.ts apps/web/src/app/core/vendor-handoff-manager.tsx packages/api-client/src/core-vendor-handoff.ts tests/postgres/vendor-handoff-completion.test.ts tests/postgres/vendor-handoff-security.test.ts
+git add packages/persistence-postgres/src/vendor-handoff packages/persistence-postgres/src/core-flow.ts apps/web/src/server/core-flow/vendor-handoff.ts apps/web/src/app/core/vendor-handoff-manager.tsx packages/api-client/src/core-vendor-handoff.ts tests/postgres/vendor-handoff-completion.test.ts tests/postgres/vendor-handoff-security.test.ts
 git commit -m "feat(vendor): add atomic manager disposition"
 ```
 
@@ -1123,7 +1133,7 @@ Independent plan review must reject the plan if any of these are true:
 
 Before requesting independent review, the plan author must record:
 - Spec/D9R1 coverage: every frozen section represented; AC traceability 57/57.
-- Step scan: no TBD/TODO/"handle edge cases"/unowned signatures.
+- Step scan: no unresolved placeholder markers or unowned signatures.
 - Type consistency: contract enum/DTO/port names match every later task.
 - Review Focus: each of the five items has an explicit owning test task.
 - Proportion: code bodies are not pre-written; plan contains signatures, assertions, commands and frozen values only.
