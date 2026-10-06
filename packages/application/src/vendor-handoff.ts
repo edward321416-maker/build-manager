@@ -88,11 +88,12 @@ export type TenantVendorSchedulingDto={
   currentRound:VendorSchedulingRoundDto|null;appointment:VendorAppointmentDto|null;
 };
 export type VendorJobDto={
-  assignmentId:string;status:VendorAssignmentStatus;endReason:VendorAssignmentEndReason|null;phase:VendorPhase;waitingOn:VendorWaitingOn;
+  assignmentId:string;assignmentVersion:number;status:VendorAssignmentStatus;endReason:VendorAssignmentEndReason|null;phase:VendorPhase;waitingOn:VendorWaitingOn;
   currentPacket:VendorWorkPacketRevisionDto|null;currentRound:VendorSchedulingRoundDto|null;appointment:VendorAppointmentDto|null;
   activeBlocker:VendorBlockerDto|null;currentReport:VendorCompletionReportDto|null;
 };
 export type VendorSessionDto={assignmentId:string;expiresAt:string};
+export type VendorSourcePhotoDto={photoId:string;mime:"image/jpeg"|"image/png";byteSize:number;width:number;height:number};
 export type VendorLinkIssueDto={assignmentId:string;assignmentVersion:number;expiresAt:string}&(
   {created:true;link:string}|{created:false;link?:never}
 );
@@ -158,7 +159,11 @@ export type VendorHandoffExternalPort={
   redeem(tokenDigest:string,clientRequestId:string,sessionDigest:string,csrfDigest:string):Promise<VendorSessionDto>;
   logout(sessionDigest:string,clientRequestId:string):Promise<{revoked:boolean}>;
   session(sessionDigest:string):Promise<VendorSessionDto>;
+  /** Rotates the stored CSRF digest to a fresh server-issued value; never extends the absolute session expiry. */
+  refreshSession(sessionDigest:string,csrfDigest:string):Promise<VendorSessionDto>;
   readJob(sessionDigest:string):Promise<VendorJobDto>;
+  /** Current published packet allowlist only; every other photo ID is the same hidden NOT_FOUND. */
+  readSourcePhoto(sessionDigest:string,photoId:string):Promise<{photo:VendorSourcePhotoDto;bytes:Uint8Array}>;
   accept(sessionDigest:string,input:VendorAcceptCommand):Promise<VendorJobDto>;
   decline(sessionDigest:string,input:VendorDeclineCommand):Promise<VendorJobDto>;
   withdraw(sessionDigest:string,input:VendorWithdrawCommand):Promise<VendorJobDto>;

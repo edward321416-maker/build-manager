@@ -50,8 +50,13 @@ CREATE TABLE vendor_handoff.vendor_assignment (
   version bigint NOT NULL DEFAULT 1 CHECK(version>0),
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   ended_at timestamptz NULL,
+  -- Assignment-private Vendor decline evidence; never projected to Tenant.
+  decline_reason text NULL CHECK(decline_reason IS NULL OR decline_reason IN ('NO_CAPACITY','OUT_OF_SERVICE_AREA','SKILL_MISMATCH','CANNOT_MEET_TIMING','OTHER')),
+  end_note text NULL CHECK(end_note IS NULL OR char_length(end_note) BETWEEN 1 AND 500),
   CHECK((status='ENDED')=(end_reason IS NOT NULL)),
-  CHECK((status='ENDED')=(ended_at IS NOT NULL))
+  CHECK((status='ENDED')=(ended_at IS NOT NULL)),
+  CHECK(decline_reason IS NULL OR end_reason='DECLINED'),
+  CHECK(end_note IS NULL OR status='ENDED')
 );
 CREATE UNIQUE INDEX vendor_assignment_one_current
   ON vendor_handoff.vendor_assignment(org_id,ticket_id)
@@ -609,13 +614,14 @@ BEGIN
   RETURN result;
 END $$;
 
-CREATE FUNCTION vendor_handoff.logout(p_session_digest bytea,p_request uuid) RETURNS jsonb
+CREATE FUNCTION vendor_handoff.logout(p_session_digest bytea,p_csrf_digest bytea,p_request uuid) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE s vendor_handoff.vendor_session;a vendor_handoff.vendor_assignment;
   route_org uuid;route_assignment uuid;route_ticket text;initial_revoked boolean;fp bytea;prior jsonb;
 BEGIN
   IF p_request IS NULL OR p_session_digest IS NULL OR octet_length(p_session_digest)<>32
   THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
+  IF p_csrf_digest IS NULL OR octet_length(p_csrf_digest)<>32 THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
   PERFORM set_config('app.vendor_session_digest',encode(p_session_digest,'hex'),true);
   SELECT * INTO s FROM vendor_handoff.vendor_session WHERE digest=p_session_digest;
   IF s.id IS NULL THEN RETURN jsonb_build_object('revoked',true); END IF;
@@ -627,7 +633,8 @@ BEGIN
   PERFORM set_config('app.org_id',route_org::text,true);
   SELECT * INTO s FROM vendor_handoff.vendor_session WHERE digest=p_session_digest AND org_id=route_org AND assignment_id=route_assignment;
   SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=route_assignment AND org_id=route_org AND ticket_id=route_ticket FOR UPDATE;
-  IF s.id IS NULL OR a.id IS NULL OR a.status='ENDED' OR s.expires_at<=clock_timestamp()
+  -- The presented CSRF is checked before receipt replay; a revoked session never regains mutation authority.
+  IF s.id IS NULL OR a.id IS NULL OR a.status='ENDED' OR s.expires_at<=clock_timestamp() OR s.csrf_digest<>p_csrf_digest
   THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
   fp:=vendor_handoff.request_fingerprint(jsonb_build_array('logout',a.id,encode(p_session_digest,'hex')));
   prior:=vendor_handoff.receipt(a.org_id,'VENDOR',s.id::text,p_request,fp);
@@ -642,17 +649,111 @@ BEGIN
   RETURN jsonb_build_object('revoked',true);
 END $$;
 
+-- Private Vendor job projection (no runtime grant). Callers have already bound app.org_id from authenticated state.
+CREATE FUNCTION vendor_handoff.job_projection(p_assignment uuid) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;
+BEGIN
+  SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=p_assignment;
+  IF a.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  SELECT * INTO p FROM vendor_handoff.work_packet_revision WHERE org_id=a.org_id AND assignment_id=a.id ORDER BY revision DESC LIMIT 1;
+  RETURN jsonb_build_object('assignmentId',a.id,'assignmentVersion',a.version,'status',a.status,'endReason',a.end_reason,
+    'phase',CASE WHEN a.status='ENDED' THEN 'ENDED' WHEN a.status='OFFERED' THEN 'OFFERED' ELSE 'IN_PROGRESS' END,
+    'waitingOn','NONE','currentPacket',CASE WHEN p.id IS NULL THEN NULL ELSE p.body END,
+    'currentRound',NULL,'appointment',NULL,'activeBlocker',NULL,'currentReport',NULL);
+END $$;
+
 CREATE FUNCTION vendor_handoff.read_job(p_session_digest bytea) RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE session jsonb;
+BEGIN
+  session:=vendor_handoff.session_info(p_session_digest);
+  RETURN vendor_handoff.job_projection((session->>'assignmentId')::uuid);
+END $$;
+
+-- Rotates the server-issued CSRF digest. Absolute session expiry is never extended.
+CREATE FUNCTION vendor_handoff.refresh_session(p_session_digest bytea,p_csrf_digest bytea) RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE s vendor_handoff.vendor_session;a vendor_handoff.vendor_assignment;route_org uuid;route_assignment uuid;route_ticket text;
+BEGIN
+  IF p_session_digest IS NULL OR octet_length(p_session_digest)<>32 OR p_csrf_digest IS NULL OR octet_length(p_csrf_digest)<>32
+  THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  PERFORM set_config('app.vendor_session_digest',encode(p_session_digest,'hex'),true);
+  SELECT * INTO s FROM vendor_handoff.vendor_session WHERE digest=p_session_digest;
+  IF s.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  PERFORM set_config('app.org_id',s.org_id::text,true);
+  SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=s.assignment_id AND org_id=s.org_id;
+  IF a.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  route_org:=s.org_id;route_assignment:=a.id;route_ticket:=a.ticket_id;
+  PERFORM core_flow.vendor_handoff_lock_ticket(route_org,route_ticket);
+  PERFORM set_config('app.org_id',route_org::text,true);
+  SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=route_assignment AND org_id=route_org AND ticket_id=route_ticket FOR UPDATE;
+  SELECT * INTO s FROM vendor_handoff.vendor_session WHERE digest=p_session_digest AND org_id=route_org AND assignment_id=route_assignment FOR UPDATE;
+  IF a.id IS NULL OR a.status='ENDED' OR s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at<=clock_timestamp()
+  THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  UPDATE vendor_handoff.vendor_session SET csrf_digest=p_csrf_digest WHERE id=s.id;
+  RETURN jsonb_build_object('assignmentId',a.id,'expiresAt',s.expires_at);
+END $$;
+
+-- Vendor decline: OFFERED -> ENDED/DECLINED only. The source ticket is neither cancelled nor completed.
+CREATE FUNCTION vendor_handoff.decline(
+  p_session_digest bytea,p_csrf_digest bytea,p_request uuid,p_expected_assignment bigint,p_expected_packet uuid,p_reason text,p_note text
+) RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE s vendor_handoff.vendor_session;a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;
+  route_org uuid;route_assignment uuid;route_ticket text;note text;fp bytea;prior jsonb;result jsonb;
+BEGIN
+  IF p_session_digest IS NULL OR octet_length(p_session_digest)<>32 OR p_csrf_digest IS NULL OR octet_length(p_csrf_digest)<>32
+  THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  note:=CASE WHEN p_note IS NULL THEN NULL ELSE btrim(p_note) END;
+  IF p_request IS NULL OR p_expected_assignment IS NULL OR p_expected_assignment<1 OR p_expected_packet IS NULL
+    OR p_reason IS NULL OR p_reason NOT IN ('NO_CAPACITY','OUT_OF_SERVICE_AREA','SKILL_MISMATCH','CANNOT_MEET_TIMING','OTHER')
+    OR (note IS NOT NULL AND char_length(note) NOT BETWEEN 1 AND 500)
+  THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
+  PERFORM set_config('app.vendor_session_digest',encode(p_session_digest,'hex'),true);
+  SELECT * INTO s FROM vendor_handoff.vendor_session WHERE digest=p_session_digest;
+  IF s.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  PERFORM set_config('app.org_id',s.org_id::text,true);
+  SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=s.assignment_id AND org_id=s.org_id;
+  IF a.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  route_org:=s.org_id;route_assignment:=a.id;route_ticket:=a.ticket_id;
+  PERFORM core_flow.vendor_handoff_lock_ticket(route_org,route_ticket);
+  PERFORM set_config('app.org_id',route_org::text,true);
+  -- After the source-ticket wait: current session + CSRF, then assignment, then receipt, then packet.
+  SELECT * INTO s FROM vendor_handoff.vendor_session WHERE digest=p_session_digest AND org_id=route_org AND assignment_id=route_assignment;
+  IF s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at<=clock_timestamp() OR s.csrf_digest<>p_csrf_digest
+  THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=route_assignment AND org_id=route_org AND ticket_id=route_ticket FOR UPDATE;
+  IF a.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  fp:=vendor_handoff.request_fingerprint(jsonb_build_array('decline',a.id,p_expected_assignment,p_expected_packet,p_reason,note));
+  prior:=vendor_handoff.receipt(a.org_id,'VENDOR',s.id::text,p_request,fp);
+  IF prior IS NOT NULL THEN RETURN prior; END IF;
+  IF a.status='ENDED' THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  SELECT * INTO p FROM vendor_handoff.work_packet_revision WHERE org_id=a.org_id AND assignment_id=a.id ORDER BY revision DESC LIMIT 1;
+  IF a.status<>'OFFERED' OR a.version<>p_expected_assignment OR p.id IS NULL OR p.id<>p_expected_packet
+  THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='STATE_CONFLICT'; END IF;
+  UPDATE vendor_handoff.vendor_assignment
+    SET status='ENDED',end_reason='DECLINED',ended_at=clock_timestamp(),version=version+1,decline_reason=p_reason,end_note=note
+    WHERE id=a.id;
+  result:=vendor_handoff.job_projection(a.id);
+  INSERT INTO vendor_handoff.command_receipt(org_id,assignment_id,actor_scope,actor_id,request_key,fingerprint,result)
+    VALUES(a.org_id,a.id,'VENDOR',s.id::text,p_request,fp,result);
+  RETURN result;
+END $$;
+
+-- Only the current published packet's explicit allowlist is readable; every other ID is the same hidden NOT_FOUND.
+CREATE FUNCTION vendor_handoff.read_source_photo(p_session_digest bytea,p_photo uuid)
+RETURNS TABLE(metadata jsonb,content bytea)
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE session jsonb;a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;
 BEGIN
   session:=vendor_handoff.session_info(p_session_digest);
   SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=(session->>'assignmentId')::uuid;
-  SELECT * INTO p FROM vendor_handoff.work_packet_revision WHERE assignment_id=a.id ORDER BY revision DESC LIMIT 1;
-  RETURN jsonb_build_object('assignmentId',a.id,'status',a.status,'endReason',a.end_reason,
-    'phase',CASE WHEN a.status='ENDED' THEN 'ENDED' WHEN a.status='OFFERED' THEN 'OFFERED' ELSE 'IN_PROGRESS' END,
-    'waitingOn','NONE','currentPacket',CASE WHEN p.id IS NULL THEN NULL ELSE p.body END,
-    'currentRound',NULL,'appointment',NULL,'activeBlocker',NULL,'currentReport',NULL);
+  SELECT * INTO p FROM vendor_handoff.work_packet_revision WHERE org_id=a.org_id AND assignment_id=a.id ORDER BY revision DESC LIMIT 1;
+  IF p_photo IS NULL OR p.id IS NULL OR NOT EXISTS(
+    SELECT 1 FROM vendor_handoff.work_packet_source_photo sp WHERE sp.org_id=a.org_id AND sp.packet_revision_id=p.id AND sp.source_photo_id=p_photo
+  ) THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='NOT_FOUND'; END IF;
+  RETURN QUERY SELECT x.metadata,x.content FROM core_flow.vendor_handoff_source_photo(a.org_id,a.ticket_id,p_photo) x;
 END $$;
 
 CREATE FUNCTION vendor_handoff.guard_direct_completion(p_digest bytea,p_ticket text) RETURNS void
@@ -676,8 +777,11 @@ GRANT EXECUTE ON FUNCTION vendor_handoff.manager_read(bytea,text),
 GRANT EXECUTE ON FUNCTION vendor_handoff.guard_direct_completion(bytea,text) TO bm_b1_web;
 GRANT EXECUTE ON FUNCTION vendor_handoff.session_info(bytea),
   vendor_handoff.redeem(bytea,uuid,bytea,bytea),
-  vendor_handoff.logout(bytea,uuid),
-  vendor_handoff.read_job(bytea)
+  vendor_handoff.logout(bytea,bytea,uuid),
+  vendor_handoff.read_job(bytea),
+  vendor_handoff.refresh_session(bytea,bytea),
+  vendor_handoff.decline(bytea,bytea,uuid,bigint,uuid,text,text),
+  vendor_handoff.read_source_photo(bytea,uuid)
   TO bm_vendor_web;
 
 RESET ROLE;

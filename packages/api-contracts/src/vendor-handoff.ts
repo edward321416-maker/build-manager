@@ -245,11 +245,18 @@ export const VendorTenantSchedulingDtoSchema=z.object({
   phase:VendorPhaseSchema,waitingOn:VendorWaitingOnSchema,currentRound:VendorSchedulingRoundDtoSchema.nullable(),appointment:VendorAppointmentDtoSchema.nullable(),
 }).strict();
 export const VendorJobDtoSchema=z.object({
-  assignmentId:uuid,status:VendorAssignmentStatusSchema,endReason:VendorAssignmentEndReasonSchema.nullable(),
+  // assignmentVersion is the safe stale-state guard every consequential Vendor command presents.
+  assignmentId:uuid,assignmentVersion:version,status:VendorAssignmentStatusSchema,endReason:VendorAssignmentEndReasonSchema.nullable(),
   phase:VendorPhaseSchema,waitingOn:VendorWaitingOnSchema,currentPacket:VendorWorkPacketRevisionDtoSchema.nullable(),
   currentRound:VendorSchedulingRoundDtoSchema.nullable(),appointment:VendorAppointmentDtoSchema.nullable(),activeBlocker:VendorBlockerDtoSchema.nullable(),
   currentReport:VendorCompletionReportDtoSchema.nullable(),
 }).strict();
+
+const vendorCsrf=z.string().regex(/^[A-Za-z0-9_-]{43}$/);
+/** Server-issued CSRF for the cookie-held Vendor session; never persisted or logged in raw form. */
+export const VendorSessionStateDtoSchema=z.object({assignmentId:uuid,expiresAt:instant,csrf:vendorCsrf}).strict();
+export const VendorRedeemResultDtoSchema=z.object({session:VendorSessionStateDtoSchema,job:VendorJobDtoSchema}).strict();
+export const VendorLogoutResultDtoSchema=z.object({revoked:z.literal(true)}).strict();
 
 export type VendorAssignmentStatus=z.infer<typeof VendorAssignmentStatusSchema>;
 export type VendorAssignmentEndReason=z.infer<typeof VendorAssignmentEndReasonSchema>;
@@ -297,6 +304,9 @@ export type ManagerVendorHandoffDto=z.infer<typeof ManagerVendorHandoffDtoSchema
 export type TenantVendorSchedulingDto=z.infer<typeof VendorTenantSchedulingDtoSchema>;
 export type VendorJobDto=z.infer<typeof VendorJobDtoSchema>;
 export type VendorSessionDto=z.infer<typeof VendorSessionDtoSchema>;
+export type VendorSessionStateDto=z.infer<typeof VendorSessionStateDtoSchema>;
+export type VendorRedeemResultDto=z.infer<typeof VendorRedeemResultDtoSchema>;
+export type VendorLogoutResultDto=z.infer<typeof VendorLogoutResultDtoSchema>;
 export type VendorLinkIssueDto=z.infer<typeof VendorLinkIssueDtoSchema>;
 export type VendorCompletionReportDto=z.infer<typeof VendorCompletionReportDtoSchema>;
 export type VendorCompletionPhotoDto=z.infer<typeof VendorCompletionPhotoDtoSchema>;

@@ -58,6 +58,7 @@ export async function createVendorHandoffFixture() {
       data,
       vendorWebConfig,
       managerDatabase, vendorDatabase, manager, external, ticket, prepared, published,
+      externalWith: (csrfDigest: string) => createVendorHandoffExternalPort(vendorDatabase, csrfDigest),
       async close() { await managerDatabase.close(); await vendorDatabase.close(); await f.close(); },
     };
   } catch (error) {

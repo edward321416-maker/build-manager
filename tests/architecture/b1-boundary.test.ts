@@ -10,7 +10,12 @@ afterEach(async()=>{for(const root of roots.splice(0))await rm(root,{recursive:t
 async function fixture(files:Record<string,string>){const root=await mkdtemp(join(tmpdir(),'b1-graph-'));roots.push(root);for(const [path,body] of Object.entries(files)){await mkdir(join(root,path,'..'),{recursive:true});await writeFile(join(root,path),body);}return root;}
 it('eleven actual v2 handlers have literal runtime and dynamic and all are discovered',async()=>{
  async function inventory(path:string):Promise<string[]>{let rows;try{rows=await readdir(path,{withFileTypes:true});}catch{return [];};return (await Promise.all(rows.map(async x=>x.isDirectory()?inventory(join(path,x.name)):x.name==='route.ts'?[join(path,x.name)]:[]))).flat();}
- expect((await inventory(join(process.cwd(),'apps/web/src/app/api/v2'))).length).toBe(11);
+ const discovered=await inventory(join(process.cwd(),'apps/web/src/app/api/v2'));
+ // Vendor Secure Handoff Task4 adds exactly one standalone non-B1 route; the original eleven stay pinned.
+ const vendorRoute=join(process.cwd(),'apps/web/src/app/api/v2/vendor/[...path]/route.ts');
+ expect(discovered).toContain(vendorRoute);
+ const vendorBody=await readFile(vendorRoute,'utf8');expect(vendorBody).toMatch(/export const runtime = "nodejs";/);expect(vendorBody).toMatch(/export const dynamic = "force-dynamic";/);
+ expect(discovered.filter(x=>x!==vendorRoute).length).toBe(11);
  for(const path of routes){const body=await readFile(path,'utf8');expect(body).toMatch(/export const runtime = "nodejs";/);expect(body).toMatch(/export const dynamic = "force-dynamic";/);}
  const missingRuntime=await fixture(Object.fromEntries(await Promise.all(routes.map(async p=>[p,(await readFile(p,'utf8')).replace('export const runtime = "nodejs";','')]))));
  expect((await scanRouteRuntimes(missingRuntime)).filter(x=>x.rule==='missing-node-runtime').map(x=>x.file).sort()).toEqual([...routes].sort());

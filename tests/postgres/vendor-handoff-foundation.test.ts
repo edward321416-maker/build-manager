@@ -168,13 +168,13 @@ describe("foundation runtime commands and durable replay", () => {
     await f.external.redeem(o.token, request, sessionA, csrfA);
     expect(VendorJobDtoSchema.safeParse(await f.external.readJob(sessionA)).success).toBe(true);
     await expect(f.external.redeem(o.token, randomUUID(), digest("other"), digest("csrf"))).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
-    const sessionB = digest("session-b");
-    await f.external.redeem(o.token, request, sessionB, digest("csrf-b"));
+    const sessionB = digest("session-b"), csrfB = digest("csrf-b");
+    await f.external.redeem(o.token, request, sessionB, csrfB);
     await expect(f.external.readJob(sessionA)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
     expect((await f.external.readJob(sessionB)).assignmentId).toBe(o.handoff.assignment!.id);
     expect((await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.vendor_session WHERE assignment_id=$1 AND revoked_at IS NULL", [o.handoff.assignment!.id])).rows[0].n).toBe(1);
-    expect(await f.external.logout(sessionB, randomUUID())).toEqual({ revoked: true });
-    expect(await f.external.logout(sessionB, randomUUID())).toEqual({ revoked: true });
+    expect(await f.externalWith(csrfB).logout(sessionB, randomUUID())).toEqual({ revoked: true });
+    expect(await f.externalWith(csrfB).logout(sessionB, randomUUID())).toEqual({ revoked: true });
     await expect(f.external.session(sessionB)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
   });
 
@@ -207,9 +207,9 @@ describe("foundation runtime commands and durable replay", () => {
   });
 
   it.each(["logout", "revocation", "expiry"] as const)("exact redemption retry cannot resurrect a session after deliberate termination (%s)", async (termination) => {
-    const o = await offered(), request = randomUUID(), session = digest("logout-lineage");
-    await f.external.redeem(o.token, request, session, digest("logout-lineage-csrf"));
-    if (termination === "logout") await f.external.logout(session, randomUUID());
+    const o = await offered(), request = randomUUID(), session = digest("logout-lineage"), csrf = digest("logout-lineage-csrf");
+    await f.external.redeem(o.token, request, session, csrf);
+    if (termination === "logout") await f.externalWith(csrf).logout(session, randomUUID());
     else if (termination === "revocation") await f.p.admin.query("UPDATE vendor_handoff.vendor_session SET revoked_at=clock_timestamp() WHERE assignment_id=$1", [o.handoff.assignment!.id]);
     else await f.p.admin.query("UPDATE vendor_handoff.vendor_session SET created_at=clock_timestamp()-interval '8 days',expires_at=clock_timestamp()-interval '1 day' WHERE assignment_id=$1", [o.handoff.assignment!.id]);
     const before = (await f.p.admin.query("SELECT id,revoked_at FROM vendor_handoff.vendor_session WHERE assignment_id=$1 ORDER BY id", [o.handoff.assignment!.id])).rows;

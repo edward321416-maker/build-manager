@@ -24,6 +24,9 @@ import {
   VendorTenantSchedulingDtoSchema,
   VendorJobDtoSchema,
   VendorLinkIssueDtoSchema,
+  VendorLogoutResultDtoSchema,
+  VendorRedeemResultDtoSchema,
+  VendorSessionStateDtoSchema,
 } from "./vendor-handoff";
 
 const id="11111111-1111-4111-8111-111111111111";
@@ -155,11 +158,27 @@ describe("command matrix and role projections",()=>{
       expect(VendorTenantSchedulingDtoSchema.safeParse({...tenant,[field]:"private"}).success).toBe(false);
 
     const vendor={
-      assignmentId:id,status:"ACTIVE",endReason:null,phase:"SCHEDULING",waitingOn:"TENANT",
+      assignmentId:id,assignmentVersion:4,status:"ACTIVE",endReason:null,phase:"SCHEDULING",waitingOn:"TENANT",
       currentPacket:null,currentRound:null,appointment:null,activeBlocker:null,currentReport:null,
     };
     expect(VendorJobDtoSchema.safeParse(vendor).success).toBe(true);
     for(const field of ["tenantId","tenantName","tenantPhone","tenantEmail","rawUserText","managerNotes","priority","assigneeLabel","dueAt","orgId"])
       expect(VendorJobDtoSchema.safeParse({...vendor,[field]:"private"}).success).toBe(false);
+    const {assignmentVersion:_version,...unversioned}=vendor;
+    expect(VendorJobDtoSchema.safeParse(unversioned).success).toBe(false);
+  });
+
+  it("returns server-issued CSRF only in the strict Vendor session envelopes",()=>{
+    const csrf="A".repeat(42)+"w";
+    const job={assignmentId:id,assignmentVersion:3,status:"OFFERED",endReason:null,phase:"OFFERED",waitingOn:"NONE",
+      currentPacket:null,currentRound:null,appointment:null,activeBlocker:null,currentReport:null};
+    const session={assignmentId:id,expiresAt:at,csrf};
+    expect(VendorSessionStateDtoSchema.safeParse(session).success).toBe(true);
+    expect(VendorRedeemResultDtoSchema.safeParse({session,job}).success).toBe(true);
+    for(const bad of ["short",csrf+"=","x".repeat(44)])expect(VendorSessionStateDtoSchema.safeParse({...session,csrf:bad}).success).toBe(false);
+    for(const extra of ["token","sessionToken","sessionDigest","csrfDigest","link"])expect(VendorRedeemResultDtoSchema.safeParse({session,job,[extra]:"x"}).success).toBe(false);
+    expect(VendorSessionStateDtoSchema.safeParse({...session,sessionDigest:"x"}).success).toBe(false);
+    expect(VendorLogoutResultDtoSchema.safeParse({revoked:true}).success).toBe(true);
+    expect(VendorLogoutResultDtoSchema.safeParse({revoked:false}).success).toBe(false);
   });
 });

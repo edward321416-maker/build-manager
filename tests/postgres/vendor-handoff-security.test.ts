@@ -11,7 +11,8 @@ beforeAll(async () => {
 
 const tables = ["command_receipt", "vendor_assignment", "vendor_capability", "vendor_session", "work_packet_revision", "work_packet_source_photo"];
 const managerFunctions = ["guard_direct_completion", "manager_create_assignment", "manager_issue_link", "manager_publish_packet", "manager_read"].sort();
-const externalFunctions = ["logout", "read_job", "redeem", "session_info"].sort();
+// Task4 cumulative external inventory: decline, CSRF refresh and allowlisted source-photo read join the Task2 set.
+const externalFunctions = ["decline", "logout", "read_job", "read_source_photo", "redeem", "refresh_session", "session_info"].sort();
 const bridges = ["vendor_handoff_lock_ticket", "vendor_handoff_manager_context", "vendor_handoff_mark_offered", "vendor_handoff_recheck_occupancy", "vendor_handoff_source", "vendor_handoff_source_photo", "vendor_handoff_tenant_context"].sort();
 const hash = (label: string) => createHash("sha256").update(label + randomUUID()).digest("hex");
 const proof = (value: string) => Buffer.from(value, "hex");
@@ -26,9 +27,9 @@ async function issued(who = "manager", tenant = "tenant") {
     clientRequestId: randomUUID(), expectedAssignmentVersion: 2, expectedPacketRevisionId: p.handoff.currentPacket!.id,
   });
   const token = createHash("sha256").update(link.link!.split("#")[1]).digest("hex");
-  const session = hash("session");
-  await f.external.redeem(token, randomUUID(), session, hash("csrf"));
-  return { ...p, token, session };
+  const session = hash("session"), csrf = hash("csrf");
+  await f.external.redeem(token, randomUUID(), session, csrf);
+  return { ...p, token, session, csrf };
 }
 async function waitForTicketWait() {
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -191,7 +192,7 @@ describe("hostile runtime and exact catalog proofs", () => {
   it("logout rechecks revoked/ended authority after ticket wait without writing a new receipt", async () => {
     const a = await issued();
     await f.p.admin.query("BEGIN"); await f.p.admin.query("SELECT id FROM core_flow.ticket WHERE id=$1 FOR UPDATE", [a.t.ticket.id]);
-    const request = randomUUID(), pending = f.external.logout(a.session, request).then(() => "success", e => e.code);
+    const request = randomUUID(), pending = f.externalWith(a.csrf).logout(a.session, request).then(() => "success", e => e.code);
     try {
       await waitForTicketWait();
       await f.p.admin.query("UPDATE vendor_handoff.vendor_assignment SET status='ENDED',end_reason='REVOKED',ended_at=clock_timestamp() WHERE id=$1", [a.handoff.assignment!.id]);
