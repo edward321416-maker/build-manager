@@ -152,10 +152,10 @@ describe("foundation runtime commands and durable replay", () => {
     const o = await offered("staff");
     expect(VendorLinkIssueDtoSchema.safeParse(o.link).success).toBe(true);
     const replay = await f.manager.issueLink(f.data.accounts.staff.digest, o.handoff.assignment!.id, o.input);
-    expect(replay).toMatchObject({ created: false, assignmentId: o.handoff.assignment!.id, assignmentVersion: 3, expiresAt: o.link.expiresAt });
+    expect({ created: replay.created, assignmentId: replay.assignmentId, assignmentVersion: replay.assignmentVersion, expiresAt: replay.expiresAt }).toMatchObject({ created: false, assignmentId: o.handoff.assignment!.id, assignmentVersion: 3, expiresAt: o.link.expiresAt });
     expect("link" in replay).toBe(false);
     expect(VendorLinkIssueDtoSchema.safeParse(replay).success).toBe(true);
-    await expect(f.manager.issueLink(f.data.accounts.staff.digest, o.handoff.assignment!.id, { ...o.input, expectedAssignmentVersion: 3 })).rejects.toMatchObject({ code: "STATE_CONFLICT" });
+    await expect(f.manager.issueLink(f.data.accounts.staff.digest, o.handoff.assignment!.id, { ...o.input, expectedAssignmentVersion: 3 }).then(() => "issued")).rejects.toMatchObject({ code: "STATE_CONFLICT" });
     const core = await createCoreFlowPort(f.managerDatabase).run(f.data.accounts.tenant.digest, s => s.read(o.t.ticket.id));
     expect(core.workStatus).toBe("IN_PROGRESS");
     expect(core.events.filter(e => e.kind === "HANDLING").map(e => e.actorRole)).toEqual(["PROPERTY_STAFF"]);
@@ -184,7 +184,7 @@ describe("foundation runtime commands and durable replay", () => {
     await f.p.admin.query("UPDATE core_flow.ticket SET body=jsonb_set(body,'{routeDecision,selectedRoute}','\"MANAGEMENT_OFFICE\"') WHERE id=$1", [p.t.ticket.id]);
     const before = (await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.vendor_capability WHERE assignment_id=$1", [assignment.id])).rows[0].n;
     const input = { ...issueInput(p.handoff), expectedAssignmentVersion: reissue ? 3 : assignment.version };
-    await expect((reissue ? f.manager.reissueLink : f.manager.issueLink)(f.data.accounts.manager.digest, assignment.id, input)).rejects.toMatchObject({ code: "STATE_CONFLICT" });
+    await expect((reissue ? f.manager.reissueLink : f.manager.issueLink)(f.data.accounts.manager.digest, assignment.id, input).then(() => "issued")).rejects.toMatchObject({ code: "STATE_CONFLICT" });
     expect((await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.vendor_capability WHERE assignment_id=$1", [assignment.id])).rows[0].n).toBe(before);
     expect((await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.command_receipt WHERE request_key=$1", [input.clientRequestId])).rows[0].n).toBe(0);
   });
