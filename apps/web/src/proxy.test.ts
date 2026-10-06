@@ -22,7 +22,7 @@ describe("Vendor transport isolation from B1/Auth0",()=>{
   });
   it("keeps B1/Core and look-alike paths on the protected Auth0 transport",async()=>{
     process.env.BUILD_MANAGER_MODE="B1";
-    for(const path of ["/api/v2/core/tickets","/vendorx","/vendor","/vendor/jobs","/api/v2/vendorx/session","/api/v2/vendor-session","/workspace"]){
+    for(const path of ["/api/v2/core/tickets","/vendorx","/vendor","/vendor/jobs","/api/v2/vendor","/api/v2/vendorx/session","/api/v2/vendor-session","/workspace"]){
       auth0.getB1Auth0.mockClear();
       const response=await proxy(new NextRequest(`http://127.0.0.1:3140${path}`));
       expect(response.status,path).toBe(503);
@@ -30,7 +30,7 @@ describe("Vendor transport isolation from B1/Auth0",()=>{
     }
   });
   it("excludes only the exact Vendor surfaces from the global matcher",()=>{
-    for(const path of ["/vendor/job","/api/v2/vendor","/api/v2/vendor/session","/api/v2/vendor/job/decline"])expect(matcher.test(path),path).toBe(false);
-    for(const path of ["/api/v2/core/tickets","/vendorx","/vendor","/vendor/jobs","/vendor/job/x","/api/v2/vendorx","/api/v2/vendor-session","/workspace","/"])expect(matcher.test(path),path).toBe(true);
+    for(const path of ["/vendor/job","/api/v2/vendor/session","/api/v2/vendor/job/decline"])expect(matcher.test(path),path).toBe(false);
+    for(const path of ["/api/v2/core/tickets","/vendorx","/vendor","/vendor/jobs","/vendor/job/x","/api/v2/vendor","/api/v2/vendorx","/api/v2/vendor-session","/workspace","/"])expect(matcher.test(path),path).toBe(true);
   });
 });

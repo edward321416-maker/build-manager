@@ -9,7 +9,7 @@ let f:Awaited<ReturnType<typeof createVendorHandoffFixture>>;
 let deps:VendorHTTPDependencies;
 beforeAll(async()=>{
   f=await createVendorHandoffFixture();
-  deps={external:(csrf?:string)=>createVendorHandoffExternalPort(f.vendorDatabase,csrf)};
+  deps={external:(csrf?:string)=>createVendorHandoffExternalPort(f.vendorDatabase,csrf),origin};
 });
 afterAll(async()=>{await f?.close();});
 
@@ -122,7 +122,8 @@ describe("Vendor HTTP session lifecycle on PostgreSQL",()=>{
     expect(new Date(rotated.expiresAt).toISOString()).toBe(before.expires_at.toISOString());
     expect(after.csrf).toBe(sha(rotated.csrf));
     const decline={clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:o.packetId,reason:"NO_CAPACITY",operationalNote:null};
-    expect((await mutate(first,"job/decline",decline)).status).toBe(401);
+    // Stale CSRF on a live session is denied as a distinguishable 403 (review M1), never a commit.
+    expect((await mutate(first,"job/decline",decline)).status).toBe(403);
     expect(await assignment(o.assignmentId)).toMatchObject({status:"OFFERED"});
   });
   it("applies the exact 7-day session boundary to reads, CSRF refresh and mutations",async()=>{
@@ -132,11 +133,33 @@ describe("Vendor HTTP session lifecycle on PostgreSQL",()=>{
     const rotated=VendorSessionStateDtoSchema.parse(await (await read(cred,"session")).json());
     await f.p.admin.query("UPDATE vendor_handoff.vendor_session SET expires_at=clock_timestamp()-interval '1 millisecond' WHERE assignment_id=$1",[o.assignmentId]);
     const live={...cred,csrf:rotated.csrf};
+    // A mutation just before the absolute boundary still succeeds on a separate assignment.
+    const early=await offered(),earlyCred=(await redeem(early.token)).cred!;
+    await f.p.admin.query("UPDATE vendor_handoff.vendor_session SET expires_at=clock_timestamp()+interval '3 seconds' WHERE assignment_id=$1",[early.assignmentId]);
+    expect((await mutate(earlyCred,"job/decline",{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:early.packetId,reason:"OTHER",operationalNote:null})).status).toBe(200);
     expect((await read(live)).status).toBe(401);
     expect((await read(live,"session")).status).toBe(401);
     expect((await mutate(live,"job/decline",{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:o.packetId,reason:"OTHER",operationalNote:null})).status).toBe(401);
-    expect((await mutate(live,"session/logout",{clientRequestId:randomUUID()})).status).toBe(401);
+    const deadLogout=await mutate(live,"session/logout",{clientRequestId:randomUUID()});
+    expect(deadLogout.status).toBe(401);
+    expect(deadLogout.headers.get("set-cookie")?.split("; ")).toContain("Max-Age=0");
     expect(await assignment(o.assignmentId)).toMatchObject({status:"OFFERED"});
+  });
+  it("reports a stale CSRF on a live session as 403 without revoking, clearing or ending anything",async()=>{
+    const o=await offered(),first=(await redeem(o.token)).cred!;
+    const rotated=VendorSessionStateDtoSchema.parse(await (await read(first,"session")).json());
+    const staleLogout=await mutate(first,"session/logout",{clientRequestId:randomUUID()});
+    expect(staleLogout.status).toBe(403);
+    expect(staleLogout.headers.get("set-cookie")).toBeNull();
+    const staleDecline=await mutate(first,"job/decline",{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:o.packetId,reason:"OTHER",operationalNote:null});
+    expect(staleDecline.status).toBe(403);
+    expect(await activeSessions(o.assignmentId)).toBe(1);
+    expect(await assignment(o.assignmentId)).toMatchObject({status:"OFFERED"});
+    expect((await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.command_receipt WHERE assignment_id=$1 AND actor_scope='VENDOR'",[o.assignmentId])).rows[0].n).toBe(1);
+    const current={...first,csrf:rotated.csrf};
+    expect((await read(current)).status).toBe(200);
+    expect((await mutate(current,"session/logout",{clientRequestId:randomUUID()})).status).toBe(200);
+    expect(await activeSessions(o.assignmentId)).toBe(0);
   });
   it("reissue alone keeps the active session; replacement redemption and session revocation end it",async()=>{
     const o=await offered(),old=(await redeem(o.token)).cred!;
@@ -198,6 +221,11 @@ describe("Vendor HTTP decline and assignment scope on PostgreSQL",()=>{
     expect((await read(cred)).status).toBe(401);
     expect((await read(cred,"session")).status).toBe(401);
     expect((await mutate(cred,"job/decline",{...base,clientRequestId:randomUUID()})).status).toBe(401);
+  });
+  it("requires a decline reason on every DECLINED assignment row",async()=>{
+    const o=await offered();
+    await expect(f.p.admin.query("UPDATE vendor_handoff.vendor_assignment SET status='ENDED',end_reason='DECLINED',ended_at=clock_timestamp() WHERE id=$1",[o.assignmentId])).rejects.toMatchObject({code:"23514"});
+    await expect(f.p.admin.query("UPDATE vendor_handoff.vendor_assignment SET status='ENDED',end_reason='REVOKED',ended_at=clock_timestamp(),decline_reason='OTHER' WHERE id=$1",[o.assignmentId])).rejects.toMatchObject({code:"23514"});
   });
   it("denies decline after the assignment leaves OFFERED",async()=>{
     const o=await offered(),cred=(await redeem(o.token)).cred!;

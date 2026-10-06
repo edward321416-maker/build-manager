@@ -55,7 +55,7 @@ CREATE TABLE vendor_handoff.vendor_assignment (
   end_note text NULL CHECK(end_note IS NULL OR char_length(end_note) BETWEEN 1 AND 500),
   CHECK((status='ENDED')=(end_reason IS NOT NULL)),
   CHECK((status='ENDED')=(ended_at IS NOT NULL)),
-  CHECK(decline_reason IS NULL OR end_reason='DECLINED'),
+  CHECK((decline_reason IS NOT NULL)=(end_reason IS NOT DISTINCT FROM 'DECLINED')),
   CHECK(end_note IS NULL OR status='ENDED')
 );
 CREATE UNIQUE INDEX vendor_assignment_one_current
@@ -633,9 +633,14 @@ BEGIN
   PERFORM set_config('app.org_id',route_org::text,true);
   SELECT * INTO s FROM vendor_handoff.vendor_session WHERE digest=p_session_digest AND org_id=route_org AND assignment_id=route_assignment;
   SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=route_assignment AND org_id=route_org AND ticket_id=route_ticket FOR UPDATE;
-  -- The presented CSRF is checked before receipt replay; a revoked session never regains mutation authority.
-  IF s.id IS NULL OR a.id IS NULL OR a.status='ENDED' OR s.expires_at<=clock_timestamp() OR s.csrf_digest<>p_csrf_digest
+  IF s.id IS NULL OR a.id IS NULL OR a.status='ENDED' OR s.expires_at<=clock_timestamp()
   THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  -- The presented CSRF is checked before receipt replay; a revoked session never regains mutation authority.
+  -- A stale CSRF on a still-live session is distinguishable (42501) so the browser refreshes instead of assuming logout.
+  IF s.csrf_digest<>p_csrf_digest THEN
+    IF s.revoked_at IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='FORBIDDEN'; END IF;
+    RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED';
+  END IF;
   fp:=vendor_handoff.request_fingerprint(jsonb_build_array('logout',a.id,encode(p_session_digest,'hex')));
   prior:=vendor_handoff.receipt(a.org_id,'VENDOR',s.id::text,p_request,fp);
   IF prior IS NOT NULL THEN RETURN prior; END IF;
@@ -721,8 +726,9 @@ BEGIN
   PERFORM set_config('app.org_id',route_org::text,true);
   -- After the source-ticket wait: current session + CSRF, then assignment, then receipt, then packet.
   SELECT * INTO s FROM vendor_handoff.vendor_session WHERE digest=p_session_digest AND org_id=route_org AND assignment_id=route_assignment;
-  IF s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at<=clock_timestamp() OR s.csrf_digest<>p_csrf_digest
+  IF s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at<=clock_timestamp()
   THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  IF s.csrf_digest<>p_csrf_digest THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='FORBIDDEN'; END IF;
   SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=route_assignment AND org_id=route_org AND ticket_id=route_ticket FOR UPDATE;
   IF a.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
   fp:=vendor_handoff.request_fingerprint(jsonb_build_array('decline',a.id,p_expected_assignment,p_expected_packet,p_reason,note));

@@ -3,6 +3,7 @@ import { describe,expect,it } from "vitest";
 import { VendorHandoffError,type VendorHandoffExternalPort,type VendorJobDto } from "@build-manager/application";
 import { VendorJobDtoSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
 import { handleVendorHandoff,type VendorHTTPDependencies } from "./http";
+import * as route from "../../app/api/v2/vendor/[...path]/route";
 
 const origin="http://127.0.0.1:3140";
 const sha=(value:string)=>createHash("sha256").update(value).digest("hex");
@@ -17,7 +18,7 @@ const job:VendorJobDto={assignmentId,assignmentVersion:3,status:"OFFERED",endRea
     allowedPhotoIds:[photoId],safetyNotice:[],accessPolicy:"TENANT_PRESENT_REQUIRED",accessInstruction:null},
   currentRound:null,appointment:null,activeBlocker:null,currentReport:null};
 
-function harness(overrides:Partial<VendorHandoffExternalPort>={}){
+function harness(overrides:Partial<VendorHandoffExternalPort>={},configured=origin){
   const calls:{method:string;csrf:string|undefined;args:unknown[]}[]=[];
   const record=<T,>(method:string,csrf:string|undefined,result:(...args:unknown[])=>Promise<T>)=>(...args:unknown[])=>{calls.push({method,csrf,args});return result(...args);};
   const external=(csrf?:string)=>{
@@ -33,16 +34,16 @@ function harness(overrides:Partial<VendorHandoffExternalPort>={}){
     } as unknown as Record<string,(...args:unknown[])=>Promise<unknown>>;
     return Object.fromEntries(Object.entries(port).map(([name,fn])=>[name,record(name,csrf,fn)])) as unknown as VendorHandoffExternalPort;
   };
-  const deps:VendorHTTPDependencies={external};
+  const deps:VendorHTTPDependencies={external,origin:configured};
   return {calls,deps};
 }
 const session=synthetic("vendor-session");
 const csrf=synthetic("vendor-csrf");
 const token=synthetic("vendor-capability");
-function call(deps:VendorHTTPDependencies,path:string,init:{method?:string;headers?:Record<string,string>;body?:unknown}={}){
+function call(deps:VendorHTTPDependencies,path:string,init:{method?:string;headers?:Record<string,string>;body?:unknown;base?:string}={}){
   const headers=new Headers(init.headers);
   if(init.body!==undefined&&!headers.has("content-type"))headers.set("content-type","application/json");
-  const request=new Request(`${origin}/api/v2/vendor/${path}`,{method:init.method??"GET",headers,body:init.body===undefined?undefined:JSON.stringify(init.body)});
+  const request=new Request(`${init.base??origin}/api/v2/vendor/${path}`,{method:init.method??"GET",headers,body:init.body===undefined?undefined:JSON.stringify(init.body)});
   return handleVendorHandoff(request,path.split("/"),()=>deps);
 }
 const authed={cookie:`vendor_session=${session}`};
@@ -173,11 +174,48 @@ describe("logout",()=>{
     }
     expect(calls).toEqual([{method:"logout",csrf:sha(csrf),args:[sha(session),clientRequestId]},{method:"logout",csrf:sha(csrf),args:[sha(session),clientRequestId]}]);
   });
-  it("keeps expired or replaced authority denied",async()=>{
+  it("keeps expired or replaced authority denied and clears the dead cookie",async()=>{
     const {deps}=harness({logout:async()=>{throw new VendorHandoffError("UNAUTHENTICATED");}});
     const response=await call(deps,"session/logout",{method:"POST",headers:mutation,body:{clientRequestId:randomUUID()}});
     expect(response.status).toBe(401);
+    const cleared=response.headers.get("set-cookie")?.split("; ")??[];
+    expect(cleared[0]).toBe("vendor_session=");
+    expect(cleared).toContain("Max-Age=0");
     expect(secretFree(await text(response))).toBe(true);
+  });
+  it("reports a stale CSRF on a live session as 403 and keeps its cookie",async()=>{
+    const {deps}=harness({logout:async()=>{throw new VendorHandoffError("FORBIDDEN");}});
+    const response=await call(deps,"session/logout",{method:"POST",headers:mutation,body:{clientRequestId:randomUUID()}});
+    expect(response.status).toBe(403);
+    expect(response.headers.get("set-cookie")).toBeNull();
+  });
+});
+
+describe("configured Vendor origin",()=>{
+  it("compares Origin with the configured Vendor origin rather than the request host",async()=>{
+    const {deps,calls}=harness({},"http://localhost:3140");
+    const input={clientRequestId:randomUUID()};
+    expect((await call(deps,"session/logout",{method:"POST",headers:mutation,body:input})).status).toBe(403);
+    expect(calls).toEqual([]);
+    expect((await call(deps,"session/logout",{method:"POST",headers:{...mutation,origin:"http://localhost:3140"},body:input})).status).toBe(200);
+  });
+  it("derives the cookie Secure attribute from the configured https origin behind TLS termination",async()=>{
+    const configured="https://127.0.0.1:3443";
+    const {deps}=harness({},configured);
+    const response=await call(deps,"session/redeem",{method:"POST",headers:{origin:configured,authorization:`VendorCapability ${token}`},body:{clientRequestId:randomUUID()}});
+    expect(response.status).toBe(200);
+    expect(response.headers.get("set-cookie")!.split("; ")).toContain("Secure");
+  });
+});
+
+describe("route module",()=>{
+  it.each(["OPTIONS","HEAD"] as const)("answers %s itself with the Vendor security headers",async method=>{
+    const handler=(route as Record<string,unknown>)[method];
+    expect(typeof handler).toBe("function");
+    const response=await (handler as (request:Request,context:{params:Promise<{path:string[]}>})=>Promise<Response>)(new Request(`${origin}/api/v2/vendor/job`,{method}),{params:Promise.resolve({path:["job"]})});
+    expect(response.status).toBe(405);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-frame-options")).toBe("DENY");
   });
 });
 

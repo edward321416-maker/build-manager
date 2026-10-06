@@ -203,6 +203,39 @@ describe("hostile runtime and exact catalog proofs", () => {
     } finally { await f.p.admin.query("ROLLBACK"); }
   });
 
+  it.each(["revoked", "rotated", "ended"] as const)("decline rechecks session, CSRF and assignment after the real source-ticket wait (%s)", async (change) => {
+    const a = await issued(), request = randomUUID();
+    const input = { clientRequestId: request, expectedAssignmentVersion: 3, expectedPacketRevisionId: a.handoff.currentPacket!.id, reason: "OTHER" as const, operationalNote: null };
+    await f.p.admin.query("BEGIN"); await f.p.admin.query("SELECT id FROM core_flow.ticket WHERE id=$1 FOR UPDATE", [a.t.ticket.id]);
+    const pending = f.externalWith(a.csrf).decline(a.session, input).then(() => "success", e => e.code);
+    try {
+      await waitForTicketWait();
+      if (change === "revoked") await f.p.admin.query("UPDATE vendor_handoff.vendor_session SET revoked_at=clock_timestamp() WHERE assignment_id=$1", [a.handoff.assignment!.id]);
+      else if (change === "rotated") await f.p.admin.query("UPDATE vendor_handoff.vendor_session SET csrf_digest=$2 WHERE assignment_id=$1", [a.handoff.assignment!.id, proof(hash("rotated-csrf"))]);
+      else await f.p.admin.query("UPDATE vendor_handoff.vendor_assignment SET status='ENDED',end_reason='REVOKED',ended_at=clock_timestamp(),version=version+1 WHERE id=$1", [a.handoff.assignment!.id]);
+      await f.p.admin.query("COMMIT");
+      expect(await pending).toBe(change === "rotated" ? "FORBIDDEN" : "UNAUTHENTICATED");
+      const row = (await f.p.admin.query("SELECT status,end_reason,decline_reason FROM vendor_handoff.vendor_assignment WHERE id=$1", [a.handoff.assignment!.id])).rows[0];
+      expect(row).toEqual(change === "ended" ? { status: "ENDED", end_reason: "REVOKED", decline_reason: null } : { status: "OFFERED", end_reason: null, decline_reason: null });
+      expect((await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.command_receipt WHERE request_key=$1", [request])).rows[0].n).toBe(0);
+    } finally { await f.p.admin.query("ROLLBACK"); }
+  });
+
+  it("CSRF refresh rechecks the session after the real source-ticket wait and leaves the stored CSRF unchanged", async () => {
+    const a = await issued();
+    const stored = async () => (await f.p.admin.query("SELECT encode(csrf_digest,'hex') AS c FROM vendor_handoff.vendor_session WHERE assignment_id=$1", [a.handoff.assignment!.id])).rows[0].c;
+    const before = await stored();
+    await f.p.admin.query("BEGIN"); await f.p.admin.query("SELECT id FROM core_flow.ticket WHERE id=$1 FOR UPDATE", [a.t.ticket.id]);
+    const pending = f.external.refreshSession(a.session, hash("refreshed-csrf")).then(() => "success", e => e.code);
+    try {
+      await waitForTicketWait();
+      await f.p.admin.query("UPDATE vendor_handoff.vendor_session SET revoked_at=clock_timestamp() WHERE assignment_id=$1", [a.handoff.assignment!.id]);
+      await f.p.admin.query("COMMIT");
+      expect(await pending).toBe("UNAUTHENTICATED");
+      expect(await stored()).toBe(before);
+    } finally { await f.p.admin.query("ROLLBACK"); }
+  });
+
   it("Manager and Tenant bridges reauthorize current membership after the real source-ticket lock wait", async () => {
     const p = await f.prepared();
     for (const who of ["staff", "tenant"]) {

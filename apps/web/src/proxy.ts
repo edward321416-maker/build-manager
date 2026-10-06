@@ -3,7 +3,7 @@ import { getB1Auth0 } from "./server/b1/auth0";
 import { authRequestStatus } from "./server/b1/auth-transport";
 import { parseApplicationMode } from "./runtime/application-mode";
 // Standalone no-account Vendor surface: never routed through B1/Auth0 transport.
-function vendorTransport(path:string){return path==="/vendor/job"||path==="/api/v2/vendor"||path.startsWith("/api/v2/vendor/");}
+function vendorTransport(path:string){return path==="/vendor/job"||path.startsWith("/api/v2/vendor/");}
 export async function proxy(request:NextRequest){
   if(vendorTransport(request.nextUrl.pathname)) return NextResponse.next();
   const mode=parseApplicationMode(process.env.BUILD_MANAGER_MODE);
@@ -14,4 +14,4 @@ export async function proxy(request:NextRequest){
   try {return await getB1Auth0().middleware(request);}
   catch {return NextResponse.json({error:"AUTHENTICATION_UNAVAILABLE"},{status:503,headers:{"Cache-Control":"private, no-store"}});}
 }
-export const config={matcher:["/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|vendor/job$|api/v2/vendor(?:/|$)).*)"]};
+export const config={matcher:["/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|vendor/job$|api/v2/vendor/).*)"]};

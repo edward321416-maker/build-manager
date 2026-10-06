@@ -3,8 +3,11 @@ import { VendorDeclineCommandSchema,VendorJobDtoSchema,VendorLogoutCommandSchema
 import { getVendorHandoffContainer } from "./container";
 import { capabilityFromAuthorization,clearVendorSessionCookie,createVendorSecret,readVendorSessionCookie,vendorSecretDigest,vendorSessionCookie } from "./token";
 
-/** The request-local port binds only the presented CSRF digest; persistence verifies it against the session. */
-export type VendorHTTPDependencies={external(csrfDigest?:string):VendorHandoffExternalPort};
+/**
+ * The request-local port binds only the presented CSRF digest; persistence verifies it against the session.
+ * `origin` is the configured public Vendor origin used for the Origin check and the cookie Secure attribute.
+ */
+export type VendorHTTPDependencies={external(csrfDigest?:string):VendorHandoffExternalPort;origin:string};
 
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const STATUS:Record<VendorHandoffErrorCode,number>={UNAUTHENTICATED:401,FORBIDDEN:403,NOT_FOUND:404,INVALID_INPUT:400,STATE_CONFLICT:409,DEPENDENCY_UNAVAILABLE:503};
@@ -44,12 +47,13 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
     "X-Frame-Options":"DENY","Content-Security-Policy":"frame-ancestors 'none'",Vary:"Cookie",
   });
   const json=(data:unknown,status=200)=>Response.json(data,{status,headers});
-  const url=new URL(request.url),secure=url.protocol==="https:";
+  const url=new URL(request.url),route=segments.join("/");
+  let secure=false;
   try{
     if(request.method!=="GET"&&request.method!=="POST")return json({error:{code:"METHOD_NOT_ALLOWED",message:MESSAGE[405]}},405);
-    if(request.method==="POST"&&request.headers.get("origin")!==url.origin)fail("FORBIDDEN");
+    const deps=resolve();secure=deps.origin.startsWith("https:");
+    if(request.method==="POST"&&request.headers.get("origin")!==deps.origin)fail("FORBIDDEN");
     if([...url.searchParams.keys()].length)fail("INVALID_INPUT");
-    const route=segments.join("/");
     if(request.method==="POST"&&route==="session/redeem"){
       const authorization=request.headers.get("authorization");
       if(!authorization?.startsWith("VendorCapability "))fail("INVALID_INPUT");
@@ -57,7 +61,7 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
       if(!capability)fail("UNAUTHENTICATED");
       const body=parse(VendorRedeemCommandSchema,await readBody(request));
       const session=createVendorSecret(),csrf=createVendorSecret();
-      const port=resolve().external(csrf.digest);
+      const port=deps.external(csrf.digest);
       const state=await port.redeem(vendorSecretDigest(capability!),body.clientRequestId,session.digest,csrf.digest);
       const result=project(VendorRedeemResultDtoSchema,{session:{...state,csrf:csrf.raw},job:await port.readJob(session.digest)});
       headers.set("Set-Cookie",vendorSessionCookie(session.raw,result.session.expiresAt,new Date(),secure));
@@ -69,13 +73,13 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
     if(request.method==="GET"){
       if(route==="session"){
         const csrf=createVendorSecret();
-        const state=await resolve().external().refreshSession(sessionDigest,csrf.digest);
+        const state=await deps.external().refreshSession(sessionDigest,csrf.digest);
         return json(project(VendorSessionStateDtoSchema,{...state,csrf:csrf.raw}));
       }
-      if(route==="job")return json(project(VendorJobDtoSchema,await resolve().external().readJob(sessionDigest)));
+      if(route==="job")return json(project(VendorJobDtoSchema,await deps.external().readJob(sessionDigest)));
       if(segments.length===3&&segments[0]==="job"&&segments[1]==="source-photos"){
         if(!UUID.test(segments[2]))fail("NOT_FOUND");
-        const {photo,bytes}=await resolve().external().readSourcePhoto(sessionDigest,segments[2]);
+        const {photo,bytes}=await deps.external().readSourcePhoto(sessionDigest,segments[2]);
         if(photo.mime!=="image/jpeg"&&photo.mime!=="image/png")fail("DEPENDENCY_UNAVAILABLE");
         headers.set("Content-Type",photo.mime);headers.set("Content-Length",String(bytes.byteLength));
         return new Response(new Uint8Array(bytes),{status:200,headers});
@@ -86,7 +90,7 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
     if(route!=="session/logout"&&route!=="job/decline")fail("NOT_FOUND");
     const csrf=request.headers.get("x-vendor-csrf");
     if(!csrf||!/^[A-Za-z0-9_-]{43}$/.test(csrf))fail("FORBIDDEN");
-    const port=resolve().external(vendorSecretDigest(csrf!));
+    const port=deps.external(vendorSecretDigest(csrf!));
     if(route==="session/logout"){
       // No generic active-session precheck: an exact logout replay must reach its own durable receipt.
       const result=project(VendorLogoutResultDtoSchema,await port.logout(sessionDigest,parse(VendorLogoutCommandSchema,await readBody(request)).clientRequestId));
@@ -98,6 +102,8 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
     const code=error instanceof VendorHandoffError?error.code:"DEPENDENCY_UNAVAILABLE";
     const status=STATUS[code];
     headers.delete("Set-Cookie");headers.delete("Content-Type");headers.delete("Content-Length");
+    // A logout answered 401 means the session is already dead: clear the cookie. A 403 (stale CSRF) keeps it.
+    if(route==="session/logout"&&request.method==="POST"&&status===401)headers.set("Set-Cookie",clearVendorSessionCookie(secure));
     return json({error:{code,message:MESSAGE[status]}},status);
   }
 }

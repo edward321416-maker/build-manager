@@ -10,6 +10,7 @@ Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 const tokenB="B".repeat(42)+"x";
 const tokenC="C".repeat(42)+"y";
 const csrf="S".repeat(42)+"z";
+const csrf2="T".repeat(42)+"w";
 const assignmentA="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const assignmentB="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const packetB="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -56,8 +57,9 @@ async function remount(client:FakeClient){
 const page=()=>host.textContent??"";
 const markup=()=>host.innerHTML;
 const button=(label:string)=>Array.from(host.querySelectorAll("button")).find(item=>item.textContent===label);
-async function click(label:string){expect(Boolean(button(label)),label).toBe(true);await act(async()=>{button(label)!.click();});await act(async()=>{await Promise.resolve();});}
-const tokenFree=()=>![tokenB,tokenC,csrf].some(raw=>markup().includes(raw));
+async function flush(){await act(async()=>{for(let i=0;i<12;i++)await Promise.resolve();});}
+async function click(label:string){expect(Boolean(button(label)),label).toBe(true);await act(async()=>{button(label)!.click();});await flush();}
+const tokenFree=()=>![tokenB,tokenC,csrf,csrf2].some(raw=>markup().includes(raw));
 
 describe("fragment redemption",()=>{
   it("redeems the fragment once, clears it only after success and shows the packet as OFFERED (not accepted)",async()=>{
@@ -137,6 +139,77 @@ describe("existing session",()=>{
     await mount(client);
     expect(page()).toContain("관리자에게 새 링크를 요청해 주세요");
     expect(client.job).not.toHaveBeenCalled();
+  });
+});
+
+describe("stale CSRF and transient reads",()=>{
+  const fresh={assignmentId:assignmentB,expiresAt,csrf:csrf2};
+  it("refreshes a stale CSRF once and retries logout with the same request identity",async()=>{
+    let stale=true;
+    const client=fakeClient({logout:vi.fn(async()=>{if(stale){stale=false;throw http(403,"FORBIDDEN");}return {revoked:true};}),session:vi.fn(async()=>fresh)});
+    await mount(client,`#${tokenB}`);
+    await click("이 기기에서 나가기");
+    const calls=client.logout.mock.calls;
+    expect(calls.length).toBe(2);
+    expect(calls[0][0]===csrf&&calls[1][0]===csrf2).toBe(true);
+    expect(calls[1][1].clientRequestId).toBe(calls[0][1].clientRequestId);
+    expect(page()).toContain("이 기기에서 작업 화면을 닫았습니다");
+  });
+  it("never reports a logout while the session is still live",async()=>{
+    const client=fakeClient({logout:vi.fn(async()=>{throw http(403,"FORBIDDEN");}),session:vi.fn(async()=>fresh)});
+    await mount(client,`#${tokenB}`);
+    await click("이 기기에서 나가기");
+    expect(client.logout).toHaveBeenCalledTimes(2);
+    expect(page().includes("이 기기에서 작업 화면을 닫았습니다")).toBe(false);
+    expect(page()).toContain("나가기를 완료하지 못했습니다");
+  });
+  it("confirms a 401 logout against the session before showing the logged-out state",async()=>{
+    let live=true;
+    const client=fakeClient({logout:vi.fn(async()=>{throw http(401,"UNAUTHENTICATED");}),session:vi.fn(async()=>{if(live)return fresh;throw http(401,"UNAUTHENTICATED");})});
+    await mount(client,`#${tokenB}`);
+    await click("이 기기에서 나가기");
+    expect(client.session).toHaveBeenCalledTimes(1);
+    expect(page().includes("이 기기에서 작업 화면을 닫았습니다")).toBe(false);
+    live=false;
+    await click("이 기기에서 나가기");
+    expect(page()).toContain("이 기기에서 작업 화면을 닫았습니다");
+  });
+  it("refreshes a stale CSRF once for decline with the same request identity",async()=>{
+    let stale=true;
+    const client=fakeClient({decline:vi.fn(async()=>{if(stale){stale=false;throw http(403,"FORBIDDEN");}return {...job(assignmentB,"B"),status:"ENDED",endReason:"DECLINED",phase:"ENDED",assignmentVersion:4};}),session:vi.fn(async()=>fresh)});
+    await mount(client,`#${tokenB}`);
+    await click("작업 거절");
+    const radio=Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]')).find(x=>x.value==="NO_CAPACITY")!;
+    await act(async()=>{radio.click();});
+    await click("거절 내용 확인");
+    await click("거절하기");
+    const calls=client.decline.mock.calls;
+    expect(calls.length).toBe(2);
+    expect(calls[1][0]===csrf2).toBe(true);
+    expect(calls[1][1].clientRequestId).toBe(calls[0][1].clientRequestId);
+    expect(page()).toContain("작업 요청을 거절했습니다");
+  });
+  it("shows a transient load failure as retryable instead of a dead link",async()=>{
+    let fail=true;
+    const client=fakeClient({session:vi.fn(async()=>{if(fail)throw network();return {assignmentId:assignmentA,expiresAt,csrf};})});
+    await mount(client);
+    expect(page()).toContain("작업 화면을 불러오지 못했습니다");
+    expect(page().includes("새 링크를 요청")).toBe(false);
+    fail=false;
+    await click("다시 불러오기");
+    expect(page()).toContain("합성 업체 A");
+  });
+  it("redeems a new fragment opened in an already loaded job tab",async()=>{
+    const client=fakeClient();
+    await mount(client);
+    expect(page()).toContain("합성 업체 A");
+    await act(async()=>{window.history.pushState(null,"",`/vendor/job#${tokenC}`);window.dispatchEvent(new Event("hashchange"));});
+    await flush();
+    expect(client.redeem).toHaveBeenCalledTimes(1);
+    expect(client.redeem.mock.calls[0][0]===tokenC).toBe(true);
+    expect(window.location.hash).toBe("");
+    expect(page()).toContain("합성 업체 B");
+    expect(tokenFree()).toBe(true);
   });
 });
 

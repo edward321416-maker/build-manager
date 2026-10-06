@@ -23,6 +23,7 @@ type Phase=
   |{kind:"redeeming"}
   |{kind:"redeemUncertain"}
   |{kind:"unavailable"}
+  |{kind:"loadFailed"}
   |{kind:"ready";job:VendorJobDto}
   |{kind:"declined";job:VendorJobDto}
   |{kind:"loggedOut"};
@@ -33,6 +34,7 @@ const closedDecline:Decline={open:false,reason:null,note:"",confirming:false,req
 function definitive(error:unknown):boolean{
   return error instanceof ApiClientError&&typeof error.status==="number"&&error.status>=400&&error.status<500;
 }
+const statusOf=(error:unknown)=>error instanceof ApiClientError?error.status:undefined;
 /** Non-reversible short fingerprint so storage never holds the raw capability. */
 function fingerprint(fragment:string):string{
   let hash=0x811c9dc5;
@@ -84,7 +86,7 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
     try{
       const session=await client.session();csrf.current=session.csrf;
       setPhase({kind:"ready",job:await client.job()});
-    }catch{setPhase({kind:"unavailable"});}
+    }catch(error){setPhase({kind:definitive(error)?"unavailable":"loadFailed"});}
   },[client]);
 
   const begin=useCallback(async()=>{
@@ -96,9 +98,20 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
   },[redeem,loadSession]);
   // Deferred like the Manager surface; the liveness guard also keeps a dev double-mount from redeeming twice.
   useEffect(()=>{let live=true;void Promise.resolve().then(()=>{if(live)void begin();});return()=>{live=false;};},[begin]);
+  // A reissued link pasted into an already open job tab only changes the fragment; redeem it the same way.
+  useEffect(()=>{const onHash=()=>{void begin();};window.addEventListener("hashchange",onHash);return()=>window.removeEventListener("hashchange",onHash);},[begin]);
+  /** A 403 means the CSRF went stale (another tab rotated it) while the session lives: refresh once, same request. */
+  const withFreshCsrf=async<T,>(send:(value:string)=>Promise<T>):Promise<T>=>{
+    try{return await send(csrf.current!);}
+    catch(error){
+      if(statusOf(error)!==403)throw error;
+      csrf.current=(await client.session()).csrf;
+      return send(csrf.current);
+    }
+  };
 
   const refresh=async()=>{
-    try{setPhase({kind:"ready",job:await client.job()});}catch{setPhase({kind:"unavailable"});}
+    try{setPhase({kind:"ready",job:await client.job()});}catch(error){setPhase({kind:definitive(error)?"unavailable":"loadFailed"});}
   };
   // Local input problems stay editable; they are never reported as an unknown server outcome.
   const confirmDecline=()=>{
@@ -114,11 +127,13 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
     const job=phase.job,id=state.requestId??crypto.randomUUID(),note=state.note.trim();
     setDecline({...state,requestId:id,status:"submitting",notice:""});
     try{
-      const result=await client.decline(csrf.current,{clientRequestId:id,expectedAssignmentVersion:job.assignmentVersion,
-        expectedPacketRevisionId:job.currentPacket?.id??"",reason:state.reason,operationalNote:note===""?null:note});
+      const reason=state.reason;
+      const result=await withFreshCsrf(value=>client.decline(value,{clientRequestId:id,expectedAssignmentVersion:job.assignmentVersion,
+        expectedPacketRevisionId:job.currentPacket?.id??"",reason,operationalNote:note===""?null:note}));
       setDecline(closedDecline);setPhase({kind:"declined",job:result});
     }catch(error){
       if(error instanceof ApiClientError&&error.status===409){setDecline({...closedDecline,notice:"작업 요청 내용이 바뀌었습니다. 최신 내용을 확인해 주세요."});await refresh();}
+      else if(statusOf(error)===403)setDecline({...closedDecline,notice:"보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요."});
       else if(definitive(error)){setDecline(closedDecline);setPhase({kind:"unavailable"});}
       else setDecline({...state,requestId:id,status:"uncertain",notice:""});
     }
@@ -126,23 +141,29 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
   const logout=async()=>{
     if(!csrf.current)return;
     const id=logoutId.current??crypto.randomUUID();logoutId.current=id;setBusy(true);setNotice("");
-    try{await client.logout(csrf.current,{clientRequestId:id});csrf.current=null;logoutId.current=null;setPhase({kind:"loggedOut"});}
+    const done=()=>{csrf.current=null;logoutId.current=null;setPhase({kind:"loggedOut"});};
+    try{await withFreshCsrf(value=>client.logout(value,{clientRequestId:id}));done();}
     catch(error){
-      if(definitive(error)){csrf.current=null;logoutId.current=null;setPhase({kind:"loggedOut"});}
+      if(statusOf(error)===401){
+        // Only an authoritative dead session confirms logout; a live session must never show a false logout.
+        try{csrf.current=(await client.session()).csrf;setNotice("나가기를 완료하지 못했습니다. 다시 시도해 주세요.");}
+        catch(check){if(definitive(check))done();else setNotice("나가기 결과를 확인하지 못했습니다. 같은 요청으로 다시 시도해 주세요.");}
+      }
+      else if(definitive(error))setNotice("나가기를 완료하지 못했습니다. 다시 시도해 주세요.");
       else setNotice("나가기 결과를 확인하지 못했습니다. 같은 요청으로 다시 시도해 주세요.");
     }finally{setBusy(false);}
   };
 
   return <VendorJobView phase={phase} decline={decline} notice={notice} busy={busy} photoPath={client.sourcePhotoPath}
-    onRetryRedeem={()=>void redeem()} onDecline={change=>setDecline(current=>({...current,...change}))}
+    onRetryRedeem={()=>void redeem()} onRetryLoad={()=>{setPhase({kind:"loading"});void loadSession();}} onDecline={change=>setDecline(current=>({...current,...change}))}
     onConfirmDecline={confirmDecline} onSubmitDecline={()=>void submitDecline(decline)} onLogout={()=>void logout()}/>;
 }
 
 type ViewProps={
   phase:Phase;decline:Decline;notice:string;busy:boolean;photoPath:(id:string)=>string;
-  onRetryRedeem():void;onDecline(change:Partial<Decline>):void;onConfirmDecline():void;onSubmitDecline():void;onLogout():void;
+  onRetryRedeem():void;onRetryLoad():void;onDecline(change:Partial<Decline>):void;onConfirmDecline():void;onSubmitDecline():void;onLogout():void;
 };
-export function VendorJobView({phase,decline,notice,busy,photoPath,onRetryRedeem,onDecline,onConfirmDecline,onSubmitDecline,onLogout}:ViewProps){
+export function VendorJobView({phase,decline,notice,busy,photoPath,onRetryRedeem,onRetryLoad,onDecline,onConfirmDecline,onSubmitDecline,onLogout}:ViewProps){
   return <main className={styles.page}>
     <header className={styles.header}><h1>작업 요청</h1></header>
     {phase.kind==="loading"||phase.kind==="redeeming"?<p role="status" className={styles.card}>보안 링크를 확인하고 있습니다.</p>:null}
@@ -150,6 +171,11 @@ export function VendorJobView({phase,decline,notice,busy,photoPath,onRetryRedeem
       <h2 id="vendor-redeem-uncertain">연결 결과를 확인하지 못했습니다</h2>
       <p>새 요청을 만들지 않고 같은 링크 요청으로 결과를 다시 확인합니다.</p>
       <button type="button" onClick={onRetryRedeem}>같은 링크 요청으로 다시 확인</button>
+    </section>:null}
+    {phase.kind==="loadFailed"?<section className={styles.card} aria-labelledby="vendor-load-failed">
+      <h2 id="vendor-load-failed">작업 화면을 불러오지 못했습니다</h2>
+      <p>연결이 잠시 불안정할 수 있습니다. 같은 기기에서 다시 불러와 주세요.</p>
+      <button type="button" onClick={onRetryLoad}>다시 불러오기</button>
     </section>:null}
     {phase.kind==="unavailable"?<section className={styles.card} aria-labelledby="vendor-unavailable">
       <h2 id="vendor-unavailable">작업 화면을 열 수 없습니다</h2>
