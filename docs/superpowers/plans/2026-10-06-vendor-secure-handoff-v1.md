@@ -423,7 +423,8 @@ Cover AC01–AC16, AC47–AC49 foundation cases:
 - role membership/SET ROLE denied.
 - Vendor session A attempts to lock/read assignment/ticket B, including a known B ID: non-disclosing denial before a client-selected target can supply bridge authority; another org's ticket is denied.
 - Vendor mutation waits on the source ticket while Manager Revoke commits: after the wait, session/current-assignment recheck conflicts with no durable Vendor action; Manager Reassign committing first similarly makes the old Vendor mutation conflict. Task 9 repeats these against the final Manager-action implementation.
-- catalog/hostile SQL proves `bm_vendor_web` cannot directly execute the Core bridges or access Core tables; `bm_b1_web` cannot execute the bridges directly; `bm_vendor_handoff_owner` has no broad Core SELECT/DML. Only the Core owner holds table authority and bridge returns contain only their specified fields.
+- catalog/hostile SQL proves `bm_vendor_web` cannot directly execute the Core bridges or access Core tables; `bm_b1_web` cannot execute owner-only Core bridges directly; `bm_vendor_handoff_owner` has no broad Core SELECT/DML. Only the Core owner holds table authority and bridge returns contain only their specified fields;
+- schema ACL probes prove exact USAGE/CREATE matrix: PUBLIC no vendor_handoff USAGE/CREATE; `bm_vendor_web` and `bm_b1_web` vendor_handoff USAGE yes/CREATE no; `bm_vendor_handoff_owner` core_flow/app USAGE yes/CREATE no; no extra Web-runtime schema CREATE.
 - Tenant B1 context: another Tenant digest denies; ended-occupancy digest denies; knowing only `p_org` cannot authorize any Tenant command; current authorized Tenant digest + correct ticket passes. Recheck after the ticket-lock wait, not merely before it.
 - occupancy helper returns false for the exact authorizing member after end/replacement, even if another current Tenant exists in the unit; this boolean cannot substitute for caller authentication. Task 7 proves `VISIT_STARTED` denial using it.
 - stale/unauthorized Manager digest makes the direct-completion guard deny; the guard obtains org only from the dedicated Manager context, never packet publication or caller-supplied org.
@@ -895,10 +896,15 @@ Cover Task-8 portions of AC32–AC37, AC46–AC51:
 - initial report requires `supersedesReportId = null` and no pending correction request;
 - Manager can read the current report and raw completion photos; Tenant cannot;
 - COMPLETION_REPORTED rejects packet publication, scheduling/visit/blocker/withdraw, reassignment, revoke, and any second unrelated report. The exact correction exception is deliberately RED/absent until Task 9 creates the durable correction request.
-- exact upload replay returns the same photo ID and one durable photo/receipt; same request ID + changed sanitized bytes conflicts; same request ID + changed version/packet/Appointment intent conflicts;
+- exact upload replay returns the same photo ID and one durable photo/receipt without consuming another context slot; same request ID + changed sanitized bytes conflicts; same request ID + changed version/packet/Appointment/correction intent conflicts;
+- initial upload requires `expectedCorrectionRequestId = null`; after a report exists, only the exact unresolved correction request may authorize a new photo upload during COMPLETION_REPORTED;
+- null/wrong/stale/consumed/cross-assignment correction request rejects with no durable photo; correction request A photos cannot satisfy correction request B;
+- after 10 accepted uploads in one context, an eleventh fresh request is rejected before durable photo persistence; exact replay still returns the same photo without consuming a slot;
+- initial report attaches only same-context photos; correction report may reuse photos attached to the report being corrected and/or exact-current-correction photos, final total 1–5; unselected uploads become non-reusable `UNATTACHED_RETAINED` history when the context closes;
 - stale assignment version, stale packet revision, or wrong/non-OCCURRED Appointment creates no durable photo; a session for assignment A probing B produces non-disclosing denial;
 - upload waiting on a ticket lock rechecks session/assignment after Manager Revoke/Reassign commits: the revoked/superseded assignment gains no new durable photo. Repeat against Task 9's final Manager-action functions;
 - header/command ID mismatch rejects before persistence; rejected preprocessing creates neither photo nor receipt; upload success alone leaves report/ticket state unchanged and cannot bypass report/correction eligibility;
+- Manager requests evidence/photo correction → exact correction-context upload succeeds; after correction report consumes/supersedes that request, further upload under the old request conflicts;
 - simulate lost upload response, read authoritative job/photo receipt state before retry, and prove exact authorized replay returns that same photo rather than another upload. Task 11 repeats recovery across separate service instances; Task 12 checks the browser recovery state.
 
 Run:
