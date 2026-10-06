@@ -372,3 +372,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Events UNIT-FACT-T0 and UNIT-FACT-T1-T3 / T4-T6 / T7-20261004: native Google Sheets append/readback confirmed; existing rolling handoff updated in place and read back at3afd28e. Historical pending items above remain pending. Final publication/CI and the bounded review correction are separate later receipts. No new plugin installation, schema-cache download or private-data upload.
 
 - Events PR71-ACCEPTED-MERGE-20261004 and PR71-IMPLEMENTATION-MAIN-CI-20261004: repository closure publication is being prepared after verified merge/main CI. External rolling-handoff and Sheet sync remain to be written/read back after canonical closure publication; no private test data is included.
+
+- Event VENDOR-TASK2-FOUNDATION-VERIFIED-20261006-193656: sync_status=pending; local Task2 foundation checkpoint recorded at implementation 186c27f8. Google execution-log append/readback and schema-cache write were NOT_RUN for this local phase. Historical pending/synced events remain preserved.
