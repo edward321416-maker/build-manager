@@ -47,14 +47,14 @@ describe("Vendor application invariants",()=>{
     expect(()=>assertVendorAssignmentTransition("OFFERED","ENDED","DECLINED")).not.toThrow();
     expect(()=>assertVendorAssignmentTransition("ACTIVE","ENDED","WITHDRAWN")).not.toThrow();
     expect(()=>assertVendorAssignmentTransition("ACTIVE","ENDED","CLOSED")).not.toThrow();
-    for(const args of [
+    for(const [from,to,endReason] of [
       ["PREPARING","ACTIVE",null],
       ["ACTIVE","OFFERED",null],
       ["ENDED","ACTIVE",null],
       ["OFFERED","ENDED",null],
       ["ACTIVE","ENDED",null],
       ["PREPARING","OFFERED","REVOKED"],
-    ] as const) expect(()=>assertVendorAssignmentTransition(...args)).toThrowError(
+    ] as const) expect(()=>assertVendorAssignmentTransition(from,to,endReason)).toThrowError(
       expect.objectContaining({code:"STATE_CONFLICT"}),
     );
   });
