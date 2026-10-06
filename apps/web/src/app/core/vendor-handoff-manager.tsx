@@ -5,7 +5,8 @@ import { ApiClientError,type CoreVendorHandoffClient,type CoreFlowClient } from 
 import styles from "./vendor-handoff.module.css";
 import Image from "next/image";
 export type VendorPacketDraft={vendorLabel:string;workSummary:string;sharedDetailKeys:string[];allowedPhotoIds:string[];accessPolicy:VendorAccessPolicy;accessInstruction:string};
-export type VendorHandoffViewProps={ticket:CoreTicketDto;handoff:ManagerVendorHandoffDto|null;loading:boolean;busy:boolean;error:string;notice:string;uncertain:boolean;linkUnavailable:boolean;immediateLink:string|null;preview:boolean;draft:VendorPacketDraft;photoPreviews:{photoId:string;url:string}[];onDraft:(draft:VendorPacketDraft)=>void;onPreview:()=>void;onCreate:()=>void;onPublish:()=>void;onIssue:()=>void;onReissue:()=>void;onRevoke:()=>void;onRefresh:()=>void;onReview:()=>void};
+type PendingLinkRequest={kind:"ISSUE"|"REISSUE";assignmentId:string;input:Parameters<CoreVendorHandoffClient["issueLink"]>[1]};
+export type VendorHandoffViewProps={ticket:CoreTicketDto;handoff:ManagerVendorHandoffDto|null;loading:boolean;busy:boolean;error:string;validationError?:string;notice:string;uncertain:boolean;pendingLink?:PendingLinkRequest|null;linkUnavailable:boolean;immediateLink:string|null;preview:boolean;draft:VendorPacketDraft;photoPreviews:{photoId:string;url:string}[];onDraft:(draft:VendorPacketDraft)=>void;onPreview:()=>void;onCreate:()=>void;onPublish:()=>void;onIssue:()=>void;onReissue:()=>void;onReconcileLink?:()=>void;onRevoke:()=>void;onRefresh:()=>void;onReview:()=>void};
 const provenance={TENANT_REPORTED:"세입자 설명",BUILDING_VERIFIED:"확인된 건물 정보",MANAGER_REVIEWED:"관리자 검토"};
 const policyLabels={TENANT_PRESENT_REQUIRED:"세입자 재실 필요",TENANT_PREAUTHORIZATION_ALLOWED:"세입자 별도 사전 동의 허용"};
 export function vendorHandoffEligible(ticket:CoreTicketDto):boolean{
@@ -55,12 +56,14 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     <h2>업체 연결 / 작업 요청</h2>
     {p.loading?<p role="status">업체 연결 상태 불러오는 중…</p>:null}
     {p.error?<p role="alert">{p.error}</p>:null}
+    {p.validationError?<p role="alert">{p.validationError}</p>:null}
     {p.notice?<p role="status">{p.notice}</p>:null}
     {assignment?<p>업체 {assignment.vendorLabel} · {assignment.status==="PREPARING"?"전달 준비":assignment.status==="OFFERED"?"요청 확인 대기":assignment.status==="ACTIVE"?"작업 진행":"연결 종료"}</p>:null}
     {p.uncertain?<p role="alert">저장 결과를 확정하지 못했습니다. 최신 상태를 먼저 확인하세요. 같은 화면 값만으로 성공을 확정하지 않습니다.</p>:null}
     {p.linkUnavailable?<p role="status">원래 링크는 다시 표시할 수 없습니다. 최신 상태에서 허용되는 경우 보안 링크를 재발급해 직접 전달하세요.</p>:null}
     <button type="button" disabled={p.busy||p.loading} onClick={p.onRefresh}>업체 연결 상태 다시 확인</button>
-    {p.uncertain&&!p.linkUnavailable&&p.handoff&&!p.error?<button type="button" disabled={p.busy} onClick={p.onReview}>최신 상태와 입력을 검토했습니다</button>:null}
+    {p.pendingLink&&eligible&&assignment?.id===p.pendingLink.assignmentId&&assignment.status!=="ENDED"&&packet?<button type="button" disabled={p.busy||p.loading||Boolean(p.error)} onClick={p.onReconcileLink}>같은 요청으로 발급 결과 확인</button>:null}
+    {p.uncertain&&!p.pendingLink&&!p.linkUnavailable&&p.handoff&&!p.error?<button type="button" disabled={p.busy} onClick={p.onReview}>최신 상태와 입력을 검토했습니다</button>:null}
     {canPrepare?<form onSubmit={e=>{e.preventDefault();p.onCreate();}}><label>업체 표시 이름<input aria-label="업체 표시 이름" maxLength={80} required value={p.draft.vendorLabel} disabled={blocked} onChange={e=>p.onDraft({...p.draft,vendorLabel:e.target.value})}/></label><button disabled={blocked||!p.draft.vendorLabel.trim()}>작업 요청 준비</button></form>:null}
     {active&&eligible&&!p.handoff?.currentReport?<>
       <h3>업체 전달 내용</h3>
@@ -86,7 +89,7 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     </>:null}
     {packet?<details><summary>현재 게시된 전달 내용 · {packet.revision}차</summary><p>{packet.workSummary}</p><p>{packet.buildingName} · {packet.serviceAddress} · {packet.unitLabel}</p>{packet.sharedDetails?.map(detail=><p key={detail.key}>{detail.label}: {detail.value} · {provenance[detail.sourceType]}</p>)}<p>공유 사진 {packet.allowedPhotoIds?.length??0}장 · {policyLabels[packet.accessPolicy]}</p></details>:null}
     {eligible&&packet&&assignment?.status==="PREPARING"&&!p.linkUnavailable?<button type="button" disabled={blocked} onClick={p.onIssue}>보안 링크 발급</button>:null}
-    {canReissue?<button type="button" disabled={p.busy||p.loading||Boolean(p.error)} onClick={p.onReissue}>보안 링크 재발급</button>:null}
+    {canReissue&&!p.pendingLink?<button type="button" disabled={p.busy||p.loading||Boolean(p.error)} onClick={p.onReissue}>보안 링크 재발급</button>:null}
     {p.immediateLink?<div className={styles.link}><label>직접 전달할 보안 링크<input aria-label="직접 전달할 보안 링크" readOnly value={p.immediateLink}/></label><p>이 화면의 링크를 복사해 업체에 직접 전달하세요. 새로고침하거나 다른 접수로 이동하면 다시 표시할 수 없습니다.</p></div>:null}
     {active?<button type="button" disabled={blocked} onClick={p.onRevoke}>업체 접근 철회</button>:null}
   </section>;
@@ -98,10 +101,19 @@ export function VendorHandoffManager(props:ManagerProps){return <LoadedVendorHan
 function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged}:ManagerProps){
   const [handoff,setHandoff]=useState<ManagerVendorHandoffDto|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const [draft,setDraft]=useState(blankDraft),[preview,setPreview]=useState(false),[uncertain,setUncertain]=useState(false),[linkUnavailable,setLinkUnavailable]=useState(false),[immediateLink,setImmediateLink]=useState<string|null>(null);
+  const [validationError,setValidationError]=useState(""),[pendingLink,setPendingLink]=useState<PendingLinkRequest|null>(null);
   const [photoPreviews,setPhotoPreviews]=useState<{photoId:string;url:string}[]>([]);
   const generation=useRef(0),sending=useRef(false);
+  const pendingLinkRef=useRef<PendingLinkRequest|null>(null);
+  const rememberLink=useCallback((value:PendingLinkRequest|null)=>{pendingLinkRef.current=value;setPendingLink(value);},[]);
   const invalidate=useCallback(()=>{generation.current++;},[]);
-  const apply=useCallback((value:ManagerVendorHandoffDto|null)=>{setHandoff(value);onHandoff(value);},[onHandoff]);
+  const apply=useCallback((value:ManagerVendorHandoffDto|null)=>{
+    const pending=pendingLinkRef.current;
+    if(value&&pending&&(value.assignment?.id!==pending.assignmentId||value.assignment.status==="ENDED")){
+      rememberLink(null);setUncertain(false);setLinkUnavailable(false);
+    }
+    setHandoff(value);onHandoff(value);
+  },[onHandoff,rememberLink]);
   const refresh=useCallback(async()=>{
     const current=++generation.current;setLoading(true);setImmediateLink(null);setError("");onHandoff(null);
     try{const h=await client.vendorHandoff.readHandoff(ticket.ticketId);if(current===generation.current)apply(h);}
@@ -123,14 +135,19 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged}:ManagerP
       const result=await reconcileManagerHandoff(client.vendorHandoff,ticket.ticketId,operation,()=>current===generation.current);
       if(current!==generation.current)return;apply(result.handoff);
       if(result.kind!=="success"){
-        setUncertain(true);setPreview(false);
-        if(kind==="ISSUE"||kind==="REISSUE")setLinkUnavailable(true);
+        const rejected=result.kind==="rejected";
+        setUncertain(!rejected&&((kind!=="ISSUE"&&kind!=="REISSUE")||pendingLinkRef.current!==null));setPreview(false);
+        if(kind==="ISSUE"||kind==="REISSUE"){
+          if(rejected)rememberLink(null);
+          setLinkUnavailable(false);
+        }
         if(!result.handoff)setError("최신 상태를 확인하지 못했습니다. 다시 불러오세요.");
         else if(result.kind==="rejected")setNotice("입력 또는 최신 상태를 확인한 뒤 명시적으로 다시 검토하세요.");
         return;
       }
       setUncertain(false);setPreview(false);
       if(kind==="ISSUE"||kind==="REISSUE"){
+        rememberLink(null);
         const value=result.value as VendorLinkIssueDto;const link=result.handoff?resolveDeliverableLink(value,window.location.origin,result.handoff):null;setImmediateLink(link);setLinkUnavailable(!link);
         setNotice(link?"보안 링크를 발급했습니다. 업체에 직접 전달하세요.":"발급 기록을 확인했습니다. 원래 링크는 다시 표시할 수 없습니다.");
       }else{setNotice(kind==="CREATE"?"작업 요청 준비를 저장했습니다.":kind==="PUBLISH"?"업체 전달 내용을 게시했습니다.":"업체 접근 철회를 기록했습니다.");}
@@ -139,18 +156,20 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged}:ManagerP
   };
   const create=()=>{
     const parsed=VendorCreateAssignmentCommandSchema.safeParse({clientRequestId:crypto.randomUUID(),expectedTicketVersion:ticket.version,vendorLabel:draft.vendorLabel});
-    if(!parsed.success){setError("업체 표시 이름을 확인하세요.");return;}void mutate("CREATE",()=>client.vendorHandoff.createAssignment(ticket.ticketId,parsed.data));
+    if(!parsed.success){setValidationError("업체 표시 이름을 확인하세요.");return;}setValidationError("");void mutate("CREATE",()=>client.vendorHandoff.createAssignment(ticket.ticketId,parsed.data));
   };
   const publish=()=>{
     if(!handoff?.assignment||!preview)return;
     const parsed=VendorPublishPacketCommandSchema.safeParse({clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:handoff.assignment.version,expectedPacketRevisionId:handoff.currentPacket?.id??null,workSummary:draft.workSummary,sharedDetailKeys:draft.sharedDetailKeys,allowedPhotoIds:draft.allowedPhotoIds,accessPolicy:draft.accessPolicy,accessInstruction:draft.accessInstruction.trim()||null});
-    if(!parsed.success){setError("업체 전달 내용의 입력을 확인하세요.");return;}void mutate("PUBLISH",()=>client.vendorHandoff.publishPacket(handoff.assignment!.id,parsed.data));
+    if(!parsed.success){setValidationError("업체 전달 내용의 입력을 확인하세요.");return;}setValidationError("");void mutate("PUBLISH",()=>client.vendorHandoff.publishPacket(handoff.assignment!.id,parsed.data));
   };
+  const recoverLink=(request:PendingLinkRequest)=>void mutate(request.kind,()=>request.kind==="REISSUE"?client.vendorHandoff.reissueLink(request.assignmentId,request.input):client.vendorHandoff.issueLink(request.assignmentId,request.input));
   const link=(reissue:boolean)=>{
-    if(!handoff?.assignment||!handoff.currentPacket)return;
+    if(pendingLink||!handoff?.assignment||!handoff.currentPacket)return;
     const input={clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:handoff.assignment.version,expectedPacketRevisionId:handoff.currentPacket.id};
-    void mutate(reissue?"REISSUE":"ISSUE",()=>reissue?client.vendorHandoff.reissueLink(handoff.assignment!.id,input):client.vendorHandoff.issueLink(handoff.assignment!.id,input));
+    const request:PendingLinkRequest={kind:reissue?"REISSUE":"ISSUE",assignmentId:handoff.assignment.id,input};
+    rememberLink(request);recoverLink(request);
   };
   const revoke=()=>{if(handoff?.assignment)void mutate("REVOKE",()=>client.vendorHandoff.revoke(handoff.assignment!.id,{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:handoff.assignment!.version}));};
-  return <VendorHandoffManagerView ticket={ticket} handoff={handoff} loading={loading} busy={busy} error={error} notice={notice} uncertain={uncertain} linkUnavailable={linkUnavailable} immediateLink={immediateLink} preview={preview} draft={draft} photoPreviews={photoPreviews} onDraft={value=>{setDraft(value);setPreview(false);setError("");}} onPreview={()=>setPreview(true)} onCreate={create} onPublish={publish} onIssue={()=>link(false)} onReissue={()=>link(true)} onRevoke={revoke} onRefresh={()=>void refresh()} onReview={()=>{setUncertain(false);setNotice("");}}/>;
+  return <VendorHandoffManagerView ticket={ticket} handoff={handoff} loading={loading} busy={busy} error={error} validationError={validationError} notice={notice} uncertain={uncertain} pendingLink={pendingLink} linkUnavailable={linkUnavailable} immediateLink={immediateLink} preview={preview} draft={draft} photoPreviews={photoPreviews} onDraft={value=>{setDraft(value);setPreview(false);setValidationError("");}} onPreview={()=>setPreview(true)} onCreate={create} onPublish={publish} onIssue={()=>link(false)} onReissue={()=>link(true)} onReconcileLink={()=>{if(pendingLink)recoverLink(pendingLink);}} onRevoke={revoke} onRefresh={()=>void refresh()} onReview={()=>{setUncertain(false);setNotice("");}}/>;
 }

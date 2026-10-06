@@ -21,7 +21,7 @@ function setup(role="ORG_ADMIN"){
   }}) as VendorHandoffManagerPort;
   const port:CoreFlowPort={run:async(_hash,op)=>op({session:{role}} as CoreScope)};
   let sessionCalls=0;
-  const dependencies={port,revoke:async()=>{},origins:["http://127.0.0.1:3130"],vendorHandoff:manager,b1:{
+  const dependencies={port,revoke:async()=>{},origins:["http://127.0.0.1:3130"],vendorHandoff:{inOrganization:()=>manager},b1:{
     current:async(request:Request)=>{sessionCalls++;if(request.headers.get("x-test-session")==="expired")throw new CoreFlowError("UNAUTHENTICATED");if(request.headers.get("x-b1-csrf")!=="synthetic-proof")throw new CoreFlowError("FORBIDDEN");return {digest,csrf:"synthetic-proof"};},
     access:{inOrganization:()=>port,organizations:async()=>[]},
   }} as unknown as CoreHTTPDependencies;

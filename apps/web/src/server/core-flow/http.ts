@@ -66,14 +66,14 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
     }else if(communicationSummaries){
       if([...url.searchParams.keys()].some(k=>k!=="ticketId")||summaryIds.length>50||summaryIds.some(id=>!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id)))fail("INVALID_INPUT");
     }else if([...url.searchParams.keys()].some(k=>k!=="unitId" || route!=="tickets" || request.method!=="GET") || url.searchParams.getAll("unitId").length>1)fail("INVALID_INPUT");
-    let hash:string,port=d.port;
+    let hash:string,port=d.port,organization:string|undefined;
     if(d.b1){
       const current=await d.b1.current(request);
       if(route==="access"&&request.method==="GET")return json(CoreAccessSchema.parse({authentication:"B1",synthetic:true,csrf:current.csrf,organizations:await d.b1.access.organizations(current.digest)}));
       if(route==="login"||route==="logout")fail("NOT_FOUND");
       const org=request.headers.get("x-core-organization");
       if(!org||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(org))fail("INVALID_INPUT");
-      hash=current.digest;port=d.b1.access.inOrganization(org);
+      hash=current.digest;organization=org;port=d.b1.access.inOrganization(org);
       if(route==="organization"&&request.method==="POST"){
         parse(FinalizeTicketRequestSchema,await body(request));
         return await port.run(hash,s=>Promise.resolve(json(CoreSessionSchema.parse({role:s.session.role,synthetic:true}))));
@@ -90,11 +90,16 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
     hash=digest(raw);
     }
     if(segments[0]==="tickets"&&segments[2]==="photos")return await handlePhotoRequest(request,segments,hash,port,headers);
+    if(isManagerVendorHandoffRoute(segments)){
+      // Preserve Core role/auth precedence, then release its connection. The request-local
+      // Vendor adapter binds and reauthorizes this selection in its own operation transaction.
+      await port.run(hash,scope=>{if(scope.session.role!=="ORG_ADMIN"&&scope.session.role!=="PROPERTY_STAFF")fail("FORBIDDEN");return Promise.resolve();});
+      return await handleManagerVendorHandoff(request,segments,hash,d.b1&&organization?d.vendorHandoff?.inOrganization(organization):undefined,headers);
+    }
     return await port.run(hash,async scope=>{
       if(communicationSummaries)return json(CoreCommunicationSummariesSchema.parse(await scope.communication.summaries(summaryIds)));
       if(segments[0]==="manager"){
         if(scope.session.role!=="ORG_ADMIN"&&scope.session.role!=="PROPERTY_STAFF")fail("FORBIDDEN");
-        if(isManagerVendorHandoffRoute(segments))return await handleManagerVendorHandoff(request,segments,hash,d.b1?d.vendorHandoff:undefined,headers);
         if(route==="manager/work-items"&&request.method==="GET")return json(CoreManagerWorkItemsSchema.parse(await scope.manager.list()));
         const id=segments[2];
         if(segments.length===4&&((segments[1]==="units"&&segments[3]==="maintenance-timeline")||(segments[1]==="tickets"&&segments[3]==="maintenance-fact")||(segments[1]==="maintenance-facts"&&segments[3]==="corrections"))){

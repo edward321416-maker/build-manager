@@ -7,7 +7,7 @@ import { createVendorHandoffManagerPort } from "@build-manager/persistence-postg
 import { invitationOrigin } from "./onboarding";
 
 import { requireCoreB1Session } from "./b1-access";
-export type CoreHTTPDependencies={port:CoreFlowPort;revoke(digest:string):Promise<void>;origins:string[];vendorHandoff?:VendorHandoffManagerPort;b1?:{current:typeof requireCoreB1Session;access:CoreAccessPort;onboarding?:CoreOnboardingPort;inviteOrigin?:()=>string}};
+export type CoreHTTPDependencies={port:CoreFlowPort;revoke(digest:string):Promise<void>;origins:string[];vendorHandoff?:{inOrganization(organization:string):VendorHandoffManagerPort};b1?:{current:typeof requireCoreB1Session;access:CoreAccessPort;onboarding?:CoreOnboardingPort;inviteOrigin?:()=>string}};
 let instance:CoreHTTPDependencies|undefined;
 export function getCoreFlowContainer():CoreHTTPDependencies {
   if(process.env.CORE_FLOW_MODE!=="SYNTHETIC_LOCAL")throw new CoreFlowError("DEPENDENCY_UNAVAILABLE");
@@ -19,7 +19,7 @@ export function getCoreFlowContainer():CoreHTTPDependencies {
     const origins=(process.env.CORE_FLOW_ORIGINS??"").split(",").filter(Boolean);
     if(!origins.length)throw new CoreFlowError("DEPENDENCY_UNAVAILABLE");
     if(!["B1","DEMO"].includes(process.env.BUILD_MANAGER_MODE??""))throw new CoreFlowError("DEPENDENCY_UNAVAILABLE");
-    instance={port:createCoreFlowPort(database),revoke:digest=>registry.revoke(digest),origins,...(process.env.BUILD_MANAGER_MODE==="B1"?{vendorHandoff:createVendorHandoffManagerPort(database),b1:{current:requireCoreB1Session,access:createCoreAccessPort(database),onboarding:createCoreOnboardingPort(database),inviteOrigin:invitationOrigin}}:{})};
+    instance={port:createCoreFlowPort(database),revoke:digest=>registry.revoke(digest),origins,...(process.env.BUILD_MANAGER_MODE==="B1"?{vendorHandoff:{inOrganization:(organization:string)=>createVendorHandoffManagerPort(database,organization)},b1:{current:requireCoreB1Session,access:createCoreAccessPort(database),onboarding:createCoreOnboardingPort(database),inviteOrigin:invitationOrigin}}:{})};
   }
   return instance;
 }

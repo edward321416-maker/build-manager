@@ -13,10 +13,13 @@ async function managerCall<T>(
   digest: string,
   sql: string,
   values: unknown[],
+  organization?: string,
 ): Promise<T> {
   const hash = vendorDigest(digest);
   return vendorTransaction(database, async (client) => {
-    // Server-derived B1 session binding supplies routing context. No client org id is accepted.
+    // Routing selection is authenticated again and held through the actual operation.
+    // A committed preflight binding alone cannot isolate concurrent selections.
+    if (organization !== undefined) await client.query("SELECT core_flow.bind_organization($1::bytea,$2::uuid)", [hash, organization]);
     await client.query("SELECT core_flow.session($1::bytea)", [hash]);
     const result = await client.query<{ value: T }>(sql, [hash, ...values]);
     const value = result.rows[0]?.value;
@@ -25,7 +28,7 @@ async function managerCall<T>(
   });
 }
 
-export function createVendorHandoffManagerPort(database: PostgresDatabase): VendorHandoffManagerPort {
+export function createVendorHandoffManagerPort(database: PostgresDatabase, organization?: string): VendorHandoffManagerPort {
   return {
     readHandoff(digest, ticketId) {
       return managerCall<ManagerVendorHandoffDto>(
@@ -33,6 +36,7 @@ export function createVendorHandoffManagerPort(database: PostgresDatabase): Vend
         digest,
         "SELECT vendor_handoff.manager_read($1::bytea,$2::text) AS value",
         [ticketId],
+        organization,
       );
     },
     createAssignment(digest, ticketId, input) {
@@ -41,6 +45,7 @@ export function createVendorHandoffManagerPort(database: PostgresDatabase): Vend
         digest,
         "SELECT vendor_handoff.manager_create_assignment($1::bytea,$2::text,$3::uuid,$4::bigint,$5::text) AS value",
         [ticketId, input.clientRequestId, input.expectedTicketVersion, input.vendorLabel],
+        organization,
       );
     },
     publishPacket(digest, assignmentId, input) {
@@ -59,6 +64,7 @@ export function createVendorHandoffManagerPort(database: PostgresDatabase): Vend
           input.accessPolicy,
           input.accessInstruction,
         ],
+        organization,
       );
     },
     async issueLink(digest, assignmentId, input) {
@@ -69,6 +75,7 @@ export function createVendorHandoffManagerPort(database: PostgresDatabase): Vend
         digest,
         "SELECT vendor_handoff.manager_issue_link($1::bytea,$2::uuid,$3::uuid,$4::bigint,$5::uuid,$6::bytea,false) AS value",
         [assignmentId, input.clientRequestId, input.expectedAssignmentVersion, input.expectedPacketRevisionId, tokenDigest],
+        organization,
       );
       if (!state.created) return { ...state, created: false } satisfies VendorLinkIssueDto;
       return { created: true, assignmentId: state.assignmentId, assignmentVersion: state.assignmentVersion, link: `/vendor/job#${raw}`, expiresAt: state.expiresAt } satisfies VendorLinkIssueDto;
@@ -81,6 +88,7 @@ export function createVendorHandoffManagerPort(database: PostgresDatabase): Vend
         digest,
         "SELECT vendor_handoff.manager_issue_link($1::bytea,$2::uuid,$3::uuid,$4::bigint,$5::uuid,$6::bytea,true) AS value",
         [assignmentId, input.clientRequestId, input.expectedAssignmentVersion, input.expectedPacketRevisionId, tokenDigest],
+        organization,
       );
       if (!state.created) return { ...state, created: false } satisfies VendorLinkIssueDto;
       return { created: true, assignmentId: state.assignmentId, assignmentVersion: state.assignmentVersion, link: `/vendor/job#${raw}`, expiresAt: state.expiresAt } satisfies VendorLinkIssueDto;
