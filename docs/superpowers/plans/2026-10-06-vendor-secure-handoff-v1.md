@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** CANDIDATE_FOR_INDEPENDENT_REVIEW — PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED
+**Status:** REMEDIATION_SUCCESSOR_CANDIDATE_FOR_DELTA_REVIEW — PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED
+
+**Reviewed predecessor:** HEAD `32ea0d151cc74e03878823860c429a580216f1ef`, plan blob `a6aa1d111dec67ee80b7f687000af087b3bf1ce6`, independent review `6007733166` (`FIX_REQUIRED / B0 / H4 / M2`). This successor resolves that review under remediation gate `6007888778` and authorization `6007894685`; the predecessor remains immutable history.
 
 **Goal:** Implement the frozen Vendor Secure Handoff v1 experience: an authorized Manager publishes a minimum-data Work Packet and one-time Vendor link; one no-account Vendor coordinates a visit with the current Tenant, records bounded work/completion evidence, and the Manager atomically closes the ticket without collapsing Vendor report, Manager completion, Tenant outcome, or Maintenance Fact semantics.
 
@@ -25,7 +27,7 @@
 - Vendor capability/session identity is separate from B1/Auth0 identity. A Vendor request never becomes `TENANT`, `ORG_ADMIN`, or `PROPERTY_STAFF`.
 - Use a separate Vendor DB runtime role/configuration. Manager/Tenant Core HTTP continues through `bm_b1_web`; external Vendor HTTP uses `bm_vendor_web`. Neither runtime role may SET ROLE to `bm_vendor_handoff_owner`, and neither receives direct Vendor table DML.
 - Production credential/IAM provisioning is outside this plan. Test/local role provisioning may create disposable credentials; repository code accepts configuration but never commits credentials.
-- All new database changes are additive. At drafting time migrations `0001–0018` are frozen; planned files are `0019–0022`. If Task 0 finds a newer live migration head, renumber the four new migrations without rewriting any existing migration.
+- All new database changes are additive. At drafting time migrations `0001–0018` are frozen; planned files are `0019–0023`. If Task 0 finds a newer live migration head, renumber the **next five** new migrations without rewriting any existing migration.
 - Manager/Vendor/Tenant consequential mutations require a `clientRequestId` UUID and exact request fingerprint. Exact replay returns the same durable result; changed replay returns conflict.
 - Raw capability tokens, raw Vendor session values, CSRF values, real tenant/vendor data, reusable access secrets, and private completion photos never enter Git, public logs, public receipts, screenshots, or durable plaintext database fields.
 - Raw Vendor link is transient and one-time redeem with the frozen default raw-link expiry of 72 hours. Reissue invalidates the old unredeemed capability but does not terminate a currently active Vendor session until replacement redemption; Revoke terminates access immediately.
@@ -37,6 +39,7 @@
 - Availability submission and unattended-entry consent are separate mutations. Consent defaults OFF and only the current Tenant can authorize explicitly selected windows.
 - Appointment start/end are immutable. Before confirmation an incompatible proposal may be invalidated/restarted; after confirmation use RESCHEDULE. FOLLOW_UP requires a prior OCCURRED visit and preserves that visit.
 - Work/blocker/report history is append-only. Vendor Completion Report is not Manager completion.
+- All VendorAssignment/direct-completion races serialize on the source `core_flow.ticket` row lock first; do not introduce a second per-ticket advisory-lock order. After the ticket row is locked, lock/recheck current VendorAssignment and subordinate Vendor resources in that order.
 - Manager closeout must atomically produce ticket `COMPLETED` + current VendorAssignment `ENDED/CLOSED`, reconcile current public communication version, and revoke Vendor access. It must not write Tenant outcome or Maintenance Fact.
 - Existing direct Manager completion remains valid when no non-ended VendorAssignment exists. Historical ENDED assignments do not create a Vendor completion prerequisite.
 - Existing Tenant `RESOLVED / UNRESOLVED / RECURRENCE_CLAIM` and Maintenance Fact flows remain separate and unchanged.
@@ -72,6 +75,7 @@
 - Create `packages/persistence-postgres/migrations/0020_vendor_handoff_scheduling.sql`
 - Create `packages/persistence-postgres/migrations/0021_vendor_handoff_work.sql`
 - Create `packages/persistence-postgres/migrations/0022_vendor_handoff_completion.sql`
+- Create `packages/persistence-postgres/migrations/0023_vendor_handoff_manager_actions.sql`
 - Create `packages/persistence-postgres/src/vendor-handoff/index.ts`
 - Create `packages/persistence-postgres/src/vendor-handoff/manager.ts`
 - Create `packages/persistence-postgres/src/vendor-handoff/tenant.ts`
@@ -161,12 +165,12 @@ Expected: record `POLICY_REF` and `IMPLEMENTATION_BASE_SHA`; do not mutate the c
 - [ ] **Step 2: Revalidate migration/dependency/workflow assumptions**
 
 Confirm:
-- existing migrations are contiguous and determine the first four free numbers;
+- existing migrations are contiguous and determine the first five free numbers;
 - current Next/React/Playwright/TypeScript/sharp pins;
 - current hosted job set and current `web-e2e` commands;
 - whether RR01 PR #73 or any successor landed.
 
-If migration numbers changed, rename planned `0019–0022` paths to the next four free numbers before implementation. If security/CI architecture changed materially, STOP for plan delta review.
+If migration numbers changed, rename planned `0019–0023` paths to the next five free numbers before implementation. Preserve the task-to-migration ownership: foundation, scheduling, work, completion, then manager-actions. If security/CI architecture changed materially, STOP for plan delta review.
 
 - [ ] **Step 3: Create isolated implementation worktree only after separate product-implementation authorization**
 
@@ -195,9 +199,45 @@ Use `superpowers:using-git-worktrees`. Do not create implementation commits duri
   - `VendorSchedulingPurpose = "INITIAL"|"RESCHEDULE"|"FOLLOW_UP"`
   - `VendorSchedulingRoundStatus = "OPEN"|"CONFIRMED"|"SUPERSEDED"|"CANCELLED"`
   - `VendorAppointmentStatus = "SCHEDULED"|"OCCURRED"|"SUPERSEDED"|"CANCELLED"`
+  - `VendorDeclineReason = "NO_CAPACITY"|"OUT_OF_SERVICE_AREA"|"SKILL_MISMATCH"|"CANNOT_MEET_TIMING"|"OTHER"`
+  - `VendorBlockerCode = "PARTS_REQUIRED"|"ACCESS_BLOCKED"|"SCOPE_REVIEW_REQUIRED"|"FOLLOW_UP_VISIT_REQUIRED"|"OTHER"`
+  - `VendorSharedDetailSourceType = "TENANT_REPORTED"|"BUILDING_VERIFIED"|"MANAGER_REVIEWED"`
+  - `VendorPhotoOmissionReason = "NOT_APPLICABLE"|"SAFETY_OR_PRIVACY"|"TECHNICAL_FAILURE"`
+  - `VendorAppointmentConfirmationMode = "TENANT_CONFIRMED"|"PREAUTHORIZED_ENTRY"`
+  - `VendorManagerDisposition = "CLOSEOUT"|"REQUEST_CORRECTION"|"MORE_WORK"`
 - Produces DTOs `ManagerVendorHandoffDto`, `TenantVendorSchedulingDto`, `VendorJobDto`, `VendorLinkIssueDto`, `VendorCompletionReportDto`.
-- Contract bounds fixed by this plan: `vendorLabel` plain text 1–80 characters; optional `accessInstruction` plain text 1–500 characters; optional decline/withdraw/blocker operational note 1–500 characters; Vendor/Manager work/completion summaries retain the frozen 1–1000-character bound. Control/format characters are rejected consistently with existing text validators.
-- Produces strict mutation schemas with required `clientRequestId` and expected version/revision fields for assignment create, packet publish, link issue/reissue/revoke, accept/decline/withdraw, availability, unattended-entry authorization, proposal, slot confirmation/selection, visit start, blocker record/clear, completion report, correction, more-work and closeout.
+- Contract bounds fixed by this plan: `vendorLabel` plain text 1–80 characters; optional `accessInstruction` plain text 1–500 characters; optional decline/withdraw/blocker operational note 1–500 characters; report-correction Manager reason is required plain text 1–500 characters; optional `componentOrPartNote` is plain text 1–500 characters and is never inventory/warranty/cost data; Vendor/Manager work/completion summaries retain the frozen 1–1000-character bound. Control/format characters are rejected consistently with existing text validators.
+- Produces strict mutation schemas and exact command matrix below. Every consequential mutation carries UUID `clientRequestId` plus the listed stale-state guards; server-derived authority IDs are never accepted as client authority.
+
+| Actor | Command schema | HTTP route | Required stale-state fields | Durable result |
+|---|---|---|---|---|
+| Manager | `VendorCreateAssignmentCommand` | `POST /api/v2/core/manager/tickets/:ticketId/vendor-assignment` | expected ticket version | PREPARING assignment |
+| Manager | `VendorPublishPacketCommand` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/packet-revisions` | expectedAssignmentVersion, expectedPacketRevisionId/null | immutable current packet revision |
+| Manager | `VendorIssueLinkCommand` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/link` | expectedAssignmentVersion, expectedPacketRevisionId | first OFFERED capability; OPEN→IN_PROGRESS when needed |
+| Manager | `VendorReissueLinkCommand` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/link/reissue` | expectedAssignmentVersion, expectedPacketRevisionId | old unredeemed capability invalidated; new capability |
+| Manager | `VendorRevokeCommand` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/revoke` | expectedAssignmentVersion | ENDED/REVOKED + future scheduling cancelled |
+| Manager | `VendorReassignCommand` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/reassign` | expectedAssignmentVersion | old ENDED/SUPERSEDED + new PREPARING |
+| Manager | `VendorRequestCorrectionCommand` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/completion-correction` | expectedAssignmentVersion, expectedCompletionReportId | durable correction request |
+| Manager | `VendorRequireFollowUpCommand` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/follow-up` | expectedAssignmentVersion, expectedCompletionReportId | FOLLOW_UP round with report provenance |
+| Manager | `VendorManagerRescheduleCommand` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/reschedule` | expectedAssignmentVersion, expectedRoundVersion, expectedAppointmentId, expectedPacketRevisionId | future appointment superseded + RESCHEDULE round |
+| Manager | `VendorCloseoutCommand` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/closeout` | expectedAssignmentVersion, expectedCompletionReportId, expectedCommunicationVersion | ticket COMPLETED + assignment ENDED/CLOSED atomically |
+| Tenant | `VendorAvailabilityCommand` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/availability` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId | immutable availability submission |
+| Tenant | `VendorEntryAuthorizationCommand` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/entry-authorization` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId, availabilitySubmissionId | exact selected-window authorization |
+| Tenant | `VendorConfirmSlotCommand` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/confirm` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId, proposalId | TENANT_CONFIRMED Appointment |
+| Tenant | `VendorTenantRescheduleCommand` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/reschedule` | expectedAssignmentVersion, expectedRoundVersion, expectedAppointmentId, expectedPacketRevisionId | future appointment superseded + RESCHEDULE round |
+| Vendor | `VendorRedeemCommand` | `POST /api/v2/vendor/session/redeem` | raw one-time token only; no assignment ID authority | vendor session |
+| Vendor | `VendorLogoutCommand` | `POST /api/v2/vendor/session/logout` | session + CSRF | current session revoked |
+| Vendor | `VendorAcceptCommand` | `POST /api/v2/vendor/job/accept` | expectedAssignmentVersion, expectedPacketRevisionId | OFFERED→ACTIVE + first INITIAL/OPEN round atomically |
+| Vendor | `VendorDeclineCommand` | `POST /api/v2/vendor/job/decline` | expectedAssignmentVersion, expectedPacketRevisionId | ENDED/DECLINED |
+| Vendor | `VendorWithdrawCommand` | `POST /api/v2/vendor/job/withdraw` | expectedAssignmentVersion, expectedPacketRevisionId | ENDED/WITHDRAWN |
+| Vendor | `VendorProposalCommand` | `POST /api/v2/vendor/scheduling/proposals` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId | 1–5 current proposal slots |
+| Vendor | `VendorPreauthorizedAppointmentCommand` | `POST /api/v2/vendor/scheduling/preauthorized-appointment` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId, availabilitySubmissionId, selectedWindowId | PREAUTHORIZED_ENTRY Appointment |
+| Vendor | `VendorRescheduleCommand` | `POST /api/v2/vendor/scheduling/reschedule` | expectedAssignmentVersion, expectedRoundVersion, expectedAppointmentId, expectedPacketRevisionId | future appointment superseded + RESCHEDULE round |
+| Vendor | `VendorVisitStartCommand` | `POST /api/v2/vendor/appointments/:appointmentId/visit-start` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId | Appointment OCCURRED + VISIT_STARTED |
+| Vendor | `VendorBlockerCommand` / `VendorClearBlockerCommand` | `POST /api/v2/vendor/blockers` / `POST /api/v2/vendor/blockers/:blockerId/clear` | expectedAssignmentVersion, expectedPacketRevisionId | append-only blocker evidence |
+| Vendor | `VendorCompletionReportCommand` | `POST /api/v2/vendor/completion-reports` | expectedAssignmentVersion, expectedPacketRevisionId, expectedAppointmentId, expectedCorrectionRequestId/null | append-only current report revision |
+
+Read-only routes are `GET /api/v2/core/manager/tickets/:ticketId/vendor-handoff`, `GET /api/v2/core/tickets/:ticketId/vendor-scheduling`, `GET /api/v2/vendor/session`, and `GET /api/v2/vendor/job`.
 - Produces application ports `VendorHandoffManagerPort`, `VendorHandoffTenantPort`, `VendorHandoffExternalPort` and `VendorHandoffError`.
 - No raw capability/session/CSRF type appears in any durable DTO.
 
@@ -210,8 +250,10 @@ Tests must assert:
 - completion evidence is either 1–5 upload IDs or one approved omission reason, never neither/both;
 - Manager cannot submit Tenant consent fields;
 - Vendor/Manager payloads cannot submit org/property/unit/ticket authority fields where server derives them;
-- exact enum values above;
-- all consequential commands require UUID `clientRequestId`.
+- exact enum values above, including decline/blocker/shared-detail/photo-omission/confirmation/disposition enums;
+- correction reason and `componentOrPartNote` bounds above;
+- command-matrix routes and required stale-state fields above;
+- all consequential commands require UUID `clientRequestId` except one-time redeem, whose authority is the raw token and which creates its durable redemption/session record server-side.
 
 Run:
 ```bash
@@ -277,8 +319,14 @@ git commit -m "feat(vendor): define secure handoff contracts"
   - `command_receipt` — actor scope/id + request key + SHA-256 fingerprint + safe result JSON.
 - Manager/Tenant runtime remains `bm_b1_web`; external Vendor runtime gets EXECUTE only on external functions through `bm_vendor_web`.
 - Neither runtime has direct table DML or SET ROLE to owner.
-- Cross-schema Core helpers project only the minimum manager-authorized source and current-Tenant occupancy identity. Foundation signatures are `core_flow.vendor_handoff_source(p_digest bytea,p_ticket text,p_photo_ids uuid[],p_lock boolean) RETURNS jsonb` and `core_flow.vendor_handoff_current_tenant(p_digest bytea,p_ticket text,p_lock boolean) RETURNS jsonb`, owned by `bm_core_flow_owner` and executable only by the Vendor handoff owner/runtime path that needs them. Do not grant Vendor owner broad Core table access.
-- `vendor_handoff.guard_direct_completion(p_digest bytea,p_ticket text) RETURNS void` shares the same per-ticket advisory-lock key used by assignment create/reassign/closeout. It returns conflict while any non-ended assignment exists, so legacy direct completion and assignment creation cannot win concurrently.
+- All assignment create/reassign/revoke/closeout/direct-completion races use the source `core_flow.ticket` row `FOR UPDATE` as the universal first serialization lock. After that lock, recheck B1 Manager authority, then lock current VendorAssignment and subordinate Vendor resources. Do not add a separate per-ticket advisory-lock order.
+- Core-owned SECURITY DEFINER bridge helpers are narrow capabilities, never broad Core-table grants:
+  - `core_flow.vendor_handoff_source(p_digest bytea,p_ticket text,p_photo_ids uuid[],p_lock boolean) RETURNS jsonb`: Manager-authorized source snapshot and selected-photo metadata for packet publication.
+  - `core_flow.vendor_handoff_current_tenant(p_org uuid,p_ticket text,p_lock boolean) RETURNS jsonb`: server-derived current occupancy/member identity for Tenant authority and preauthorized visit recheck; callable only by `bm_vendor_handoff_owner`.
+  - `core_flow.vendor_handoff_source_photo(p_org uuid,p_ticket text,p_photo uuid) RETURNS TABLE(metadata jsonb,content bytea)`: exact same-ticket binary read used only after `vendor_handoff` has validated current Vendor session/current packet/exact allowlist.
+  - `core_flow.vendor_handoff_mark_offered(p_digest bytea,p_ticket text,p_message text) RETURNS jsonb`: first-link capability that rechecks Manager authority under the ticket lock and applies the existing HANDLING `OPEN→IN_PROGRESS` semantics without copying Vendor label/private metadata into public events.
+- `vendor_handoff.guard_direct_completion(p_digest bytea,p_ticket text) RETURNS void` is the one narrow Vendor-schema capability callable by the ordinary B1 Core path. It acquires **no earlier competing lock**; after the caller already holds the source ticket row lock, it conflicts if any non-ended VendorAssignment exists.
+- Grant the four Core bridge helpers above only to `bm_vendor_handoff_owner`; do not grant them directly to `bm_b1_web` or `bm_vendor_web`. Grant only `vendor_handoff.guard_direct_completion` to `bm_b1_web`.
 - Persistence factories:
   - `createVendorHandoffManagerPort(database, orgId): VendorHandoffManagerPort`
   - `createVendorHandoffTenantPort(database, orgId): VendorHandoffTenantPort`
@@ -313,12 +361,13 @@ Expected: RED because roles/schema/functions do not exist.
 
 Rules:
 - original `0001–0018` bytes unchanged;
-- assignment create/publish/link operations recheck current Manager authorization after waits;
+- assignment create/publish/link operations take the source ticket row lock first and recheck current Manager authorization after waits;
 - canonical building/serviceAddress/unit/issue identity comes from server-side Core source;
 - tenant raw text is never address fallback;
 - packet publish fails safe when canonical address is unavailable;
 - first link issue transitions `PREPARING→OFFERED` and changes ticket `OPEN→IN_PROGRESS` through existing Core handling capability without copying Vendor metadata into public events;
-- exact link replay returns safe issuance metadata with `created:false`; raw link bytes are never recoverable from DB/receipt.
+- exact link replay returns safe issuance metadata with `created:false`; raw link bytes are never recoverable from DB/receipt;
+- first successful link issue calls the narrow Core `vendor_handoff_mark_offered(...)` capability in the same transaction so PREPARING→OFFERED and OPEN→IN_PROGRESS (when applicable) cannot split.
 
 - [ ] **Step 3: Run focused DB/security tests**
 
@@ -437,8 +486,9 @@ git commit -m "feat(vendor): add manager secure handoff flow"
 
 **Interfaces:**
 - `VENDOR_HANDOFF_DATABASE_CONFIG` supplies the separate runtime DB config. Test/dev may provision it; no credential is committed.
-- `POST /api/v2/vendor/redeem` consumes the raw fragment token once, sets HttpOnly Strict `vendor_session` cookie scoped to `/api/v2/vendor`, and returns current job + fresh CSRF.
-- `GET /api/v2/vendor/session` authenticates the session and rotates/returns a fresh server-issued CSRF value.
+- `POST /api/v2/vendor/session/redeem` consumes the raw fragment token once, sets HttpOnly Strict `vendor_session` cookie scoped to `/api/v2/vendor`, and returns current job + fresh CSRF.
+- `GET /api/v2/vendor/session` authenticates the session and rotates/returns a fresh server-issued CSRF value without extending the absolute session expiry.
+- `POST /api/v2/vendor/session/logout` requires session + `X-Vendor-CSRF` and revokes only the current Vendor browser session.
 - Vendor mutations require `X-Vendor-CSRF`.
 - `GET /api/v2/vendor/job`, `POST /job/accept`, `POST /job/decline`, `POST /job/withdraw`.
 - `GET /api/v2/vendor/job/source-photos/:photoId` serves only an explicitly allowlisted current Work Packet source photo after assignment/session recheck; guessed or cross-assignment photo IDs use the same hidden-resource response.
@@ -451,9 +501,14 @@ Assert:
 - cryptographically random token material and SHA-256 digest;
 - raw token/session/CSRF never appears in thrown/public error text;
 - first redeem succeeds; second redeem of same capability fails;
+- deterministic clock: raw capability redeem succeeds immediately before 72-hour expiry and fails immediately after it;
+- deterministic clock: session read/mutation succeeds immediately before the 7-day absolute expiry and fails immediately after it;
+- `GET /api/v2/vendor/session` / CSRF refresh does not extend the absolute expiry;
+- expired capability/session replay does not resurrect authority; reissue after expiry creates only a new capability;
 - replacement redeem invalidates previous session;
 - Reissue alone does not invalidate current active session;
 - Revoke does;
+- explicit Vendor logout revokes the current session but does not end the assignment;
 - assignment ENDED denies read/mutation;
 - assignment A session cannot probe B;
 - opening/redeeming leaves assignment OFFERED until explicit accept;
@@ -499,7 +554,7 @@ git commit -m "feat(vendor): add capability job session"
 
 **Interfaces:**
 - Tables/resources: `scheduling_round`, `tenant_availability_submission`, `tenant_availability_window`, `tenant_entry_authorization`, `tenant_entry_authorization_window`, `vendor_slot_proposal`, `vendor_slot`, `appointment`.
-- One OPEN round per assignment by partial unique constraint plus lock/recheck.
+- Successful Vendor Accept atomically creates the first `SchedulingRound purpose=INITIAL,status=OPEN`; there is no separate INITIAL-round command. Exact replay returns the same logical accept/round result. One OPEN round per assignment is enforced by partial unique constraint plus source-ticket/assignment lock+recheck.
 - Tenant availability mutation never creates unattended authorization.
 - Authorization references exact selected windows and current occupancy member.
 - Resident-confirmation proposal has 1–5 candidate slots; Tenant selects one current valid slot.
@@ -519,6 +574,8 @@ Cover AC20–AC27:
 - no Manager-written consent;
 - immutable appointment time;
 - pre-confirmation restart is not RESCHEDULE;
+- Tenant, Vendor and Manager RESCHEDULE commands all require a future SCHEDULED Appointment, atomically mark it SUPERSEDED, create one new `purpose=RESCHEDULE,status=OPEN` round, and preserve the old Appointment;
+- concurrent Accept/first scheduling actions cannot create two INITIAL OPEN rounds;
 - RESCHEDULE/FOLLOW_UP distinction.
 
 Run:
@@ -565,10 +622,12 @@ git commit -m "feat(vendor): persist scheduling and consent"
   - `GET /api/v2/core/tickets/:ticketId/vendor-scheduling`
   - `POST .../availability`
   - `POST .../entry-authorization`
-  - `POST .../confirm-slot`
+  - `POST .../confirm`
+  - `POST .../reschedule`
 - Vendor endpoints:
-  - `POST /api/v2/vendor/job/proposals`
-  - `POST /api/v2/vendor/job/preauthorized-appointment`
+  - `POST /api/v2/vendor/scheduling/proposals`
+  - `POST /api/v2/vendor/scheduling/preauthorized-appointment`
+  - `POST /api/v2/vendor/scheduling/reschedule`
 - `formatVendorInterval(startAt,endAt,now?)` is the single deterministic Asia/Seoul formatter used by Manager/Tenant/Vendor Vendor-Handoff UI.
 
 - [ ] **Step 1: Write time/UI RED tests**
@@ -620,6 +679,7 @@ git commit -m "feat(vendor): add tenant vendor scheduling"
 
 **Interfaces:**
 - Append-only `work_event` records `VISIT_STARTED`, `BLOCKER_RECORDED`, `BLOCKER_CLEARED`.
+- `scheduling_round` FOLLOW_UP provenance is exact: a FOLLOW_UP round has exactly one of `source_blocker_id` or `source_completion_report_id`; INITIAL/RESCHEDULE have neither.
 - One `VISIT_STARTED` per Appointment.
 - At most one uncleared blocker; clear references exact blocker event.
 - `POST /api/v2/vendor/job/visits/start`
@@ -635,6 +695,7 @@ Cover AC23, AC28–AC31:
 - stale/ended occupancy after preauthorization;
 - blocker overlay and one-current-blocker invariant;
 - blocker clear exact reference/history;
+- blocker-driven FOLLOW_UP atomically appends `BLOCKER_CLEARED` for that exact blocker and creates the new FOLLOW_UP/OPEN round with `sourceBlockerId`; the original blocker event remains history;
 - FOLLOW_UP keeps prior Appointment OCCURRED.
 
 Run:
@@ -687,7 +748,7 @@ git commit -m "feat(vendor): record visit and blocker evidence"
 - Vendor photo upload uses the accepted `normalizePhoto` decode/re-encode path from Core photo handling without changing the frozen Core photo implementation.
 - `COMPLETION_REPORTED` is a derived presentation/eligibility phase from the current pending report, not a fifth `VendorAssignment.status`; durable assignment status remains `ACTIVE` until an allowed end transition.
 - Vendor report moves assignment presentation to `COMPLETION_REPORTED` read-mostly state without ending assignment or ticket.
-- Manager disposition is exactly `CLOSEOUT | REQUEST_CORRECTION | MORE_WORK`.
+- Manager disposition is exactly `CLOSEOUT | REQUEST_CORRECTION | MORE_WORK`. `REQUEST_CORRECTION` stores the required 1–500-character Manager reason; `MORE_WORK` preserves the prior report and creates a FOLLOW_UP round with `sourceCompletionReportId`.
 - Completion photo routes are exact: Vendor upload `POST /api/v2/vendor/job/completion-photos` with `X-Upload-Id`; Vendor own read `GET /api/v2/vendor/job/completion-photos/:photoId`; Manager read `GET /api/v2/core/manager/tickets/:ticketId/vendor-completion-photos/:photoId`. There is no Tenant completion-photo route.
 
 - [ ] **Step 1: Write RED tests for report prerequisites and revisions**
@@ -741,6 +802,7 @@ git commit -m "feat(vendor): add completion report evidence"
 ### Task 9: Make Manager correction/more-work/closeout/reassign atomic
 
 **Files:**
+- Create: `packages/persistence-postgres/migrations/0023_vendor_handoff_manager_actions.sql`
 - Modify: `packages/persistence-postgres/src/vendor-handoff/manager.ts`
 - Modify: `packages/persistence-postgres/src/core-flow.ts`
 - Modify: `packages/persistence-postgres/src/vendor-handoff/external.ts`
@@ -751,19 +813,22 @@ git commit -m "feat(vendor): add completion report evidence"
 - Extend: `tests/postgres/vendor-handoff-security.test.ts`
 
 **Interfaces:**
-- `REQUEST_CORRECTION`: preserves report; only exact correction report becomes actionable.
-- `MORE_WORK`: preserves prior report/visit and opens FOLLOW_UP round.
-- `CLOSEOUT`: in one DB transaction:
-  1. recheck current Manager authority;
-  2. lock/read current ticket, assignment, report and public communication version;
-  3. use existing Core public-Q&A completion guard;
-  4. record Manager-authored completion text through existing Core handling semantics;
-  5. set assignment `ENDED/CLOSED`;
-  6. revoke all capabilities/sessions;
-  7. persist disposition/receipt;
-  8. expose one authoritative result.
-- Reassignment atomically ends old assignment `SUPERSEDED`, revokes old capabilities/sessions, and creates a new PREPARING assignment without rewriting old evidence.
-- Existing direct `HANDLING status=COMPLETED` stays on the frozen application path, but `createCoreFlowPort(...).communication.guardCompletion` must, in the same existing transaction, run both `core_flow.guard_communication_completion(...)` and `vendor_handoff.guard_direct_completion(...)` before `scope.store(...)`. This rejects backend direct-completion bypass whenever a non-ended VendorAssignment exists and serializes with assignment create/reassign/closeout without changing the public Core action contract.
+- Migration `0023_vendor_handoff_manager_actions.sql` owns all new Manager disposition/reassign/revoke/closeout SQL introduced by this task; do not back-edit `0019–0022` to add Task 9 behavior.
+- Universal lock order for direct completion, assignment create, reassign, revoke and closeout is: source `core_flow.ticket FOR UPDATE` → current VendorAssignment → current round/appointment/blocker/report as required → command receipt. No new per-ticket advisory lock.
+- `REQUEST_CORRECTION`: preserves report, stores a required Manager reason (1–500 plain text), and only the exact correction report becomes actionable.
+- `MORE_WORK`: preserves prior report/visit and atomically creates FOLLOW_UP/OPEN with `sourceCompletionReportId`.
+- Core-owned closeout bridge: `core_flow.vendor_handoff_complete(p_digest bytea,p_ticket text,p_expected_communication_version bigint,p_message text) RETURNS jsonb`, SECURITY DEFINER owned by `bm_core_flow_owner`, EXECUTE granted only to `bm_vendor_handoff_owner`. It rechecks current Manager B1 authorization, participates in the already-held ticket-row lock, runs the frozen public-Q&A completion guard, enforces `IN_PROGRESS→COMPLETED`, records the existing Manager-authored HANDLING event/message semantics, and never invokes `vendor_handoff.guard_direct_completion`.
+- `vendor_handoff.closeout(...)` is the sole Vendor-managed closeout command. In one transaction it:
+  1. locks source ticket row first and rechecks Manager authority;
+  2. locks/rechecks current assignment/report/blocker/round/correction state;
+  3. invokes `core_flow.vendor_handoff_complete(...)`;
+  4. sets assignment `ENDED/CLOSED`;
+  5. revokes all assignment capabilities/sessions;
+  6. persists disposition/idempotency receipt;
+  7. returns one authoritative result.
+- Ordinary existing `HANDLING status=COMPLETED` stays on the frozen application path. After the ticket row is already locked, `createCoreFlowPort(...).communication.guardCompletion` runs both `core_flow.guard_communication_completion(...)` and `vendor_handoff.guard_direct_completion(...)` before `scope.store(...)`; this path cannot invoke the closeout bridge.
+- Reassign atomically: old assignment `ENDED/SUPERSEDED`; old Vendor capability/session revoked; OPEN round `SUPERSEDED`; future SCHEDULED Appointment `SUPERSEDED`; OCCURRED Appointments/Work Events/Reports preserved; new assignment PREPARING.
+- Revoke atomically: assignment `ENDED/REVOKED`; Vendor access immediately revoked; OPEN round `CANCELLED`; future SCHEDULED Appointment `CANCELLED`; OCCURRED/history preserved; no actionable scheduling remains.
 
 - [ ] **Step 1: Write concurrency/atomicity RED tests**
 
@@ -775,10 +840,13 @@ Cover AC38–AC42 and reassignment:
 - ticket COMPLETED iff assignment CLOSED in successful closeout;
 - Vendor access denied after closeout;
 - active assignment => existing direct Manager completion returns STATE_CONFLICT with no partial completion;
-- assignment-create versus direct-completion race => exactly one wins under the shared per-ticket advisory lock;
+- direct-completion wins source-ticket lock first => assignment create recheck fails with no partial assignment;
+- assignment create wins source-ticket lock first => direct completion recheck fails with no partial completion;
+- valid Vendor closeout succeeds despite active assignment because it uses the closeout-only Core capability, not the direct-completion guard;
 - no active assignment => existing direct Manager completion still works;
 - historical ENDED assignment => direct Manager completion still works;
-- reassign preserves old visits/reports and revokes old access.
+- reassign supersedes OPEN round/future SCHEDULED Appointment, preserves OCCURRED/work/report history, revokes old access and creates one PREPARING replacement;
+- revoke cancels OPEN round/future SCHEDULED Appointment and leaves no actionable scheduling.
 
 Run:
 ```bash
@@ -805,7 +873,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/persistence-postgres/src/vendor-handoff packages/persistence-postgres/src/core-flow.ts apps/web/src/server/core-flow/vendor-handoff.ts apps/web/src/app/core/vendor-handoff-manager.tsx packages/api-client/src/core-vendor-handoff.ts tests/postgres/vendor-handoff-completion.test.ts tests/postgres/vendor-handoff-security.test.ts
+git add packages/persistence-postgres/migrations/0023_vendor_handoff_manager_actions.sql packages/persistence-postgres/src/vendor-handoff packages/persistence-postgres/src/core-flow.ts apps/web/src/server/core-flow/vendor-handoff.ts apps/web/src/app/core/vendor-handoff-manager.tsx packages/api-client/src/core-vendor-handoff.ts tests/postgres/vendor-handoff-completion.test.ts tests/postgres/vendor-handoff-security.test.ts
 git commit -m "feat(vendor): add atomic manager disposition"
 ```
 
@@ -977,7 +1045,10 @@ Required negative probes:
 - assignment A Vendor session probes B packet/photo/appointment/report IDs;
 - SAFETY_ESCALATED and non-external route show no handoff;
 - stale packet/round/report/communication versions conflict;
-- link issue response-loss reconciles to unrecoverable raw link + explicit Reissue.
+- link issue response-loss reconciles to unrecoverable raw link + explicit Reissue;
+- deterministic 72h capability and 7d absolute-session expiry boundaries;
+- Tenant/Vendor/Manager RESCHEDULE each preserves the old future Appointment and creates one RESCHEDULE round;
+- reassign/revoke remove stale actionable future scheduling while preserving OCCURRED history.
 
 - [ ] **Step 2: Add responsive/accessibility checks**
 
@@ -990,6 +1061,10 @@ At minimum:
 - action-point consent copy visible;
 - current task before history;
 - dialog focus trap/return and keyboard-only critical actions;
+- copy assertions forbid pre-outcome semantic collapse: `수리 완료`, `문제 해결 완료`, `완전히 해결됨`, `업체 완료`;
+- preauthorization action-point copy forbids `상시 출입 허용`, `언제든 출입 허용`, `자동 출입 허용`;
+- Reissue UI forbids `링크 다시 보기`, `링크 복구` and uses explicit Reissue semantics;
+- Vendor report and Manager closeout do not use a green success treatment; preferred role-appropriate terms include `업체 연결 / 작업 요청`, `방문 일정 조율`, `작업 보고`, `처리 완료 기록`;
 - real device/IME and real screen reader remain explicitly NOT_TESTED unless separately executed.
 
 - [ ] **Step 3: Run local complete gates once**
@@ -1144,4 +1219,4 @@ Before requesting independent review, the plan author must record:
 
 After independent plan review passes, STOP. A passing plan review does **not** authorize Task 0 or product implementation. The operator must separately authorize product implementation and choose the execution method.
 
-Recommended future execution method: **Subagent-driven**, because the subsystem crosses four DB migrations, three security identities, three role-specific UIs, concurrency/idempotency, binary evidence and full browser/restart/CI gates; per-task fresh review materially reduces cross-boundary security regressions.
+Recommended future execution method: **Subagent-driven**, because the subsystem crosses five DB migrations, three security identities, three role-specific UIs, concurrency/idempotency, binary evidence and full browser/restart/CI gates; per-task fresh review materially reduces cross-boundary security regressions.
