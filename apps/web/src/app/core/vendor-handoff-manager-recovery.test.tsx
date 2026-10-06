@@ -13,18 +13,18 @@ let root:Root|undefined,host:HTMLDivElement;
 afterEach(async()=>{if(root)await act(async()=>root?.unmount());root=undefined;host?.remove();});
 async function mount(issue:()=>Promise<unknown>,initial:ManagerVendorHandoffDto=preparing){
   host=document.createElement("div");document.body.append(host);root=createRoot(host);
-  const readHandoff=vi.fn(async()=>initial),issueLink=vi.fn(issue),createAssignment=vi.fn(async()=>preparing);
-  const client={vendorHandoff:{readHandoff,issueLink,createAssignment},photos:async()=>[]} as unknown as CoreFlowClient;
+  const readHandoff=vi.fn(async()=>initial),issueLink=vi.fn(issue),createAssignment=vi.fn(async()=>preparing),publishPacket=vi.fn(async()=>preparing);
+  const client={vendorHandoff:{readHandoff,issueLink,createAssignment,publishPacket},photos:async()=>[]} as unknown as CoreFlowClient;
   const props={client,ticket,revision:0,onHandoff:()=>{},onChanged:()=>{}};
   await act(async()=>{root!.render(<VendorHandoffManager {...props}/>);});
-  return {readHandoff,issueLink,createAssignment,rerender:async(next:CoreTicketDto,revision=0)=>act(async()=>root!.render(<VendorHandoffManager {...props} ticket={next} revision={revision}/>))};
+  return {readHandoff,issueLink,createAssignment,publishPacket,rerender:async(next:CoreTicketDto,revision=0)=>act(async()=>root!.render(<VendorHandoffManager {...props} ticket={next} revision={revision}/>))};
 }
 const button=(label:string)=>Array.from(host.querySelectorAll("button")).find(item=>item.textContent===label);
 async function click(label:string){expect(Boolean(button(label))).toBe(true);await act(async()=>button(label)!.click());}
 function editable(){return !host.querySelector<HTMLFieldSetElement>("fieldset")!.disabled;}
 async function input(label:string,value:string){
-  const field=host.querySelector<HTMLInputElement>(`[aria-label="${label}"]`)!;
-  await act(async()=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(field,value);field.dispatchEvent(new Event("input",{bubbles:true}));});
+  const field=host.querySelector<HTMLInputElement|HTMLTextAreaElement>(`[aria-label="${label}"]`)!;
+  await act(async()=>{Object.getOwnPropertyDescriptor(field.tagName==="TEXTAREA"?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,"value")!.set!.call(field,value);field.dispatchEvent(new Event("input",{bubbles:true}));});
 }
 it("definite 409 first-issue rejection restores editable PREPARING review",async()=>{
   const s=await mount(async()=>{throw new ApiClientError("STATE_CONFLICT","synthetic rejection",{status:409});});
@@ -75,4 +75,26 @@ it("a name validation error can be corrected without any server refresh",async()
   expect(host.querySelector<HTMLInputElement>('[aria-label="업체 표시 이름"]')!.disabled).toBe(false);
   await input("업체 표시 이름","수정 업체");await click("작업 요청 준비");
   expect(s.createAssignment).toHaveBeenCalledTimes(1);expect(s.readHandoff).toHaveBeenCalledTimes(2);
+});
+it("metadata-only replay followed by ENDED and new preparation/publication permits that assignment's first issue",async()=>{
+  const s=await mount(async()=>({created:false,assignmentId:"assignment",assignmentVersion:2,expiresAt:"2026-10-09T00:00:00Z"}));
+  s.readHandoff.mockResolvedValue({...preparing,assignment:{...preparing.assignment!,status:"OFFERED",version:2}});
+  await click("보안 링크 발급");expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없습니다")).toBe(true);
+  s.readHandoff.mockResolvedValue({...preparing,assignment:{...preparing.assignment!,status:"ENDED",endReason:"REVOKED"},currentPacket:null});
+  await click("업체 연결 상태 다시 확인");await input("업체 표시 이름","새 업체");
+  const replacement={...preparing,assignment:{...preparing.assignment!,id:"replacement",vendorLabel:"새 업체"},currentPacket:null};
+  s.createAssignment.mockResolvedValue(replacement);s.readHandoff.mockResolvedValue(replacement);
+  await click("작업 요청 준비");await input("업체 작업 설명","새 작업 설명");await click("업체 전달 내용 미리보기");
+  const published={...replacement,currentPacket:{...preparing.currentPacket!,id:"replacement-packet"}};
+  s.publishPacket.mockResolvedValue(published);s.readHandoff.mockResolvedValue(published);await click("업체 전달 내용 게시");
+  expect(s.createAssignment).toHaveBeenCalledTimes(1);expect(s.publishPacket).toHaveBeenCalledTimes(1);
+  expect(Boolean(button("보안 링크 발급"))).toBe(true);expect(button("보안 링크 발급")?.disabled).toBe(false);
+  expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없습니다")).toBe(false);expect(s.issueLink).toHaveBeenCalledTimes(1);
+});
+it("metadata-only replay loss state does not follow an authoritative replacement PREPARING assignment",async()=>{
+  const s=await mount(async()=>({created:false,assignmentId:"assignment",assignmentVersion:2,expiresAt:"2026-10-09T00:00:00Z"}));
+  s.readHandoff.mockResolvedValue({...preparing,assignment:{...preparing.assignment!,status:"OFFERED",version:2}});await click("보안 링크 발급");
+  s.readHandoff.mockResolvedValue({...preparing,assignment:{...preparing.assignment!,id:"replacement"}});await click("업체 연결 상태 다시 확인");
+  expect(Boolean(button("보안 링크 발급"))).toBe(true);expect(button("보안 링크 발급")?.disabled).toBe(false);
+  expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없습니다")).toBe(false);expect(s.issueLink).toHaveBeenCalledTimes(1);
 });

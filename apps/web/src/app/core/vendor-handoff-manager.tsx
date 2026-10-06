@@ -105,12 +105,13 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged}:ManagerP
   const [photoPreviews,setPhotoPreviews]=useState<{photoId:string;url:string}[]>([]);
   const generation=useRef(0),sending=useRef(false);
   const pendingLinkRef=useRef<PendingLinkRequest|null>(null);
-  const rememberLink=useCallback((value:PendingLinkRequest|null)=>{pendingLinkRef.current=value;setPendingLink(value);},[]);
+  const linkAssignmentRef=useRef<string|null>(null);
+  const rememberLink=useCallback((value:PendingLinkRequest|null)=>{if(value)linkAssignmentRef.current=value.assignmentId;pendingLinkRef.current=value;setPendingLink(value);},[]);
   const invalidate=useCallback(()=>{generation.current++;},[]);
   const apply=useCallback((value:ManagerVendorHandoffDto|null)=>{
-    const pending=pendingLinkRef.current;
-    if(value&&pending&&(value.assignment?.id!==pending.assignmentId||value.assignment.status==="ENDED")){
-      rememberLink(null);setUncertain(false);setLinkUnavailable(false);
+    const linkAssignment=linkAssignmentRef.current;
+    if(value&&linkAssignment&&(value.assignment?.id!==linkAssignment||value.assignment.status==="ENDED")){
+      linkAssignmentRef.current=null;rememberLink(null);setUncertain(false);setLinkUnavailable(false);setImmediateLink(null);setNotice("");
     }
     setHandoff(value);onHandoff(value);
   },[onHandoff,rememberLink]);
@@ -150,7 +151,10 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged}:ManagerP
         rememberLink(null);
         const value=result.value as VendorLinkIssueDto;const link=result.handoff?resolveDeliverableLink(value,window.location.origin,result.handoff):null;setImmediateLink(link);setLinkUnavailable(!link);
         setNotice(link?"보안 링크를 발급했습니다. 업체에 직접 전달하세요.":"발급 기록을 확인했습니다. 원래 링크는 다시 표시할 수 없습니다.");
-      }else{setNotice(kind==="CREATE"?"작업 요청 준비를 저장했습니다.":kind==="PUBLISH"?"업체 전달 내용을 게시했습니다.":"업체 접근 철회를 기록했습니다.");}
+      }else{
+        if(kind==="CREATE"){linkAssignmentRef.current=null;setLinkUnavailable(false);}
+        setNotice(kind==="CREATE"?"작업 요청 준비를 저장했습니다.":kind==="PUBLISH"?"업체 전달 내용을 게시했습니다.":"업체 접근 철회를 기록했습니다.");
+      }
       onChanged();
     }finally{if(current===generation.current)setBusy(false);sending.current=false;}
   };
