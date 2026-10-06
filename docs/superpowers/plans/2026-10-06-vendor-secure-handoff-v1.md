@@ -897,14 +897,13 @@ Cover Task-8 portions of AC32–AC37, AC46–AC51:
 - Manager can read the current report and raw completion photos; Tenant cannot;
 - COMPLETION_REPORTED rejects packet publication, scheduling/visit/blocker/withdraw, reassignment, revoke, unrelated upload and any second unrelated report. In Task 8 both correction-context upload and correction-report exceptions are deliberately RED/absent; Task 9 enables only those two exact mutations after a durable REQUEST_CORRECTION.
 - exact upload replay returns the same photo ID and one durable photo/receipt without consuming another context slot; same request ID + changed sanitized bytes conflicts; same request ID + changed version/packet/Appointment/correction intent conflicts;
-- initial upload requires `expectedCorrectionRequestId = null`; after a report exists, only the exact unresolved correction request may authorize a new photo upload during COMPLETION_REPORTED;
-- null/wrong/stale/consumed/cross-assignment correction request rejects with no durable photo; correction request A photos cannot satisfy correction request B;
+- Task 8 initial upload requires `expectedCorrectionRequestId = null`; any nonnull correction context is rejected until Task 9 creates and enables the durable correction-request path;
+- Task 8 proves every nonnull correction request is rejected with no durable photo; Task 9 later proves null/wrong/stale/consumed/cross-assignment correction context rejection after correction upload is enabled;
 - after 10 accepted uploads in one context, an eleventh fresh request is rejected before durable photo persistence; exact replay still returns the same photo without consuming a slot;
 - initial report attaches only same-context photos; correction report may reuse photos attached to the report being corrected and/or exact-current-correction photos, final total 1–5; unselected uploads become non-reusable `UNATTACHED_RETAINED` history when the context closes;
 - stale assignment version, stale packet revision, or wrong/non-OCCURRED Appointment creates no durable photo; a session for assignment A probing B produces non-disclosing denial;
 - upload waiting on a ticket lock rechecks session/assignment after Manager Revoke/Reassign commits: the revoked/superseded assignment gains no new durable photo. Repeat against Task 9's final Manager-action functions;
 - header/command ID mismatch rejects before persistence; rejected preprocessing creates neither photo nor receipt; upload success alone leaves report/ticket state unchanged and cannot bypass report/correction eligibility;
-- Manager requests evidence/photo correction → exact correction-context upload succeeds; after correction report consumes/supersedes that request, further upload under the old request conflicts;
 - simulate lost upload response, read authoritative job/photo receipt state before retry, and prove exact authorized replay returns that same photo rather than another upload. Task 11 repeats recovery across separate service instances; Task 12 checks the browser recovery state.
 
 Run:
@@ -963,9 +962,9 @@ git commit -m "feat(vendor): add completion report evidence"
 - Extend: `tests/postgres/vendor-handoff-security.test.ts`
 
 **Interfaces:**
-- Migration `0023_vendor_handoff_manager_actions.sql` owns all new Manager disposition/reassign/revoke/closeout SQL introduced by this task; do not back-edit `0019–0022` to add Task 9 behavior.
+- Migration `0023_vendor_handoff_manager_actions.sql` owns all new Manager disposition/reassign/revoke/closeout SQL introduced by this task; do not back-edit `0019–0022` to add Task 9 behavior. It also adds the correction-context foreign key/constraint from nonnull `completion_photo.correction_request_id` to the durable current correction request before enabling any correction-photo upload.
 - Universal lock order for direct completion, assignment create, reassign, revoke and closeout is: source `core_flow.ticket FOR UPDATE` → current VendorAssignment → current round/appointment/blocker/report as required → command receipt. No new per-ticket advisory lock.
-- `REQUEST_CORRECTION`: preserves the current report, stores a required Manager reason (1–500 plain text), and creates the only durable authorization for a correction report. Task 9 extends `external.submitCompletionReport(...)` so that an exact `expectedCorrectionRequestId` creates a new report revision with `supersedesReportId` equal to the report named by that request; no other report mutation is re-enabled.
+- `REQUEST_CORRECTION`: preserves the current report, stores a required Manager reason (1–500 plain text), and creates the only durable authorization for correction-scoped evidence/report mutation. Task 9 extends `external.uploadCompletionPhoto(...)` to accept only that exact unresolved `expectedCorrectionRequestId`, subject to the same 10-photo context cap and ticket-first/idempotency contract, and extends `external.submitCompletionReport(...)` so an exact request creates a new report revision with `supersedesReportId` equal to the report named by that request. The correction report may reuse photos already attached to the report being corrected and/or attach exact-current-correction uploads, final total 1–5; consuming the correction request closes that upload context. No other Vendor mutation is re-enabled.
 - `MORE_WORK`: preserves prior report/visit and atomically creates FOLLOW_UP/OPEN with `sourceCompletionReportId`.
 - Core-owned closeout bridge: `core_flow.vendor_handoff_complete(p_digest bytea,p_ticket text,p_expected_communication_version bigint,p_message text) RETURNS jsonb`, SECURITY DEFINER owned by `bm_core_flow_owner`, EXECUTE granted only to `bm_vendor_handoff_owner`. It rechecks current Manager B1 authorization, participates in the already-held ticket-row lock, runs the frozen public-Q&A completion guard, enforces `IN_PROGRESS→COMPLETED`, records the existing Manager-authored HANDLING event/message semantics, and never invokes `vendor_handoff.guard_direct_completion`.
 - `vendor_handoff.closeout(...)` is the sole Vendor-managed closeout command. In one transaction it:
@@ -984,7 +983,7 @@ git commit -m "feat(vendor): add completion report evidence"
 - [ ] **Step 1: Write concurrency/atomicity RED tests**
 
 Cover the remaining correction portion of AC35 plus AC38–AC42, reassignment/revoke, and Manager reschedule:
-- REQUEST_CORRECTION reason is durable; exact Vendor correction produces a new current report revision, preserves the old report, and consumes only that request; stale/wrong correction request conflicts;
+- REQUEST_CORRECTION reason is durable; exact correction-context photo upload succeeds only for the current unresolved request; null/wrong/stale/consumed/cross-assignment correction context rejects with no durable photo; request A photos cannot satisfy request B; exact Vendor correction may reuse prior attached photos and/or exact-current-correction uploads, produces a new current report revision, preserves the old report, and consumes/closes only that request/context; further upload under the consumed request conflicts;
 - communication-first => closeout conflict/no partial transition;
 - closeout-first => later message conflict/no partial message;
 - Manager auth revocation while waiting => no closeout;
