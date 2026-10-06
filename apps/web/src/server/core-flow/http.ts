@@ -6,6 +6,7 @@ import { parseRouteCode } from "../http/route-code";
 import { getCoreFlowContainer,type CoreHTTPDependencies } from "./container";
 import { handlePhotoRequest,PhotoRequestError } from "./photos";
 import { handleOnboarding } from "./onboarding";
+import { handleManagerVendorHandoff,isManagerVendorHandoffRoute } from "./vendor-handoff";
 import { CoreManagerWorkItemsSchema,CoreManagerWorkItemSchema,CoreManagerWorkUpdateSchema,CoreManagerInternalNotesSchema,CoreManagerInternalNoteSchema,CoreManagerInternalNoteCreateSchema } from "@build-manager/api-contracts";
 import { sendCoreCommunication } from "@build-manager/application";
 import { CoreCommunicationPageSchema,CoreCommunicationSendSchema,CorePublicMessageSchema,CoreCommunicationSummariesSchema } from "@build-manager/api-contracts";
@@ -93,6 +94,7 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
       if(communicationSummaries)return json(CoreCommunicationSummariesSchema.parse(await scope.communication.summaries(summaryIds)));
       if(segments[0]==="manager"){
         if(scope.session.role!=="ORG_ADMIN"&&scope.session.role!=="PROPERTY_STAFF")fail("FORBIDDEN");
+        if(isManagerVendorHandoffRoute(segments))return await handleManagerVendorHandoff(request,segments,hash,d.b1?d.vendorHandoff:undefined,headers);
         if(route==="manager/work-items"&&request.method==="GET")return json(CoreManagerWorkItemsSchema.parse(await scope.manager.list()));
         const id=segments[2];
         if(segments.length===4&&((segments[1]==="units"&&segments[3]==="maintenance-timeline")||(segments[1]==="tickets"&&segments[3]==="maintenance-fact")||(segments[1]==="maintenance-facts"&&segments[3]==="corrections"))){

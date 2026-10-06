@@ -264,7 +264,7 @@ BEGIN
   SELECT label INTO unit_label FROM app.unit WHERE org_id=t.org_id AND id=t.unit_id;
   SELECT coalesce(jsonb_agg(jsonb_build_object('photoId',p.id,'mime',p.mime,'byteSize',octet_length(p.content),'width',p.width,'height',p.height)
     ORDER BY p.id),'[]'::jsonb) INTO photos
-    FROM core_flow.ticket_photo p WHERE p.org_id=t.org_id AND p.ticket_id=t.id AND p.id=ANY(coalesce(p_photo_ids,'{}'::uuid[]));
+    FROM core_flow.ticket_photo p WHERE p.org_id=t.org_id AND p.ticket_id=t.id AND (p_photo_ids IS NULL OR p.id=ANY(p_photo_ids));
   RETURN jsonb_build_object('actorId',actor->>'actorId','orgId',t.org_id,'ticketId',t.id,'propertyId',t.property_id,'unitId',t.unit_id,'unitLabel',unit_label,
     'ticketVersion',t.version,'workStatus',t.work_status,'ticket',t.body,'building',b,'photos',photos);
 END $$;
@@ -341,11 +341,45 @@ CREATE TRIGGER work_packet_revision_immutable BEFORE UPDATE OR DELETE ON vendor_
 CREATE TRIGGER work_packet_source_photo_immutable BEFORE UPDATE OR DELETE ON vendor_handoff.work_packet_source_photo
   FOR EACH ROW EXECUTE FUNCTION vendor_handoff.immutable_packet();
 
+-- Shared exact issue-specific projection for Manager preview and packet publication.
+-- Source contains private Core data only inside this owner boundary; result contains no raw answers.
+CREATE FUNCTION vendor_handoff.packet_detail_candidates(s jsonb) RETURNS jsonb
+LANGUAGE plpgsql IMMUTABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE details jsonb:='[]'::jsonb;key text;answer jsonb;detail jsonb;label text;value text;
+BEGIN
+  FOREACH key IN ARRAY ARRAY['leak.active','leak.applianceOnly','leak.location','heating.hotWater','heating.allRooms','heating.powerOn','heating.unitOnly','heating.controllerAbnormal','heatingType','managementMode','primaryUse','approvalYear'] LOOP
+    detail:=NULL;value:=NULL;label:=NULL;
+    IF (s->'ticket'->>'issueType'='LEAK' AND key IN ('leak.active','leak.applianceOnly'))
+      OR (s->'ticket'->>'issueType'='HEATING' AND key IN ('heating.hotWater','heating.allRooms','heating.powerOn','heating.unitOnly','heating.controllerAbnormal')) THEN
+      SELECT x->'value' INTO answer FROM jsonb_array_elements(coalesce(s->'ticket'->'answers','[]'::jsonb)) x WHERE x->>'questionId'=key;
+      IF jsonb_typeof(answer)='boolean' THEN
+        value:=CASE WHEN answer='true'::jsonb THEN '예' ELSE '아니요' END;
+        label:=CASE key WHEN 'leak.active' THEN '현재 누수' WHEN 'leak.applianceOnly' THEN '기기 사용 시 누수'
+          WHEN 'heating.hotWater' THEN '온수 사용' WHEN 'heating.allRooms' THEN '모든 방 난방' WHEN 'heating.powerOn' THEN '전원 상태'
+          WHEN 'heating.unitOnly' THEN '해당 호실만 발생' WHEN 'heating.controllerAbnormal' THEN '조절기 이상' END;
+      END IF;
+      IF value IS NOT NULL THEN detail:=jsonb_build_object('key',key,'label',label,'value',value,'sourceType','TENANT_REPORTED'); END IF;
+    ELSIF s->'ticket'->>'issueType'='LEAK' AND key='leak.location' THEN
+      SELECT x->>'value' INTO value FROM jsonb_array_elements(coalesce(s->'ticket'->'answers','[]'::jsonb)) x WHERE x->>'questionId'=key;
+      label:=CASE value WHEN 'CEILING_WALL' THEN '천장 또는 벽' WHEN 'SINK_BATHROOM_FIXTURE' THEN '싱크대·욕실 설비' WHEN 'APPLIANCE' THEN '특정 기기' WHEN 'UNKNOWN' THEN '잘 모르겠음' END;
+      IF label IS NOT NULL THEN detail:=jsonb_build_object('key',key,'label','누수 위치','value',label,'sourceType','TENANT_REPORTED'); END IF;
+    ELSIF key IN ('heatingType','managementMode','primaryUse','approvalYear') THEN
+      SELECT x->>'value' INTO value FROM jsonb_array_elements(coalesce(s->'building'->'context','[]'::jsonb)) x
+        WHERE x->>'key'=key AND x->>'verified'='true' AND x->'value'<>'null'::jsonb AND jsonb_typeof(x->'value') IN ('string','number');
+      label:=CASE key WHEN 'heatingType' THEN '난방 방식' WHEN 'managementMode' THEN '관리 방식' WHEN 'primaryUse' THEN '건물 용도' WHEN 'approvalYear' THEN '승인 연도' END;
+      IF value IS NOT NULL AND char_length(value) BETWEEN 1 AND 500 THEN detail:=jsonb_build_object('key',key,'label',label,'value',value,'sourceType','BUILDING_VERIFIED'); END IF;
+    END IF;
+    IF detail IS NOT NULL THEN details:=details || jsonb_build_array(detail); END IF;
+  END LOOP;
+  RETURN details;
+END $$;
+
 CREATE FUNCTION vendor_handoff.manager_read(p_digest bytea,p_ticket text) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
-DECLARE c jsonb;a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;phase text:='ENDED';
+DECLARE c jsonb;s jsonb;a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;phase text:='ENDED';
 BEGIN
   c:=core_flow.vendor_handoff_manager_context(p_digest,p_ticket);
+  s:=core_flow.vendor_handoff_source(p_digest,p_ticket,NULL,false);
   PERFORM set_config('app.org_id',c->>'orgId',true);
   SELECT * INTO a FROM vendor_handoff.vendor_assignment
     WHERE org_id=(c->>'orgId')::uuid AND ticket_id=p_ticket ORDER BY created_at DESC,id DESC LIMIT 1;
@@ -356,7 +390,11 @@ BEGIN
   RETURN jsonb_build_object('ticketId',p_ticket,'assignment',CASE WHEN a.id IS NULL THEN NULL ELSE jsonb_build_object(
     'id',a.id,'status',a.status,'endReason',a.end_reason,'vendorLabel',a.vendor_label,'version',a.version) END,
     'currentPacket',CASE WHEN p.id IS NULL THEN NULL ELSE p.body END,'currentRound',NULL,'appointment',NULL,'activeBlocker',NULL,
-    'currentReport',NULL,'reportHistory','[]'::jsonb,'phase',phase,'waitingOn','NONE');
+    'currentReport',NULL,'reportHistory','[]'::jsonb,'phase',phase,'waitingOn','NONE',
+    'packetSource',jsonb_build_object('jobReference',p_ticket,'buildingName',s->'building'->>'displayName',
+      'serviceAddress',nullif(btrim(s->'building'->>'serviceAddress'),''),'unitLabel',nullif(btrim(s->>'unitLabel'),''),
+      'issueType',s->'ticket'->>'issueType','sharedDetails',vendor_handoff.packet_detail_candidates(s),
+      'sourcePhotoIds',coalesce((SELECT jsonb_agg(x->'photoId') FROM jsonb_array_elements(s->'photos') x),'[]'::jsonb),'safetyNotice','[]'::jsonb));
 END $$;
 
 CREATE FUNCTION vendor_handoff.manager_create_assignment(
@@ -428,27 +466,7 @@ BEGIN
   -- Two-stage sharing: bounded issue-specific structured values, then exact Manager selection.
   -- Free-text answers and unverified building data are never candidates.
   FOREACH key IN ARRAY p_shared_keys LOOP
-    detail:=NULL;value:=NULL;label:=NULL;
-    IF (s->'ticket'->>'issueType'='LEAK' AND key IN ('leak.active','leak.applianceOnly'))
-      OR (s->'ticket'->>'issueType'='HEATING' AND key IN ('heating.hotWater','heating.allRooms','heating.powerOn','heating.unitOnly','heating.controllerAbnormal')) THEN
-      SELECT x->'value' INTO answer FROM jsonb_array_elements(coalesce(s->'ticket'->'answers','[]'::jsonb)) x WHERE x->>'questionId'=key;
-      IF jsonb_typeof(answer)='boolean' THEN
-        value:=CASE WHEN answer='true'::jsonb THEN '예' ELSE '아니요' END;
-        label:=CASE key WHEN 'leak.active' THEN '현재 누수' WHEN 'leak.applianceOnly' THEN '기기 사용 시 누수'
-          WHEN 'heating.hotWater' THEN '온수 사용' WHEN 'heating.allRooms' THEN '모든 방 난방' WHEN 'heating.powerOn' THEN '전원 상태'
-          WHEN 'heating.unitOnly' THEN '해당 호실만 발생' WHEN 'heating.controllerAbnormal' THEN '조절기 이상' END;
-      END IF;
-      IF value IS NOT NULL THEN detail:=jsonb_build_object('key',key,'label',label,'value',value,'sourceType','TENANT_REPORTED'); END IF;
-    ELSIF s->'ticket'->>'issueType'='LEAK' AND key='leak.location' THEN
-      SELECT x->>'value' INTO value FROM jsonb_array_elements(coalesce(s->'ticket'->'answers','[]'::jsonb)) x WHERE x->>'questionId'=key;
-      label:=CASE value WHEN 'CEILING_WALL' THEN '천장 또는 벽' WHEN 'SINK_BATHROOM_FIXTURE' THEN '싱크대·욕실 설비' WHEN 'APPLIANCE' THEN '특정 기기' WHEN 'UNKNOWN' THEN '잘 모르겠음' END;
-      IF label IS NOT NULL THEN detail:=jsonb_build_object('key',key,'label','누수 위치','value',label,'sourceType','TENANT_REPORTED'); END IF;
-    ELSIF key IN ('heatingType','managementMode','primaryUse','approvalYear') THEN
-      SELECT x->>'value' INTO value FROM jsonb_array_elements(coalesce(s->'building'->'context','[]'::jsonb)) x
-        WHERE x->>'key'=key AND x->>'verified'='true' AND x->'value'<>'null'::jsonb AND jsonb_typeof(x->'value') IN ('string','number');
-      label:=CASE key WHEN 'heatingType' THEN '난방 방식' WHEN 'managementMode' THEN '관리 방식' WHEN 'primaryUse' THEN '건물 용도' WHEN 'approvalYear' THEN '승인 연도' END;
-      IF value IS NOT NULL AND char_length(value) BETWEEN 1 AND 500 THEN detail:=jsonb_build_object('key',key,'label',label,'value',value,'sourceType','BUILDING_VERIFIED'); END IF;
-    END IF;
+    SELECT x INTO detail FROM jsonb_array_elements(vendor_handoff.packet_detail_candidates(s)) x WHERE x->>'key'=key;
     IF detail IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_SELECTION'; END IF;
     details:=details || jsonb_build_array(detail);
   END LOOP;

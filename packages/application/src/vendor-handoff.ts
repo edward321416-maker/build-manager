@@ -75,10 +75,13 @@ export type VendorCompletionReportDto={
 };
 export type VendorPhase="OFFERED"|"SCHEDULING"|"SCHEDULED"|"IN_PROGRESS"|"COMPLETION_REPORTED"|"ENDED";
 export type VendorWaitingOn="NONE"|"TENANT"|"VENDOR"|"MANAGER"|"PARTS";
+/** Authenticated Manager candidates only; never included in the external Vendor DTO. */
+export type VendorManagerPacketSource={jobReference:string;buildingName:string;serviceAddress:string|null;unitLabel:string|null;issueType:"HEATING"|"LEAK";sharedDetails:VendorSharedDetail[];sourcePhotoIds:string[];safetyNotice:string[]};
 export type ManagerVendorHandoffDto={
   ticketId:string;assignment:{id:string;status:VendorAssignmentStatus;endReason:VendorAssignmentEndReason|null;vendorLabel:string;version:number}|null;
   currentPacket:VendorWorkPacketRevisionDto|null;currentRound:VendorSchedulingRoundDto|null;appointment:VendorAppointmentDto|null;
   activeBlocker:VendorBlockerDto|null;currentReport:VendorCompletionReportDto|null;reportHistory:VendorCompletionReportDto[];phase:VendorPhase;waitingOn:VendorWaitingOn;
+  packetSource?:VendorManagerPacketSource;
 };
 export type TenantVendorSchedulingDto={
   ticketId:string;assignmentVersion:number;packetRevisionId:string;effectiveMode:VendorSchedulingMode;phase:VendorPhase;waitingOn:VendorWaitingOn;

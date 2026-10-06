@@ -1,7 +1,7 @@
 "use client";
 
 import { createCoreFlowClient,ApiClientError } from "@build-manager/api-client";
-import { CoreCreateFollowUpSchema,type CoreCreateFollowUp,type CoreSessionDto,type CoreTicketDto,type CoreUnitDto } from "@build-manager/api-contracts";
+import { CoreCreateFollowUpSchema,type CoreCreateFollowUp,type CoreSessionDto,type CoreTicketDto,type CoreUnitDto,type ManagerVendorHandoffDto } from "@build-manager/api-contracts";
 import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { TicketIntake } from "../../components/tenant/ticket-intake";
 import { TicketReview } from "../../components/landlord/ticket-review";
@@ -16,6 +16,7 @@ import { clearCommunicationRecovery } from "./communication-recovery";
 import { clearOutcomeRecovery,saveOutcomeRecovery } from "./outcome-recovery";
 import { FollowUpContext,freshFollowUp,OutcomeRecoveryPanel,TicketOutcome,type FollowUpKind } from "./ticket-outcome";
 import { createRequestFence,sendFollowUp } from "./follow-up-request";
+import { VendorHandoffManager,ManagerDirectCompletionGate } from "./vendor-handoff-manager";
 
 const eventLabels:Record<string,string>={CREATED:"접수 내용 저장",ANSWERED:"답변 저장",FINALIZED:"수리 요청 제출",MORE_INFO:"추가 확인 요청",DECISION:"추천 경로 결정",HANDLING:"처리 기록"};
 const sessionMessage="접속이 만료되었거나 코드가 유효하지 않습니다. 개발 환경에서 새 코드를 발급받아 다시 들어가 주세요.";
@@ -40,11 +41,13 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
   const [busy,setBusy]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState(""),[revision,setRevision]=useState(0);
   const [pending,setPending]=useState<PendingPhoto[]>([]),[photoMessage,setPhotoMessage]=useState("");
   const [communicationVersion,setCommunicationVersion]=useState<{ticketId:string;version:number}|null>(null);
+  const [managerHandoff,setManagerHandoff]=useState<ManagerVendorHandoffDto|null>(null);
+  const onManagerHandoff=useCallback((value:ManagerVendorHandoffDto|null)=>setManagerHandoff(value),[]);
   const [followUp,setFollowUp]=useState<ReturnType<typeof freshFollowUp>|null>(null),[followAttempt,setFollowAttempt]=useState<CoreCreateFollowUp|null>(null);
   const followSending=useRef(false);
   const [accessGeneration]=useState(createRequestFence);
   const detailHeading=useRef<HTMLHeadingElement>(null),errorPanel=useRef<HTMLDivElement>(null);
-  const clearAccess=useCallback(()=>{accessGeneration.invalidate();clearCommunicationRecovery();clearOutcomeRecovery();setFollowUp(null);setFollowAttempt(null);setCommunicationVersion(null);setSession(null);setSelected(null);setTickets([]);setUnits([]);setUnit("");setText("");setMessage("");setCode("");setNotice("");setPending([]);setPhotoMessage("");setManagerView("WORK_QUEUE");setMaintenanceUnit("");},[accessGeneration]);
+  const clearAccess=useCallback(()=>{accessGeneration.invalidate();clearCommunicationRecovery();clearOutcomeRecovery();setFollowUp(null);setFollowAttempt(null);setCommunicationVersion(null);setManagerHandoff(null);setSession(null);setSelected(null);setTickets([]);setUnits([]);setUnit("");setText("");setMessage("");setCode("");setNotice("");setPending([]);setPhotoMessage("");setManagerView("WORK_QUEUE");setMaintenanceUnit("");},[accessGeneration]);
   // The embedded intake/review also uses this client: a denied nested request
   // must clear the parent screen, not leave old protected content visible.
   const client=useMemo(()=>{const guarded:typeof fetch=async(input,init)=>{
@@ -165,12 +168,13 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
         </div>
         {session.role!=="TENANT"?<ManagerInspector expanded={inspectorExpanded} onExpandedChange={setInspectorExpanded}><div className={styles.actionRail}>
         <ManagerWorkDetail key={selected.ticketId} client={client} ticket={selected} revision={revision}/>
+        {b1?<VendorHandoffManager key={`vendor-${b1.orgId}-${selected.ticketId}`} client={client} ticket={selected} revision={revision} onHandoff={onManagerHandoff} onChanged={()=>void run(async()=>{const ticket=await client.read(selected.ticketId);setSelected(current=>current?.ticketId===ticket.ticketId?ticket:current);setTickets(current=>current.map(item=>item.ticketId===ticket.ticketId?ticket:item));})}/>:null}
         <ManagerMaintenanceFactEditor key={`maintenance-${selected.ticketId}`} client={client} ticket={selected} revision={revision} onOpenTicket={openMaintenanceTicket} onChanged={()=>setRevision(r=>r+1)} onViewUnit={id=>{setMaintenanceUnit(id);setManagerView("MAINTENANCE");}}/>
-        {selected.workStatus!=="COMPLETED"?<form className={styles.handling} onSubmit={e=>{e.preventDefault();void run(async()=>{const starting=selected.workStatus==="OPEN";setSelected(await client.handling(selected.ticketId,{status:starting?"IN_PROGRESS":"COMPLETED",message,...(!starting&&communicationVersion?.ticketId===selected.ticketId?{expectedCommunicationVersion:communicationVersion.version}:{})}));setMessage("");setNotice(starting?"처리 시작 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.":"처리 완료 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.");detailHeading.current?.focus();},true);}}>
+        <ManagerDirectCompletionGate enabled={Boolean(b1)} handoff={managerHandoff?.ticketId===selected.ticketId?managerHandoff:null} loading={Boolean(b1&&managerHandoff?.ticketId!==selected.ticketId)}>{selected.workStatus!=="COMPLETED"?<form className={styles.handling} onSubmit={e=>{e.preventDefault();void run(async()=>{const starting=selected.workStatus==="OPEN";setSelected(await client.handling(selected.ticketId,{status:starting?"IN_PROGRESS":"COMPLETED",message,...(!starting&&communicationVersion?.ticketId===selected.ticketId?{expectedCommunicationVersion:communicationVersion.version}:{})}));setMessage("");setNotice(starting?"처리 시작 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.":"처리 완료 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.");detailHeading.current?.focus();},true);}}>
           <label>처리 기록 <textarea aria-label="처리 기록" maxLength={2000} required value={message} onChange={e=>setMessage(e.target.value)} /></label>
           <button className={styles.primary} disabled={busy||!message.trim()||(selected.workStatus==="IN_PROGRESS"&&communicationVersion?.ticketId!==selected.ticketId)}>{selected.workStatus==="OPEN"?"처리 시작 기록":"처리 완료 기록"}</button>
           <p>담당자가 확인한 사실을 기록하세요. 자동 출동이나 수리 검증을 뜻하지 않습니다.</p>
-        </form>:null}
+        </form>:null}</ManagerDirectCompletionGate>
         </div></ManagerInspector>:null}
       </section>:session.role!=="TENANT"?null:<>
         {followUp?<><FollowUpContext kind={followUp.claimKind}/><button disabled={busy||Boolean(followAttempt)} onClick={()=>openOutcome(followUp.sourceTicketId)}>원본 접수로 돌아가기</button></>:null}

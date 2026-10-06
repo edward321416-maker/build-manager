@@ -221,18 +221,24 @@ export const VendorCompletionReportDtoSchema=z.object({
 export const VendorSessionDtoSchema=z.object({assignmentId:uuid,expiresAt:instant}).strict();
 const linkIssueMetadata={assignmentId:uuid,assignmentVersion:version,expiresAt:instant};
 export const VendorLinkIssueDtoSchema=z.discriminatedUnion("created",[
-  z.object({...linkIssueMetadata,created:z.literal(true),link:z.string().trim().min(1)}).strict(),
+  z.object({...linkIssueMetadata,created:z.literal(true),link:z.string().regex(/^\/vendor\/job#[A-Za-z0-9_-]+$/)}).strict(),
   z.object({...linkIssueMetadata,created:z.literal(false)}).strict(),
 ]);
 
 const ManagerAssignmentDtoSchema=z.object({
   id:uuid,status:VendorAssignmentStatusSchema,endReason:VendorAssignmentEndReasonSchema.nullable(),vendorLabel,version,
 }).strict();
+export const VendorManagerPacketSourceSchema=z.object({
+  jobReference:plainSingle(80),buildingName:plainSingle(200),serviceAddress:plainMulti(500).nullable(),unitLabel:plainSingle(80).nullable(),issueType:z.enum(["HEATING","LEAK"]),
+  sharedDetails:z.array(VendorSharedDetailSchema),sourcePhotoIds:z.array(uuid),safetyNotice:z.array(plainMulti(500)),
+}).strict();
 export const ManagerVendorHandoffDtoSchema=z.object({
   ticketId:uuid,assignment:ManagerAssignmentDtoSchema.nullable(),currentPacket:VendorWorkPacketRevisionDtoSchema.nullable(),
   currentRound:VendorSchedulingRoundDtoSchema.nullable(),appointment:VendorAppointmentDtoSchema.nullable(),activeBlocker:VendorBlockerDtoSchema.nullable(),
   currentReport:VendorCompletionReportDtoSchema.nullable(),reportHistory:z.array(VendorCompletionReportDtoSchema),
   phase:VendorPhaseSchema,waitingOn:VendorWaitingOnSchema,
+  // Optional for previously committed safe receipts. Missing preview candidates block new publication in the UI.
+  packetSource:VendorManagerPacketSourceSchema.optional(),
 }).strict();
 export const VendorTenantSchedulingDtoSchema=z.object({
   ticketId:uuid,assignmentVersion:version,packetRevisionId:uuid,effectiveMode:VendorSchedulingModeSchema,
