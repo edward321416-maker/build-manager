@@ -384,7 +384,7 @@ CREATE FUNCTION vendor_handoff.manager_issue_link(
   p_digest bytea,p_assignment uuid,p_request uuid,p_expected_assignment bigint,p_expected_packet uuid,
   p_capability_digest bytea,p_reissue boolean
 ) RETURNS jsonb
-LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;c vendor_handoff.vendor_capability;s jsonb;
 BEGIN
   IF p_request IS NULL OR p_capability_digest IS NULL OR octet_length(p_capability_digest)<>32
@@ -418,7 +418,7 @@ BEGIN
     PERFORM core_flow.vendor_handoff_mark_offered(p_digest,a.ticket_id);
   END IF;
   RETURN jsonb_build_object('created',true,'assignmentId',a.id,'assignmentVersion',a.version,'expiresAt',c.expires_at);
-END $;
+END $$;
 
 CREATE FUNCTION vendor_handoff.session_info(p_digest bytea) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
