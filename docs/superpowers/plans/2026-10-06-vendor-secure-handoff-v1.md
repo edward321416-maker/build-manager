@@ -355,7 +355,12 @@ git commit -m "feat(vendor): define secure handoff contracts"
   - `vendor_session` — session digest + CSRF digest + absolute expiry/revocation; max one active session.
   - `command_receipt` — actor scope/id + request key + SHA-256 fingerprint + safe result JSON.
 - Manager/Tenant runtime remains `bm_b1_web`; external Vendor runtime gets EXECUTE only on external functions through `bm_vendor_web`.
-- Neither runtime has direct table SELECT/INSERT/UPDATE/DELETE, ownership, BYPASSRLS, or SET ROLE to `bm_vendor_handoff_owner`.
+- Schema ACL matrix is explicit and PUBLIC remains revoked:
+  - `bm_vendor_web`: `USAGE ON SCHEMA vendor_handoff`; EXECUTE only the exact external Vendor functions exposed by `VendorHandoffExternalPort`; no CREATE and no table privileges.
+  - `bm_b1_web`: `USAGE ON SCHEMA vendor_handoff`; EXECUTE only the exact Manager/Tenant B1-facing Vendor functions plus `vendor_handoff.guard_direct_completion`; no CREATE and no table privileges.
+  - `bm_vendor_handoff_owner`: owner rights inside `vendor_handoff`; `USAGE ON SCHEMA core_flow, app`; EXECUTE only approved Core bridge helpers plus `app.current_org_id()`; no CREATE on `core_flow` or `app`, and no Core/app table SELECT/DML beyond privileges already required by approved helpers.
+  - `bm_core_flow_owner`: retains existing Core ownership; no broad `vendor_handoff` table privilege is added.
+- Neither Web runtime has direct table SELECT/INSERT/UPDATE/DELETE, ownership, BYPASSRLS, or SET ROLE to `bm_vendor_handoff_owner`.
 - Every durable Vendor Handoff table carries `org_id uuid NOT NULL`, has `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY`, and is owned/operated only through `bm_vendor_handoff_owner` SECURITY DEFINER functions.
 - Exact RLS table inventory by migration:
   - 0019: `vendor_assignment`, `work_packet_revision`, `work_packet_source_photo`, `vendor_capability`, `vendor_session`, `command_receipt`.
@@ -411,6 +416,8 @@ Cover AC01–AC16, AC47–AC49 foundation cases:
 - `pg_policies` proves the permissive org policy plus restrictive ceiling exist on every table, and only `vendor_capability`/`vendor_session` have the additional digest bootstrap + digest-or-org restrictive SELECT ceiling while their writes remain org-only;
 - cross-org hostile probes through Manager/Tenant digest, Vendor capability digest and Vendor session digest cannot read/mutate another org's resources;
 - capability/session bootstrap exposes at most the exact digest row before org binding and cannot update it until `app.org_id` is set/rechecked;
+- `has_schema_privilege` probes prove PUBLIC has no vendor_handoff USAGE/CREATE; `bm_vendor_web` and `bm_b1_web` have vendor_handoff USAGE but not CREATE; `bm_vendor_handoff_owner` has core_flow/app USAGE but not CREATE; no unexpected role has schema CREATE;
+- function privilege probes prove each runtime can EXECUTE only its approved function set and cannot execute owner-only Core bridges directly;
 - direct SELECT/INSERT/UPDATE/DELETE denied to both runtime roles;
 - PUBLIC EXECUTE absent;
 - role membership/SET ROLE denied.
