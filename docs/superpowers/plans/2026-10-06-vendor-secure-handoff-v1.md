@@ -1223,30 +1223,30 @@ No Ready / merge / deploy.
 | AC11 Private data absent | T1,T2,T10,T12 | serialization/browser |
 | AC12 Provenance | T1,T2,T3 | contract/packet UI |
 | AC13 Address provenance | T2,T3 | PG publish tests |
-| AC14 Photo allowlist | T2,T3,T11 | PG/security |
+| AC14 Photo allowlist | T2,T3,T4,T11 | PG allowlist + Vendor source-photo hidden-resource/security |
 | AC15 Packet immutability | T2 | PG revision tests |
 | AC16 Stale packet | T2,T3,T12 | PG/HTTP/browser |
-| AC17 Redeem ≠ Accept | T1,T4 | HTTP/UI |
-| AC18 Decline | T1,T4 | HTTP/PG |
-| AC19 Withdraw | T1,T4 | HTTP/PG |
+| AC17 Redeem ≠ Accept | T1,T4,T5,T12 | redeem/session UI + atomic Accept/browser |
+| AC18 Decline | T1,T4,T12 | contract + pre-accept HTTP/PG/browser |
+| AC19 Withdraw | T1,T5,T12 | contract + scheduling-aware Withdraw PG/HTTP/browser |
 | AC20 One OPEN round | T5 | concurrent PG |
 | AC21 Tenant slot confirmation | T5,T6,T12 | PG/UI/browser |
 | AC22 Preauth containment | T5,T6,T12 | PG/time/browser |
-| AC23 Occupancy recheck | T5,T7,T12 | PG/browser |
-| AC24 Immutable Appointment | T5,T6 | PG/UI |
-| AC25 RESCHEDULE≠FOLLOW_UP | T5,T6,T7 | PG/UI |
+| AC23 Occupancy recheck | T2,T5,T7,T12 | current-Tenant bridge + scheduling/work/browser |
+| AC24 Immutable Appointment | T5,T6,T12 | PG/UI/browser |
+| AC25 RESCHEDULE≠FOLLOW_UP | T5,T6,T7,T9,T12 | PG/UI/provenance/browser |
 | AC26 No Manager scheduling relay | T6,T12 | browser flow |
 | AC27 No notification claim | T3,T4,T6,T12 | copy/browser |
 | AC28 Visit start once | T7 | PG/HTTP |
 | AC29 Blocker overlay | T7 | PG/UI |
 | AC30 Blocker history | T7 | PG/UI |
-| AC31 Follow-up visit | T5,T7,T12 | PG/browser |
+| AC31 Follow-up visit | T5,T7,T9,T12 | scheduling + blocker/report provenance + browser |
 | AC32 Completion eligibility | T8 | PG |
 | AC33 Photo/omission contract | T1,T8 | contract/PG |
 | AC34 Metadata stripping | T8 | real decode/re-encode test |
-| AC35 Report correction | T8,T9 | PG/browser |
+| AC35 Report correction | T8,T9,T12 | initial report + durable correction + browser |
 | AC36 Report ≠ closeout | T8,T9 | PG/UI |
-| AC37 Completion-reported freeze | T8 | PG/HTTP/UI |
+| AC37 Completion-reported freeze | T8,T9,T12 | initial freeze + exact correction exception + browser |
 | AC38 Atomic closeout | T9 | concurrent PG |
 | AC39 Communication guard | T9 | concurrent PG + browser |
 | AC40 Access revoked | T9,T12 | PG/Vendor browser |
@@ -1256,11 +1256,11 @@ No Ready / merge / deploy.
 | AC44 Fresh follow-up ticket | T10,T12 | existing PG/browser |
 | AC45 Maintenance Fact explicit | T10,T12 | existing PG/browser |
 | AC46 Tenant photo isolation | T8,T10,T12 | HTTP/browser |
-| AC47 RLS/ACL | T2,T5,T7,T8,T11 | catalog/negative roles |
-| AC48 Idempotency | T2,T5,T7,T8,T9,T11 | receipts/replays |
-| AC49 Changed replay | T1,T2,T11 | fingerprint conflict |
-| AC50 Stale concurrency | T2,T5,T8,T9,T11 | PG/HTTP |
-| AC51 Response-loss | T3,T11,T12 | recovery/browser |
+| AC47 RLS/ACL | T2,T5,T7,T8,T9,T11 | FORCE-RLS policy catalog + hostile role SQL + bridge grants |
+| AC48 Idempotency | T2,T4,T5,T7,T8,T9,T11 | redeem/logout + domain receipts/replays |
+| AC49 Changed replay | T1,T2,T4,T11 | contract + capability/session/domain fingerprint conflicts |
+| AC50 Stale concurrency | T2,T5,T7,T8,T9,T11 | universal ticket-first PG/HTTP races |
+| AC51 Response-loss | T3,T4,T11,T12 | link + redeem/session reconciliation + browser |
 | AC52 Vendor 390 | T4,T6,T12 | Playwright |
 | AC53 Manager/Tenant 390 | T3,T6,T12 | Playwright |
 | AC54 Restart persistence | T11 | restart script |
@@ -1272,28 +1272,28 @@ No Ready / merge / deploy.
 
 Independent plan review must reject the plan if any of these are true:
 
-- any AC01–AC57 lacks an owning task and concrete evidence path;
+- any AC01–AC57 lacks a **semantically current** owning task and concrete evidence path after task moves; syntactic presence of 57 AC labels is insufficient;
 - Vendor external HTTP can authenticate through B1/Auth0 or `bm_b1_web`;
-- Manager/Tenant API can impersonate Vendor session authority;
+- Manager/Tenant API can impersonate Vendor session authority, or any Manager/Tenant port method omits the request-scoped B1 digest/current-auth recheck;
 - raw Vendor capability/session/CSRF is durably stored or logged;
 - Manager can author Tenant unattended-entry consent;
 - Appointment time is updated in place;
 - Vendor report can directly complete the ticket or write Tenant outcome/Maintenance Fact;
-- closeout is not atomic with assignment CLOSED/access revocation/public-Q&A guard;
+- any state-changing Vendor Handoff command can lock assignment/round/Appointment before the source ticket row, or closeout is not atomic with assignment CLOSED/access revocation/public-Q&A guard;
 - active assignment leaves the legacy direct-completion bypass visible;
 - old ENDED assignment blocks direct Manager completion;
 - photo metadata stripping is asserted only by mock/filename rather than actual decoded output;
 - response-loss handling blindly retries or can mint duplicate logical actions;
 - plan requires modifying `0001–0018` or any then-existing migration;
-- plan removes/weakens existing frozen tests, security roles, hosted checks, timeouts, or retry settings;
+- any new Vendor durable table lacks ENABLE+FORCE RLS, org scope/restrictive ceiling or exact bootstrap-digest policy where applicable; or the plan removes/weakens existing frozen tests, security roles, hosted checks, timeouts, or retry settings;
 - product implementation is started before separate operator authorization after independent plan review.
 
 ## Plan Self-Review Checklist
 
 Before requesting independent review, the plan author must record:
-- Spec/D9R1 coverage: every frozen section represented; AC traceability 57/57.
+- Spec/D9R1 coverage: every frozen section represented; AC traceability 57/57 **and every row's task owner/evidence remains semantically current after task moves**.
 - Step scan: no unresolved placeholder markers or unowned signatures.
-- Type consistency: contract enum/DTO/port names match every later task.
+- Type consistency: contract enum/DTO/port names match every later task; Manager/Tenant methods retain explicit `digest:string`, exact return types and exact stale-field identifiers such as `expectedTicketVersion`.
 - Review Focus: each of the five items has an explicit owning test task.
 - Proportion: code bodies are not pre-written; plan contains signatures, assertions, commands and frozen values only.
 - Repository truth: all existing paths cited above were observed at `954ef347...`; future paths are clearly marked Create.
