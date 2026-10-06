@@ -564,7 +564,7 @@ git commit -m "feat(vendor): add capability job session"
 **Interfaces:**
 - Tables/resources: `scheduling_round`, `tenant_availability_submission`, `tenant_availability_window`, `tenant_entry_authorization`, `tenant_entry_authorization_window`, `vendor_slot_proposal`, `vendor_slot`, `appointment`.
 - Task 5 implements `external.accept(sessionDigest,input)` and `POST /api/v2/vendor/job/accept`; successful Vendor Accept atomically transitions OFFERED→ACTIVE and creates the first `SchedulingRound purpose=INITIAL,status=OPEN`. There is no separate INITIAL-round command. Exact replay returns the same logical accept/round result. One OPEN round per assignment is enforced by partial unique constraint plus source-ticket/assignment lock+recheck.
-- Task 5 also implements `external.withdraw(sessionDigest,input)` and `POST /api/v2/vendor/job/withdraw`; Withdraw is allowed only from ACTIVE, transitions to ENDED/WITHDRAWN, revokes Vendor access, preserves all prior evidence, and leaves the source ticket unfinished.
+- Task 5 also implements `external.withdraw(sessionDigest,input)` and `POST /api/v2/vendor/job/withdraw`; Withdraw is allowed only from ACTIVE, transitions to ENDED/WITHDRAWN, revokes Vendor access, atomically marks any OPEN round CANCELLED and any future SCHEDULED Appointment CANCELLED, preserves OCCURRED/work/report history, and leaves the source ticket unfinished.
 - Tenant availability mutation never creates unattended authorization.
 - Authorization references exact selected windows and current occupancy member.
 - Resident-confirmation proposal has 1–5 candidate slots; Tenant selects one current valid slot.
@@ -575,7 +575,7 @@ git commit -m "feat(vendor): add capability job session"
 
 Cover AC20–AC27:
 - Vendor Accept creates ACTIVE + exactly one INITIAL/OPEN round in one transaction; concurrent/replayed Accept cannot create a second round;
-- Vendor Withdraw is rejected before Accept, succeeds only from ACTIVE, revokes access, preserves prior evidence, and leaves ticket unfinished;
+- Vendor Withdraw is rejected before Accept, succeeds only from ACTIVE, revokes access, cancels any OPEN round/future SCHEDULED Appointment, preserves OCCURRED/work/report evidence, and leaves ticket unfinished;
 - one OPEN round under concurrency;
 - current Tenant only;
 - consent OFF/no authorization by default;
@@ -599,7 +599,7 @@ Expected: RED.
 
 - [ ] **Step 2: Implement migration 0020, atomic Accept/Withdraw, and persistence methods**
 
-All stored times are `timestamptz`; reject non-finite values and `startAt >= endAt`; compare absolute instants. Accept and first INITIAL round must commit together; never expose ACTIVE with no INITIAL round. Withdraw ends the assignment without rewriting prior round/appointment/work history.
+All stored times are `timestamptz`; reject non-finite values and `startAt >= endAt`; compare absolute instants. Accept and first INITIAL round must commit together; never expose ACTIVE with no INITIAL round. Withdraw ends the assignment without deleting prior round/appointment/work history; only still-actionable OPEN/SCHEDULED records receive CANCELLED disposition.
 
 - [ ] **Step 3: Run scheduling + Vendor HTTP/UI + security regression**
 
@@ -829,6 +829,11 @@ git commit -m "feat(vendor): add completion report evidence"
 - Modify: `apps/web/src/server/core-flow/vendor-handoff.ts`
 - Modify: `apps/web/src/app/core/vendor-handoff-manager.tsx`
 - Modify: `packages/api-client/src/core-vendor-handoff.ts`
+- Modify: `apps/web/src/server/vendor-handoff/http.ts`
+- Modify: `apps/web/src/server/vendor-handoff/http.test.ts`
+- Modify: `apps/web/src/app/vendor/job/vendor-job-screen.tsx`
+- Modify: `apps/web/src/app/vendor/job/vendor-job-screen.test.tsx`
+- Modify: `packages/api-client/src/vendor-job.ts`
 - Extend: `tests/postgres/vendor-handoff-completion.test.ts`
 - Extend: `tests/postgres/vendor-handoff-security.test.ts`
 
@@ -894,7 +899,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/persistence-postgres/migrations/0023_vendor_handoff_manager_actions.sql packages/persistence-postgres/src/vendor-handoff packages/persistence-postgres/src/core-flow.ts apps/web/src/server/core-flow/vendor-handoff.ts apps/web/src/app/core/vendor-handoff-manager.tsx packages/api-client/src/core-vendor-handoff.ts tests/postgres/vendor-handoff-completion.test.ts tests/postgres/vendor-handoff-security.test.ts
+git add packages/persistence-postgres/migrations/0023_vendor_handoff_manager_actions.sql packages/persistence-postgres/src/vendor-handoff packages/persistence-postgres/src/core-flow.ts apps/web/src/server/core-flow/vendor-handoff.ts apps/web/src/app/core/vendor-handoff-manager.tsx packages/api-client/src/core-vendor-handoff.ts apps/web/src/server/vendor-handoff/http.ts apps/web/src/server/vendor-handoff/http.test.ts apps/web/src/app/vendor/job/vendor-job-screen.tsx apps/web/src/app/vendor/job/vendor-job-screen.test.tsx packages/api-client/src/vendor-job.ts tests/postgres/vendor-handoff-completion.test.ts tests/postgres/vendor-handoff-security.test.ts
 git commit -m "feat(vendor): add atomic manager disposition"
 ```
 
