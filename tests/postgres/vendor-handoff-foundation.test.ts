@@ -178,6 +178,45 @@ describe("foundation runtime commands and durable replay", () => {
     await expect(f.external.session(sessionB)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
   });
 
+  it.each([false, true])("rechecks current external route before issuance (reissue=%s)", async (reissue) => {
+    const p = reissue ? await offered() : await f.published();
+    const assignment = p.handoff.assignment!;
+    await f.p.admin.query("UPDATE core_flow.ticket SET body=jsonb_set(body,'{routeDecision,selectedRoute}','\"MANAGEMENT_OFFICE\"') WHERE id=$1", [p.t.ticket.id]);
+    const before = (await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.vendor_capability WHERE assignment_id=$1", [assignment.id])).rows[0].n;
+    const input = { ...issueInput(p.handoff), expectedAssignmentVersion: reissue ? 3 : assignment.version };
+    await expect((reissue ? f.manager.reissueLink : f.manager.issueLink)(f.data.accounts.manager.digest, assignment.id, input)).rejects.toMatchObject({ code: "STATE_CONFLICT" });
+    expect((await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.vendor_capability WHERE assignment_id=$1", [assignment.id])).rows[0].n).toBe(before);
+    expect((await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.command_receipt WHERE request_key=$1", [input.clientRequestId])).rows[0].n).toBe(0);
+  });
+
+  it("old redemption replay cannot displace a newer capability session while reissue preserves the old session", async () => {
+    const o = await offered(), oldRequest = randomUUID(), oldSession = digest("lineage-old");
+    await f.external.redeem(o.token, oldRequest, oldSession, digest("lineage-old-csrf"));
+    const replacement = await f.manager.reissueLink(f.data.accounts.manager.digest, o.handoff.assignment!.id, {
+      ...o.input, clientRequestId: randomUUID(), expectedAssignmentVersion: 3,
+    });
+    expect((await f.external.session(oldSession)).assignmentId).toBe(o.handoff.assignment!.id);
+    const token = createHash("sha256").update(replacement.link!.split("#")[1]).digest("hex");
+    const currentSession = digest("lineage-current"), currentRequest = randomUUID();
+    await f.external.redeem(token, currentRequest, currentSession, digest("lineage-current-csrf"));
+    const before = (await f.p.admin.query("SELECT id,revoked_at FROM vendor_handoff.vendor_session WHERE assignment_id=$1 ORDER BY id", [o.handoff.assignment!.id])).rows;
+    await expect(f.external.redeem(o.token, oldRequest, digest("lineage-stale-retry"), digest("lineage-stale-csrf"))).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+    expect((await f.external.session(currentSession)).assignmentId).toBe(o.handoff.assignment!.id);
+    expect((await f.p.admin.query("SELECT id,revoked_at FROM vendor_handoff.vendor_session WHERE assignment_id=$1 ORDER BY id", [o.handoff.assignment!.id])).rows).toEqual(before);
+    expect((await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.command_receipt WHERE request_key=$1", [oldRequest])).rows[0].n).toBe(1);
+  });
+
+  it.each(["logout", "revocation", "expiry"] as const)("exact redemption retry cannot resurrect a session after deliberate termination (%s)", async (termination) => {
+    const o = await offered(), request = randomUUID(), session = digest("logout-lineage");
+    await f.external.redeem(o.token, request, session, digest("logout-lineage-csrf"));
+    if (termination === "logout") await f.external.logout(session, randomUUID());
+    else if (termination === "revocation") await f.p.admin.query("UPDATE vendor_handoff.vendor_session SET revoked_at=clock_timestamp() WHERE assignment_id=$1", [o.handoff.assignment!.id]);
+    else await f.p.admin.query("UPDATE vendor_handoff.vendor_session SET created_at=clock_timestamp()-interval '8 days',expires_at=clock_timestamp()-interval '1 day' WHERE assignment_id=$1", [o.handoff.assignment!.id]);
+    const before = (await f.p.admin.query("SELECT id,revoked_at FROM vendor_handoff.vendor_session WHERE assignment_id=$1 ORDER BY id", [o.handoff.assignment!.id])).rows;
+    await expect(f.external.redeem(o.token, request, digest("logout-retry"), digest("logout-retry-csrf"))).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+    expect((await f.p.admin.query("SELECT id,revoked_at FROM vendor_handoff.vendor_session WHERE assignment_id=$1 ORDER BY id", [o.handoff.assignment!.id])).rows).toEqual(before);
+  });
+
   it("reissue supersedes old capability and replacement redemption invalidates the previous browser session", async () => {
     const o = await offered(), oldSession = digest("old-session");
     await f.external.redeem(o.token, randomUUID(), oldSession, digest("csrf"));

@@ -97,6 +97,7 @@ CREATE TABLE vendor_handoff.vendor_session (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id uuid NOT NULL,
   assignment_id uuid NOT NULL REFERENCES vendor_handoff.vendor_assignment(id),
+  capability_id uuid NOT NULL REFERENCES vendor_handoff.vendor_capability(id),
   digest bytea NOT NULL UNIQUE CHECK(octet_length(digest)=32),
   csrf_digest bytea NOT NULL CHECK(octet_length(csrf_digest)=32),
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
@@ -489,6 +490,7 @@ BEGIN
   fp:=vendor_handoff.request_fingerprint(jsonb_build_array('issueLink',p_assignment,p_expected_assignment,p_expected_packet,p_reissue));
   IF s->'ticket'->>'status'='SAFETY_ESCALATED' OR jsonb_array_length(coalesce(s->'ticket'->'safetyFlags','[]'::jsonb))>0
     OR coalesce(s->'ticket'->'repairPacket'->'safety'->>'escalated','false')='true'
+    OR coalesce(s->'ticket'->'routeDecision'->>'selectedRoute','') NOT IN ('GENERAL_VENDOR','MANUFACTURER_AS')
   THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='STATE_CONFLICT'; END IF;
   prior:=vendor_handoff.receipt(a.org_id,'MANAGER',s->>'actorId',p_request,fp);
   IF prior IS NOT NULL THEN RETURN prior; END IF;
@@ -497,8 +499,9 @@ BEGIN
     OR (NOT p_reissue AND a.status<>'PREPARING') OR (p_reissue AND a.status NOT IN ('OFFERED','ACTIVE'))
   THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='STATE_CONFLICT'; END IF;
   IF p_reissue THEN
+    -- Retire redemption authority as well as unredeemed links; existing sessions remain valid until replacement redemption.
     UPDATE vendor_handoff.vendor_capability SET superseded_at=clock_timestamp()
-      WHERE org_id=a.org_id AND assignment_id=a.id AND redeemed_at IS NULL AND superseded_at IS NULL AND revoked_at IS NULL;
+      WHERE org_id=a.org_id AND assignment_id=a.id AND superseded_at IS NULL AND revoked_at IS NULL;
   ELSIF EXISTS(
     SELECT 1 FROM vendor_handoff.vendor_capability
     WHERE org_id=a.org_id AND assignment_id=a.id AND redeemed_at IS NULL AND superseded_at IS NULL AND revoked_at IS NULL
@@ -535,7 +538,7 @@ CREATE FUNCTION vendor_handoff.redeem(
   p_token_digest bytea,p_request uuid,p_session_digest bytea,p_csrf_digest bytea
 ) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
-DECLARE c vendor_handoff.vendor_capability;a vendor_handoff.vendor_assignment;s vendor_handoff.vendor_session;t jsonb;
+DECLARE c vendor_handoff.vendor_capability;a vendor_handoff.vendor_assignment;s vendor_handoff.vendor_session;lineage vendor_handoff.vendor_session;t jsonb;
   route_org uuid;route_assignment uuid;route_ticket text;fp bytea;prior jsonb;result jsonb;expiry timestamptz;
 BEGIN
   IF p_token_digest IS NULL OR octet_length(p_token_digest)<>32 OR p_request IS NULL
@@ -562,16 +565,23 @@ BEGIN
   fp:=vendor_handoff.request_fingerprint(jsonb_build_array('redeem',a.id,encode(p_token_digest,'hex')));
   prior:=vendor_handoff.receipt(a.org_id,'VENDOR',c.id::text,p_request,fp);
   expiry:=CASE WHEN prior IS NULL THEN clock_timestamp()+interval '7 days' ELSE (prior->>'expiresAt')::timestamptz END;
+  IF prior IS NOT NULL THEN
+    SELECT * INTO lineage FROM vendor_handoff.vendor_session
+      WHERE assignment_id=a.id AND org_id=a.org_id AND capability_id=c.id AND revoked_at IS NULL FOR UPDATE;
+    IF lineage.id IS NULL OR lineage.expires_at<=clock_timestamp()
+    THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  END IF;
   SELECT * INTO s FROM vendor_handoff.vendor_session WHERE digest=p_session_digest;
   IF s.id IS NOT NULL THEN
-    IF s.assignment_id<>a.id OR s.org_id<>a.org_id OR s.csrf_digest<>p_csrf_digest OR s.revoked_at IS NOT NULL OR prior IS NULL
+    IF s.assignment_id<>a.id OR s.org_id<>a.org_id OR s.capability_id<>c.id OR s.csrf_digest<>p_csrf_digest
+      OR s.revoked_at IS NOT NULL OR prior IS NULL OR s.id IS DISTINCT FROM lineage.id
     THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='STATE_CONFLICT'; END IF;
     RETURN prior;
   END IF;
   UPDATE vendor_handoff.vendor_session SET revoked_at=clock_timestamp()
-    WHERE assignment_id=a.id AND org_id=a.org_id AND revoked_at IS NULL;
-  INSERT INTO vendor_handoff.vendor_session(org_id,assignment_id,digest,csrf_digest,expires_at)
-    VALUES(a.org_id,a.id,p_session_digest,p_csrf_digest,expiry) RETURNING * INTO s;
+    WHERE assignment_id=a.id AND org_id=a.org_id AND revoked_at IS NULL AND (prior IS NULL OR id=lineage.id);
+  INSERT INTO vendor_handoff.vendor_session(org_id,assignment_id,capability_id,digest,csrf_digest,expires_at)
+    VALUES(a.org_id,a.id,c.id,p_session_digest,p_csrf_digest,expiry) RETURNING * INTO s;
   IF c.redeemed_at IS NULL THEN UPDATE vendor_handoff.vendor_capability SET redeem_request_id=p_request,redeemed_at=clock_timestamp() WHERE id=c.id; END IF;
   result:=jsonb_build_object('assignmentId',a.id,'expiresAt',s.expires_at);
   IF prior IS NULL THEN
