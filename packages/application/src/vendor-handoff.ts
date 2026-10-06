@@ -98,7 +98,7 @@ export type SanitizedVendorPhoto={
 export type VendorHandoffErrorCode="UNAUTHENTICATED"|"FORBIDDEN"|"NOT_FOUND"|"INVALID_INPUT"|"STATE_CONFLICT"|"DEPENDENCY_UNAVAILABLE";
 export class VendorHandoffError extends Error{
   readonly code:VendorHandoffErrorCode;
-  constructor(code:VendorHandoffErrorCode,message=code){super(message);this.name="VendorHandoffError";this.code=code;}
+  constructor(code:VendorHandoffErrorCode,message:string=code){super(message);this.name="VendorHandoffError";this.code=code;}
 }
 
 export function reconcileVendorRequestFingerprint(existing:string,incoming:string):string{
