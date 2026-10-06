@@ -199,6 +199,27 @@ describe("stale CSRF and transient reads",()=>{
     await click("다시 불러오기");
     expect(page()).toContain("합성 업체 A");
   });
+  it("never carries a pending decline across a same-tab switch to another assignment",async()=>{
+    const client=fakeClient({
+      redeem:vi.fn(async(token:string)=>({session:{assignmentId:token===tokenC?assignmentA:assignmentB,expiresAt,csrf},job:job(token===tokenC?assignmentA:assignmentB,token===tokenC?"A":"B")})),
+      decline:vi.fn(async()=>{throw network();}),
+    });
+    await mount(client,`#${tokenB}`);
+    await click("작업 거절");
+    const radio=Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]')).find(x=>x.value==="OTHER")!;
+    await act(async()=>{radio.click();});
+    await click("거절 내용 확인");
+    await click("거절하기");
+    expect(page()).toContain("거절 결과를 확인하지 못했습니다");
+    await act(async()=>{window.history.pushState(null,"",`/vendor/job#${tokenC}`);window.dispatchEvent(new Event("hashchange"));});
+    await flush();
+    expect(page()).toContain("합성 업체 A");
+    expect(page().includes("거절 결과를 확인하지 못했습니다")).toBe(false);
+    expect(page().includes("이 작업 요청을 거절할까요?")).toBe(false);
+    expect(button("같은 요청으로 결과 확인")).toBeUndefined();
+    expect(button("작업 거절")).toBeDefined();
+    expect(client.decline).toHaveBeenCalledTimes(1);
+  });
   it("redeems a new fragment opened in an already loaded job tab",async()=>{
     const client=fakeClient();
     await mount(client);

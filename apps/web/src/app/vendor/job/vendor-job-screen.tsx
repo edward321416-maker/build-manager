@@ -27,8 +27,9 @@ type Phase=
   |{kind:"ready";job:VendorJobDto}
   |{kind:"declined";job:VendorJobDto}
   |{kind:"loggedOut"};
-type Decline={open:boolean;reason:VendorDeclineReason|null;note:string;confirming:boolean;requestId:string|null;status:"idle"|"submitting"|"uncertain";notice:string};
-const closedDecline:Decline={open:false,reason:null,note:"",confirming:false,requestId:null,status:"idle",notice:""};
+/** A decline draft/request belongs to exactly the assignment it was opened for and is never sent for another. */
+type Decline={assignmentId:string|null;open:boolean;reason:VendorDeclineReason|null;note:string;confirming:boolean;requestId:string|null;status:"idle"|"submitting"|"uncertain";notice:string};
+const closedDecline:Decline={assignmentId:null,open:false,reason:null,note:"",confirming:false,requestId:null,status:"idle",notice:""};
 
 /** A 4xx answer is authoritative; transport loss, 5xx and malformed replies leave the outcome unknown. */
 function definitive(error:unknown):boolean{
@@ -90,6 +91,8 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
   },[client]);
 
   const begin=useCallback(async()=>{
+    // A new redemption/load may switch assignment: drop every pending per-assignment intent first.
+    setDecline(closedDecline);setNotice("");logoutId.current=null;
     const fragment=window.location.hash.slice(1);
     if(!fragment)return loadSession();
     if(!RAW.test(fragment)){clearFragment();setPhase({kind:"unavailable"});return;}
@@ -124,7 +127,9 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
   };
   const submitDecline=async(state:Decline)=>{
     if(phase.kind!=="ready"||!state.reason||!csrf.current)return;
-    const job=phase.job,id=state.requestId??crypto.randomUUID(),note=state.note.trim();
+    const job=phase.job;
+    if(state.assignmentId!==job.assignmentId){setDecline(closedDecline);return;}
+    const id=state.requestId??crypto.randomUUID(),note=state.note.trim();
     setDecline({...state,requestId:id,status:"submitting",notice:""});
     try{
       const reason=state.reason;
@@ -200,7 +205,8 @@ export function VendorJobView({phase,decline,notice,busy,photoPath,onRetryRedeem
   </main>;
 }
 
-function CurrentTask({job,decline,onDecline,onConfirmDecline,onSubmitDecline}:{job:VendorJobDto;decline:Decline;onDecline(change:Partial<Decline>):void;onConfirmDecline():void;onSubmitDecline():void}){
+function CurrentTask({job,decline:held,onDecline,onConfirmDecline,onSubmitDecline}:{job:VendorJobDto;decline:Decline;onDecline(change:Partial<Decline>):void;onConfirmDecline():void;onSubmitDecline():void}){
+  const decline=held.open&&held.assignmentId!==job.assignmentId?closedDecline:held;
   const offered=job.status==="OFFERED"&&job.currentPacket!==null;
   const submitting=decline.status==="submitting";
   return <section className={styles.card} aria-labelledby="vendor-current-task">
@@ -208,7 +214,7 @@ function CurrentTask({job,decline,onDecline,onConfirmDecline,onSubmitDecline}:{j
     {decline.notice?<p role="alert">{decline.notice}</p>:null}
     {offered?<>
       <p>작업 요청을 확인해 주세요. 링크를 연 것만으로 작업을 수락한 것은 아닙니다.</p>
-      {!decline.open?<button type="button" onClick={()=>onDecline({open:true,notice:""})}>작업 거절</button>:null}
+      {!decline.open?<button type="button" onClick={()=>onDecline({...closedDecline,open:true,assignmentId:job.assignmentId})}>작업 거절</button>:null}
       {decline.open&&!decline.confirming&&decline.status==="idle"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onConfirmDecline();}}>
         <fieldset>
           <legend>거절 사유</legend>
