@@ -329,8 +329,20 @@ git commit -m "feat(vendor): define secure handoff contracts"
   - `vendor_session` — session digest + CSRF digest + absolute expiry/revocation; max one active session.
   - `command_receipt` — actor scope/id + request key + SHA-256 fingerprint + safe result JSON.
 - Manager/Tenant runtime remains `bm_b1_web`; external Vendor runtime gets EXECUTE only on external functions through `bm_vendor_web`.
-- Neither runtime has direct table DML or SET ROLE to owner.
-- All assignment create/reassign/revoke/closeout/direct-completion races use the source `core_flow.ticket` row `FOR UPDATE` as the universal first serialization lock. After that lock, recheck B1 Manager authority, then lock current VendorAssignment and subordinate Vendor resources. Do not add a separate per-ticket advisory-lock order.
+- Neither runtime has direct table SELECT/INSERT/UPDATE/DELETE, ownership, BYPASSRLS, or SET ROLE to `bm_vendor_handoff_owner`.
+- Every durable Vendor Handoff table carries `org_id uuid NOT NULL`, has `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY`, and is owned/operated only through `bm_vendor_handoff_owner` SECURITY DEFINER functions.
+- Exact RLS table inventory by migration:
+  - 0019: `vendor_assignment`, `work_packet_revision`, `work_packet_source_photo`, `vendor_capability`, `vendor_session`, `command_receipt`.
+  - 0020: `scheduling_round`, `tenant_availability_submission`, `tenant_availability_window`, `tenant_entry_authorization`, `tenant_entry_authorization_window`, `vendor_slot_proposal`, `vendor_slot`, `appointment`.
+  - 0021: `work_event`.
+  - 0022: `completion_report`, `completion_photo`, `manager_disposition`.
+  - 0023 introduces Manager-action functions/constraints only unless Task0/live truth forces a separately reviewed additive table.
+- Standard policy name `vendor_handoff_org_scope` applies to every table for `bm_vendor_handoff_owner`: `USING (org_id = app.current_org_id()) WITH CHECK (org_id = app.current_org_id())`.
+- `vendor_capability` additionally has SELECT-only `vendor_capability_digest_bootstrap`: the owner may see only the row whose digest equals transaction-local `app.vendor_capability_digest`. `vendor_session` similarly has SELECT-only `vendor_session_digest_bootstrap` keyed by transaction-local `app.vendor_session_digest`. These bootstrap policies grant no INSERT/UPDATE/DELETE.
+- Redeem/session functions set only the digest setting from hashed request material, SELECT exactly one bootstrap row, take its `org_id`, set transaction-local `app.org_id`, then re-read/recheck under org scope before any write. Session/capability update, session insertion, assignment/resource read and command receipt access occur only after org binding.
+- `bm_vendor_handoff_owner` receives the minimum `USAGE`/`EXECUTE` needed for `app.current_org_id()` and the approved Core bridge functions; Web runtimes do not receive table privileges.
+- Every later migration that creates a Vendor Handoff table must add it to the canonical RLS catalog assertion in `tests/postgres/vendor-handoff-security.test.ts`; no new table is allowed to exist without both `relrowsecurity=true` and `relforcerowsecurity=true`.
+- Every state-changing Vendor Handoff persistence method follows the global transaction preamble: derive the source ticket from immutable route/session identity without taking a subordinate row lock; lock source `core_flow.ticket FOR UPDATE` first; recheck current Manager/Tenant B1 or Vendor-session authority after the wait; lock/recheck current VendorAssignment; then lock `SchedulingRound → Appointment → blocker/correction/report` in that order when present; persist/reconcile the command receipt last. A pre-lock lookup is never authoritative and must be repeated after the ticket lock. Do not add a separate per-ticket advisory-lock order.
 - Core-owned SECURITY DEFINER bridge helpers are narrow capabilities, never broad Core-table grants:
   - `core_flow.vendor_handoff_source(p_digest bytea,p_ticket text,p_photo_ids uuid[],p_lock boolean) RETURNS jsonb`: Manager-authorized source snapshot and selected-photo metadata for packet publication.
   - `core_flow.vendor_handoff_current_tenant(p_org uuid,p_ticket text,p_lock boolean) RETURNS jsonb`: server-derived current occupancy/member identity for Tenant authority and preauthorized visit recheck; callable only by `bm_vendor_handoff_owner`.
@@ -339,8 +351,8 @@ git commit -m "feat(vendor): define secure handoff contracts"
 - `vendor_handoff.guard_direct_completion(p_digest bytea,p_ticket text) RETURNS void` is the one narrow Vendor-schema capability callable by the ordinary B1 Core path. It acquires **no earlier competing lock**; after the caller already holds the source ticket row lock, it conflicts if any non-ended VendorAssignment exists.
 - Grant the four Core bridge helpers above only to `bm_vendor_handoff_owner`; do not grant them directly to `bm_b1_web` or `bm_vendor_web`. Grant only `vendor_handoff.guard_direct_completion` to `bm_b1_web`.
 - Persistence factories:
-  - `createVendorHandoffManagerPort(database, orgId): VendorHandoffManagerPort`
-  - `createVendorHandoffTenantPort(database, orgId): VendorHandoffTenantPort`
+  - `createVendorHandoffManagerPort(database): VendorHandoffManagerPort`
+  - `createVendorHandoffTenantPort(database): VendorHandoffTenantPort`
   - `createVendorHandoffExternalPort(database): VendorHandoffExternalPort`
 
 - [ ] **Step 1: Write PostgreSQL RED tests**
@@ -358,7 +370,11 @@ Cover AC01–AC16, AC47–AC49 foundation cases:
 - explicit source-photo allowlist;
 - immutable packet revisions;
 - stale expected packet/assignment version conflict;
-- direct table DML denied to both runtime roles;
+- catalog inventory proves every expected Vendor table has `relrowsecurity=true` and `relforcerowsecurity=true`;
+- `pg_policies` proves `vendor_handoff_org_scope` exists on every table and only the two digest tables have their SELECT-only bootstrap policy;
+- cross-org hostile probes through Manager/Tenant digest, Vendor capability digest and Vendor session digest cannot read/mutate another org's resources;
+- capability/session bootstrap exposes at most the exact digest row before org binding and cannot update it until `app.org_id` is set/rechecked;
+- direct SELECT/INSERT/UPDATE/DELETE denied to both runtime roles;
 - PUBLIC EXECUTE absent;
 - role membership/SET ROLE denied.
 
@@ -372,6 +388,8 @@ Expected: RED because roles/schema/functions do not exist.
 
 Rules:
 - original `0001–0018` bytes unchanged;
+- add `org_id`, ENABLE/FORCE RLS and the exact policy model above in the same migration that creates each table; no deferred unsecured table generation;
+- every state-changing Manager/Tenant/Vendor function follows the shared source-ticket-first transaction preamble above;
 - assignment create/publish/link operations take the source ticket row lock first and recheck current Manager authorization after waits;
 - canonical building/serviceAddress/unit/issue identity comes from server-side Core source;
 - tenant raw text is never address fallback;
@@ -380,7 +398,7 @@ Rules:
 - exact link replay returns safe issuance metadata with `created:false`; raw link bytes are never recoverable from DB/receipt;
 - first successful link issue calls the narrow Core `vendor_handoff_mark_offered(...)` capability in the same transaction so PREPARING→OFFERED and OPEN→IN_PROGRESS (when applicable) cannot split.
 
-- [ ] **Step 3: Run focused DB/security tests**
+- [ ] **Step 3: Run focused DB/security and catalog-policy tests**
 
 ```bash
 npm run test:postgres -- tests/postgres/vendor-handoff-foundation.test.ts tests/postgres/vendor-handoff-security.test.ts
