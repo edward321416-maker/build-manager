@@ -13,7 +13,7 @@ export async function createVendorHandoffFixture() {
       SET body = body || jsonb_build_object('serviceAddress','합성 테스트 주소')
     `);
     const password = `vw_${randomBytes(24).toString("hex")}`;
-    await f.p.admin.query("ALTER ROLE bm_vendor_web PASSWORD $1", [password]);
+    await f.p.admin.query(`ALTER ROLE bm_vendor_web PASSWORD '${password}'`);
     const vendorWebConfig: ClientConfig = {
       host: f.p.adminConfig.host,
       port: f.p.adminConfig.port,
