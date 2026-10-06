@@ -23,6 +23,7 @@ import {
   VendorSharedDetailSourceTypeSchema,
   VendorTenantSchedulingDtoSchema,
   VendorJobDtoSchema,
+  VendorLinkIssueDtoSchema,
 } from "./vendor-handoff";
 
 const id="11111111-1111-4111-8111-111111111111";
@@ -31,6 +32,14 @@ const id3="33333333-3333-4333-8333-333333333333";
 const id4="44444444-4444-4444-8444-444444444444";
 const at="2026-10-10T09:00:00+09:00";
 const later="2026-10-10T10:00:00+09:00";
+
+it("distinguishes first issue from metadata-only exact replay without reconstructing raw link bytes",()=>{
+  const metadata={assignmentId:id,assignmentVersion:3,expiresAt:at};
+  expect(VendorLinkIssueDtoSchema.safeParse({...metadata,created:false}).success).toBe(true);
+  expect(VendorLinkIssueDtoSchema.safeParse({...metadata,created:true,link:"/vendor/job#synthetic-example"}).success).toBe(true);
+  expect(VendorLinkIssueDtoSchema.safeParse({...metadata,created:false,link:"/vendor/job#synthetic-example"}).success).toBe(false);
+  expect(VendorLinkIssueDtoSchema.safeParse({...metadata,created:true}).success).toBe(false);
+});
 
 describe("Vendor Secure Handoff enums",()=>{
   it("freezes the exact closed vocabularies",()=>{

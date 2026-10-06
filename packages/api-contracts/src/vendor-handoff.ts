@@ -198,7 +198,7 @@ export const VendorWorkPacketRevisionDtoSchema=z.object({
   id:uuid,assignmentId:uuid,jobReference:plainSingle(80),vendorLabel,
   revision:version,publishedAt:instant,buildingName:plainSingle(200),serviceAddress:plainMulti(500),unitLabel:plainSingle(80),
   issueType:z.enum(["HEATING","LEAK"]),workSummary,sharedDetails:z.array(VendorSharedDetailSchema),
-  allowedPhotoIds:z.array(uuid),accessPolicy:VendorAccessPolicySchema,accessInstruction:shortNote.nullable(),
+  allowedPhotoIds:z.array(uuid),safetyNotice:z.array(plainMulti(500)),accessPolicy:VendorAccessPolicySchema,accessInstruction:shortNote.nullable(),
 }).strict();
 export const VendorSchedulingRoundDtoSchema=z.object({
   id:uuid,openedPacketRevisionId:uuid,purpose:VendorSchedulingPurposeSchema,status:VendorSchedulingRoundStatusSchema,version,createdAt:instant,
@@ -219,7 +219,11 @@ export const VendorCompletionReportDtoSchema=z.object({
   photoOmissionReason:VendorPhotoOmissionReasonSchema.nullable(),submittedAt:instant,
 }).strict();
 export const VendorSessionDtoSchema=z.object({assignmentId:uuid,expiresAt:instant}).strict();
-export const VendorLinkIssueDtoSchema=z.object({assignmentId:uuid,assignmentVersion:version,link:z.string().trim().min(1),expiresAt:instant}).strict();
+const linkIssueMetadata={assignmentId:uuid,assignmentVersion:version,expiresAt:instant};
+export const VendorLinkIssueDtoSchema=z.discriminatedUnion("created",[
+  z.object({...linkIssueMetadata,created:z.literal(true),link:z.string().trim().min(1)}).strict(),
+  z.object({...linkIssueMetadata,created:z.literal(false)}).strict(),
+]);
 
 const ManagerAssignmentDtoSchema=z.object({
   id:uuid,status:VendorAssignmentStatusSchema,endReason:VendorAssignmentEndReasonSchema.nullable(),vendorLabel,version,

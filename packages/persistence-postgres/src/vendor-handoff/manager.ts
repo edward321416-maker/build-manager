@@ -70,8 +70,8 @@ export function createVendorHandoffManagerPort(database: PostgresDatabase): Vend
         "SELECT vendor_handoff.manager_issue_link($1::bytea,$2::uuid,$3::uuid,$4::bigint,$5::uuid,$6::bytea,false) AS value",
         [assignmentId, input.clientRequestId, input.expectedAssignmentVersion, input.expectedPacketRevisionId, tokenDigest],
       );
-      if (!state.created) throw new VendorHandoffError("STATE_CONFLICT", "LINK_NOT_RECOVERABLE");
-      return { assignmentId: state.assignmentId, assignmentVersion: state.assignmentVersion, link: `/vendor/job#${raw}`, expiresAt: state.expiresAt } satisfies VendorLinkIssueDto;
+      if (!state.created) return { ...state, created: false } satisfies VendorLinkIssueDto;
+      return { created: true, assignmentId: state.assignmentId, assignmentVersion: state.assignmentVersion, link: `/vendor/job#${raw}`, expiresAt: state.expiresAt } satisfies VendorLinkIssueDto;
     },
     async reissueLink(digest, assignmentId, input) {
       const raw = randomBytes(32).toString("base64url");
@@ -82,8 +82,8 @@ export function createVendorHandoffManagerPort(database: PostgresDatabase): Vend
         "SELECT vendor_handoff.manager_issue_link($1::bytea,$2::uuid,$3::uuid,$4::bigint,$5::uuid,$6::bytea,true) AS value",
         [assignmentId, input.clientRequestId, input.expectedAssignmentVersion, input.expectedPacketRevisionId, tokenDigest],
       );
-      if (!state.created) throw new VendorHandoffError("STATE_CONFLICT", "LINK_NOT_RECOVERABLE");
-      return { assignmentId: state.assignmentId, assignmentVersion: state.assignmentVersion, link: `/vendor/job#${raw}`, expiresAt: state.expiresAt } satisfies VendorLinkIssueDto;
+      if (!state.created) return { ...state, created: false } satisfies VendorLinkIssueDto;
+      return { created: true, assignmentId: state.assignmentId, assignmentVersion: state.assignmentVersion, link: `/vendor/job#${raw}`, expiresAt: state.expiresAt } satisfies VendorLinkIssueDto;
     },
     async revoke() { return notYetImplemented(); },
     async reassign() { return notYetImplemented(); },

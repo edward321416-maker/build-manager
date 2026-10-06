@@ -60,7 +60,7 @@ export type VendorSharedDetail={key:string;label:string;value:string;sourceType:
 export type VendorWorkPacketRevisionDto={
   id:string;assignmentId:string;jobReference:string;vendorLabel:string;revision:number;publishedAt:string;
   buildingName:string;serviceAddress:string;unitLabel:string;issueType:"HEATING"|"LEAK";workSummary:string;
-  sharedDetails:VendorSharedDetail[];allowedPhotoIds:string[];accessPolicy:VendorAccessPolicy;accessInstruction:string|null;
+  sharedDetails:VendorSharedDetail[];allowedPhotoIds:string[];safetyNotice:string[];accessPolicy:VendorAccessPolicy;accessInstruction:string|null;
 };
 export type VendorSchedulingRoundDto={id:string;openedPacketRevisionId:string;purpose:VendorSchedulingPurpose;status:VendorSchedulingRoundStatus;version:number;createdAt:string};
 export type VendorAppointmentDto={
@@ -90,7 +90,9 @@ export type VendorJobDto={
   activeBlocker:VendorBlockerDto|null;currentReport:VendorCompletionReportDto|null;
 };
 export type VendorSessionDto={assignmentId:string;expiresAt:string};
-export type VendorLinkIssueDto={assignmentId:string;assignmentVersion:number;link:string;expiresAt:string};
+export type VendorLinkIssueDto={assignmentId:string;assignmentVersion:number;expiresAt:string}&(
+  {created:true;link:string}|{created:false;link?:never}
+);
 export type SanitizedVendorPhoto={
   bytes:Uint8Array;mime:"image/jpeg"|"image/png";byteSize:number;width:number;height:number;sha256:string;
 };
