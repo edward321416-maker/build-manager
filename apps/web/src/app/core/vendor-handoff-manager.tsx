@@ -149,8 +149,11 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged}:ManagerP
       setUncertain(false);setPreview(false);
       if(kind==="ISSUE"||kind==="REISSUE"){
         rememberLink(null);
-        const value=result.value as VendorLinkIssueDto;const link=result.handoff?resolveDeliverableLink(value,window.location.origin,result.handoff):null;setImmediateLink(link);setLinkUnavailable(!link);
-        setNotice(link?"보안 링크를 발급했습니다. 업체에 직접 전달하세요.":"발급 기록을 확인했습니다. 원래 링크는 다시 표시할 수 없습니다.");
+        const value=result.value as VendorLinkIssueDto,currentAssignment=result.handoff?.assignment;
+        const currentAuthority=Boolean(result.handoff?.currentPacket&&currentAssignment?.id===value.assignmentId&&["OFFERED","ACTIVE"].includes(currentAssignment.status));
+        const link=result.handoff?resolveDeliverableLink(value,window.location.origin,result.handoff):null;
+        linkAssignmentRef.current=currentAuthority?value.assignmentId:null;setImmediateLink(link);setLinkUnavailable(currentAuthority&&!link);
+        setNotice(link?"보안 링크를 발급했습니다. 업체에 직접 전달하세요.":currentAuthority?"발급 기록을 확인했습니다. 원래 링크는 다시 표시할 수 없습니다.":"발급 기록은 이전 상태입니다. 최신 업체 연결 상태를 확인하세요.");
       }else{
         if(kind==="CREATE"){linkAssignmentRef.current=null;setLinkUnavailable(false);}
         setNotice(kind==="CREATE"?"작업 요청 준비를 저장했습니다.":kind==="PUBLISH"?"업체 전달 내용을 게시했습니다.":"업체 접근 철회를 기록했습니다.");

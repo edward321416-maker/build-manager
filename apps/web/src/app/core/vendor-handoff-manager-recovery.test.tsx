@@ -98,3 +98,11 @@ it("metadata-only replay loss state does not follow an authoritative replacement
   expect(Boolean(button("보안 링크 발급"))).toBe(true);expect(button("보안 링크 발급")?.disabled).toBe(false);
   expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없습니다")).toBe(false);expect(s.issueLink).toHaveBeenCalledTimes(1);
 });
+it("metadata-only replay already ended at immediate readback cannot relatch loss onto a future replacement",async()=>{
+  const s=await mount(async()=>({created:false,assignmentId:"assignment",assignmentVersion:2,expiresAt:"2026-10-09T00:00:00Z"}));
+  s.readHandoff.mockResolvedValue({...preparing,assignment:{...preparing.assignment!,status:"ENDED",endReason:"REVOKED"},currentPacket:null});
+  await click("보안 링크 발급");
+  s.readHandoff.mockResolvedValue({...preparing,assignment:{...preparing.assignment!,id:"replacement"}});await click("업체 연결 상태 다시 확인");
+  expect(Boolean(button("보안 링크 발급"))).toBe(true);expect(button("보안 링크 발급")?.disabled).toBe(false);
+  expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없습니다")).toBe(false);expect(s.issueLink).toHaveBeenCalledTimes(1);
+});
