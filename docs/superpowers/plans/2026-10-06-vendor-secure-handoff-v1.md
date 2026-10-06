@@ -470,6 +470,7 @@ Assert:
 - ORG_ADMIN/current PROPERTY_STAFF only;
 - Origin/session/CSRF precedence stays frozen;
 - completed/unsafe/ineligible route does not render handoff CTA;
+- Manager HTTP passes the request-scoped B1 digest to every `VendorHandoffManagerPort` read/mutation; handler/client code never substitutes `orgId` as authority;
 - packet preview shows exact Vendor-visible fields and provenance before publish;
 - Manager must explicitly select source photos;
 - accessPolicy is policy only, never Tenant consent;
@@ -605,6 +606,7 @@ git commit -m "feat(vendor): add capability job session"
 - Modify: `apps/web/src/app/vendor/job/vendor-job-screen.tsx`
 - Modify: `apps/web/src/app/vendor/job/vendor-job-screen.test.tsx`
 - Create: `tests/postgres/vendor-handoff-scheduling.test.ts`
+- Extend: `tests/postgres/vendor-handoff-security.test.ts`
 - Extend: `packages/api-contracts/src/vendor-handoff.test.ts`
 
 **Interfaces:**
@@ -644,9 +646,9 @@ npm run test:web -- apps/web/src/server/vendor-handoff/http.test.ts apps/web/src
 ```
 Expected: RED.
 
-- [ ] **Step 2: Implement migration 0020, atomic Accept/Withdraw, and persistence methods**
+- [ ] **Step 2: Implement migration 0020, atomic Accept/Withdraw, persistence methods, and RLS catalog extension**
 
-All stored times are `timestamptz`; reject non-finite values and `startAt >= endAt`; compare absolute instants. Accept and first INITIAL round must commit together; never expose ACTIVE with no INITIAL round. Withdraw ends the assignment without deleting prior round/appointment/work history; only still-actionable OPEN/SCHEDULED records receive CANCELLED disposition.
+All stored times are `timestamptz`; reject non-finite values and `startAt >= endAt`; compare absolute instants. Accept and first INITIAL round must commit together; never expose ACTIVE with no INITIAL round. Withdraw ends the assignment without deleting prior round/appointment/work history; only still-actionable OPEN/SCHEDULED records receive CANCELLED disposition. Extend `vendor-handoff-security.test.ts` so every 0020 table is asserted `ENABLE + FORCE RLS`, org-scoped, restrictive-ceiling protected, and inaccessible by direct Web-runtime table SQL.
 
 - [ ] **Step 3: Run scheduling + Vendor HTTP/UI + security regression**
 
@@ -699,6 +701,7 @@ Required exact cases:
 - 2027 date includes year;
 - cross-midnight shows both dates;
 - absolute containment rejects a visually similar but out-of-window instant;
+- Tenant HTTP passes the request-scoped B1 digest to every `VendorHandoffTenantPort` read/mutation; no Tenant route supplies org/unit authority in place of the digest;
 - Tenant consent default OFF and consequence confirmation repeats exact selected windows.
 
 Run:
@@ -737,6 +740,7 @@ git commit -m "feat(vendor): add tenant vendor scheduling"
 - Modify: `apps/web/src/server/vendor-handoff/http.ts`
 - Modify: `apps/web/src/app/vendor/job/vendor-job-screen.tsx`
 - Create: `tests/postgres/vendor-handoff-work.test.ts`
+- Extend: `tests/postgres/vendor-handoff-security.test.ts`
 
 **Interfaces:**
 - Append-only `work_event` records `VISIT_STARTED`, `BLOCKER_RECORDED`, `BLOCKER_CLEARED`.
@@ -765,9 +769,9 @@ npm run test:postgres -- tests/postgres/vendor-handoff-work.test.ts
 ```
 Expected: RED.
 
-- [ ] **Step 2: Implement migration/work port**
+- [ ] **Step 2: Implement migration/work port and extend the RLS catalog assertion**
 
-Do not UPDATE/delete historical work events.
+Do not UPDATE/delete historical work events. Add `work_event` to the canonical FORCE-RLS/org-policy catalog test and preserve zero direct Web-runtime table privileges.
 
 - [ ] **Step 3: Implement Vendor work UI/API**
 
@@ -776,7 +780,7 @@ A blocker changes current task state but never rewrites lifecycle/history.
 - [ ] **Step 4: Run focused tests**
 
 ```bash
-npm run test:postgres -- tests/postgres/vendor-handoff-work.test.ts
+npm run test:postgres -- tests/postgres/vendor-handoff-work.test.ts tests/postgres/vendor-handoff-security.test.ts
 npm run test:web -- apps/web/src/server/vendor-handoff/http.test.ts apps/web/src/app/vendor/job/vendor-job-screen.test.tsx
 ```
 Expected: PASS.
@@ -806,6 +810,7 @@ git commit -m "feat(vendor): record visit and blocker evidence"
 - Modify: `apps/web/src/app/core/vendor-handoff-manager.tsx`
 - Modify: `apps/web/src/app/core/vendor-handoff-manager.test.tsx`
 - Create: `tests/postgres/vendor-handoff-completion.test.ts`
+- Extend: `tests/postgres/vendor-handoff-security.test.ts`
 
 **Interfaces:**
 - Tables `completion_report`, `completion_photo`, `manager_disposition`. The schema includes nullable revision/provenance columns needed by Task 9, but Task 8 only accepts an initial report with no correction request and `supersedesReportId = null`.
@@ -846,14 +851,14 @@ npm run test:web -- apps/web/src/server/vendor-handoff/http.test.ts
 ```
 Expected: RED until Vendor completion-photo route exists.
 
-- [ ] **Step 3: Implement migration/report/photo path**
+- [ ] **Step 3: Implement migration/report/photo path and extend the RLS catalog assertion**
 
-Do not expose raw Vendor completion photos through Tenant endpoints.
+Do not expose raw Vendor completion photos through Tenant endpoints. Add `completion_report`, `completion_photo`, and `manager_disposition` to the canonical FORCE-RLS/org-policy catalog test.
 
 - [ ] **Step 4: Run focused DB/Web tests**
 
 ```bash
-npm run test:postgres -- tests/postgres/vendor-handoff-completion.test.ts
+npm run test:postgres -- tests/postgres/vendor-handoff-completion.test.ts tests/postgres/vendor-handoff-security.test.ts
 npm run test:web -- apps/web/src/server/vendor-handoff/http.test.ts apps/web/src/app/vendor/job/vendor-job-screen.test.tsx
 ```
 Expected: PASS.
@@ -911,6 +916,11 @@ Cover the remaining correction portion of AC35 plus AC38–AC42, reassignment/re
 - closeout-first => later message conflict/no partial message;
 - Manager auth revocation while waiting => no closeout;
 - current report changed while waiting => no closeout;
+- Vendor proposal vs Manager Revoke => source-ticket-first serialization leaves either the proposal committed before revoke then inaccessible, or revoke wins and proposal conflicts; no deadlock/partial state;
+- Tenant confirm and Vendor preauthorized selection vs Manager Reassign => exactly one current assignment/scheduling history wins; old assignment cannot gain a new actionable Appointment after supersession;
+- VISIT_STARTED vs Manager Revoke => exactly one valid result; revoked assignment cannot gain a new OCCURRED visit after revoke commits;
+- completion report vs Closeout/Reassign => no report can become current after assignment close/reassign; closeout cannot use a report that lost the race;
+- Withdraw vs availability/proposal/reschedule mutation => exactly one wins; ENDED/WITHDRAWN cannot retain or gain actionable scheduling;
 - ticket COMPLETED iff assignment CLOSED in successful closeout;
 - Vendor access denied after closeout;
 - active assignment => existing direct Manager completion returns STATE_CONFLICT with no partial completion;
@@ -928,9 +938,9 @@ npm run test:postgres -- tests/postgres/vendor-handoff-completion.test.ts tests/
 ```
 Expected: RED for new Vendor cases.
 
-- [ ] **Step 2: Implement manager dispositions/reassignment**
+- [ ] **Step 2: Implement manager dispositions/reassignment under the universal transaction preamble**
 
-Manager completion text is never prefilled from Vendor workSummary.
+Manager completion text is never prefilled from Vendor workSummary. All Task 9 commands and all cross-race partners above must derive ticket identity without subordinate locks, take the source ticket row first, recheck authority/session, and only then lock assignment/subordinate rows.
 
 - [ ] **Step 3: Implement Manager UI**
 
