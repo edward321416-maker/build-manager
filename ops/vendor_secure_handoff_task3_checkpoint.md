@@ -63,3 +63,14 @@ Definite rejection restores editable review. Unknown issuance retains its origin
 Meaningful RED: real HTTP/PG3 failures; mounted recovery/validation3 failures; obsolete ended recovery1 failure in each of two follow-up generations. A fixture-only invalid-column failure (1 failed/48 passed) in the initial combined PostgreSQL run is preserved and corrected. The filename `task3-remediation-postgres-green.log` labels that failed generation, not success. Full commands, evidence timing and bounded supporting AC assertions are in private `task3-review-remediation-report.md`.
 
 Controller independent rereview is pending. These are Task3 local remediation results, not full-candidate/current acceptance promotion. Task9 revoke semantics and Tasks4–12/final hosted, restart, browser/device/accessibility gates remain later. Six mounted DOM assertions do not replace the final browser/device gates. Remote/Ready/merge/deploy/production and external Google writes remain NOT_RUN; sync_status=pending. Existing Web4/Mobile1 lint warnings remain unchanged.
+
+
+## Task3 residual M1 — assignment-scoped link loss
+
+Independent rereview closed H1/LOW1 from acc43fa6 and found one residual M1: settled metadata-only replay had cleared pending intent while retaining the old link-unavailable flag. That flag could hide first issue after ENDED/replacement and fresh preparation/publication. The first remediation remains preserved as its own tested generation.
+
+Clean entry: `de46e21831b45bc6f6f7782992cacea9d125dbd3`. UI-only source: `b3d9c035206596344d8c44eed8073725ddcbcb0e` — `fix(vendor): clear link loss on assignment replacement`. Only the Manager component and mounted recovery test changed. Link-loss/display state now retains its original assignment marker independently of pending intent. Authoritative end/replacement and successful fresh CREATE discard obsolete loss/link/notice; valid same-assignment pending identity and own ticket-version link retention remain intact.
+
+Mounted RED:2 failed/6 passed; partial fix:31 passed/1 failed because the old notice survived replacement; final focused:32/32 passed in3 files including8 mounted cases. Web typecheck and lint PASS,0 errors/4 unchanged warnings. Source index scan PASS683 files/328 links/0 findings completed before commit. Logs and full commands are in private `task3-ui-loss-scope-report.md`; every failed generation remains retained. No SQL/adapter/contract change; no PostgreSQL rerun for this UI-only delta. Prior PG49, full Web581 and verify/shared474 are explicitly earlier-generation evidence.
+
+Controller independent rereview remains the next gate; no final-current/full-candidate acceptance is claimed. The Task9 revoke stub, Tasks4–12/final browser/restart/hosted/device/accessibility gates and retained D7-L01/D8-L01/D8-L02 limits remain. No remote/Ready/merge/deploy/production or external Google write; sync_status=pending, tokens=unknown.
