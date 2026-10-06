@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** REMEDIATION_SUCCESSOR_CANDIDATE_FOR_DELTA_REVIEW — PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED
+**Status:** DELTA2_REMEDIATION_SUCCESSOR_CANDIDATE — PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED
+
+**Reviewed remediation successor:** HEAD `ab22f9b30906e0efaf2961f9c312abc0908210ac`, plan blob `59ae7fe2cac932bb67536992c3bb8dc850d5c831`, delta review `6008734683` (`FIX_REQUIRED / B0 / H3 / M2`). Delta2 remediation is authorized by comment `6008805573`; the reviewed successor remains immutable history.
 
 **Reviewed predecessor:** HEAD `32ea0d151cc74e03878823860c429a580216f1ef`, plan blob `a6aa1d111dec67ee80b7f687000af087b3bf1ce6`, independent review `6007733166` (`FIX_REQUIRED / B0 / H4 / M2`). This successor resolves that review under remediation gate `6007888778` and authorization `6007894685`; the predecessor remains immutable history.
 
@@ -39,7 +41,7 @@
 - Availability submission and unattended-entry consent are separate mutations. Consent defaults OFF and only the current Tenant can authorize explicitly selected windows.
 - Appointment start/end are immutable. Before confirmation an incompatible proposal may be invalidated/restarted; after confirmation use RESCHEDULE. FOLLOW_UP requires a prior OCCURRED visit and preserves that visit.
 - Work/blocker/report history is append-only. Vendor Completion Report is not Manager completion.
-- All VendorAssignment/direct-completion races serialize on the source `core_flow.ticket` row lock first; do not introduce a second per-ticket advisory-lock order. After the ticket row is locked, lock/recheck current VendorAssignment and subordinate Vendor resources in that order.
+- Every state-changing Vendor Handoff command uses one transaction order: resolve only enough request/session-bound identity to derive the source ticket without taking a subordinate lock; lock source `core_flow.ticket FOR UPDATE` first; recheck current B1 or Vendor-session authority after the wait; lock/recheck current VendorAssignment; then lock round → Appointment → blocker/correction/report in that fixed subordinate order as needed; persist/reconcile the command receipt last. No command may lock assignment/round/Appointment first and later request the source-ticket lock, and no second per-ticket advisory-lock order is introduced.
 - Manager closeout must atomically produce ticket `COMPLETED` + current VendorAssignment `ENDED/CLOSED`, reconcile current public communication version, and revoke Vendor access. It must not write Tenant outcome or Maintenance Fact.
 - Existing direct Manager completion remains valid when no non-ended VendorAssignment exists. Historical ENDED assignments do not create a Vendor completion prerequisite.
 - Existing Tenant `RESOLVED / UNRESOLVED / RECURRENCE_CLAIM` and Maintenance Fact flows remain separate and unchanged.
@@ -205,26 +207,26 @@ Use `superpowers:using-git-worktrees`. Do not create implementation commits duri
   - `VendorPhotoOmissionReason = "NOT_APPLICABLE"|"SAFETY_OR_PRIVACY"|"TECHNICAL_FAILURE"`
   - `VendorAppointmentConfirmationMode = "TENANT_CONFIRMED"|"PREAUTHORIZED_ENTRY"`
   - `VendorManagerDisposition = "CLOSEOUT"|"REQUEST_CORRECTION"|"MORE_WORK"`
-- Produces DTOs `ManagerVendorHandoffDto`, `TenantVendorSchedulingDto`, `VendorJobDto`, `VendorLinkIssueDto`, `VendorCompletionReportDto`.
+- Produces DTOs `ManagerVendorHandoffDto`, `TenantVendorSchedulingDto`, `VendorJobDto`, `VendorSessionDto`, `VendorLinkIssueDto`, `VendorCompletionReportDto`, `VendorCompletionPhotoDto`.
 - Contract bounds fixed by this plan: `vendorLabel` plain text 1–80 characters; optional `accessInstruction` plain text 1–500 characters; optional decline/withdraw/blocker operational note 1–500 characters; report-correction Manager reason is required plain text 1–500 characters; optional `componentOrPartNote` is plain text 1–500 characters and is never inventory/warranty/cost data; Vendor/Manager work/completion summaries retain the frozen 1–1000-character bound. Control/format characters are rejected consistently with existing text validators.
 - Produces strict mutation schemas and exact command matrix below. Every consequential mutation carries UUID `clientRequestId` plus the listed stale-state guards; server-derived authority IDs are never accepted as client authority.
 
 | Actor | Command schema | Application port method | HTTP route | Required stale-state fields | Durable result |
 |---|---|---|---|---|---|
-| Manager | `VendorCreateAssignmentCommand` | `manager.createAssignment(ticketId,input)` | `POST /api/v2/core/manager/tickets/:ticketId/vendor-assignment` | expected ticket version | PREPARING assignment |
-| Manager | `VendorPublishPacketCommand` | `manager.publishPacket(assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/packet-revisions` | expectedAssignmentVersion, expectedPacketRevisionId/null | immutable current packet revision |
-| Manager | `VendorIssueLinkCommand` | `manager.issueLink(assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/link` | expectedAssignmentVersion, expectedPacketRevisionId | first OFFERED capability; OPEN→IN_PROGRESS when needed |
-| Manager | `VendorReissueLinkCommand` | `manager.reissueLink(assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/link/reissue` | expectedAssignmentVersion, expectedPacketRevisionId | old unredeemed capability invalidated; new capability |
-| Manager | `VendorRevokeCommand` | `manager.revoke(assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/revoke` | expectedAssignmentVersion | ENDED/REVOKED + future scheduling cancelled |
-| Manager | `VendorReassignCommand` | `manager.reassign(assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/reassign` | expectedAssignmentVersion | old ENDED/SUPERSEDED + new PREPARING |
-| Manager | `VendorRequestCorrectionCommand` | `manager.requestCorrection(assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/completion-correction` | expectedAssignmentVersion, expectedCompletionReportId | durable correction request |
-| Manager | `VendorRequireFollowUpCommand` | `manager.requireFollowUp(assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/follow-up` | expectedAssignmentVersion, expectedCompletionReportId | FOLLOW_UP round with report provenance |
-| Manager | `VendorManagerRescheduleCommand` | `manager.reschedule(assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/reschedule` | expectedAssignmentVersion, expectedRoundVersion, expectedAppointmentId, expectedPacketRevisionId | future appointment superseded + RESCHEDULE round |
-| Manager | `VendorCloseoutCommand` | `manager.closeout(assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/closeout` | expectedAssignmentVersion, expectedCompletionReportId, expectedCommunicationVersion | ticket COMPLETED + assignment ENDED/CLOSED atomically |
-| Tenant | `VendorAvailabilityCommand` | `tenant.submitAvailability(ticketId,input)` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/availability` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId | immutable availability submission |
-| Tenant | `VendorEntryAuthorizationCommand` | `tenant.authorizeEntry(ticketId,input)` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/entry-authorization` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId, availabilitySubmissionId | exact selected-window authorization |
-| Tenant | `VendorConfirmSlotCommand` | `tenant.confirmSlot(ticketId,input)` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/confirm` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId, proposalId | TENANT_CONFIRMED Appointment |
-| Tenant | `VendorTenantRescheduleCommand` | `tenant.reschedule(ticketId,input)` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/reschedule` | expectedAssignmentVersion, expectedRoundVersion, expectedAppointmentId, expectedPacketRevisionId | future appointment superseded + RESCHEDULE round |
+| Manager | `VendorCreateAssignmentCommand` | `manager.createAssignment(digest,ticketId,input)` | `POST /api/v2/core/manager/tickets/:ticketId/vendor-assignment` | expectedTicketVersion | PREPARING assignment |
+| Manager | `VendorPublishPacketCommand` | `manager.publishPacket(digest,assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/packet-revisions` | expectedAssignmentVersion, expectedPacketRevisionId/null | immutable current packet revision |
+| Manager | `VendorIssueLinkCommand` | `manager.issueLink(digest,assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/link` | expectedAssignmentVersion, expectedPacketRevisionId | first OFFERED capability; OPEN→IN_PROGRESS when needed |
+| Manager | `VendorReissueLinkCommand` | `manager.reissueLink(digest,assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/link/reissue` | expectedAssignmentVersion, expectedPacketRevisionId | old unredeemed capability invalidated; new capability |
+| Manager | `VendorRevokeCommand` | `manager.revoke(digest,assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/revoke` | expectedAssignmentVersion | ENDED/REVOKED + future scheduling cancelled |
+| Manager | `VendorReassignCommand` | `manager.reassign(digest,assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/reassign` | expectedAssignmentVersion | old ENDED/SUPERSEDED + new PREPARING |
+| Manager | `VendorRequestCorrectionCommand` | `manager.requestCorrection(digest,assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/completion-correction` | expectedAssignmentVersion, expectedCompletionReportId | durable correction request |
+| Manager | `VendorRequireFollowUpCommand` | `manager.requireFollowUp(digest,assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/follow-up` | expectedAssignmentVersion, expectedCompletionReportId | FOLLOW_UP round with report provenance |
+| Manager | `VendorManagerRescheduleCommand` | `manager.reschedule(digest,assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/reschedule` | expectedAssignmentVersion, expectedRoundVersion, expectedAppointmentId, expectedPacketRevisionId | future appointment superseded + RESCHEDULE round |
+| Manager | `VendorCloseoutCommand` | `manager.closeout(digest,assignmentId,input)` | `POST /api/v2/core/manager/vendor-assignments/:assignmentId/closeout` | expectedAssignmentVersion, expectedCompletionReportId, expectedCommunicationVersion | ticket COMPLETED + assignment ENDED/CLOSED atomically |
+| Tenant | `VendorAvailabilityCommand` | `tenant.submitAvailability(digest,ticketId,input)` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/availability` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId | immutable availability submission |
+| Tenant | `VendorEntryAuthorizationCommand` | `tenant.authorizeEntry(digest,ticketId,input)` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/entry-authorization` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId, availabilitySubmissionId | exact selected-window authorization |
+| Tenant | `VendorConfirmSlotCommand` | `tenant.confirmSlot(digest,ticketId,input)` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/confirm` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId, proposalId | TENANT_CONFIRMED Appointment |
+| Tenant | `VendorTenantRescheduleCommand` | `tenant.reschedule(digest,ticketId,input)` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/reschedule` | expectedAssignmentVersion, expectedRoundVersion, expectedAppointmentId, expectedPacketRevisionId | future appointment superseded + RESCHEDULE round |
 | Vendor | `VendorRedeemCommand` | `external.redeem(tokenDigest,clientRequestId,sessionDigest,csrfDigest)` | `POST /api/v2/vendor/session/redeem` | clientRequestId; raw one-time token only; no assignment ID authority | vendor session / exact-replay replacement session |
 | Vendor | `VendorLogoutCommand` | `external.logout(sessionDigest,clientRequestId)` | `POST /api/v2/vendor/session/logout` | clientRequestId; session + CSRF | idempotent current-session revocation |
 | Vendor | `VendorAcceptCommand` | `external.accept(sessionDigest,input)` | `POST /api/v2/vendor/job/accept` | expectedAssignmentVersion, expectedPacketRevisionId | OFFERED→ACTIVE + first INITIAL/OPEN round atomically |
@@ -238,10 +240,15 @@ Use `superpowers:using-git-worktrees`. Do not create implementation commits duri
 | Vendor | `VendorClearBlockerCommand` | `external.clearBlocker(sessionDigest,blockerId,input)` | `POST /api/v2/vendor/blockers/:blockerId/clear` | expectedAssignmentVersion, expectedPacketRevisionId | append-only clear evidence |
 | Vendor | `VendorCompletionReportCommand` | `external.submitCompletionReport(sessionDigest,input)` | `POST /api/v2/vendor/completion-reports` | expectedAssignmentVersion, expectedPacketRevisionId, expectedAppointmentId, expectedCorrectionRequestId/null | append-only current report revision |
 
-Read-only routes and exact port methods are: `manager.readHandoff(ticketId)` → `GET /api/v2/core/manager/tickets/:ticketId/vendor-handoff`; `tenant.readScheduling(ticketId)` → `GET /api/v2/core/tickets/:ticketId/vendor-scheduling`; `external.session(sessionDigest)` → `GET /api/v2/vendor/session`; `external.readJob(sessionDigest)` → `GET /api/v2/vendor/job`.
+Read-only routes and exact port methods are: `manager.readHandoff(digest,ticketId): Promise<ManagerVendorHandoffDto>` → `GET /api/v2/core/manager/tickets/:ticketId/vendor-handoff`; `tenant.readScheduling(digest,ticketId): Promise<TenantVendorSchedulingDto>` → `GET /api/v2/core/tickets/:ticketId/vendor-scheduling`; `external.session(sessionDigest): Promise<VendorSessionDto>` → `GET /api/v2/vendor/session`; `external.readJob(sessionDigest): Promise<VendorJobDto>` → `GET /api/v2/vendor/job`.
 
 `clientRequestId` is mandatory for every state-changing command in the table, including redeem and logout. Redeem remains one-time capability authority: first success stores only token/session digests plus the redeem request identity; an exact replay with the same token digest + same `clientRequestId` after uncertain delivery may atomically revoke the session created by that same redemption and return one fresh replacement session cookie, while a different request ID cannot redeem the already-consumed capability. Logout exact replay with the same request ID returns the same logical revoked result.
 - Produces application ports `VendorHandoffManagerPort`, `VendorHandoffTenantPort`, `VendorHandoffExternalPort` and `VendorHandoffError`.
+- Exact Manager/Tenant application-port signatures are request-authority explicit:
+  - Manager reads/mutations take `digest: string` as the first argument; ordinary state/result commands return `Promise<ManagerVendorHandoffDto>`, while `issueLink/reissueLink` return `Promise<VendorLinkIssueDto>` and Manager completion-photo read returns `Promise<{photo:VendorCompletionPhotoDto;bytes:Uint8Array}>`.
+  - Tenant reads/mutations take `digest: string` as the first argument and return `Promise<TenantVendorSchedulingDto>`.
+  - Factories are configuration/database scoped only: `createVendorHandoffManagerPort(database): VendorHandoffManagerPort` and `createVendorHandoffTenantPort(database): VendorHandoffTenantPort`; no caller-supplied `orgId` is captured as authority.
+  - Every B1-backed SQL capability receives the request digest, establishes/rechecks the current B1 session/org/property/unit/occupancy context inside SECURITY DEFINER code, and never trusts a client-provided org/property/unit authority identifier.
 - No raw capability/session/CSRF type appears in any durable DTO.
 
 - [ ] **Step 1: Write strict contract RED tests**
@@ -256,6 +263,7 @@ Tests must assert:
 - exact enum values above, including decline/blocker/shared-detail/photo-omission/confirmation/disposition enums;
 - correction reason and `componentOrPartNote` bounds above;
 - command-matrix schema names, exact application port method names, routes, stale-state fields and durable results above;
+- Manager/Tenant method signatures require request-scoped `digest: string`, and `VendorCreateAssignmentCommand` uses the exact field name `expectedTicketVersion`;
 - every state-changing command in the matrix requires UUID `clientRequestId`, including redeem/logout; redeem exact replay is bounded to the same token digest + request ID and never revives the raw capability.
 
 Run:
