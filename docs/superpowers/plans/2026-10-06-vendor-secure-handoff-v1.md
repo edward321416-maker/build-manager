@@ -245,8 +245,25 @@ Read-only routes and exact port methods are: `manager.readHandoff(digest,ticketI
 `clientRequestId` is mandatory for every state-changing command in the table, including redeem and logout. Redeem remains one-time capability authority: first success stores only token/session digests plus the redeem request identity; an exact replay with the same token digest + same `clientRequestId` after uncertain delivery may atomically revoke the session created by that same redemption and return one fresh replacement session cookie, while a different request ID cannot redeem the already-consumed capability. Logout exact replay with the same request ID returns the same logical revoked result.
 - Produces application ports `VendorHandoffManagerPort`, `VendorHandoffTenantPort`, `VendorHandoffExternalPort` and `VendorHandoffError`.
 - Exact Manager/Tenant application-port signatures are request-authority explicit:
-  - Manager reads/mutations take `digest: string` as the first argument; ordinary state/result commands return `Promise<ManagerVendorHandoffDto>`, while `issueLink/reissueLink` return `Promise<VendorLinkIssueDto>` and Manager completion-photo read returns `Promise<{photo:VendorCompletionPhotoDto;bytes:Uint8Array}>`.
-  - Tenant reads/mutations take `digest: string` as the first argument and return `Promise<TenantVendorSchedulingDto>`.
+  - `VendorHandoffManagerPort`:
+    - `readHandoff(digest:string,ticketId:string): Promise<ManagerVendorHandoffDto>`
+    - `createAssignment(digest:string,ticketId:string,input:VendorCreateAssignmentCommand): Promise<ManagerVendorHandoffDto>`
+    - `publishPacket(digest:string,assignmentId:string,input:VendorPublishPacketCommand): Promise<ManagerVendorHandoffDto>`
+    - `issueLink(digest:string,assignmentId:string,input:VendorIssueLinkCommand): Promise<VendorLinkIssueDto>`
+    - `reissueLink(digest:string,assignmentId:string,input:VendorReissueLinkCommand): Promise<VendorLinkIssueDto>`
+    - `revoke(digest:string,assignmentId:string,input:VendorRevokeCommand): Promise<ManagerVendorHandoffDto>`
+    - `reassign(digest:string,assignmentId:string,input:VendorReassignCommand): Promise<ManagerVendorHandoffDto>`
+    - `requestCorrection(digest:string,assignmentId:string,input:VendorRequestCorrectionCommand): Promise<ManagerVendorHandoffDto>`
+    - `requireFollowUp(digest:string,assignmentId:string,input:VendorRequireFollowUpCommand): Promise<ManagerVendorHandoffDto>`
+    - `reschedule(digest:string,assignmentId:string,input:VendorManagerRescheduleCommand): Promise<ManagerVendorHandoffDto>`
+    - `closeout(digest:string,assignmentId:string,input:VendorCloseoutCommand): Promise<ManagerVendorHandoffDto>`
+    - `completionPhoto(digest:string,ticketId:string,photoId:string): Promise<{photo:VendorCompletionPhotoDto;bytes:Uint8Array}>`
+  - `VendorHandoffTenantPort`:
+    - `readScheduling(digest:string,ticketId:string): Promise<TenantVendorSchedulingDto>`
+    - `submitAvailability(digest:string,ticketId:string,input:VendorAvailabilityCommand): Promise<TenantVendorSchedulingDto>`
+    - `authorizeEntry(digest:string,ticketId:string,input:VendorEntryAuthorizationCommand): Promise<TenantVendorSchedulingDto>`
+    - `confirmSlot(digest:string,ticketId:string,input:VendorConfirmSlotCommand): Promise<TenantVendorSchedulingDto>`
+    - `reschedule(digest:string,ticketId:string,input:VendorTenantRescheduleCommand): Promise<TenantVendorSchedulingDto>`
   - Factories are configuration/database scoped only: `createVendorHandoffManagerPort(database): VendorHandoffManagerPort` and `createVendorHandoffTenantPort(database): VendorHandoffTenantPort`; no caller-supplied `orgId` is captured as authority.
   - Every B1-backed SQL capability receives the request digest, establishes/rechecks the current B1 session/org/property/unit/occupancy context inside SECURITY DEFINER code, and never trusts a client-provided org/property/unit authority identifier.
 - No raw capability/session/CSRF type appears in any durable DTO.
@@ -263,7 +280,8 @@ Tests must assert:
 - exact enum values above, including decline/blocker/shared-detail/photo-omission/confirmation/disposition enums;
 - correction reason and `componentOrPartNote` bounds above;
 - command-matrix schema names, exact application port method names, routes, stale-state fields and durable results above;
-- Manager/Tenant method signatures require request-scoped `digest: string`, and `VendorCreateAssignmentCommand` uses the exact field name `expectedTicketVersion`;
+- Manager/Tenant method signatures require request-scoped `digest: string`, exact return types above, and `VendorCreateAssignmentCommand` uses the exact field name `expectedTicketVersion`;
+- type-level tests reject a Manager/Tenant port shape that omits the digest parameter or reintroduces caller-supplied `orgId` authority;
 - every state-changing command in the matrix requires UUID `clientRequestId`, including redeem/logout; redeem exact replay is bounded to the same token digest + request ID and never revives the raw capability.
 
 Run:
@@ -337,8 +355,8 @@ git commit -m "feat(vendor): define secure handoff contracts"
   - 0021: `work_event`.
   - 0022: `completion_report`, `completion_photo`, `manager_disposition`.
   - 0023 introduces Manager-action functions/constraints only unless Task0/live truth forces a separately reviewed additive table.
-- Standard policy name `vendor_handoff_org_scope` applies to every table for `bm_vendor_handoff_owner`: `USING (org_id = app.current_org_id()) WITH CHECK (org_id = app.current_org_id())`.
-- `vendor_capability` additionally has SELECT-only `vendor_capability_digest_bootstrap`: the owner may see only the row whose digest equals transaction-local `app.vendor_capability_digest`. `vendor_session` similarly has SELECT-only `vendor_session_digest_bootstrap` keyed by transaction-local `app.vendor_session_digest`. These bootstrap policies grant no INSERT/UPDATE/DELETE.
+- Standard permissive policy `vendor_handoff_org_scope` applies to every table for `bm_vendor_handoff_owner`: `USING (org_id = app.current_org_id()) WITH CHECK (org_id = app.current_org_id())`. Every non-bootstrap table also has restrictive `vendor_handoff_org_ceiling AS RESTRICTIVE FOR ALL` with the same org predicate, mirroring the accepted Core restrictive-ceiling pattern.
+- `vendor_capability` additionally has permissive SELECT-only `vendor_capability_digest_bootstrap`: the owner may see only the row whose digest equals `decode(current_setting('app.vendor_capability_digest',true),'hex')`. Its restrictive SELECT ceiling is `(org_id=app.current_org_id() OR digest=that_exact_digest)`; INSERT/UPDATE/DELETE restrictive ceilings remain org-only. `vendor_session` uses the same shape with transaction-local `app.vendor_session_digest`. Bootstrap policies grant no write.
 - Redeem/session functions set only the digest setting from hashed request material, SELECT exactly one bootstrap row, take its `org_id`, set transaction-local `app.org_id`, then re-read/recheck under org scope before any write. Session/capability update, session insertion, assignment/resource read and command receipt access occur only after org binding.
 - `bm_vendor_handoff_owner` receives the minimum `USAGE`/`EXECUTE` needed for `app.current_org_id()` and the approved Core bridge functions; Web runtimes do not receive table privileges.
 - Every later migration that creates a Vendor Handoff table must add it to the canonical RLS catalog assertion in `tests/postgres/vendor-handoff-security.test.ts`; no new table is allowed to exist without both `relrowsecurity=true` and `relforcerowsecurity=true`.
@@ -371,7 +389,7 @@ Cover AC01–AC16, AC47–AC49 foundation cases:
 - immutable packet revisions;
 - stale expected packet/assignment version conflict;
 - catalog inventory proves every expected Vendor table has `relrowsecurity=true` and `relforcerowsecurity=true`;
-- `pg_policies` proves `vendor_handoff_org_scope` exists on every table and only the two digest tables have their SELECT-only bootstrap policy;
+- `pg_policies` proves the permissive org policy plus restrictive ceiling exist on every table, and only `vendor_capability`/`vendor_session` have the additional digest bootstrap + digest-or-org restrictive SELECT ceiling while their writes remain org-only;
 - cross-org hostile probes through Manager/Tenant digest, Vendor capability digest and Vendor session digest cannot read/mutate another org's resources;
 - capability/session bootstrap exposes at most the exact digest row before org binding and cannot update it until `app.org_id` is set/rechecked;
 - direct SELECT/INSERT/UPDATE/DELETE denied to both runtime roles;
