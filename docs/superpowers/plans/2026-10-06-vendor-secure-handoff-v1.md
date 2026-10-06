@@ -565,6 +565,7 @@ git commit -m "feat(vendor): add capability job session"
 
 **Interfaces:**
 - Tables/resources: `scheduling_round`, `tenant_availability_submission`, `tenant_availability_window`, `tenant_entry_authorization`, `tenant_entry_authorization_window`, `vendor_slot_proposal`, `vendor_slot`, `appointment`.
+- Because blocker/report tables are created in later migrations, `0020` creates nullable `scheduling_round.source_blocker_id` and `source_completion_report_id` UUID slots without forward foreign keys. Its checks require non-FOLLOW_UP rounds to have both null and never allow both non-null. Task 5 creates no FOLLOW_UP round. Task 7 adds the blocker FK when `work_event` exists; Task 8 adds the completion-report FK and tightens the final FOLLOW_UP XOR constraint.
 - Task 5 implements `external.accept(sessionDigest,input)` and `POST /api/v2/vendor/job/accept`; successful Vendor Accept atomically transitions OFFERED→ACTIVE and creates the first `SchedulingRound purpose=INITIAL,status=OPEN`. There is no separate INITIAL-round command. Exact replay returns the same logical accept/round result. One OPEN round per assignment is enforced by partial unique constraint plus source-ticket/assignment lock+recheck.
 - Task 5 also implements `external.withdraw(sessionDigest,input)` and `POST /api/v2/vendor/job/withdraw`; Withdraw is allowed only from ACTIVE, transitions to ENDED/WITHDRAWN, revokes Vendor access, atomically marks any OPEN round CANCELLED and any future SCHEDULED Appointment CANCELLED, preserves OCCURRED/work/report history, and leaves the source ticket unfinished.
 - Tenant availability mutation never creates unattended authorization.
@@ -695,7 +696,7 @@ git commit -m "feat(vendor): add tenant vendor scheduling"
 
 **Interfaces:**
 - Append-only `work_event` records `VISIT_STARTED`, `BLOCKER_RECORDED`, `BLOCKER_CLEARED`.
-- `scheduling_round` FOLLOW_UP provenance is exact: a FOLLOW_UP round has exactly one of `source_blocker_id` or `source_completion_report_id`; INITIAL/RESCHEDULE have neither.
+- `0021_vendor_handoff_work.sql` adds the foreign key from `scheduling_round.source_blocker_id` to the newly created blocker/work evidence identity. Blocker-driven FOLLOW_UP requires `source_blocker_id` and `source_completion_report_id IS NULL`; INITIAL/RESCHEDULE still have neither.
 - One `VISIT_STARTED` per Appointment.
 - At most one uncleared blocker; clear references exact blocker event.
 - `POST /api/v2/vendor/job/visits/start`
@@ -764,6 +765,7 @@ git commit -m "feat(vendor): record visit and blocker evidence"
 
 **Interfaces:**
 - Tables `completion_report`, `completion_photo`, `manager_disposition`. The schema includes nullable revision/provenance columns needed by Task 9, but Task 8 only accepts an initial report with no correction request and `supersedesReportId = null`.
+- `0022_vendor_handoff_completion.sql` adds the foreign key from `scheduling_round.source_completion_report_id` to `completion_report` and replaces the provisional 0020 provenance check with the final invariant: FOLLOW_UP has exactly one of `source_blocker_id` or `source_completion_report_id`; INITIAL/RESCHEDULE have neither.
 - Report history is append-only. The actual Manager correction-request + Vendor correction-report transition is owned by Task 9 so it cannot precede the durable Manager disposition that authorizes it.
 - Submission requires valid OCCURRED visit, no current blocker, no OPEN SchedulingRound, current packet acknowledgment, and either 1–5 sanitized photos or one approved omission reason.
 - Vendor photo upload uses the accepted `normalizePhoto` decode/re-encode path from Core photo handling without changing the frozen Core photo implementation.
