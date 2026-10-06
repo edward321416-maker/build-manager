@@ -1320,11 +1320,11 @@ No Ready / merge / deploy.
 | AC30 Blocker history | T7 | PG/UI |
 | AC31 Follow-up visit | T5,T7,T9,T12 | scheduling + blocker/report provenance + browser |
 | AC32 Completion eligibility | T8 | PG |
-| AC33 Photo/omission contract | T1,T8 | strict upload command/port + report references 1–5 sanitized assignment-owned images XOR explicit omission; upload alone creates no report |
+| AC33 Photo/omission contract | T1,T8,T9 | strict upload command/port + bounded 10-photo initial/correction staging contexts + report references final 1–5 sanitized context-valid images XOR explicit omission; upload alone creates no report |
 | AC34 Metadata stripping | T8 | actual JPEG/PNG decode/re-encode + byte/dimension/pixel bounds; stored/served EXIF/GPS/equivalent metadata absent |
-| AC35 Report correction | T8,T9,T12 | initial report + durable correction + browser |
+| AC35 Report correction | T8,T9,T12 | durable correction request + exact correction-context photo upload and/or prior attached-photo reuse + append-only correction report/browser |
 | AC36 Report ≠ closeout | T8,T9 | PG/UI |
-| AC37 Completion-reported freeze | T8,T9,T12 | initial freeze + exact correction exception + browser |
+| AC37 Completion-reported freeze | T8,T9,T12 | initial freeze + exactly two correction-scoped exceptions (photo upload + correction report) + browser; all other Vendor mutations remain frozen |
 | AC38 Atomic closeout | T9 | concurrent PG |
 | AC39 Communication guard | T9,T12 | Q&A-version concurrent PG + closeout browser |
 | AC40 Access revoked | T9,T12 | PG/Vendor browser |
@@ -1334,11 +1334,11 @@ No Ready / merge / deploy.
 | AC44 Fresh follow-up ticket | T10,T12 | existing PG/browser |
 | AC45 Maintenance Fact explicit | T10,T12 | existing PG/browser |
 | AC46 Tenant photo isolation | T8,T10,T12 | HTTP/browser |
-| AC47 RLS/ACL | T2,T5,T7,T8,T9,T11 | FORCE-RLS/ACL catalog; no runtime/owner broad Core grants; owner-only lock/Tenant/occupancy/Manager bridges; cross-org/assignment upload denial |
-| AC48 Idempotency | T2,T4,T5,T7,T8,T9,T11 | redeem/logout/domain receipts + same upload request ID/fingerprint returns one durable photo and same result |
-| AC49 Changed replay | T1,T2,T4,T8,T11 | contract/domain conflicts + same upload request ID with changed sanitized bytes or version/packet/Appointment intent => STATE_CONFLICT |
-| AC50 Stale concurrency | T2,T5,T7,T8,T9,T11 | source-ticket-first races + post-wait auth; stale upload versions/wrong visit and Revoke/Reassign-first create no durable photo |
-| AC51 Response-loss | T3,T4,T8,T11,T12 | link/redeem/session recovery + authoritative upload/photo receipt reconciliation across instances/browser; no blind retry/duplicate photo |
+| AC47 RLS/ACL | T2,T5,T7,T8,T9,T11 | FORCE-RLS/table/function/schema ACL catalog; PUBLIC revoked; exact vendor_handoff/core_flow/app USAGE/CREATE matrix; no runtime/owner broad Core grants; owner-only bridges; cross-org/assignment upload denial |
+| AC48 Idempotency | T2,T4,T5,T7,T8,T9,T11 | redeem/logout/domain receipts + same upload request ID/fingerprint/correction context returns one durable photo, same result and consumes no additional staging slot |
+| AC49 Changed replay | T1,T2,T4,T8,T11 | contract/domain conflicts + same upload request ID with changed sanitized bytes or version/packet/Appointment/correction intent => STATE_CONFLICT |
+| AC50 Stale concurrency | T2,T5,T7,T8,T9,T11 | source-ticket-first races + post-wait auth; stale upload versions/wrong visit/wrong correction context and Revoke/Reassign-first create no durable photo |
+| AC51 Response-loss | T3,T4,T8,T11,T12 | link/redeem/session recovery + authoritative context-bound upload/photo receipt reconciliation across instances/browser; no blind retry/duplicate photo or extra staging slot |
 | AC52 Vendor 390 | T4,T6,T12 | Playwright |
 | AC53 Manager/Tenant 390 | T3,T6,T12 | Playwright |
 | AC54 Restart persistence | T11 | restart script re-reads assignment/packet/scheduling/visit/report history plus sanitized photo/upload receipt |
@@ -1363,10 +1363,10 @@ Independent plan review must reject the plan if any of these are true:
 - active assignment leaves the legacy direct-completion bypass visible;
 - old ENDED assignment blocks direct Manager completion;
 - photo metadata stripping is asserted only by mock/filename rather than actual decoded output;
-- completion-photo upload lacks Task 1's command/port, matching upload/request ID, sanitized-byte+intent fingerprint, or Task 8's exact ticket-first durable transaction/replay/negative tests;
+- completion-photo upload lacks Task 1's command/port, matching upload/request ID, `expectedCorrectionRequestId`, sanitized-byte+intent fingerprint, bounded per-context staging, or Task 8/9's exact ticket-first durable transaction/replay/correction tests;
 - response-loss handling blindly retries or can mint duplicate logical actions;
 - plan requires modifying `0001–0018` or any then-existing migration;
-- any new Vendor durable table lacks ENABLE+FORCE RLS, org scope/restrictive ceiling or exact bootstrap-digest policy where applicable; or the plan removes/weakens existing frozen tests, security roles, hosted checks, timeouts, or retry settings;
+- any new Vendor durable table lacks ENABLE+FORCE RLS, org scope/restrictive ceiling or exact bootstrap-digest policy where applicable; required schema USAGE/CREATE ACLs are implicit or broader than the exact matrix; pending completion-photo staging is unbounded or cross-context reusable; or the plan removes/weakens existing frozen tests, security roles, hosted checks, timeouts, or retry settings;
 - product implementation is started before separate operator authorization after independent plan review.
 
 ## Plan Self-Review Checklist
@@ -1378,7 +1378,7 @@ Before requesting independent review, the plan author must record:
 - Review Focus: each of the five items has an explicit owning test task.
 - Proportion: code bodies are not pre-written; plan contains signatures, assertions, commands and frozen values only.
 - Repository truth: all existing paths cited above were observed at `954ef347...`; future paths are clearly marked Create.
-- Delta3 audit: H-D2-01/02/03 resolved in plan; Tasks 0–12 present; AC01–AC57 semantic rows 57/57 with missing/duplicate/owner mismatch zero; no unresolved placeholders, create-path collision, modify-before-create, broad Core grants, digest-less Manager/Tenant ports, or state-changing command without request identity/ticket-first durable ordering. Recheck the unchanged approved spec/D9/D9R1 blobs before successor publication. These are plan assertions, not implemented/runtime test results.
+- Delta4 audit: H-D3-01/M-D3-01/M-D3-02 resolved in plan; correction photo upload is exact-request scoped; staging is bounded to 10 per context with explicit attach/retained-history closure; schema USAGE/CREATE ACL matrix is exact. Tasks 0–12 present; AC01–AC57 semantic rows 57/57 with missing/duplicate/owner mismatch zero; no unresolved placeholders, create-path collision, modify-before-create, broad Core grants, digest-less Manager/Tenant ports, or state-changing command without request identity/ticket-first durable ordering. Recheck unchanged approved spec/D9/D9R1 blobs before successor publication. These are plan assertions, not implemented/runtime test results.
 - Authority: product implementation remains NOT_AUTHORIZED at plan-candidate publication.
 
 ## Execution Handoff
