@@ -225,8 +225,8 @@ Use `superpowers:using-git-worktrees`. Do not create implementation commits duri
 | Tenant | `VendorEntryAuthorizationCommand` | `tenant.authorizeEntry(ticketId,input)` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/entry-authorization` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId, availabilitySubmissionId | exact selected-window authorization |
 | Tenant | `VendorConfirmSlotCommand` | `tenant.confirmSlot(ticketId,input)` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/confirm` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId, proposalId | TENANT_CONFIRMED Appointment |
 | Tenant | `VendorTenantRescheduleCommand` | `tenant.reschedule(ticketId,input)` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/reschedule` | expectedAssignmentVersion, expectedRoundVersion, expectedAppointmentId, expectedPacketRevisionId | future appointment superseded + RESCHEDULE round |
-| Vendor | `VendorRedeemCommand` | `external.redeem(tokenDigest,sessionDigest,csrfDigest)` | `POST /api/v2/vendor/session/redeem` | `clientRequestId=N/A` — authentication bootstrap; raw one-time token only; no assignment ID authority | vendor session |
-| Vendor | `VendorLogoutCommand` | `external.logout(sessionDigest)` | `POST /api/v2/vendor/session/logout` | `clientRequestId=N/A` — idempotent session-boundary revoke; session + CSRF | current session revoked |
+| Vendor | `VendorRedeemCommand` | `external.redeem(tokenDigest,clientRequestId,sessionDigest,csrfDigest)` | `POST /api/v2/vendor/session/redeem` | clientRequestId; raw one-time token only; no assignment ID authority | vendor session / exact-replay replacement session |
+| Vendor | `VendorLogoutCommand` | `external.logout(sessionDigest,clientRequestId)` | `POST /api/v2/vendor/session/logout` | clientRequestId; session + CSRF | idempotent current-session revocation |
 | Vendor | `VendorAcceptCommand` | `external.accept(sessionDigest,input)` | `POST /api/v2/vendor/job/accept` | expectedAssignmentVersion, expectedPacketRevisionId | OFFERED→ACTIVE + first INITIAL/OPEN round atomically |
 | Vendor | `VendorDeclineCommand` | `external.decline(sessionDigest,input)` | `POST /api/v2/vendor/job/decline` | expectedAssignmentVersion, expectedPacketRevisionId | ENDED/DECLINED |
 | Vendor | `VendorWithdrawCommand` | `external.withdraw(sessionDigest,input)` | `POST /api/v2/vendor/job/withdraw` | expectedAssignmentVersion, expectedPacketRevisionId | ENDED/WITHDRAWN |
@@ -240,7 +240,7 @@ Use `superpowers:using-git-worktrees`. Do not create implementation commits duri
 
 Read-only routes and exact port methods are: `manager.readHandoff(ticketId)` → `GET /api/v2/core/manager/tickets/:ticketId/vendor-handoff`; `tenant.readScheduling(ticketId)` → `GET /api/v2/core/tickets/:ticketId/vendor-scheduling`; `external.session(sessionDigest)` → `GET /api/v2/vendor/session`; `external.readJob(sessionDigest)` → `GET /api/v2/vendor/job`.
 
-`clientRequestId` is mandatory for every **domain consequential mutation** in the table. `VendorRedeemCommand` and `VendorLogoutCommand` are explicitly classified as session-boundary authentication/revocation commands: redeem is one-time-token/bootstrap authority, logout is idempotent current-session revocation, and neither creates/replays a domain business command.
+`clientRequestId` is mandatory for every state-changing command in the table, including redeem and logout. Redeem remains one-time capability authority: first success stores only token/session digests plus the redeem request identity; an exact replay with the same token digest + same `clientRequestId` after uncertain delivery may atomically revoke the session created by that same redemption and return one fresh replacement session cookie, while a different request ID cannot redeem the already-consumed capability. Logout exact replay with the same request ID returns the same logical revoked result.
 - Produces application ports `VendorHandoffManagerPort`, `VendorHandoffTenantPort`, `VendorHandoffExternalPort` and `VendorHandoffError`.
 - No raw capability/session/CSRF type appears in any durable DTO.
 
@@ -256,7 +256,7 @@ Tests must assert:
 - exact enum values above, including decline/blocker/shared-detail/photo-omission/confirmation/disposition enums;
 - correction reason and `componentOrPartNote` bounds above;
 - command-matrix schema names, exact application port method names, routes, stale-state fields and durable results above;
-- all consequential commands require UUID `clientRequestId` except one-time redeem, whose authority is the raw token and which creates its durable redemption/session record server-side.
+- every state-changing command in the matrix requires UUID `clientRequestId`, including redeem/logout; redeem exact replay is bounded to the same token digest + request ID and never revives the raw capability.
 
 Run:
 ```bash
@@ -503,7 +503,9 @@ git commit -m "feat(vendor): add manager secure handoff flow"
 Assert:
 - cryptographically random token material and SHA-256 digest;
 - raw token/session/CSRF never appears in thrown/public error text;
-- first redeem succeeds; second redeem of same capability fails;
+- first redeem succeeds; an independent second redeem of the same capability fails;
+- simulated redeem response loss + exact same token/clientRequestId reconciles by replacing only the session created by that same redemption, leaves at most one active session, and does not reactivate the capability;
+- same consumed token with a different clientRequestId fails;
 - deterministic clock: raw capability redeem succeeds immediately before 72-hour expiry and fails immediately after it;
 - deterministic clock: session read/mutation succeeds immediately before the 7-day absolute expiry and fails immediately after it;
 - `GET /api/v2/vendor/session` / CSRF refresh does not extend the absolute expiry;
@@ -511,7 +513,7 @@ Assert:
 - replacement redeem invalidates previous session;
 - Reissue alone does not invalidate current active session;
 - Revoke does;
-- explicit Vendor logout revokes the current session but does not end the assignment;
+- explicit Vendor logout revokes the current session but does not end the assignment; exact same logout request ID is idempotent;
 - assignment ENDED denies read/mutation;
 - assignment A session cannot probe B;
 - opening/redeeming leaves assignment OFFERED; Task 4 does not implement Accept as a partial mutation;
