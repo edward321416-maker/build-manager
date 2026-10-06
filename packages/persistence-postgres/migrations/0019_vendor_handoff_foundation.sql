@@ -29,9 +29,10 @@ BEGIN
 END
 $vendor_preflight$;
 
-CREATE SCHEMA vendor_handoff AUTHORIZATION bm_vendor_handoff_owner;
+CREATE SCHEMA vendor_handoff;
 REVOKE ALL ON SCHEMA vendor_handoff FROM PUBLIC;
 GRANT USAGE ON SCHEMA vendor_handoff TO bm_vendor_web,bm_b1_web;
+ALTER SCHEMA vendor_handoff OWNER TO bm_vendor_handoff_owner;
 GRANT USAGE ON SCHEMA app,core_flow TO bm_vendor_handoff_owner;
 GRANT EXECUTE ON FUNCTION app.current_org_id() TO bm_vendor_handoff_owner;
 
