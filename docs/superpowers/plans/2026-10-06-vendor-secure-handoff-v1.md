@@ -225,8 +225,8 @@ Use `superpowers:using-git-worktrees`. Do not create implementation commits duri
 | Tenant | `VendorEntryAuthorizationCommand` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/entry-authorization` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId, availabilitySubmissionId | exact selected-window authorization |
 | Tenant | `VendorConfirmSlotCommand` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/confirm` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId, proposalId | TENANT_CONFIRMED Appointment |
 | Tenant | `VendorTenantRescheduleCommand` | `POST /api/v2/core/tickets/:ticketId/vendor-scheduling/reschedule` | expectedAssignmentVersion, expectedRoundVersion, expectedAppointmentId, expectedPacketRevisionId | future appointment superseded + RESCHEDULE round |
-| Vendor | `VendorRedeemCommand` | `POST /api/v2/vendor/session/redeem` | raw one-time token only; no assignment ID authority | vendor session |
-| Vendor | `VendorLogoutCommand` | `POST /api/v2/vendor/session/logout` | session + CSRF | current session revoked |
+| Vendor | `VendorRedeemCommand` | `POST /api/v2/vendor/session/redeem` | `clientRequestId=N/A` — authentication bootstrap; raw one-time token only; no assignment ID authority | vendor session |
+| Vendor | `VendorLogoutCommand` | `POST /api/v2/vendor/session/logout` | `clientRequestId=N/A` — idempotent session-boundary revoke; session + CSRF | current session revoked |
 | Vendor | `VendorAcceptCommand` | `POST /api/v2/vendor/job/accept` | expectedAssignmentVersion, expectedPacketRevisionId | OFFERED→ACTIVE + first INITIAL/OPEN round atomically |
 | Vendor | `VendorDeclineCommand` | `POST /api/v2/vendor/job/decline` | expectedAssignmentVersion, expectedPacketRevisionId | ENDED/DECLINED |
 | Vendor | `VendorWithdrawCommand` | `POST /api/v2/vendor/job/withdraw` | expectedAssignmentVersion, expectedPacketRevisionId | ENDED/WITHDRAWN |
@@ -238,6 +238,8 @@ Use `superpowers:using-git-worktrees`. Do not create implementation commits duri
 | Vendor | `VendorCompletionReportCommand` | `POST /api/v2/vendor/completion-reports` | expectedAssignmentVersion, expectedPacketRevisionId, expectedAppointmentId, expectedCorrectionRequestId/null | append-only current report revision |
 
 Read-only routes are `GET /api/v2/core/manager/tickets/:ticketId/vendor-handoff`, `GET /api/v2/core/tickets/:ticketId/vendor-scheduling`, `GET /api/v2/vendor/session`, and `GET /api/v2/vendor/job`.
+
+`clientRequestId` is mandatory for every **domain consequential mutation** in the table. `VendorRedeemCommand` and `VendorLogoutCommand` are explicitly classified as session-boundary authentication/revocation commands: redeem is one-time-token/bootstrap authority, logout is idempotent current-session revocation, and neither creates/replays a domain business command.
 - Produces application ports `VendorHandoffManagerPort`, `VendorHandoffTenantPort`, `VendorHandoffExternalPort` and `VendorHandoffError`.
 - No raw capability/session/CSRF type appears in any durable DTO.
 
@@ -324,7 +326,7 @@ git commit -m "feat(vendor): define secure handoff contracts"
   - `core_flow.vendor_handoff_source(p_digest bytea,p_ticket text,p_photo_ids uuid[],p_lock boolean) RETURNS jsonb`: Manager-authorized source snapshot and selected-photo metadata for packet publication.
   - `core_flow.vendor_handoff_current_tenant(p_org uuid,p_ticket text,p_lock boolean) RETURNS jsonb`: server-derived current occupancy/member identity for Tenant authority and preauthorized visit recheck; callable only by `bm_vendor_handoff_owner`.
   - `core_flow.vendor_handoff_source_photo(p_org uuid,p_ticket text,p_photo uuid) RETURNS TABLE(metadata jsonb,content bytea)`: exact same-ticket binary read used only after `vendor_handoff` has validated current Vendor session/current packet/exact allowlist.
-  - `core_flow.vendor_handoff_mark_offered(p_digest bytea,p_ticket text,p_message text) RETURNS jsonb`: first-link capability that rechecks Manager authority under the ticket lock and applies the existing HANDLING `OPEN→IN_PROGRESS` semantics without copying Vendor label/private metadata into public events.
+  - `core_flow.vendor_handoff_mark_offered(p_digest bytea,p_ticket text) RETURNS jsonb`: first-link capability that rechecks Manager authority under the ticket lock and applies the existing HANDLING `OPEN→IN_PROGRESS` semantics with a fixed safe public handling message; Vendor label/private metadata cannot enter that event.
 - `vendor_handoff.guard_direct_completion(p_digest bytea,p_ticket text) RETURNS void` is the one narrow Vendor-schema capability callable by the ordinary B1 Core path. It acquires **no earlier competing lock**; after the caller already holds the source ticket row lock, it conflicts if any non-ended VendorAssignment exists.
 - Grant the four Core bridge helpers above only to `bm_vendor_handoff_owner`; do not grant them directly to `bm_b1_web` or `bm_vendor_web`. Grant only `vendor_handoff.guard_direct_completion` to `bm_b1_web`.
 - Persistence factories:
@@ -760,7 +762,7 @@ Cover AC32–AC37:
 - workSummary 1–1000;
 - packet acknowledgment must be current;
 - correction preserves prior report and creates new current revision;
-- COMPLETION_REPORTED rejects scheduling/visit/blocker/withdraw/unrelated report actions.
+- COMPLETION_REPORTED rejects packet publication, scheduling/visit/blocker/withdraw, reassignment, revoke, and unrelated report actions until Manager chooses CLOSEOUT, REQUEST_CORRECTION, or MORE_WORK.
 
 Run:
 ```bash
@@ -1064,7 +1066,7 @@ At minimum:
 - copy assertions forbid pre-outcome semantic collapse: `수리 완료`, `문제 해결 완료`, `완전히 해결됨`, `업체 완료`;
 - preauthorization action-point copy forbids `상시 출입 허용`, `언제든 출입 허용`, `자동 출입 허용`;
 - Reissue UI forbids `링크 다시 보기`, `링크 복구` and uses explicit Reissue semantics;
-- Vendor report and Manager closeout do not use a green success treatment; preferred role-appropriate terms include `업체 연결 / 작업 요청`, `방문 일정 조율`, `작업 보고`, `처리 완료 기록`;
+- Vendor report and Manager closeout result elements use existing neutral/primary status treatment, not a success-green treatment; component/static-style assertions reject a Vendor-specific green/success token or class and preferred role-appropriate terms include `업체 연결 / 작업 요청`, `방문 일정 조율`, `작업 보고`, `처리 완료 기록`;
 - real device/IME and real screen reader remain explicitly NOT_TESTED unless separately executed.
 
 - [ ] **Step 3: Run local complete gates once**
