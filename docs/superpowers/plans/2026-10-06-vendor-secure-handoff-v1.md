@@ -493,7 +493,7 @@ git commit -m "feat(vendor): add manager secure handoff flow"
 - `GET /api/v2/vendor/session` authenticates the session and rotates/returns a fresh server-issued CSRF value without extending the absolute session expiry.
 - `POST /api/v2/vendor/session/logout` requires session + `X-Vendor-CSRF` and revokes only the current Vendor browser session.
 - Vendor mutations require `X-Vendor-CSRF`.
-- `GET /api/v2/vendor/job`, `POST /job/accept`, `POST /job/decline`, `POST /job/withdraw`.
+- Task 4 owns `GET /api/v2/vendor/job` and `POST /api/v2/vendor/job/decline` only. `POST /api/v2/vendor/job/accept` and `POST /api/v2/vendor/job/withdraw` are contract-defined in Task 1 but are implemented in Task 5, because Accept must atomically create the first INITIAL SchedulingRound and Withdraw is only valid after that ACTIVE transition.
 - `GET /api/v2/vendor/job/source-photos/:photoId` serves only an explicitly allowlisted current Work Packet source photo after assignment/session recheck; guessed or cross-assignment photo IDs use the same hidden-resource response.
 - `/vendor/job#<raw-token>` extracts the fragment client-side, calls redeem, and executes `history.replaceState` after successful redemption.
 - Vendor surface headers: `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, frame embedding denied. No analytics/CDN/external scripts.
@@ -514,8 +514,9 @@ Assert:
 - explicit Vendor logout revokes the current session but does not end the assignment;
 - assignment ENDED denies read/mutation;
 - assignment A session cannot probe B;
-- opening/redeeming leaves assignment OFFERED until explicit accept;
-- Decline only before accept; Withdraw only after accept.
+- opening/redeeming leaves assignment OFFERED; Task 4 does not implement Accept as a partial mutation;
+- Decline works only while OFFERED;
+- the Task 1 accept/withdraw routes remain unimplemented until Task 5 owns their atomic scheduling-aware transitions.
 
 Run:
 ```bash
@@ -545,19 +546,25 @@ git commit -m "feat(vendor): add capability job session"
 
 ---
 
-### Task 5: Persist Tenant/Vendor scheduling, consent, and immutable Appointments
+### Task 5: Persist Tenant/Vendor scheduling, consent, immutable Appointments, and atomic Accept/Withdraw
 
 **Files:**
 - Create: `packages/persistence-postgres/migrations/0020_vendor_handoff_scheduling.sql`
 - Modify: `packages/persistence-postgres/src/vendor-handoff/tenant.ts`
 - Modify: `packages/persistence-postgres/src/vendor-handoff/external.ts`
 - Modify: `packages/persistence-postgres/src/vendor-handoff/manager.ts`
+- Modify: `packages/api-client/src/vendor-job.ts`
+- Modify: `apps/web/src/server/vendor-handoff/http.ts`
+- Modify: `apps/web/src/server/vendor-handoff/http.test.ts`
+- Modify: `apps/web/src/app/vendor/job/vendor-job-screen.tsx`
+- Modify: `apps/web/src/app/vendor/job/vendor-job-screen.test.tsx`
 - Create: `tests/postgres/vendor-handoff-scheduling.test.ts`
 - Extend: `packages/api-contracts/src/vendor-handoff.test.ts`
 
 **Interfaces:**
 - Tables/resources: `scheduling_round`, `tenant_availability_submission`, `tenant_availability_window`, `tenant_entry_authorization`, `tenant_entry_authorization_window`, `vendor_slot_proposal`, `vendor_slot`, `appointment`.
-- Successful Vendor Accept atomically creates the first `SchedulingRound purpose=INITIAL,status=OPEN`; there is no separate INITIAL-round command. Exact replay returns the same logical accept/round result. One OPEN round per assignment is enforced by partial unique constraint plus source-ticket/assignment lock+recheck.
+- Task 5 implements `external.accept(sessionDigest,input)` and `POST /api/v2/vendor/job/accept`; successful Vendor Accept atomically transitions OFFERED→ACTIVE and creates the first `SchedulingRound purpose=INITIAL,status=OPEN`. There is no separate INITIAL-round command. Exact replay returns the same logical accept/round result. One OPEN round per assignment is enforced by partial unique constraint plus source-ticket/assignment lock+recheck.
+- Task 5 also implements `external.withdraw(sessionDigest,input)` and `POST /api/v2/vendor/job/withdraw`; Withdraw is allowed only from ACTIVE, transitions to ENDED/WITHDRAWN, revokes Vendor access, preserves all prior evidence, and leaves the source ticket unfinished.
 - Tenant availability mutation never creates unattended authorization.
 - Authorization references exact selected windows and current occupancy member.
 - Resident-confirmation proposal has 1–5 candidate slots; Tenant selects one current valid slot.
@@ -567,6 +574,8 @@ git commit -m "feat(vendor): add capability job session"
 - [ ] **Step 1: Write DB RED tests**
 
 Cover AC20–AC27:
+- Vendor Accept creates ACTIVE + exactly one INITIAL/OPEN round in one transaction; concurrent/replayed Accept cannot create a second round;
+- Vendor Withdraw is rejected before Accept, succeeds only from ACTIVE, revokes access, preserves prior evidence, and leaves ticket unfinished;
 - one OPEN round under concurrency;
 - current Tenant only;
 - consent OFF/no authorization by default;
@@ -584,24 +593,26 @@ Cover AC20–AC27:
 Run:
 ```bash
 npm run test:postgres -- tests/postgres/vendor-handoff-scheduling.test.ts
+npm run test:web -- apps/web/src/server/vendor-handoff/http.test.ts apps/web/src/app/vendor/job/vendor-job-screen.test.tsx
 ```
 Expected: RED.
 
-- [ ] **Step 2: Implement migration 0020 and persistence methods**
+- [ ] **Step 2: Implement migration 0020, atomic Accept/Withdraw, and persistence methods**
 
-All stored times are `timestamptz`; reject non-finite values and `startAt >= endAt`; compare absolute instants.
+All stored times are `timestamptz`; reject non-finite values and `startAt >= endAt`; compare absolute instants. Accept and first INITIAL round must commit together; never expose ACTIVE with no INITIAL round. Withdraw ends the assignment without rewriting prior round/appointment/work history.
 
-- [ ] **Step 3: Run scheduling + security regression**
+- [ ] **Step 3: Run scheduling + Vendor HTTP/UI + security regression**
 
 ```bash
 npm run test:postgres -- tests/postgres/vendor-handoff-scheduling.test.ts tests/postgres/vendor-handoff-security.test.ts tests/postgres/core-ticket-outcome.test.ts
+npm run test:web -- apps/web/src/server/vendor-handoff/http.test.ts apps/web/src/app/vendor/job/vendor-job-screen.test.tsx
 ```
 Expected: PASS.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/persistence-postgres/migrations/0020_vendor_handoff_scheduling.sql packages/persistence-postgres/src/vendor-handoff packages/api-contracts/src/vendor-handoff.test.ts tests/postgres/vendor-handoff-scheduling.test.ts
+git add packages/persistence-postgres/migrations/0020_vendor_handoff_scheduling.sql packages/persistence-postgres/src/vendor-handoff packages/api-contracts/src/vendor-handoff.test.ts packages/api-client/src/vendor-job.ts apps/web/src/server/vendor-handoff/http.ts apps/web/src/server/vendor-handoff/http.test.ts apps/web/src/app/vendor/job/vendor-job-screen.tsx apps/web/src/app/vendor/job/vendor-job-screen.test.tsx tests/postgres/vendor-handoff-scheduling.test.ts
 git commit -m "feat(vendor): persist scheduling and consent"
 ```
 
