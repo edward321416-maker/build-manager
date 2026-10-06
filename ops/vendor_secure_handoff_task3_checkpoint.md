@@ -39,3 +39,27 @@ Controller independent Task3 review is next; this receipt is local evidence only
 The planned revoke route/client/Inspector surface is wired; final revoke persistence is Task9 and still returns DEPENDENCY_UNAVAILABLE until implemented. Scheduling, external Vendor Web boundary, visits/reports/photos, correction/reassign/closeout and final candidate proof remain with Tasks4–12. No later task completion is claimed.
 
 Remote push/PR changes/Ready/merge/deploy, production credentials/IAM/provider/real data, external Google append/readback and schema-cache writes: NOT_RUN. External sync remains pending; no subagents or new capability installations.
+
+
+## Task3 independent-review remediation — local generation
+
+The initial implementation above was independently reviewed as REQUEST CHANGES (B0/H1/M1/LOW1). Its source commit and initial evidence remain preserved; that earlier green test generation did not prove multi-organization dispatcher composition or usable first-issue failure recovery.
+
+Remediation entry: `7680b31c8e04c55a40918f267c146724717617c6`, clean. Remediation source: `acc43fa6fbb83657873427694d8bb9c7de7e0301` — `fix(vendor): isolate manager organization and recover link requests` (7 named source/test paths). Same POLICY_REF and frozen authority as above.
+
+Core authorization preflight completes before Vendor dispatch. An immutable request-local adapter independently authenticates the selected organization through existing `core_flow.bind_organization`, then executes the Vendor SQL in that same transaction. The database digest/current Manager bridge remains authority. No mutable organization singleton, unbound early-commit shortcut, pooled transaction nesting or application SQL-client exposure was added. All migrations and frozen documents remain unchanged in this remediation.
+
+Definite rejection restores editable review. Unknown issuance retains its original assignment, request ID and expected guards in transient memory. Authoritative PREPARING alone never proves rejection; explicit same-request reconciliation is available after readback, without automatic retry or invented link. Metadata-only reconciliation permits authorized Reissue; ended/replaced authority discards obsolete intent. Local schema feedback is separate from read/auth errors. A mounted behavioral assertion proves a fresh immediate link survives its own valid ticket-version refresh.
+
+| Remediation gate | Actual result | Private evidence |
+| --- | --- | --- |
+| Real main HTTP + PostgreSQL selected organization, one pool slot, opposing concurrent selections, post-preflight membership end |4/4 passed| `task3-remediation-postgres-final.log` |
+| Vendor PostgreSQL foundation/security/preview/HTTP combined |49/49 passed,4 files| `task3-remediation-postgres-final.log` |
+| Full Web including six mounted recovery/lifecycle assertions |581/581 passed,57 files| `task3-remediation-web-green.log` |
+| `npm run verify` |Exit0; shared474/474 plus lint/typechecks/build/dependency checks| `task3-remediation-verify.log` |
+| Source index scanner |PASS683 files/328 links/zero findings| `task3-remediation-source-index-scan.log` |
+| Diff checks and previous log/pending byte-prefix audit |PASS| private remediation report/audit |
+
+Meaningful RED: real HTTP/PG3 failures; mounted recovery/validation3 failures; obsolete ended recovery1 failure in each of two follow-up generations. A fixture-only invalid-column failure (1 failed/48 passed) in the initial combined PostgreSQL run is preserved and corrected. The filename `task3-remediation-postgres-green.log` labels that failed generation, not success. Full commands, evidence timing and bounded supporting AC assertions are in private `task3-review-remediation-report.md`.
+
+Controller independent rereview is pending. These are Task3 local remediation results, not full-candidate/current acceptance promotion. Task9 revoke semantics and Tasks4–12/final hosted, restart, browser/device/accessibility gates remain later. Six mounted DOM assertions do not replace the final browser/device gates. Remote/Ready/merge/deploy/production and external Google writes remain NOT_RUN; sync_status=pending. Existing Web4/Mobile1 lint warnings remain unchanged.

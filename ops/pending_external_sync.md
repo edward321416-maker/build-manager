@@ -380,3 +380,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-TASK2-EVIDENCE-SAFETY-20261006-200013: sync_status=pending; Task2 evidence-safety correction recorded at4f214d79. Google append/readback and schema-cache write NOT_RUN; prior bytes preserved.
 
 - Event VENDOR-TASK3-MANAGER-VERIFIED-20261006-203145: sync_status=pending; local Task3 Manager checkpoint at bad90482. Google append/readback and schema-cache write NOT_RUN. Task9 revoke persistence and mounted browser/hosted final gates remain later work; prior pending/synced bytes preserved.
+
+- Event VENDOR-TASK3-REVIEW-REMEDIATED-20261006-205608: sync_status=pending; Task3 independent-review remediation recorded at acc43fa6. Google append/readback and schema-cache write NOT_RUN; prior bytes and initial rejected generation preserved. Controller rereview pending.
