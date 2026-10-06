@@ -78,6 +78,7 @@ CREATE TABLE vendor_handoff.vendor_capability (
   org_id uuid NOT NULL,
   assignment_id uuid NOT NULL REFERENCES vendor_handoff.vendor_assignment(id),
   digest bytea NOT NULL UNIQUE CHECK(octet_length(digest)=32),
+  issue_request_id uuid NOT NULL UNIQUE,
   issued_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   expires_at timestamptz NOT NULL,
   redeem_request_id uuid NULL,
@@ -378,6 +379,46 @@ BEGIN
   RETURN vendor_handoff.manager_read(p_digest,a.ticket_id);
 END $$;
 
+CREATE FUNCTION vendor_handoff.manager_issue_link(
+  p_digest bytea,p_assignment uuid,p_request uuid,p_expected_assignment bigint,p_expected_packet uuid,
+  p_capability_digest bytea,p_reissue boolean
+) RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $
+DECLARE a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;c vendor_handoff.vendor_capability;s jsonb;
+BEGIN
+  IF p_request IS NULL OR p_capability_digest IS NULL OR octet_length(p_capability_digest)<>32
+  THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
+  SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=p_assignment;
+  IF a.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='NOT_FOUND'; END IF;
+  s:=core_flow.vendor_handoff_source(p_digest,a.ticket_id,'{}'::uuid[],true);
+  PERFORM set_config('app.org_id',s->>'orgId',true);
+  SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=p_assignment AND org_id=(s->>'orgId')::uuid FOR UPDATE;
+  SELECT * INTO p FROM vendor_handoff.work_packet_revision WHERE org_id=a.org_id AND assignment_id=a.id ORDER BY revision DESC LIMIT 1;
+  IF a.id IS NULL OR a.version<>p_expected_assignment OR p.id IS NULL OR p.id<>p_expected_packet
+    OR (NOT p_reissue AND a.status<>'PREPARING') OR (p_reissue AND a.status NOT IN ('OFFERED','ACTIVE'))
+  THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='STATE_CONFLICT'; END IF;
+  SELECT * INTO c FROM vendor_handoff.vendor_capability WHERE org_id=a.org_id AND issue_request_id=p_request;
+  IF c.id IS NOT NULL THEN
+    IF c.assignment_id<>a.id THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='STATE_CONFLICT'; END IF;
+    RETURN jsonb_build_object('created',false,'assignmentId',a.id,'assignmentVersion',a.version,'expiresAt',c.expires_at);
+  END IF;
+  IF p_reissue THEN
+    UPDATE vendor_handoff.vendor_capability SET superseded_at=clock_timestamp()
+      WHERE org_id=a.org_id AND assignment_id=a.id AND redeemed_at IS NULL AND superseded_at IS NULL AND revoked_at IS NULL;
+  ELSIF EXISTS(
+    SELECT 1 FROM vendor_handoff.vendor_capability
+    WHERE org_id=a.org_id AND assignment_id=a.id AND redeemed_at IS NULL AND superseded_at IS NULL AND revoked_at IS NULL
+  ) THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='STATE_CONFLICT';
+  END IF;
+  INSERT INTO vendor_handoff.vendor_capability(org_id,assignment_id,digest,issue_request_id,expires_at)
+    VALUES(a.org_id,a.id,p_capability_digest,p_request,clock_timestamp()+interval '72 hours') RETURNING * INTO c;
+  IF a.status='PREPARING' THEN
+    UPDATE vendor_handoff.vendor_assignment SET status='OFFERED',version=version+1 WHERE id=a.id RETURNING * INTO a;
+    PERFORM core_flow.vendor_handoff_mark_offered(p_digest,a.ticket_id);
+  END IF;
+  RETURN jsonb_build_object('created',true,'assignmentId',a.id,'assignmentVersion',a.version,'expiresAt',c.expires_at);
+END $;
+
 CREATE FUNCTION vendor_handoff.session_info(p_digest bytea) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE s vendor_handoff.vendor_session;a vendor_handoff.vendor_assignment;
@@ -466,7 +507,8 @@ REVOKE ALL ON ALL FUNCTIONS IN SCHEMA vendor_handoff FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION vendor_handoff.manager_read(bytea,text),
   vendor_handoff.manager_create_assignment(bytea,text,uuid,bigint,text),
-  vendor_handoff.manager_publish_packet(bytea,uuid,uuid,bigint,uuid,text,text[],uuid[],text,text)
+  vendor_handoff.manager_publish_packet(bytea,uuid,uuid,bigint,uuid,text,text[],uuid[],text,text),
+  vendor_handoff.manager_issue_link(bytea,uuid,uuid,bigint,uuid,bytea,boolean)
   TO bm_b1_web;
 GRANT EXECUTE ON FUNCTION vendor_handoff.guard_direct_completion(bytea,text) TO bm_b1_web;
 GRANT EXECUTE ON FUNCTION vendor_handoff.session_info(bytea),
