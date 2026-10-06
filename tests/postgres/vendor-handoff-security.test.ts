@@ -17,15 +17,20 @@ describe("Vendor Secure Handoff security boundary", () => {
       SELECT grantee,
         has_schema_privilege(grantee,'vendor_handoff','USAGE') AS usage,
         has_schema_privilege(grantee,'vendor_handoff','CREATE') AS create_priv
-      FROM (VALUES ('public'),('bm_vendor_web'),('bm_b1_web'),('bm_vendor_handoff_owner')) AS g(grantee)
+      FROM (VALUES ('bm_vendor_web'),('bm_b1_web'),('bm_vendor_handoff_owner')) AS g(grantee)
       ORDER BY grantee
     `);
     expect(rows.rows).toEqual([
       { grantee: "bm_b1_web", usage: true, create_priv: false },
       { grantee: "bm_vendor_handoff_owner", usage: true, create_priv: true },
       { grantee: "bm_vendor_web", usage: true, create_priv: false },
-      { grantee: "public", usage: false, create_priv: false },
     ]);
+    const publicAcl = await f.p.admin.query(`
+      SELECT coalesce(bool_or(privilege_type IN ('USAGE','CREATE')),false) AS any_privilege
+      FROM pg_namespace n LEFT JOIN LATERAL aclexplode(n.nspacl) a ON true
+      WHERE n.nspname='vendor_handoff' AND (a.grantee=0 OR a.grantee IS NULL)
+    `);
+    expect(publicAcl.rows).toEqual([{ any_privilege: false }]);
     expect((await f.p.admin.query("SELECT has_schema_privilege('bm_vendor_handoff_owner','core_flow','CREATE') AS v")).rows[0].v).toBe(false);
     expect((await f.p.admin.query("SELECT has_schema_privilege('bm_vendor_handoff_owner','app','CREATE') AS v")).rows[0].v).toBe(false);
   });
