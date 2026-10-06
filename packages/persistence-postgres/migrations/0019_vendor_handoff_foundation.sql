@@ -476,7 +476,6 @@ GRANT EXECUTE ON FUNCTION vendor_handoff.session_info(bytea),
   TO bm_vendor_web;
 
 RESET ROLE;
-REVOKE CREATE ON SCHEMA vendor_handoff FROM bm_vendor_handoff_owner;
 
 -- Owner needs only the approved Core bridge helpers and current-org helper.
 GRANT EXECUTE ON FUNCTION core_flow.vendor_handoff_lock_ticket(uuid,text),
