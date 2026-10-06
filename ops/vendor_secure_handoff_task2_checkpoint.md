@@ -61,3 +61,14 @@ Fresh local gates: focused/security42/42; six frozen regressions42/42; full stan
 Protected0001-0018 migrations, original B5 bytes and previous STOP receipts remain identical. Prior checkpoint/CSV/pending-sync bytes are retained as prefixes. Migration0019 current SHA-256:b1acedb9399d7b419fcd7c15a4ff3f94a0d4d78f601fe63a05a4abebc0dd1c80. No Task3, push, PR lifecycle change, merge, deployment, production data/credential/IAM or cloud sync occurred.
 
 CHECKPOINT | Vendor Secure Handoff Task2 review remediation | evidence=fc5d0f28a33402bfc4cfe26666df195f74d838b9 | tokens=unknown
+
+
+## Evidence-safety correction
+
+Delta review closed both product findings and identified one MEDIUM assertion-output issue. Unexpected issuance success in two historical private RED logs printed three raw synthetic ephemeral capability links. This was a real private logging deviation; no production exposure is demonstrated. Original logs remain unchanged, privately retained. Clearly labeled red1/red2 sanitized derivatives replace only raw capability URL material; hashes/counts are in local task2-evidence-safety-sanitization.json. Actual issued tokens use43-character base64url, not the review's64-hex description. Sharing must use sanitized derivatives.
+
+Test-only implementation HEAD:4f214d79107a5bd6e6c2ac15fa345591a432fbc7. Route/stale issuance rejection assertions map unexpected resolution to harmless `issued`; replay metadata assertions project only safe fields. No SQL/product behavior change. Fresh scoped verification:3 passed/21 intentionally filtered, test typecheck exit0; staged code scan PASS/findings0. Receipt index scan is performed separately before metadata commit. Logs:task2-evidence-safety-focused.log, task2-evidence-safety-typecheck.log, task2-evidence-safety-code-index-scan.log. Fresh logs and sanitized derivatives contain no matching raw capability URLs; original log hashes remain identical. Detailed report:local task2-evidence-safety-report.md.
+
+Prior42/42/3 and shared/full-typecheck generations remain historical; full suites were not repeated for this assertion-only correction. Prior checkpoint/CSV/pending-sync bytes are retained. No Task3, remote/PR action, merge, deployment, production credential/IAM or external sync. Controller bounded rereview pending.
+
+CHECKPOINT | Vendor Secure Handoff Task2 evidence safety | evidence=4f214d79107a5bd6e6c2ac15fa345591a432fbc7 | tokens=unknown
