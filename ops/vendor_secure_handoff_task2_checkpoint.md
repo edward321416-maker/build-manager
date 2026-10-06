@@ -48,3 +48,16 @@ Next: controller independent Task2 review, then authorized sequential Task3. The
 Whole-candidate history scan, full final local/browser/restart/hosted gates and AC01–AC57 reconciliation belong to later authorized milestones. Production credentials/IAM/real data/deployment remain NOT_AUTHORIZED/NOT_RUN. External Google execution-log sync is pending; no cloud append/readback or schema-cache write was claimed for this local phase.
 
 CHECKPOINT | Vendor Secure Handoff Task2 foundation | evidence=186c27f86954f82c740380e5b09fbd6bc5f79ee3 | tokens=unknown
+
+
+## Independent-review remediation checkpoint
+
+Status: IMPLEMENTATION_VERIFIED_LOCAL_TASK2_REMEDIATED; controller delta review pending. The preceding checkpoint is historical at fa52169. Fresh independent review identified exactly two HIGH findings; both were reproduced as genuine RED and corrected at implementation HEAD fc5d0f28a33402bfc4cfe26666df195f74d838b9.
+
+First issue and reissue now enforce the current Core external route GENERAL_VENDOR/MANUFACTURER_AS after the source-ticket lock. Rejected issuance creates no capability or receipt. Reissue supersedes all older capability authority while retaining the active session until replacement redemption. Each session carries its capability_id lineage. First redemption of a new capability may replace the previous assignment session; exact retry must find its own active unexpired session and revokes only that lineage row. Older redemption, deliberate logout, session revocation and expiry cannot resurrect access. Retry expiry and receipt count remain unchanged.
+
+Fresh local gates: focused/security42/42; six frozen regressions42/42; full standalone B5 boundary3/3, all zero skipped/todo; test typecheck exit0. Staged code scanner PASS (673 files,327 internal links,zero findings). Receipt index scan is performed separately before the metadata commit. Logs: task2-review-remediation-focused-green2.log, task2-review-remediation-frozen-green.log, task2-review-remediation-ac17-full.log, task2-review-remediation-tests-typecheck.log, task2-review-remediation-code-index-scan.log; all in local .superpowers/sdd/2026-10-06-vendor-secure-handoff-v1/. Full per-command RED/GREEN evidence and invariants are in task2-review-remediation-report.md. Prior36/42/3/474 and full-typecheck evidence remain historical; no new shared/full-typecheck run is claimed for this SQL/PostgreSQL-test-only correction.
+
+Protected0001-0018 migrations, original B5 bytes and previous STOP receipts remain identical. Prior checkpoint/CSV/pending-sync bytes are retained as prefixes. Migration0019 current SHA-256:b1acedb9399d7b419fcd7c15a4ff3f94a0d4d78f601fe63a05a4abebc0dd1c80. No Task3, push, PR lifecycle change, merge, deployment, production data/credential/IAM or cloud sync occurred.
+
+CHECKPOINT | Vendor Secure Handoff Task2 review remediation | evidence=fc5d0f28a33402bfc4cfe26666df195f74d838b9 | tokens=unknown
