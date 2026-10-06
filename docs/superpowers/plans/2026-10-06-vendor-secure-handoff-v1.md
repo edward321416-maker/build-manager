@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** DELTA3_REMEDIATION_SUCCESSOR_CANDIDATE — PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED
+**Status:** DELTA4_REMEDIATION_SUCCESSOR_CANDIDATE — PRODUCT_IMPLEMENTATION_NOT_AUTHORIZED
+
+**Reviewed delta3 successor:** HEAD `ad895049154f532b822c1cc160399d7fb39f46c2`, plan blob `ab6bc6aa67f578d575bfb984604d8df2dbdd9779`, independent delta3 review `6009584060` (`FIX_REQUIRED / B0 / H1 / M2`). Delta4 plan-only remediation is authorized by `6009777390`; earlier generations remain immutable history.
 
 **Reviewed delta2 successor:** HEAD `47eb9ce06e76d38fc2d5a5dfe4f4cdb166516e41`, plan blob `2b4685970df845aa3f469b9c67383eb1f5942ef9`, independent delta2 review `6008938628`. Delta3 plan-only remediation is authorized by `6009009124` under canonical directive `6009037256`; earlier generations remain immutable history. Publication stops at `INDEPENDENT_DELTA_REVIEW_VENDOR_SECURE_HANDOFF_PLAN_DELTA3_REMEDIATION`; neither Task 0 nor product implementation is authorized.
 
@@ -240,14 +242,14 @@ Use `superpowers:using-git-worktrees`. Do not create implementation commits duri
 | Vendor | `VendorVisitStartCommand` | `external.startVisit(sessionDigest,appointmentId,input)` | `POST /api/v2/vendor/appointments/:appointmentId/visit-start` | expectedAssignmentVersion, expectedRoundVersion, expectedPacketRevisionId | Appointment OCCURRED + VISIT_STARTED |
 | Vendor | `VendorBlockerCommand` | `external.recordBlocker(sessionDigest,input)` | `POST /api/v2/vendor/blockers` | expectedAssignmentVersion, expectedPacketRevisionId | append-only blocker evidence |
 | Vendor | `VendorClearBlockerCommand` | `external.clearBlocker(sessionDigest,blockerId,input)` | `POST /api/v2/vendor/blockers/:blockerId/clear` | expectedAssignmentVersion, expectedPacketRevisionId | append-only clear evidence |
-| Vendor | `VendorCompletionPhotoUploadCommand` | `external.uploadCompletionPhoto(sessionDigest,input,sanitized)` | `POST /api/v2/vendor/job/completion-photos` | clientRequestId: UUID, expectedAssignmentVersion, expectedPacketRevisionId, expectedAppointmentId; X-Upload-Id == clientRequestId | one sanitized durable photo + safe receipt; exact replay returns the same photo |
+| Vendor | `VendorCompletionPhotoUploadCommand` | `external.uploadCompletionPhoto(sessionDigest,input,sanitized)` | `POST /api/v2/vendor/job/completion-photos` | clientRequestId: UUID, expectedAssignmentVersion, expectedPacketRevisionId, expectedAppointmentId, expectedCorrectionRequestId: UUID|null; X-Upload-Id == clientRequestId | one sanitized durable photo in the exact initial/correction upload context + safe receipt; exact replay returns the same photo |
 | Vendor | `VendorCompletionReportCommand` | `external.submitCompletionReport(sessionDigest,input)` | `POST /api/v2/vendor/completion-reports` | expectedAssignmentVersion, expectedPacketRevisionId, expectedAppointmentId, expectedCorrectionRequestId/null | append-only current report revision |
 
 Read-only routes and exact port methods are: `manager.readHandoff(digest,ticketId): Promise<ManagerVendorHandoffDto>` → `GET /api/v2/core/manager/tickets/:ticketId/vendor-handoff`; `tenant.readScheduling(digest,ticketId): Promise<TenantVendorSchedulingDto>` → `GET /api/v2/core/tickets/:ticketId/vendor-scheduling`; `external.session(sessionDigest): Promise<VendorSessionDto>` → `GET /api/v2/vendor/session`; `external.readJob(sessionDigest): Promise<VendorJobDto>` → `GET /api/v2/vendor/job`.
 
 `clientRequestId` is mandatory for every state-changing command in the table, including redeem and logout. Redeem remains one-time capability authority: first success stores only token/session digests plus the redeem request identity; an exact replay with the same token digest + same `clientRequestId` after uncertain delivery may atomically revoke the session created by that same redemption and return one fresh replacement session cookie, while a different request ID cannot redeem the already-consumed capability. Logout exact replay with the same request ID returns the same logical revoked result.
 - Produces application ports `VendorHandoffManagerPort`, `VendorHandoffTenantPort`, `VendorHandoffExternalPort` and `VendorHandoffError`.
-- `VendorCompletionPhotoUploadCommand` has exactly `clientRequestId: UUID`, `expectedAssignmentVersion`, `expectedPacketRevisionId`, and `expectedAppointmentId`, with the same strict version/identifier validators used by the other commands. Its exact port is `external.uploadCompletionPhoto(sessionDigest: string, input: VendorCompletionPhotoUploadCommand, sanitized: SanitizedVendorPhoto): Promise<VendorCompletionPhotoDto>`.
+- `VendorCompletionPhotoUploadCommand` has exactly `clientRequestId: UUID`, `expectedAssignmentVersion`, `expectedPacketRevisionId`, `expectedAppointmentId`, and `expectedCorrectionRequestId: UUID | null`, with the same strict version/identifier validators used by the other commands. Its exact port is `external.uploadCompletionPhoto(sessionDigest: string, input: VendorCompletionPhotoUploadCommand, sanitized: SanitizedVendorPhoto): Promise<VendorCompletionPhotoDto>`.
 - `SanitizedVendorPhoto` is a server-only application input containing re-encoded `bytes: Uint8Array`, `mime: "image/jpeg" | "image/png"`, `byteSize`, decoded `width`/`height`, and server-computed `sha256` of sanitized bytes. It is not a client-trusted DTO or a log/receipt payload. Task 8 owns its construction and persistence. The handler requires `X-Upload-Id == clientRequestId`; mismatch rejects before durable persistence.
 - Exact Manager/Tenant application-port signatures are request-authority explicit:
   - `VendorHandoffManagerPort`:
@@ -288,7 +290,7 @@ Tests must assert:
 - Manager/Tenant method signatures require request-scoped `digest: string`, exact return types above, and `VendorCreateAssignmentCommand` uses the exact field name `expectedTicketVersion`;
 - type-level tests reject a Manager/Tenant port shape that omits the digest parameter or reintroduces caller-supplied `orgId` authority;
 - every state-changing command in the matrix requires UUID `clientRequestId`, including redeem/logout; redeem exact replay is bounded to the same token digest + request ID and never revives the raw capability.
-- photo upload rejects a missing/non-UUID request identity, missing expected assignment/packet/Appointment intent, unknown command keys, or `X-Upload-Id` mismatch; its fingerprint includes sanitized-byte SHA-256 plus all normalized command fields. Raw photo metadata is never request authority.
+- photo upload rejects a missing/non-UUID request identity, missing expected assignment/packet/Appointment/correction-context intent, unknown command keys, or `X-Upload-Id` mismatch; its fingerprint includes sanitized-byte SHA-256 plus all normalized command fields including `expectedCorrectionRequestId`. Raw photo metadata is never request authority.
 
 Run:
 ```bash
