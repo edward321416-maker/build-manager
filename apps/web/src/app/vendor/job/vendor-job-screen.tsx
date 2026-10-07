@@ -26,10 +26,15 @@ type Phase=
   |{kind:"loadFailed"}
   |{kind:"ready";job:VendorJobDto}
   |{kind:"declined";job:VendorJobDto}
+  |{kind:"withdrawn";job:VendorJobDto}
   |{kind:"loggedOut"};
 /** A decline draft/request belongs to exactly the assignment it was opened for and is never sent for another. */
 type Decline={assignmentId:string|null;open:boolean;reason:VendorDeclineReason|null;note:string;confirming:boolean;requestId:string|null;status:"idle"|"submitting"|"uncertain";notice:string};
 const closedDecline:Decline={assignmentId:null,open:false,reason:null,note:"",confirming:false,requestId:null,status:"idle",notice:""};
+/** Accept/Withdraw intent, owned by one assignment; the same request identity is reused only for that assignment. */
+type Lifecycle={kind:"accept"|"withdraw"|null;assignmentId:string|null;open:boolean;note:string;confirming:boolean;requestId:string|null;status:"idle"|"submitting"|"uncertain"};
+const idleLifecycle:Lifecycle={kind:null,assignmentId:null,open:false,note:"",confirming:false,requestId:null,status:"idle"};
+const STALE_NOTICE="작업 요청 내용이 바뀌었습니다. 최신 내용을 확인해 주세요.";
 
 /** A 4xx answer is authoritative; transport loss, 5xx and malformed replies leave the outcome unknown. */
 function definitive(error:unknown):boolean{
@@ -63,20 +68,26 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
   const [client]=useState(()=>injected??browserClient());
   const [phase,setPhase]=useState<Phase>({kind:"loading"});
   const [decline,setDecline]=useState<Decline>(closedDecline);
+  const [lifecycle,setLifecycle]=useState<Lifecycle>(idleLifecycle);
+  const [taskNotice,setTaskNotice]=useState("");
   const [notice,setNotice]=useState("");
   const [busy,setBusy]=useState(false);
   const token=useRef<string|null>(null),requestId=useRef<string|null>(null),csrf=useRef<string|null>(null),logoutId=useRef<string|null>(null);
+  // Bumped whenever a new redemption/load may switch assignment; results from an older generation are ignored.
+  const generation=useRef(0);
 
   const redeem=useCallback(async()=>{
-    const raw=token.current,id=requestId.current;
+    const raw=token.current,id=requestId.current,gen=generation.current;
     if(!raw||!id)return;
     setPhase({kind:"redeeming"});
     try{
       const result=await client.redeem(raw,{clientRequestId:id});
+      if(gen!==generation.current)return;
       csrf.current=result.session.csrf;token.current=null;requestId.current=null;
       clearFragment();forgetRedeem();
       setPhase({kind:"ready",job:result.job});
     }catch(error){
+      if(gen!==generation.current)return;
       if(definitive(error)){token.current=null;requestId.current=null;clearFragment();forgetRedeem();setPhase({kind:"unavailable"});}
       // Another assignment's session is never proof that this redemption committed: keep this exact request.
       else setPhase({kind:"redeemUncertain"});
@@ -84,15 +95,21 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
   },[client]);
 
   const loadSession=useCallback(async()=>{
+    const gen=generation.current;
     try{
-      const session=await client.session();csrf.current=session.csrf;
-      setPhase({kind:"ready",job:await client.job()});
-    }catch(error){setPhase({kind:definitive(error)?"unavailable":"loadFailed"});}
+      const session=await client.session();
+      if(gen!==generation.current)return;
+      csrf.current=session.csrf;
+      const job=await client.job();
+      if(gen!==generation.current)return;
+      setPhase({kind:"ready",job});
+    }catch(error){if(gen===generation.current)setPhase({kind:definitive(error)?"unavailable":"loadFailed"});}
   },[client]);
 
   const begin=useCallback(async()=>{
     // A new redemption/load may switch assignment: drop every pending per-assignment intent first.
-    setDecline(closedDecline);setNotice("");logoutId.current=null;
+    generation.current+=1;
+    setDecline(closedDecline);setLifecycle(idleLifecycle);setTaskNotice("");setNotice("");logoutId.current=null;
     const fragment=window.location.hash.slice(1);
     if(!fragment)return loadSession();
     if(!RAW.test(fragment)){clearFragment();setPhase({kind:"unavailable"});return;}
@@ -113,8 +130,9 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
     }
   };
 
-  const refresh=async()=>{
-    try{setPhase({kind:"ready",job:await client.job()});}catch(error){setPhase({kind:definitive(error)?"unavailable":"loadFailed"});}
+  const refresh=async(gen:number)=>{
+    try{const job=await client.job();if(gen===generation.current)setPhase({kind:"ready",job});}
+    catch(error){if(gen===generation.current)setPhase({kind:definitive(error)?"unavailable":"loadFailed"});}
   };
   // Local input problems stay editable; they are never reported as an unknown server outcome.
   const confirmDecline=()=>{
@@ -127,7 +145,7 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
   };
   const submitDecline=async(state:Decline)=>{
     if(phase.kind!=="ready"||!state.reason||!csrf.current)return;
-    const job=phase.job;
+    const job=phase.job,gen=generation.current;
     if(state.assignmentId!==job.assignmentId){setDecline(closedDecline);return;}
     const id=state.requestId??crypto.randomUUID(),note=state.note.trim();
     setDecline({...state,requestId:id,status:"submitting",notice:""});
@@ -135,40 +153,83 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
       const reason=state.reason;
       const result=await withFreshCsrf(value=>client.decline(value,{clientRequestId:id,expectedAssignmentVersion:job.assignmentVersion,
         expectedPacketRevisionId:job.currentPacket?.id??"",reason,operationalNote:note===""?null:note}));
+      if(gen!==generation.current)return;
       setDecline(closedDecline);setPhase({kind:"declined",job:result});
     }catch(error){
-      if(error instanceof ApiClientError&&error.status===409){setDecline({...closedDecline,notice:"작업 요청 내용이 바뀌었습니다. 최신 내용을 확인해 주세요."});await refresh();}
+      if(gen!==generation.current)return;
+      if(statusOf(error)===409){setDecline({...closedDecline,notice:STALE_NOTICE});await refresh(gen);}
       else if(statusOf(error)===403)setDecline({...closedDecline,notice:"보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요."});
       else if(definitive(error)){setDecline(closedDecline);setPhase({kind:"unavailable"});}
       else setDecline({...state,requestId:id,status:"uncertain",notice:""});
     }
   };
+  /** Accept/Withdraw: same request identity across an unknown outcome; authoritative refresh on a stale conflict. */
+  const submitLifecycle=async(kind:"accept"|"withdraw",state:Lifecycle)=>{
+    if(phase.kind!=="ready"||!csrf.current)return;
+    const job=phase.job,gen=generation.current;
+    if(state.kind!==kind||state.assignmentId!==job.assignmentId){setLifecycle(idleLifecycle);return;}
+    const id=state.requestId??crypto.randomUUID(),note=state.note.trim();
+    setLifecycle({...state,requestId:id,status:"submitting"});setTaskNotice("");
+    try{
+      const guards={clientRequestId:id,expectedAssignmentVersion:job.assignmentVersion,expectedPacketRevisionId:job.currentPacket?.id??""};
+      const result=await withFreshCsrf(value=>kind==="accept"?client.accept(value,guards):client.withdraw(value,{...guards,operationalNote:note===""?null:note}));
+      if(gen!==generation.current)return;
+      setLifecycle(idleLifecycle);
+      setPhase(kind==="withdraw"?{kind:"withdrawn",job:result}:{kind:"ready",job:result});
+    }catch(error){
+      if(gen!==generation.current)return;
+      if(statusOf(error)===409){setLifecycle(idleLifecycle);setTaskNotice(STALE_NOTICE);await refresh(gen);}
+      else if(statusOf(error)===403){setLifecycle(idleLifecycle);setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
+      else if(definitive(error)){setLifecycle(idleLifecycle);setPhase({kind:"unavailable"});}
+      else setLifecycle({...state,requestId:id,status:"uncertain"});
+    }
+  };
+  const startAccept=()=>{
+    if(phase.kind!=="ready")return;
+    const held=lifecycle.kind==="accept"&&lifecycle.assignmentId===phase.job.assignmentId?lifecycle:{...idleLifecycle,kind:"accept" as const,assignmentId:phase.job.assignmentId};
+    void submitLifecycle("accept",held);
+  };
+  const confirmWithdraw=()=>{
+    const note=lifecycle.note.trim();
+    if(!VendorDeclineCommandSchema.shape.operationalNote.safeParse(note===""?null:note).success){
+      setTaskNotice("메모에 사용할 수 없는 문자가 있습니다. 내용을 고친 뒤 다시 확인해 주세요.");return;
+    }
+    setTaskNotice("");setLifecycle({...lifecycle,confirming:true});
+  };
   const logout=async()=>{
     if(!csrf.current)return;
+    const gen=generation.current;
     const id=logoutId.current??crypto.randomUUID();logoutId.current=id;setBusy(true);setNotice("");
     const done=()=>{csrf.current=null;logoutId.current=null;setPhase({kind:"loggedOut"});};
-    try{await withFreshCsrf(value=>client.logout(value,{clientRequestId:id}));done();}
-    catch(error){
+    try{
+      await withFreshCsrf(value=>client.logout(value,{clientRequestId:id}));
+      if(gen===generation.current)done();
+    }catch(error){
+      if(gen!==generation.current)return;
       if(statusOf(error)===401){
         // Only an authoritative dead session confirms logout; a live session must never show a false logout.
-        try{csrf.current=(await client.session()).csrf;setNotice("나가기를 완료하지 못했습니다. 다시 시도해 주세요.");}
-        catch(check){if(definitive(check))done();else setNotice("나가기 결과를 확인하지 못했습니다. 같은 요청으로 다시 시도해 주세요.");}
+        try{csrf.current=(await client.session()).csrf;if(gen===generation.current)setNotice("나가기를 완료하지 못했습니다. 다시 시도해 주세요.");}
+        catch(check){if(gen!==generation.current)return;if(definitive(check))done();else setNotice("나가기 결과를 확인하지 못했습니다. 같은 요청으로 다시 시도해 주세요.");}
       }
       else if(definitive(error))setNotice("나가기를 완료하지 못했습니다. 다시 시도해 주세요.");
       else setNotice("나가기 결과를 확인하지 못했습니다. 같은 요청으로 다시 시도해 주세요.");
     }finally{setBusy(false);}
   };
 
-  return <VendorJobView phase={phase} decline={decline} notice={notice} busy={busy} photoPath={client.sourcePhotoPath}
+  return <VendorJobView phase={phase} decline={decline} lifecycle={lifecycle} taskNotice={taskNotice} notice={notice} busy={busy} photoPath={client.sourcePhotoPath}
     onRetryRedeem={()=>void redeem()} onRetryLoad={()=>{setPhase({kind:"loading"});void loadSession();}} onDecline={change=>setDecline(current=>({...current,...change}))}
-    onConfirmDecline={confirmDecline} onSubmitDecline={()=>void submitDecline(decline)} onLogout={()=>void logout()}/>;
+    onConfirmDecline={confirmDecline} onSubmitDecline={()=>void submitDecline(decline)}
+    onAccept={startAccept} onLifecycle={change=>setLifecycle(current=>({...current,...change}))} onConfirmWithdraw={confirmWithdraw}
+    onSubmitWithdraw={()=>void submitLifecycle("withdraw",lifecycle)} onLogout={()=>void logout()}/>;
 }
 
 type ViewProps={
-  phase:Phase;decline:Decline;notice:string;busy:boolean;photoPath:(id:string)=>string;
-  onRetryRedeem():void;onRetryLoad():void;onDecline(change:Partial<Decline>):void;onConfirmDecline():void;onSubmitDecline():void;onLogout():void;
+  phase:Phase;decline:Decline;lifecycle:Lifecycle;taskNotice:string;notice:string;busy:boolean;photoPath:(id:string)=>string;
+  onRetryRedeem():void;onRetryLoad():void;onDecline(change:Partial<Decline>):void;onConfirmDecline():void;onSubmitDecline():void;
+  onAccept():void;onLifecycle(change:Partial<Lifecycle>):void;onConfirmWithdraw():void;onSubmitWithdraw():void;onLogout():void;
 };
-export function VendorJobView({phase,decline,notice,busy,photoPath,onRetryRedeem,onRetryLoad,onDecline,onConfirmDecline,onSubmitDecline,onLogout}:ViewProps){
+export function VendorJobView(props:ViewProps){
+  const {phase,notice,busy,photoPath,onRetryRedeem,onRetryLoad,onLogout}=props;
   return <main className={styles.page}>
     <header className={styles.header}><h1>작업 요청</h1></header>
     {phase.kind==="loading"||phase.kind==="redeeming"?<p role="status" className={styles.card}>보안 링크를 확인하고 있습니다.</p>:null}
@@ -194,8 +255,12 @@ export function VendorJobView({phase,decline,notice,busy,photoPath,onRetryRedeem
       <h2 id="vendor-declined">작업 요청을 거절했습니다</h2>
       <p>거절 내용이 기록되었습니다. 이 작업 화면은 더 이상 사용할 수 없습니다.</p>
     </section>:null}
+    {phase.kind==="withdrawn"?<section className={styles.card} aria-labelledby="vendor-withdrawn">
+      <h2 id="vendor-withdrawn">작업을 철회했습니다</h2>
+      <p>철회 내용이 기록되었습니다. 이 작업 화면은 더 이상 사용할 수 없습니다. 접수 건 자체는 관리자가 계속 처리합니다.</p>
+    </section>:null}
     {phase.kind==="ready"?<>
-      <CurrentTask job={phase.job} decline={decline} onDecline={onDecline} onConfirmDecline={onConfirmDecline} onSubmitDecline={onSubmitDecline}/>
+      <CurrentTask {...props} job={phase.job}/>
       <Packet job={phase.job} photoPath={photoPath}/>
       <footer className={styles.footer}>
         {notice?<p role="alert">{notice}</p>:null}
@@ -205,16 +270,36 @@ export function VendorJobView({phase,decline,notice,busy,photoPath,onRetryRedeem
   </main>;
 }
 
-function CurrentTask({job,decline:held,onDecline,onConfirmDecline,onSubmitDecline}:{job:VendorJobDto;decline:Decline;onDecline(change:Partial<Decline>):void;onConfirmDecline():void;onSubmitDecline():void}){
-  const decline=held.open&&held.assignmentId!==job.assignmentId?closedDecline:held;
+function schedulingStatus(job:VendorJobDto):string{
+  if(job.phase==="SCHEDULED")return "방문 일정이 확정되었습니다.";
+  if(job.phase!=="SCHEDULING")return "방문 작업이 진행 중입니다.";
+  if(job.waitingOn==="TENANT")return job.proposal?"세입자가 제안한 시간 중 하나를 고르기를 기다리고 있습니다.":"세입자가 가능한 시간을 알려 주기를 기다리고 있습니다.";
+  return job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"?"세입자가 동의한 시간 안에서 방문 시간을 정할 차례입니다.":"세입자가 가능한 시간을 알려 주었습니다. 방문 시간을 제안할 차례입니다.";
+}
+
+function CurrentTask({job,decline:heldDecline,lifecycle:heldLifecycle,taskNotice,onDecline,onConfirmDecline,onSubmitDecline,onAccept,onLifecycle,onConfirmWithdraw,onSubmitWithdraw}:ViewProps&{job:VendorJobDto}){
+  // Intents held for another assignment are never rendered or sent for this one.
+  const decline=heldDecline.open&&heldDecline.assignmentId!==job.assignmentId?closedDecline:heldDecline;
+  const lifecycle=heldLifecycle.assignmentId!==null&&heldLifecycle.assignmentId!==job.assignmentId?idleLifecycle:heldLifecycle;
   const offered=job.status==="OFFERED"&&job.currentPacket!==null;
-  const submitting=decline.status==="submitting";
+  const active=job.status==="ACTIVE"&&job.currentPacket!==null;
+  const submitting=decline.status==="submitting"||lifecycle.status==="submitting";
+  const accepting=lifecycle.kind==="accept";
+  const withdrawing=lifecycle.kind==="withdraw"&&lifecycle.open;
+  const notice=decline.notice||taskNotice;
   return <section className={styles.card} aria-labelledby="vendor-current-task">
     <h2 id="vendor-current-task">지금 할 일</h2>
-    {decline.notice?<p role="alert">{decline.notice}</p>:null}
+    {notice?<p role="alert">{notice}</p>:null}
     {offered?<>
       <p>작업 요청을 확인해 주세요. 링크를 연 것만으로 작업을 수락한 것은 아닙니다.</p>
-      {!decline.open?<button type="button" onClick={()=>onDecline({...closedDecline,open:true,assignmentId:job.assignmentId})}>작업 거절</button>:null}
+      {accepting&&lifecycle.status==="uncertain"?<div className={styles.confirm} role="group" aria-label="수락 결과 확인">
+        <p role="alert">수락 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.</p>
+        <button type="button" onClick={onAccept}>같은 요청으로 수락 결과 확인</button>
+      </div>:null}
+      {!decline.open&&!(accepting&&lifecycle.status==="uncertain")?<>
+        <button type="submit" disabled={submitting} onClick={onAccept}>작업 수락</button>
+        <button type="button" disabled={submitting} onClick={()=>onDecline({...closedDecline,open:true,assignmentId:job.assignmentId})}>작업 거절</button>
+      </>:null}
       {decline.open&&!decline.confirming&&decline.status==="idle"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onConfirmDecline();}}>
         <fieldset>
           <legend>거절 사유</legend>
@@ -238,6 +323,28 @@ function CurrentTask({job,decline:held,onDecline,onConfirmDecline,onSubmitDeclin
         </>:<>
           <button type="button" disabled={submitting} onClick={onSubmitDecline}>거절하기</button>
           <button type="button" disabled={submitting} onClick={()=>onDecline({confirming:false})}>돌아가기</button>
+        </>}
+      </div>:null}
+    </>:active?<>
+      <h3>방문 일정 조율</h3>
+      <p>{schedulingStatus(job)}</p>
+      {!withdrawing?<button type="button" disabled={submitting} onClick={()=>onLifecycle({...idleLifecycle,kind:"withdraw",open:true,assignmentId:job.assignmentId})}>작업 철회</button>:null}
+      {withdrawing&&!lifecycle.confirming&&lifecycle.status==="idle"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onConfirmWithdraw();}}>
+        <label>철회 메모 (선택, 500자 이내)
+          <textarea maxLength={500} value={lifecycle.note} onChange={event=>onLifecycle({note:event.target.value})}/>
+        </label>
+        <button type="submit">철회 내용 확인</button>
+        <button type="button" onClick={()=>onLifecycle(idleLifecycle)}>취소</button>
+      </form>:null}
+      {withdrawing&&(lifecycle.confirming||lifecycle.status!=="idle")?<div className={styles.confirm} role="group" aria-labelledby="vendor-withdraw-confirm">
+        <h3 id="vendor-withdraw-confirm">이 작업을 철회할까요?</h3>
+        <p>철회하면 이 작업 화면을 더 이상 사용할 수 없고, 아직 진행하지 않은 방문 일정은 취소됩니다. 접수 건 자체는 관리자가 계속 처리합니다.</p>
+        {lifecycle.status==="uncertain"?<>
+          <p role="alert">철회 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.</p>
+          <button type="button" onClick={onSubmitWithdraw}>같은 요청으로 결과 확인</button>
+        </>:<>
+          <button type="button" disabled={submitting} onClick={onSubmitWithdraw}>철회하기</button>
+          <button type="button" disabled={submitting} onClick={()=>onLifecycle({confirming:false})}>돌아가기</button>
         </>}
       </div>:null}
     </>:<p>지금 진행할 수 있는 작업이 없습니다.</p>}

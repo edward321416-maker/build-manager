@@ -57,6 +57,29 @@ export async function vendorJson<T>(
   });
 }
 
+/**
+ * Request-scoped B1 digest call (Manager and Tenant). The selected organization is bound and the digest
+ * authenticated inside the same transaction as the actual Vendor command; a previously committed
+ * session_scope binding is never relied on (Task3 reviewed invariant).
+ */
+export async function b1DigestCall<T>(
+  database: PostgresDatabase,
+  digest: string,
+  sql: string,
+  values: unknown[],
+  organization?: string,
+): Promise<T> {
+  const hash = vendorDigest(digest);
+  return vendorTransaction(database, async (client) => {
+    if (organization !== undefined) await client.query("SELECT core_flow.bind_organization($1::bytea,$2::uuid)", [hash, organization]);
+    await client.query("SELECT core_flow.session($1::bytea)", [hash]);
+    const result = await client.query<{ value: T }>(sql, [hash, ...values]);
+    const value = result.rows[0]?.value;
+    if (value === undefined || value === null) throw new VendorHandoffError("DEPENDENCY_UNAVAILABLE");
+    return value;
+  });
+}
+
 export function notYetImplemented(): never {
   throw new VendorHandoffError("DEPENDENCY_UNAVAILABLE");
 }

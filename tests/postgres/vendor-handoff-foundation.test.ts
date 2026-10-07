@@ -299,7 +299,8 @@ describe("Vendor Secure Handoff foundation", () => {
     ]);
   }, 120_000);
 
-  it("creates exactly the six 0019 foundation tables with FORCE RLS and org ownership", async () => {
+  // Cumulative current Vendor-owned inventory: the six 0019 foundation tables plus the eight 0020 scheduling tables.
+  it("creates exactly the cumulative Vendor tables (0019 foundation + 0020 scheduling) with FORCE RLS and org ownership", async () => {
     const rows = await f.p.admin.query(`
       SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity,
              EXISTS (
@@ -318,7 +319,15 @@ describe("Vendor Secure Handoff foundation", () => {
       "vendor_session",
       "work_packet_revision",
       "work_packet_source_photo",
-    ].map((relname) => ({ relname, relrowsecurity: true, relforcerowsecurity: true, has_org: true })));
+      "appointment",
+      "scheduling_round",
+      "tenant_availability_submission",
+      "tenant_availability_window",
+      "tenant_entry_authorization",
+      "tenant_entry_authorization_window",
+      "vendor_slot",
+      "vendor_slot_proposal",
+    ].sort().map((relname) => ({ relname, relrowsecurity: true, relforcerowsecurity: true, has_org: true })));
   });
 
   it("enforces one non-ended assignment and one active Vendor session per assignment", async () => {

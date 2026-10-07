@@ -233,10 +233,17 @@ describe("Vendor HTTP decline and assignment scope on PostgreSQL",()=>{
     expect((await mutate(cred,"job/decline",{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:o.packetId,reason:"OTHER",operationalNote:null})).status).toBe(409);
     expect(await assignment(o.assignmentId)).toMatchObject({status:"ACTIVE",end_reason:null});
   });
-  it("keeps Task 5 accept/withdraw unavailable and leaves the assignment OFFERED",async()=>{
+  it("accepts and withdraws through the real HTTP boundary while redeem alone leaves the assignment OFFERED",async()=>{
     const o=await offered(),cred=(await redeem(o.token)).cred!;
-    for(const path of ["job/accept","job/withdraw"])expect((await mutate(cred,path,{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:o.packetId,operationalNote:null})).status).toBe(404);
     expect(await assignment(o.assignmentId)).toMatchObject({status:"OFFERED"});
+    const accepted=await mutate(cred,"job/accept",{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:o.packetId});
+    expect(accepted.status).toBe(200);
+    expect(VendorJobDtoSchema.parse(await accepted.json())).toMatchObject({status:"ACTIVE",assignmentVersion:4,currentRound:{purpose:"INITIAL",status:"OPEN"}});
+    const withdrawn=await mutate(cred,"job/withdraw",{clientRequestId:randomUUID(),expectedAssignmentVersion:4,expectedPacketRevisionId:o.packetId,operationalNote:null});
+    expect(withdrawn.status).toBe(200);
+    expect(VendorJobDtoSchema.parse(await withdrawn.json())).toMatchObject({status:"ENDED",endReason:"WITHDRAWN"});
+    expect((await read(cred)).status).toBe(401);
+    for(const path of ["scheduling/proposals","scheduling/preauthorized-appointment","scheduling/reschedule"])expect((await mutate(cred,path,{clientRequestId:randomUUID()})).status).toBe(404);
   });
   it("serves only the current packet's allowlisted source photo and hides other assignment or unshared photos identically",async()=>{
     const a=await offered("manager","tenant",true),b=await offered("otherManager","otherTenant",true);

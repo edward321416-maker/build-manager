@@ -83,14 +83,19 @@ export type ManagerVendorHandoffDto={
   activeBlocker:VendorBlockerDto|null;currentReport:VendorCompletionReportDto|null;reportHistory:VendorCompletionReportDto[];phase:VendorPhase;waitingOn:VendorWaitingOn;
   packetSource?:VendorManagerPacketSource;
 };
+export type VendorScheduledWindowDto={id:string;startAt:string;endAt:string};
+export type VendorAvailabilityDto={id:string;windows:VendorScheduledWindowDto[];authorizedWindowIds:string[];createdAt:string};
+export type VendorProposalDto={id:string;slots:VendorScheduledWindowDto[];createdAt:string};
 export type TenantVendorSchedulingDto={
   ticketId:string;assignmentVersion:number;packetRevisionId:string;effectiveMode:VendorSchedulingMode;phase:VendorPhase;waitingOn:VendorWaitingOn;
   currentRound:VendorSchedulingRoundDto|null;appointment:VendorAppointmentDto|null;
+  accessPolicy:VendorAccessPolicy;availability:VendorAvailabilityDto|null;proposal:VendorProposalDto|null;
 };
 export type VendorJobDto={
   assignmentId:string;assignmentVersion:number;status:VendorAssignmentStatus;endReason:VendorAssignmentEndReason|null;phase:VendorPhase;waitingOn:VendorWaitingOn;
   currentPacket:VendorWorkPacketRevisionDto|null;currentRound:VendorSchedulingRoundDto|null;appointment:VendorAppointmentDto|null;
   activeBlocker:VendorBlockerDto|null;currentReport:VendorCompletionReportDto|null;
+  effectiveMode:VendorSchedulingMode|null;availability:VendorAvailabilityDto|null;proposal:VendorProposalDto|null;
 };
 export type VendorSessionDto={assignmentId:string;expiresAt:string};
 export type VendorSourcePhotoDto={photoId:string;mime:"image/jpeg"|"image/png";byteSize:number;width:number;height:number};

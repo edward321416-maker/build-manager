@@ -219,6 +219,12 @@ export const VendorCompletionReportDtoSchema=z.object({
   photoOmissionReason:VendorPhotoOmissionReasonSchema.nullable(),submittedAt:instant,
 }).strict();
 export const VendorSessionDtoSchema=z.object({assignmentId:uuid,expiresAt:instant}).strict();
+// Scheduling projections carry only identifiers and absolute instants; never Tenant identity or occupancy provenance.
+const ScheduledWindowDtoSchema=z.object({id:uuid,startAt:instant,endAt:instant}).strict().refine(v=>Date.parse(v.startAt)<Date.parse(v.endAt));
+export const VendorAvailabilityDtoSchema=z.object({
+  id:uuid,windows:z.array(ScheduledWindowDtoSchema).min(1).max(5),authorizedWindowIds:z.array(uuid).max(5),createdAt:instant,
+}).strict();
+export const VendorProposalDtoSchema=z.object({id:uuid,slots:z.array(ScheduledWindowDtoSchema).min(1).max(5),createdAt:instant}).strict();
 const linkIssueMetadata={assignmentId:uuid,assignmentVersion:version,expiresAt:instant};
 export const VendorLinkIssueDtoSchema=z.discriminatedUnion("created",[
   z.object({...linkIssueMetadata,created:z.literal(true),link:z.string().regex(/^\/vendor\/job#[A-Za-z0-9_-]+$/)}).strict(),
@@ -243,6 +249,7 @@ export const ManagerVendorHandoffDtoSchema=z.object({
 export const VendorTenantSchedulingDtoSchema=z.object({
   ticketId:uuid,assignmentVersion:version,packetRevisionId:uuid,effectiveMode:VendorSchedulingModeSchema,
   phase:VendorPhaseSchema,waitingOn:VendorWaitingOnSchema,currentRound:VendorSchedulingRoundDtoSchema.nullable(),appointment:VendorAppointmentDtoSchema.nullable(),
+  accessPolicy:VendorAccessPolicySchema,availability:VendorAvailabilityDtoSchema.nullable(),proposal:VendorProposalDtoSchema.nullable(),
 }).strict();
 export const VendorJobDtoSchema=z.object({
   // assignmentVersion is the safe stale-state guard every consequential Vendor command presents.
@@ -250,6 +257,7 @@ export const VendorJobDtoSchema=z.object({
   phase:VendorPhaseSchema,waitingOn:VendorWaitingOnSchema,currentPacket:VendorWorkPacketRevisionDtoSchema.nullable(),
   currentRound:VendorSchedulingRoundDtoSchema.nullable(),appointment:VendorAppointmentDtoSchema.nullable(),activeBlocker:VendorBlockerDtoSchema.nullable(),
   currentReport:VendorCompletionReportDtoSchema.nullable(),
+  effectiveMode:VendorSchedulingModeSchema.nullable(),availability:VendorAvailabilityDtoSchema.nullable(),proposal:VendorProposalDtoSchema.nullable(),
 }).strict();
 
 const vendorCsrf=z.string().regex(/^[A-Za-z0-9_-]{43}$/);
@@ -310,3 +318,5 @@ export type VendorLogoutResultDto=z.infer<typeof VendorLogoutResultDtoSchema>;
 export type VendorLinkIssueDto=z.infer<typeof VendorLinkIssueDtoSchema>;
 export type VendorCompletionReportDto=z.infer<typeof VendorCompletionReportDtoSchema>;
 export type VendorCompletionPhotoDto=z.infer<typeof VendorCompletionPhotoDtoSchema>;
+export type VendorAvailabilityDto=z.infer<typeof VendorAvailabilityDtoSchema>;
+export type VendorProposalDto=z.infer<typeof VendorProposalDtoSchema>;

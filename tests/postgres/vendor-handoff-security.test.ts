@@ -9,10 +9,13 @@ beforeAll(async () => {
   f = await createVendorHandoffFixture();
 });
 
-const tables = ["command_receipt", "vendor_assignment", "vendor_capability", "vendor_session", "work_packet_revision", "work_packet_source_photo"];
-const managerFunctions = ["guard_direct_completion", "manager_create_assignment", "manager_issue_link", "manager_publish_packet", "manager_read"].sort();
+// Cumulative exact Vendor-owned inventory: 0019 foundation tables plus the eight 0020 scheduling tables (Task5).
+const schedulingTables = ["appointment", "scheduling_round", "tenant_availability_submission", "tenant_availability_window", "tenant_entry_authorization", "tenant_entry_authorization_window", "vendor_slot", "vendor_slot_proposal"];
+const tables = ["command_receipt", "vendor_assignment", "vendor_capability", "vendor_session", "work_packet_revision", "work_packet_source_photo", ...schedulingTables].sort();
+// bm_b1_web: Manager functions plus the digest-bound Tenant scheduling functions (Task5).
+const managerFunctions = ["guard_direct_completion", "manager_create_assignment", "manager_issue_link", "manager_publish_packet", "manager_read", "manager_reschedule", "tenant_authorize_entry", "tenant_confirm_slot", "tenant_read", "tenant_reschedule", "tenant_submit_availability"].sort();
 // Task4 cumulative external inventory: decline, CSRF refresh and allowlisted source-photo read join the Task2 set.
-const externalFunctions = ["decline", "logout", "read_job", "read_source_photo", "redeem", "refresh_session", "session_info"].sort();
+const externalFunctions = ["accept", "decline", "logout", "propose_slots", "read_job", "read_source_photo", "redeem", "refresh_session", "select_preauthorized_slot", "session_info", "vendor_reschedule", "withdraw"].sort();
 const bridges = ["vendor_handoff_lock_ticket", "vendor_handoff_manager_context", "vendor_handoff_mark_offered", "vendor_handoff_recheck_occupancy", "vendor_handoff_source", "vendor_handoff_source_photo", "vendor_handoff_tenant_context"].sort();
 const hash = (label: string) => createHash("sha256").update(label + randomUUID()).digest("hex");
 const proof = (value: string) => Buffer.from(value, "hex");
@@ -322,7 +325,7 @@ describe("Vendor Secure Handoff security boundary", () => {
       list.push(row);
       byTable.set(row.tablename, list);
     }
-    for (const table of ["vendor_assignment","work_packet_revision","work_packet_source_photo","command_receipt"]) {
+    for (const table of ["vendor_assignment","work_packet_revision","work_packet_source_photo","command_receipt",...schedulingTables]) {
       expect(byTable.get(table)?.some((p) => p.policyname === "vendor_handoff_org_scope" && p.permissive === "PERMISSIVE" && p.cmd === "ALL")).toBe(true);
       expect(byTable.get(table)?.some((p) => p.policyname === "vendor_handoff_org_ceiling" && p.permissive === "RESTRICTIVE" && p.cmd === "ALL")).toBe(true);
     }

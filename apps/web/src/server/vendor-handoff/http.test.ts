@@ -16,7 +16,8 @@ const job:VendorJobDto={assignmentId,assignmentVersion:3,status:"OFFERED",endRea
   currentPacket:{id:packetId,assignmentId,jobReference:"JOB-1",vendorLabel:"합성 업체",revision:1,publishedAt:"2026-10-07T00:00:00.000Z",
     buildingName:"합성 건물",serviceAddress:"합성 주소",unitLabel:"101호",issueType:"LEAK",workSummary:"합성 누수 점검",sharedDetails:[],
     allowedPhotoIds:[photoId],safetyNotice:[],accessPolicy:"TENANT_PRESENT_REQUIRED",accessInstruction:null},
-  currentRound:null,appointment:null,activeBlocker:null,currentReport:null};
+  currentRound:null,appointment:null,activeBlocker:null,currentReport:null,effectiveMode:null,availability:null,proposal:null};
+const roundId="44444444-4444-4444-8444-444444444444";
 
 function harness(overrides:Partial<VendorHandoffExternalPort>={},configured=origin){
   const calls:{method:string;csrf:string|undefined;args:unknown[]}[]=[];
@@ -29,6 +30,9 @@ function harness(overrides:Partial<VendorHandoffExternalPort>={},configured=orig
       refreshSession:async()=>({assignmentId,expiresAt}),
       readJob:async()=>job,
       decline:async()=>({...job,status:"ENDED",endReason:"DECLINED",phase:"ENDED",assignmentVersion:4}),
+      accept:async()=>({...job,status:"ACTIVE",phase:"SCHEDULING",waitingOn:"TENANT",assignmentVersion:4,effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",
+        currentRound:{id:roundId,openedPacketRevisionId:packetId,purpose:"INITIAL",status:"OPEN",version:1,createdAt:"2026-10-07T00:00:00.000Z"}}),
+      withdraw:async()=>({...job,status:"ENDED",endReason:"WITHDRAWN",phase:"ENDED",assignmentVersion:5}),
       readSourcePhoto:async()=>({photo:{photoId,mime:"image/jpeg",byteSize:3,width:1,height:1},bytes:new Uint8Array([1,2,3])}),
       ...overrides,
     } as unknown as Record<string,(...args:unknown[])=>Promise<unknown>>;
@@ -231,9 +235,25 @@ describe("job ownership",()=>{
     expect(failed.status).toBe(503);
     expect((await text(failed)).includes("synthetic-private-contact-marker")).toBe(false);
   });
-  it("leaves Task 5 accept/withdraw unimplemented",async()=>{
+  it("accepts and withdraws only with the presented CSRF and the exact command body",async()=>{
     const {deps,calls}=harness();
-    for(const path of ["job/accept","job/withdraw"])expect((await call(deps,path,{method:"POST",headers:mutation,body:{clientRequestId:randomUUID()}})).status).toBe(404);
+    const accept={clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:packetId};
+    const withdraw={clientRequestId:randomUUID(),expectedAssignmentVersion:4,expectedPacketRevisionId:packetId,operationalNote:"합성 메모"};
+    const noCsrf=Object.fromEntries(Object.entries(mutation).filter(([key])=>key!=="x-vendor-csrf"));
+    expect((await call(deps,"job/accept",{method:"POST",headers:noCsrf,body:accept})).status).toBe(403);
+    expect((await call(deps,"job/accept",{method:"POST",headers:mutation,body:{...accept,assignmentId:packetId}})).status).toBe(400);
+    expect((await call(deps,"job/withdraw",{method:"POST",headers:mutation,body:{...withdraw,operationalNote:undefined}})).status).toBe(400);
+    expect(calls).toEqual([]);
+    const accepted=await call(deps,"job/accept",{method:"POST",headers:mutation,body:accept});
+    expect(accepted.status).toBe(200);
+    expect(VendorJobDtoSchema.parse(await accepted.json())).toMatchObject({status:"ACTIVE",currentRound:{purpose:"INITIAL",status:"OPEN"}});
+    const withdrawn=await call(deps,"job/withdraw",{method:"POST",headers:mutation,body:withdraw});
+    expect(VendorJobDtoSchema.parse(await withdrawn.json())).toMatchObject({status:"ENDED",endReason:"WITHDRAWN"});
+    expect(calls).toEqual([{method:"accept",csrf:sha(csrf),args:[sha(session),accept]},{method:"withdraw",csrf:sha(csrf),args:[sha(session),withdraw]}]);
+  });
+  it("keeps the Task 6 scheduling routes unimplemented",async()=>{
+    const {deps,calls}=harness();
+    for(const path of ["scheduling/proposals","scheduling/preauthorized-appointment","scheduling/reschedule"])expect((await call(deps,path,{method:"POST",headers:mutation,body:{clientRequestId:randomUUID()}})).status).toBe(404);
     expect(calls).toEqual([]);
   });
   it("serves an allowlisted source photo and hides guessed, malformed or cross-assignment IDs identically",async()=>{

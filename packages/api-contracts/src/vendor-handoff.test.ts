@@ -27,6 +27,8 @@ import {
   VendorLogoutResultDtoSchema,
   VendorRedeemResultDtoSchema,
   VendorSessionStateDtoSchema,
+  VendorAvailabilityDtoSchema,
+  VendorProposalDtoSchema,
 } from "./vendor-handoff";
 
 const id="11111111-1111-4111-8111-111111111111";
@@ -152,6 +154,7 @@ describe("command matrix and role projections",()=>{
     const tenant={
       ticketId:id,assignmentVersion:2,packetRevisionId:id2,effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",
       phase:"SCHEDULING",waitingOn:"TENANT",currentRound:null,appointment:null,
+      accessPolicy:"TENANT_PREAUTHORIZATION_ALLOWED",availability:null,proposal:null,
     };
     expect(VendorTenantSchedulingDtoSchema.safeParse(tenant).success).toBe(true);
     for(const field of ["vendorLabel","completionPhotoIds","managerNotes","rawUserText","tenantEmail"])
@@ -160,6 +163,7 @@ describe("command matrix and role projections",()=>{
     const vendor={
       assignmentId:id,assignmentVersion:4,status:"ACTIVE",endReason:null,phase:"SCHEDULING",waitingOn:"TENANT",
       currentPacket:null,currentRound:null,appointment:null,activeBlocker:null,currentReport:null,
+      effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",availability:null,proposal:null,
     };
     expect(VendorJobDtoSchema.safeParse(vendor).success).toBe(true);
     for(const field of ["tenantId","tenantName","tenantPhone","tenantEmail","rawUserText","managerNotes","priority","assigneeLabel","dueAt","orgId"])
@@ -168,10 +172,29 @@ describe("command matrix and role projections",()=>{
     expect(VendorJobDtoSchema.safeParse(unversioned).success).toBe(false);
   });
 
+  it("projects scheduling state as ids and absolute instants only",()=>{
+    const windows=[{id:id2,startAt:at,endAt:later},{id:id3,startAt:"2026-10-11T09:00:00+09:00",endAt:"2026-10-11T10:00:00+09:00"}];
+    const availability={id,windows,authorizedWindowIds:[id2],createdAt:at};
+    expect(VendorAvailabilityDtoSchema.safeParse(availability).success).toBe(true);
+    for(const extra of ["occupancyMemberId","tenantId","tenantName","authorizationId"])expect(VendorAvailabilityDtoSchema.safeParse({...availability,[extra]:id4}).success).toBe(false);
+    expect(VendorAvailabilityDtoSchema.safeParse({...availability,windows:[]}).success).toBe(false);
+    expect(VendorAvailabilityDtoSchema.safeParse({...availability,windows:[...windows,...windows,...windows]}).success).toBe(false);
+    expect(VendorAvailabilityDtoSchema.safeParse({...availability,windows:[{id:id2,startAt:later,endAt:at}]}).success).toBe(false);
+    const proposal={id:id4,slots:[{id:id2,startAt:at,endAt:later}],createdAt:at};
+    expect(VendorProposalDtoSchema.safeParse(proposal).success).toBe(true);
+    expect(VendorProposalDtoSchema.safeParse({...proposal,slots:[]}).success).toBe(false);
+    expect(VendorProposalDtoSchema.safeParse({...proposal,sessionId:id}).success).toBe(false);
+    const tenant={ticketId:id,assignmentVersion:4,packetRevisionId:id2,effectiveMode:"PREAUTHORIZED_ENTRY_WINDOW",phase:"SCHEDULING",waitingOn:"VENDOR",
+      currentRound:null,appointment:null,accessPolicy:"TENANT_PREAUTHORIZATION_ALLOWED",availability,proposal};
+    expect(VendorTenantSchedulingDtoSchema.safeParse(tenant).success).toBe(true);
+    const {accessPolicy:_policy,...withoutPolicy}=tenant;
+    expect(VendorTenantSchedulingDtoSchema.safeParse(withoutPolicy).success).toBe(false);
+  });
+
   it("returns server-issued CSRF only in the strict Vendor session envelopes",()=>{
     const csrf="A".repeat(42)+"w";
     const job={assignmentId:id,assignmentVersion:3,status:"OFFERED",endReason:null,phase:"OFFERED",waitingOn:"NONE",
-      currentPacket:null,currentRound:null,appointment:null,activeBlocker:null,currentReport:null};
+      currentPacket:null,currentRound:null,appointment:null,activeBlocker:null,currentReport:null,effectiveMode:null,availability:null,proposal:null};
     const session={assignmentId:id,expiresAt:at,csrf};
     expect(VendorSessionStateDtoSchema.safeParse(session).success).toBe(true);
     expect(VendorRedeemResultDtoSchema.safeParse({session,job}).success).toBe(true);

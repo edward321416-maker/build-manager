@@ -66,7 +66,13 @@ export function createVendorHandoffExternalPort(database: PostgresDatabase, csrf
         return { photo: row.metadata, bytes: new Uint8Array(row.content) };
       });
     },
-    async accept() { return notYetImplemented(); },
+    async accept(sessionDigest, input) {
+      return vendorJson<VendorJobDto>(
+        database,
+        "SELECT vendor_handoff.accept($1::bytea,$2::bytea,$3::uuid,$4::bigint,$5::uuid) AS value",
+        [vendorDigest(sessionDigest), presentedCsrf(), input.clientRequestId, input.expectedAssignmentVersion, input.expectedPacketRevisionId],
+      );
+    },
     async decline(sessionDigest, input) {
       return vendorJson<VendorJobDto>(
         database,
@@ -75,10 +81,37 @@ export function createVendorHandoffExternalPort(database: PostgresDatabase, csrf
           input.expectedPacketRevisionId, input.reason, input.operationalNote],
       );
     },
-    async withdraw() { return notYetImplemented(); },
-    async proposeSlots() { return notYetImplemented(); },
-    async selectPreauthorizedSlot() { return notYetImplemented(); },
-    async reschedule() { return notYetImplemented(); },
+    async withdraw(sessionDigest, input) {
+      return vendorJson<VendorJobDto>(
+        database,
+        "SELECT vendor_handoff.withdraw($1::bytea,$2::bytea,$3::uuid,$4::bigint,$5::uuid,$6::text) AS value",
+        [vendorDigest(sessionDigest), presentedCsrf(), input.clientRequestId, input.expectedAssignmentVersion, input.expectedPacketRevisionId, input.operationalNote],
+      );
+    },
+    async proposeSlots(sessionDigest, input) {
+      return vendorJson<VendorJobDto>(
+        database,
+        "SELECT vendor_handoff.propose_slots($1::bytea,$2::bytea,$3::uuid,$4::bigint,$5::bigint,$6::uuid,$7::jsonb) AS value",
+        [vendorDigest(sessionDigest), presentedCsrf(), input.clientRequestId, input.expectedAssignmentVersion, input.expectedRoundVersion,
+          input.expectedPacketRevisionId, JSON.stringify(input.slots)],
+      );
+    },
+    async selectPreauthorizedSlot(sessionDigest, input) {
+      return vendorJson<VendorJobDto>(
+        database,
+        "SELECT vendor_handoff.select_preauthorized_slot($1::bytea,$2::bytea,$3::uuid,$4::bigint,$5::bigint,$6::uuid,$7::uuid,$8::uuid,$9::text,$10::text) AS value",
+        [vendorDigest(sessionDigest), presentedCsrf(), input.clientRequestId, input.expectedAssignmentVersion, input.expectedRoundVersion,
+          input.expectedPacketRevisionId, input.availabilitySubmissionId, input.selectedWindowId, input.startAt, input.endAt],
+      );
+    },
+    async reschedule(sessionDigest, input) {
+      return vendorJson<VendorJobDto>(
+        database,
+        "SELECT vendor_handoff.vendor_reschedule($1::bytea,$2::bytea,$3::uuid,$4::bigint,$5::bigint,$6::uuid,$7::uuid) AS value",
+        [vendorDigest(sessionDigest), presentedCsrf(), input.clientRequestId, input.expectedAssignmentVersion, input.expectedRoundVersion,
+          input.expectedAppointmentId, input.expectedPacketRevisionId],
+      );
+    },
     async startVisit() { return notYetImplemented(); },
     async recordBlocker() { return notYetImplemented(); },
     async clearBlocker() { return notYetImplemented(); },

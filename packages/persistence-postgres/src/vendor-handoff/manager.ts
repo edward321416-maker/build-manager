@@ -1,32 +1,15 @@
 import { createHash, randomBytes } from "node:crypto";
-import {
-  VendorHandoffError,
-  type ManagerVendorHandoffDto,
-  type VendorHandoffManagerPort,
-  type VendorLinkIssueDto,
+import type {
+  ManagerVendorHandoffDto,
+  VendorHandoffManagerPort,
+  VendorLinkIssueDto,
 } from "@build-manager/application";
 import type { PostgresDatabase } from "../database";
-import { notYetImplemented, vendorDigest, vendorTransaction } from "./common";
+import { b1DigestCall, notYetImplemented } from "./common";
 
-async function managerCall<T>(
-  database: PostgresDatabase,
-  digest: string,
-  sql: string,
-  values: unknown[],
-  organization?: string,
-): Promise<T> {
-  const hash = vendorDigest(digest);
-  return vendorTransaction(database, async (client) => {
-    // Routing selection is authenticated again and held through the actual operation.
-    // A committed preflight binding alone cannot isolate concurrent selections.
-    if (organization !== undefined) await client.query("SELECT core_flow.bind_organization($1::bytea,$2::uuid)", [hash, organization]);
-    await client.query("SELECT core_flow.session($1::bytea)", [hash]);
-    const result = await client.query<{ value: T }>(sql, [hash, ...values]);
-    const value = result.rows[0]?.value;
-    if (value === undefined || value === null) throw new VendorHandoffError("DEPENDENCY_UNAVAILABLE");
-    return value;
-  });
-}
+// Routing selection is authenticated again and held through the actual operation.
+// A committed preflight binding alone cannot isolate concurrent selections.
+const managerCall = b1DigestCall;
 
 export function createVendorHandoffManagerPort(database: PostgresDatabase, organization?: string): VendorHandoffManagerPort {
   return {
@@ -97,7 +80,15 @@ export function createVendorHandoffManagerPort(database: PostgresDatabase, organ
     async reassign() { return notYetImplemented(); },
     async requestCorrection() { return notYetImplemented(); },
     async requireFollowUp() { return notYetImplemented(); },
-    async reschedule() { return notYetImplemented(); },
+    reschedule(digest, assignmentId, input) {
+      return managerCall<ManagerVendorHandoffDto>(
+        database,
+        digest,
+        "SELECT vendor_handoff.manager_reschedule($1::bytea,$2::uuid,$3::uuid,$4::bigint,$5::bigint,$6::uuid,$7::uuid) AS value",
+        [assignmentId, input.clientRequestId, input.expectedAssignmentVersion, input.expectedRoundVersion, input.expectedAppointmentId, input.expectedPacketRevisionId],
+        organization,
+      );
+    },
     async closeout() { return notYetImplemented(); },
     async completionPhoto() { return notYetImplemented(); },
   };

@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot,type Root } from "react-dom/client";
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import { ApiClientError,type VendorJobClient } from "@build-manager/api-client";
-import type { VendorDeclineCommand,VendorJobDto } from "@build-manager/api-contracts";
+import type { VendorAcceptCommand,VendorDeclineCommand,VendorJobDto,VendorWithdrawCommand } from "@build-manager/api-contracts";
 import { VendorJobScreen } from "./vendor-job-screen";
 
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
@@ -22,11 +22,16 @@ function job(assignmentId:string,label:string):VendorJobDto{
       buildingName:`합성 건물 ${label}`,serviceAddress:`합성 주소 ${label}`,unitLabel:"101호",issueType:"LEAK",workSummary:`합성 누수 점검 ${label}`,
       sharedDetails:[{key:"leak.active",label:"현재 누수",value:"예",sourceType:"TENANT_REPORTED"},{key:"heatingType",label:"난방 방식",value:"개별",sourceType:"BUILDING_VERIFIED"}],
       allowedPhotoIds:[photoB],safetyNotice:[],accessPolicy:"TENANT_PREAUTHORIZATION_ALLOWED",accessInstruction:"관리실에서 열쇠 수령"},
-    currentRound:null,appointment:null,activeBlocker:null,currentReport:null};
+    currentRound:null,appointment:null,activeBlocker:null,currentReport:null,effectiveMode:null,availability:null,proposal:null};
+}
+const roundB="eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+function active(assignmentId:string,label:string):VendorJobDto{
+  return {...job(assignmentId,label),status:"ACTIVE",phase:"SCHEDULING",waitingOn:"TENANT",assignmentVersion:4,effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",
+    currentRound:{id:roundB,openedPacketRevisionId:packetB,purpose:"INITIAL",status:"OPEN",version:1,createdAt:"2026-10-07T00:00:00.000Z"}};
 }
 const network=()=>new ApiClientError("NETWORK_ERROR","API 요청을 전송하지 못했습니다.");
 const http=(status:number,code:string)=>new ApiClientError(code,"요청을 처리하지 못했습니다.",{status});
-type Overrides={[K in "redeem"|"session"|"job"|"decline"|"logout"]?:(...args:Parameters<VendorJobClient[K]>)=>Promise<unknown>};
+type Overrides={[K in "redeem"|"session"|"job"|"decline"|"logout"|"accept"|"withdraw"]?:(...args:Parameters<VendorJobClient[K]>)=>Promise<unknown>};
 function fakeClient(overrides:Overrides={}){
   const redeemed=async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:job(assignmentB,"B")}) as unknown;
   return {
@@ -35,6 +40,8 @@ function fakeClient(overrides:Overrides={}){
     job:vi.fn<()=>Promise<unknown>>(overrides.job??(async()=>job(assignmentA,"A"))),
     decline:vi.fn<(csrf:string,input:VendorDeclineCommand)=>Promise<unknown>>(overrides.decline??(async()=>({...job(assignmentB,"B"),status:"ENDED",endReason:"DECLINED",phase:"ENDED",assignmentVersion:4}))),
     logout:vi.fn<(csrf:string,input:{clientRequestId:string})=>Promise<unknown>>(overrides.logout??(async()=>({revoked:true}))),
+    accept:vi.fn<(csrf:string,input:VendorAcceptCommand)=>Promise<unknown>>(overrides.accept??(async()=>active(assignmentB,"B"))),
+    withdraw:vi.fn<(csrf:string,input:VendorWithdrawCommand)=>Promise<unknown>>(overrides.withdraw??(async()=>({...active(assignmentB,"B"),status:"ENDED",endReason:"WITHDRAWN",phase:"ENDED",assignmentVersion:5,currentRound:null}))),
     sourcePhotoPath:(id:string)=>`/api/v2/vendor/job/source-photos/${id}`,
   };
 }
@@ -231,6 +238,77 @@ describe("stale CSRF and transient reads",()=>{
     expect(window.location.hash).toBe("");
     expect(page()).toContain("합성 업체 B");
     expect(tokenFree()).toBe(true);
+  });
+});
+
+describe("Task5 accept and withdraw",()=>{
+  it("accepts an OFFERED job with current guards and server CSRF, then shows visit scheduling as the current task",async()=>{
+    const client=fakeClient();
+    await mount(client,`#${tokenB}`);
+    await click("작업 수락");
+    expect(client.accept).toHaveBeenCalledTimes(1);
+    expect(client.accept.mock.calls[0][0]===csrf).toBe(true);
+    expect(client.accept.mock.calls[0][1]).toMatchObject({expectedAssignmentVersion:3,expectedPacketRevisionId:packetB});
+    expect(page()).toContain("방문 일정 조율");
+    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있습니다");
+    expect(button("작업 수락")).toBeUndefined();
+    expect(button("작업 거절")).toBeUndefined();
+    expect(button("작업 철회")).toBeDefined();
+    expect(page().indexOf("지금 할 일")).toBeLessThan(page().indexOf("업체 전달 내용"));
+  });
+  it("reconciles an unknown accept outcome with the same request identity",async()=>{
+    let fail=true;
+    const client=fakeClient({accept:vi.fn(async()=>{if(fail)throw network();return active(assignmentB,"B");})});
+    await mount(client,`#${tokenB}`);
+    await click("작업 수락");
+    expect(page()).toContain("수락 결과를 확인하지 못했습니다");
+    fail=false;
+    await click("같은 요청으로 수락 결과 확인");
+    const ids=client.accept.mock.calls.map(c=>c[1].clientRequestId);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toBe(ids[1]);
+    expect(page()).toContain("방문 일정 조율");
+  });
+  it("refreshes authoritative state after a stale accept conflict",async()=>{
+    const client=fakeClient({accept:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
+    await mount(client,`#${tokenB}`);
+    await click("작업 수락");
+    expect(client.job).toHaveBeenCalledTimes(1);
+    expect(page()).toContain("최신 내용을 확인해 주세요");
+  });
+  it("withdraws an ACTIVE job only after an explicit confirmation",async()=>{
+    const client=fakeClient({redeem:vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:active(assignmentB,"B")}))});
+    await mount(client,`#${tokenB}`);
+    await click("작업 철회");
+    await click("철회 내용 확인");
+    expect(page()).toContain("이 작업을 철회할까요?");
+    expect(client.withdraw).not.toHaveBeenCalled();
+    await click("철회하기");
+    expect(client.withdraw).toHaveBeenCalledTimes(1);
+    expect(client.withdraw.mock.calls[0][1]).toMatchObject({expectedAssignmentVersion:4,expectedPacketRevisionId:packetB,operationalNote:null});
+    expect(page()).toContain("작업을 철회했습니다");
+    expect(button("작업 철회")).toBeUndefined();
+    expect(page().includes("수리 완료")||page().includes("업체 완료")).toBe(false);
+  });
+  it("ignores a late result that started before a same-tab assignment switch",async()=>{
+    let finish!:(value:unknown)=>void;
+    const client=fakeClient({
+      redeem:vi.fn(async(token:string)=>({session:{assignmentId:token===tokenC?assignmentA:assignmentB,expiresAt,csrf},job:job(token===tokenC?assignmentA:assignmentB,token===tokenC?"A":"B")})),
+      decline:vi.fn(()=>new Promise(resolve=>{finish=resolve;})),
+    });
+    await mount(client,`#${tokenB}`);
+    await click("작업 거절");
+    const radio=Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]')).find(x=>x.value==="OTHER")!;
+    await act(async()=>{radio.click();});
+    await click("거절 내용 확인");
+    await click("거절하기");
+    await act(async()=>{window.history.pushState(null,"",`/vendor/job#${tokenC}`);window.dispatchEvent(new Event("hashchange"));});
+    await flush();
+    expect(page()).toContain("합성 업체 A");
+    await act(async()=>{finish({...job(assignmentB,"B"),status:"ENDED",endReason:"DECLINED",phase:"ENDED",assignmentVersion:4});});
+    await flush();
+    expect(page()).toContain("합성 업체 A");
+    expect(page().includes("작업 요청을 거절했습니다")).toBe(false);
   });
 });
 
