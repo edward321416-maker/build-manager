@@ -112,9 +112,30 @@ export function createVendorHandoffExternalPort(database: PostgresDatabase, csrf
           input.expectedAppointmentId, input.expectedPacketRevisionId],
       );
     },
-    async startVisit() { return notYetImplemented(); },
-    async recordBlocker() { return notYetImplemented(); },
-    async clearBlocker() { return notYetImplemented(); },
+    async startVisit(sessionDigest, appointmentId, input) {
+      return vendorJson<VendorJobDto>(
+        database,
+        "SELECT vendor_handoff.start_visit($1::bytea,$2::bytea,$3::uuid,$4::uuid,$5::bigint,$6::bigint,$7::uuid) AS value",
+        [vendorDigest(sessionDigest), presentedCsrf(), input.clientRequestId, appointmentId, input.expectedAssignmentVersion,
+          input.expectedRoundVersion, input.expectedPacketRevisionId],
+      );
+    },
+    async recordBlocker(sessionDigest, input) {
+      return vendorJson<VendorJobDto>(
+        database,
+        "SELECT vendor_handoff.record_blocker($1::bytea,$2::bytea,$3::uuid,$4::bigint,$5::uuid,$6::text,$7::text) AS value",
+        [vendorDigest(sessionDigest), presentedCsrf(), input.clientRequestId, input.expectedAssignmentVersion, input.expectedPacketRevisionId,
+          input.blockerCode, input.operationalNote],
+      );
+    },
+    async clearBlocker(sessionDigest, blockerId, input) {
+      return vendorJson<VendorJobDto>(
+        database,
+        "SELECT vendor_handoff.clear_blocker($1::bytea,$2::bytea,$3::uuid,$4::uuid,$5::bigint,$6::uuid,$7::text) AS value",
+        [vendorDigest(sessionDigest), presentedCsrf(), input.clientRequestId, blockerId, input.expectedAssignmentVersion,
+          input.expectedPacketRevisionId, input.operationalNote],
+      );
+    },
     async uploadCompletionPhoto() { return notYetImplemented(); },
     async submitCompletionReport() { return notYetImplemented(); },
   };

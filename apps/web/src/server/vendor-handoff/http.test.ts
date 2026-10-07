@@ -276,9 +276,34 @@ describe("job ownership",()=>{
       expect(calls.at(-1)).toEqual({method,csrf:sha(csrf),args:[sha(session),body]});
     }
   });
-  it("keeps the Task 7 visit and blocker routes unimplemented",async()=>{
+  it("dispatches visit and blocker commands only with the presented CSRF, a UUID path identity and exact bodies",async()=>{
+    const working={...job,status:"ACTIVE",phase:"IN_PROGRESS",waitingOn:"VENDOR",assignmentVersion:6};
+    const {deps,calls}=harness({startVisit:async()=>working,recordBlocker:async()=>working,clearBlocker:async()=>working} as Partial<VendorHandoffExternalPort>);
+    const g={clientRequestId:randomUUID(),expectedAssignmentVersion:5,expectedPacketRevisionId:packetId};
+    const rows=[
+      [`appointments/${photoId}/visit-start`,{...g,expectedRoundVersion:3},"startVisit",[photoId]],
+      ["blockers",{...g,blockerCode:"PARTS_REQUIRED",operationalNote:"합성 부품 대기"},"recordBlocker",[]],
+      [`blockers/${photoId}/clear`,{...g,operationalNote:null},"clearBlocker",[photoId]],
+    ] as const;
+    const noCsrf=Object.fromEntries(Object.entries(mutation).filter(([key])=>key!=="x-vendor-csrf"));
+    for(const [path,body] of rows){
+      expect((await call(deps,path,{method:"POST",headers:noCsrf,body})).status,path).toBe(403);
+      expect((await call(deps,path,{method:"POST",headers:mutation,body:{...body,assignmentId}})).status,path).toBe(400);
+      expect((await call(deps,path,{method:"GET",headers:authed})).status,path).toBe(404);
+    }
+    for(const path of ["appointments/not-a-uuid/visit-start","blockers/not-a-uuid/clear",`appointments/${photoId}/visit-start/extra`,`blockers/${photoId}`])
+      expect((await call(deps,path,{method:"POST",headers:mutation,body:{...g,expectedRoundVersion:3}})).status,path).toBe(404);
+    expect(calls).toEqual([]);
+    for(const [path,body,method,ids] of rows){
+      const response=await call(deps,path,{method:"POST",headers:mutation,body});
+      expect(response.status,path).toBe(200);
+      VendorJobDtoSchema.parse(await response.json());
+      expect(calls.at(-1)).toEqual({method,csrf:sha(csrf),args:[sha(session),...ids,body]});
+    }
+  });
+  it("keeps the Task 8 completion routes unimplemented",async()=>{
     const {deps,calls}=harness();
-    for(const path of [`appointments/${photoId}/visit-start`,"blockers",`blockers/${photoId}/clear`])expect((await call(deps,path,{method:"POST",headers:mutation,body:{clientRequestId:randomUUID()}})).status).toBe(404);
+    for(const path of ["completion-reports","completion-photos"])expect((await call(deps,path,{method:"POST",headers:mutation,body:{clientRequestId:randomUUID()}})).status).toBe(404);
     expect(calls).toEqual([]);
   });
   it("serves an allowlisted source photo and hides guessed, malformed or cross-assignment IDs identically",async()=>{

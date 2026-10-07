@@ -5,6 +5,7 @@ import { ApiClientError,type CoreVendorHandoffClient,type CoreFlowClient } from 
 import styles from "./vendor-handoff.module.css";
 import Image from "next/image";
 import { formatVendorInterval } from "../../lib/vendor-time";
+import { BLOCKER_LABELS,WAITING_LABELS } from "../../lib/vendor-blocker";
 export type VendorPacketDraft={vendorLabel:string;workSummary:string;sharedDetailKeys:string[];allowedPhotoIds:string[];accessPolicy:VendorAccessPolicy;accessInstruction:string};
 type PendingLinkRequest={kind:"ISSUE"|"REISSUE";assignmentId:string;input:Parameters<CoreVendorHandoffClient["issueLink"]>[1]};
 export type VendorHandoffViewProps={ticket:CoreTicketDto;handoff:ManagerVendorHandoffDto|null;loading:boolean;busy:boolean;error:string;validationError?:string;notice:string;uncertain:boolean;pendingLink?:PendingLinkRequest|null;linkUnavailable:boolean;immediateLink:string|null;preview:boolean;draft:VendorPacketDraft;photoPreviews:{photoId:string;url:string}[];onDraft:(draft:VendorPacketDraft)=>void;onPreview:()=>void;onCreate:()=>void;onPublish:()=>void;onIssue:()=>void;onReissue:()=>void;onReconcileLink?:()=>void;onRevoke:()=>void;onRefresh:()=>void;onReview:()=>void;now?:Date;rescheduleReview?:boolean;onRescheduleReview?:(open:boolean)=>void;onReschedule?:()=>void};
@@ -62,7 +63,11 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     {p.validationError?<p role="alert">{p.validationError}</p>:null}
     {p.notice?<p role="status">{p.notice}</p>:null}
     {assignment?<p>업체 {assignment.vendorLabel} · {assignment.status==="PREPARING"?"전달 준비":assignment.status==="OFFERED"?"요청 확인 대기":assignment.status==="ACTIVE"?"작업 진행":"연결 종료"}</p>:null}
-    {p.handoff?.phase==="SCHEDULING"&&assignment?.status==="ACTIVE"?<p>방문 일정 조율 중 · {p.handoff.waitingOn==="TENANT"?"세입자 응답 대기":"업체 응답 대기"}</p>:null}
+    {p.handoff?.phase==="SCHEDULING"&&assignment?.status==="ACTIVE"&&!p.handoff.activeBlocker?<p>방문 일정 조율 중 · {p.handoff.waitingOn==="TENANT"?"세입자 응답 대기":"업체 응답 대기"}</p>:null}
+    {p.handoff?.activeBlocker&&assignment?.status==="ACTIVE"?<div role="group" aria-label="업체 작업 막힘">
+      <p>업체 작업 막힘 · {BLOCKER_LABELS[p.handoff.activeBlocker.code]} · {WAITING_LABELS[p.handoff.waitingOn]}</p>
+      {p.handoff.activeBlocker.note?<p>{p.handoff.activeBlocker.note}</p>:null}
+    </div>:null}
     {appointment?<div role="group" aria-label="방문 일정">
       <p>방문 일정 · {formatVendorInterval(appointment.startAt,appointment.endAt,at)} · {appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?"세입자가 동의한 시간 안에서 업체가 선택":"세입자 확정"}</p>
       {canReschedule?(p.rescheduleReview?<div role="group" aria-label="방문 일정 변경 확인">

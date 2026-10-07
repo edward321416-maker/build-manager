@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot,type Root } from "react-dom/client";
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import { ApiClientError,type VendorJobClient } from "@build-manager/api-client";
-import type { VendorAcceptCommand,VendorDeclineCommand,VendorJobDto,VendorPreauthorizedAppointmentCommand,VendorProposalCommand,VendorRescheduleCommand,VendorWithdrawCommand } from "@build-manager/api-contracts";
+import type { VendorAcceptCommand,VendorBlockerCommand,VendorClearBlockerCommand,VendorDeclineCommand,VendorJobDto,VendorPreauthorizedAppointmentCommand,VendorProposalCommand,VendorRescheduleCommand,VendorVisitStartCommand,VendorWithdrawCommand } from "@build-manager/api-contracts";
 import { VendorJobScreen } from "./vendor-job-screen";
 
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
@@ -31,7 +31,7 @@ function active(assignmentId:string,label:string):VendorJobDto{
 }
 const network=()=>new ApiClientError("NETWORK_ERROR","API 요청을 전송하지 못했습니다.");
 const http=(status:number,code:string)=>new ApiClientError(code,"요청을 처리하지 못했습니다.",{status});
-type Overrides={[K in "redeem"|"session"|"job"|"decline"|"logout"|"accept"|"withdraw"|"proposeSlots"|"selectPreauthorizedSlot"|"reschedule"]?:(...args:Parameters<VendorJobClient[K]>)=>Promise<unknown>};
+type Overrides={[K in "redeem"|"session"|"job"|"decline"|"logout"|"accept"|"withdraw"|"proposeSlots"|"selectPreauthorizedSlot"|"reschedule"|"startVisit"|"recordBlocker"|"clearBlocker"]?:(...args:Parameters<VendorJobClient[K]>)=>Promise<unknown>};
 function fakeClient(overrides:Overrides={}){
   const redeemed=async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:job(assignmentB,"B")}) as unknown;
   return {
@@ -45,6 +45,9 @@ function fakeClient(overrides:Overrides={}){
     proposeSlots:vi.fn<(csrf:string,input:VendorProposalCommand)=>Promise<unknown>>(overrides.proposeSlots??(async()=>active(assignmentB,"B"))),
     selectPreauthorizedSlot:vi.fn<(csrf:string,input:VendorPreauthorizedAppointmentCommand)=>Promise<unknown>>(overrides.selectPreauthorizedSlot??(async()=>active(assignmentB,"B"))),
     reschedule:vi.fn<(csrf:string,input:VendorRescheduleCommand)=>Promise<unknown>>(overrides.reschedule??(async()=>active(assignmentB,"B"))),
+    startVisit:vi.fn<(csrf:string,appointmentId:string,input:VendorVisitStartCommand)=>Promise<unknown>>(overrides.startVisit??(async()=>active(assignmentB,"B"))),
+    recordBlocker:vi.fn<(csrf:string,input:VendorBlockerCommand)=>Promise<unknown>>(overrides.recordBlocker??(async()=>active(assignmentB,"B"))),
+    clearBlocker:vi.fn<(csrf:string,blockerId:string,input:VendorClearBlockerCommand)=>Promise<unknown>>(overrides.clearBlocker??(async()=>active(assignmentB,"B"))),
     sourcePhotoPath:(id:string)=>`/api/v2/vendor/job/source-photos/${id}`,
   };
 }
@@ -624,5 +627,107 @@ describe("Task6 Vendor visit scheduling",()=>{
     expect(page()).toContain("합성 업체 A");
     expect(page().includes("방문 일정 조율")).toBe(false);
     expect(page().includes("10월 10일(토)")).toBe(false);
+  });
+});
+
+describe("Task7 Vendor visit and blocker evidence",()=>{
+  const now=()=>new Date("2026-10-06T03:00:00Z");
+  const apptB="18181818-1818-4818-8818-181818181818",propB="15151515-1515-4515-8515-151515151515",blockerB="19191919-1919-4919-8919-191919191919";
+  const appointment={id:apptB,schedulingRoundId:roundB,packetRevisionId:packetB,proposalId:propB,availabilitySubmissionId:null,selectedWindowId:null,
+    startAt:"2026-10-07T05:00:00.000Z",endAt:"2026-10-07T06:00:00.000Z",confirmationMode:"TENANT_CONFIRMED" as const,status:"SCHEDULED" as const,createdAt:"2026-10-06T02:00:00.000Z"};
+  const confirmedRound={id:roundB,openedPacketRevisionId:packetB,purpose:"INITIAL" as const,status:"CONFIRMED" as const,version:3,createdAt:"2026-10-06T00:00:00.000Z"};
+  const scheduledJob=(changes:Partial<VendorJobDto>={}):VendorJobDto=>({...active(assignmentB,"B"),phase:"SCHEDULED",waitingOn:"VENDOR",currentRound:confirmedRound,appointment,...changes});
+  const visited=(changes:Partial<VendorJobDto>={})=>scheduledJob({phase:"IN_PROGRESS",assignmentVersion:5,appointment:{...appointment,status:"OCCURRED"},...changes});
+  const blocker=(code:"PARTS_REQUIRED"|"FOLLOW_UP_VISIT_REQUIRED",note:string|null=null)=>({id:blockerB,code,note,active:true,createdAt:"2026-10-06T02:30:00.000Z",clearedAt:null});
+  const opened=(value:VendorJobDto)=>vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:value}));
+  const radioLabels=()=>Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]')).map(x=>x.closest("label")?.textContent??"");
+  async function choose(label:string){
+    const input=Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]')).find(x=>x.closest("label")?.textContent?.includes(label));
+    expect(Boolean(input),label).toBe(true);await act(async()=>{input!.click();});
+  }
+  async function note(value:string){
+    const area=host.querySelector("textarea")!;
+    const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!;
+    await act(async()=>{setter.call(area,value);area.dispatchEvent(new Event("input",{bubbles:true}));});
+  }
+  it("records a visit start only after an explicit confirmation with current guards",async()=>{
+    const client=fakeClient({redeem:opened(scheduledJob()),startVisit:vi.fn(async()=>visited())});
+    await mount(client,`#${tokenB}`,now);
+    await click("방문 시작");
+    expect(client.startVisit).not.toHaveBeenCalled();
+    expect(page()).toContain("되돌릴 수 없습니다");
+    await click("방문 시작 기록");
+    const [sent,appointmentId,input]=client.startVisit.mock.calls[0];
+    expect([sent,appointmentId]).toEqual([csrf,apptB]);
+    expect(input).toMatchObject({expectedAssignmentVersion:4,expectedRoundVersion:3,expectedPacketRevisionId:packetB});
+    expect(page()).toContain("방문 작업이 진행 중입니다");
+    expect(button("방문 시작")).toBeUndefined();
+  });
+  it("records a blocker as an overlay that keeps the Appointment and offers no visit start while blocked",async()=>{
+    const client=fakeClient({redeem:opened(scheduledJob()),recordBlocker:vi.fn(async()=>scheduledJob({waitingOn:"PARTS",assignmentVersion:5,activeBlocker:blocker("PARTS_REQUIRED","합성 부품 대기")}))});
+    await mount(client,`#${tokenB}`,now);
+    await click("막힘 기록");
+    expect(radioLabels().some(label=>label.includes("추가 방문 필요"))).toBe(false);
+    await choose("부품 필요");
+    await note("합성 부품 대기");
+    await click("막힘 기록하기");
+    expect(client.recordBlocker.mock.calls[0]).toEqual([csrf,expect.objectContaining({blockerCode:"PARTS_REQUIRED",operationalNote:"합성 부품 대기",expectedAssignmentVersion:4,expectedPacketRevisionId:packetB})]);
+    expect(page()).toContain("현재 막힘");
+    expect(page()).toContain("부품 필요");
+    expect(page()).toContain("합성 부품 대기");
+    expect(page()).toContain("10월 7일(수) 오후 2:00–3:00");
+    expect(button("방문 시작")).toBeUndefined();
+    expect(button("막힘 기록")).toBeUndefined();
+  });
+  it("offers FOLLOW_UP_VISIT_REQUIRED only after a visit occurred",async()=>{
+    const client=fakeClient({redeem:opened(visited())});
+    await mount(client,`#${tokenB}`,now);
+    await click("막힘 기록");
+    expect(radioLabels().some(label=>label.includes("추가 방문 필요"))).toBe(true);
+  });
+  it("clears the exact current blocker with an optional note",async()=>{
+    const client=fakeClient({redeem:opened(visited({waitingOn:"PARTS",activeBlocker:blocker("PARTS_REQUIRED")})),clearBlocker:vi.fn(async()=>visited({assignmentVersion:6}))});
+    await mount(client,`#${tokenB}`,now);
+    await click("막힘 해제");
+    expect(client.clearBlocker).not.toHaveBeenCalled();
+    await note("합성 부품 도착");
+    await click("막힘 해제 기록");
+    expect(client.clearBlocker.mock.calls[0]).toEqual([csrf,blockerB,expect.objectContaining({operationalNote:"합성 부품 도착",expectedAssignmentVersion:5,expectedPacketRevisionId:packetB})]);
+    expect(page().includes("현재 막힘")).toBe(false);
+  });
+  it("starts follow-up scheduling from a FOLLOW_UP_VISIT_REQUIRED blocker only after stating the consequence",async()=>{
+    const followUpRound={...confirmedRound,id:"20202020-2020-4020-8020-202020202020",purpose:"FOLLOW_UP" as const,status:"OPEN" as const,version:1};
+    const client=fakeClient({redeem:opened(visited({activeBlocker:blocker("FOLLOW_UP_VISIT_REQUIRED")})),
+      clearBlocker:vi.fn(async()=>visited({phase:"SCHEDULING",waitingOn:"TENANT",assignmentVersion:6,currentRound:followUpRound}))});
+    await mount(client,`#${tokenB}`,now);
+    expect(button("막힘 해제")).toBeUndefined();
+    await click("추가 방문 일정 잡기");
+    expect(page()).toContain("추가 방문 일정 조율을 시작합니다");
+    expect(page()).toContain("이전 방문 기록은 그대로 남습니다");
+    await click("추가 방문 일정 조율 시작");
+    expect(client.clearBlocker.mock.calls[0][1]).toBe(blockerB);
+    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있습니다");
+  });
+  it("reconciles an unknown blocker outcome with the same request identity",async()=>{
+    let fail=true;
+    const client=fakeClient({redeem:opened(scheduledJob()),recordBlocker:vi.fn(async()=>{if(fail)throw network();return scheduledJob({activeBlocker:blocker("PARTS_REQUIRED")});})});
+    await mount(client,`#${tokenB}`,now);
+    await click("막힘 기록");
+    await choose("부품 필요");
+    await click("막힘 기록하기");
+    expect(page()).toContain("막힘 기록 결과를 확인하지 못했습니다");
+    fail=false;
+    await click("같은 요청으로 결과 확인");
+    const ids=client.recordBlocker.mock.calls.map(c=>c[1].clientRequestId);
+    expect(ids).toHaveLength(2);expect(ids[0]).toBe(ids[1]);
+  });
+  it("refreshes authoritative state after a stale visit-start conflict",async()=>{
+    const client=fakeClient({redeem:opened(scheduledJob()),job:vi.fn(async()=>scheduledJob({assignmentVersion:5})),startVisit:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
+    await mount(client,`#${tokenB}`,now);
+    await click("방문 시작");
+    await click("방문 시작 기록");
+    expect(client.job).toHaveBeenCalled();
+    expect(page()).toContain("최신 내용을 확인해 주세요");
+    expect(button("방문 시작")).toBeDefined();
   });
 });

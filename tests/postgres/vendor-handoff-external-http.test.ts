@@ -239,6 +239,35 @@ describe("Vendor HTTP decline and assignment scope on PostgreSQL",()=>{
     expect(proposed.status).toBe(200);
     expect(VendorJobDtoSchema.parse(await proposed.json())).toMatchObject({phase:"SCHEDULING",waitingOn:"TENANT",proposal:{slots:[{}]}});
   });
+  it("records a visit start, a blocker and its exact clear through the real HTTP boundary (Task7)",async()=>{
+    const o=await offered(),cred=(await redeem(o.token)).cred!;
+    await mutate(cred,"job/accept",{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:o.packetId});
+    const tenant=createVendorHandoffTenantPort(f.managerDatabase),digest=f.data.accounts.tenant.digest,ticketId=o.ticket.ticket.id;
+    const soon=(hours:number)=>new Date(Date.now()+hours*3_600_000).toISOString();
+    const guards=async()=>{const t=await tenant.readScheduling(digest,ticketId);return {expectedAssignmentVersion:t.assignmentVersion,expectedRoundVersion:t.currentRound!.version,expectedPacketRevisionId:o.packetId};};
+    await tenant.submitAvailability(digest,ticketId,{clientRequestId:randomUUID(),...await guards(),windows:[{startAt:soon(24),endAt:soon(28)}]});
+    const proposed=VendorJobDtoSchema.parse(await (await mutate(cred,"scheduling/proposals",{clientRequestId:randomUUID(),...await guards(),slots:[{startAt:soon(25),endAt:soon(26)}]})).json());
+    const confirmed=await tenant.confirmSlot(digest,ticketId,{clientRequestId:randomUUID(),...await guards(),proposalId:proposed.proposal!.id,selectedSlotId:proposed.proposal!.slots[0].id});
+    const appointmentId=confirmed.appointment!.id;
+    const started=await mutate(cred,`appointments/${appointmentId}/visit-start`,{clientRequestId:randomUUID(),expectedAssignmentVersion:confirmed.assignmentVersion,
+      expectedRoundVersion:confirmed.currentRound!.version,expectedPacketRevisionId:o.packetId});
+    expect(started.status).toBe(200);
+    const visited=VendorJobDtoSchema.parse(await started.json());
+    expect(visited).toMatchObject({phase:"IN_PROGRESS",appointment:{id:appointmentId,status:"OCCURRED"}});
+    const recorded=await mutate(cred,"blockers",{clientRequestId:randomUUID(),expectedAssignmentVersion:visited.assignmentVersion,expectedPacketRevisionId:o.packetId,
+      blockerCode:"PARTS_REQUIRED",operationalNote:"합성 부품 대기"});
+    expect(recorded.status).toBe(200);
+    const blocked=VendorJobDtoSchema.parse(await recorded.json());
+    expect(blocked).toMatchObject({phase:"IN_PROGRESS",waitingOn:"PARTS",activeBlocker:{code:"PARTS_REQUIRED",note:"합성 부품 대기",active:true}});
+    const clear={clientRequestId:randomUUID(),expectedAssignmentVersion:blocked.assignmentVersion,expectedPacketRevisionId:o.packetId,operationalNote:null};
+    const cleared=await mutate(cred,`blockers/${blocked.activeBlocker!.id}/clear`,clear);
+    expect(cleared.status).toBe(200);
+    const clearedJob=VendorJobDtoSchema.parse(await cleared.json());
+    expect(clearedJob).toMatchObject({activeBlocker:null,waitingOn:"VENDOR"});
+    expect(VendorJobDtoSchema.parse(await (await mutate(cred,`blockers/${blocked.activeBlocker!.id}/clear`,clear)).json())).toEqual(clearedJob);
+    expect((await f.p.admin.query("SELECT kind FROM vendor_handoff.work_event WHERE assignment_id=$1 ORDER BY created_at,id",[o.assignmentId])).rows.map(r=>r.kind))
+      .toEqual(["VISIT_STARTED","BLOCKER_RECORDED","BLOCKER_CLEARED"]);
+  });
   it("denies decline after the assignment leaves OFFERED",async()=>{
     const o=await offered(),cred=(await redeem(o.token)).cred!;
     await f.p.admin.query("UPDATE vendor_handoff.vendor_assignment SET status='ACTIVE' WHERE id=$1",[o.assignmentId]);
@@ -255,7 +284,7 @@ describe("Vendor HTTP decline and assignment scope on PostgreSQL",()=>{
     expect(withdrawn.status).toBe(200);
     expect(VendorJobDtoSchema.parse(await withdrawn.json())).toMatchObject({status:"ENDED",endReason:"WITHDRAWN"});
     expect((await read(cred)).status).toBe(401);
-    for(const path of [`appointments/${randomUUID()}/visit-start`,"blockers"])expect((await mutate(cred,path,{clientRequestId:randomUUID()})).status).toBe(404);
+    expect((await mutate(cred,"completion-reports",{clientRequestId:randomUUID()})).status).toBe(404);
   });
   it("serves only the current packet's allowlisted source photo and hides other assignment or unshared photos identically",async()=>{
     const a=await offered("manager","tenant",true),b=await offered("otherManager","otherTenant",true);

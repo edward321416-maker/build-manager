@@ -2,9 +2,10 @@
 import Image from "next/image";
 import { useCallback,useEffect,useRef,useState } from "react";
 import { ApiClientError,createVendorJobClient,type VendorJobClient } from "@build-manager/api-client";
-import { VendorDeclineCommandSchema,type VendorDeclineReason,type VendorJobDto,type VendorPreauthorizedAppointmentCommand,type VendorProposalCommand,type VendorRescheduleCommand,type VendorSharedDetailSourceType } from "@build-manager/api-contracts";
+import { VendorBlockerCommandSchema,VendorDeclineCommandSchema,type VendorBlockerCode,type VendorBlockerCommand,type VendorClearBlockerCommand,type VendorDeclineReason,type VendorJobDto,type VendorPreauthorizedAppointmentCommand,type VendorProposalCommand,type VendorRescheduleCommand,type VendorSharedDetailSourceType,type VendorVisitStartCommand } from "@build-manager/api-contracts";
 import { IntervalFields,draftsToIntervals,emptyIntervalDraft,type IntervalDraft } from "../../../components/vendor-interval-fields";
 import { formatVendorInterval,intervalWithin } from "../../../lib/vendor-time";
+import { BLOCKER_LABELS } from "../../../lib/vendor-blocker";
 import styles from "./vendor-job.module.css";
 
 const RAW=/^[A-Za-z0-9_-]{43}$/;
@@ -40,15 +41,27 @@ const STALE_NOTICE="작업 요청 내용이 바뀌었습니다. 최신 내용을
 type ScheduleSend=
   |{kind:"propose";input:VendorProposalCommand}
   |{kind:"preauthorized";input:VendorPreauthorizedAppointmentCommand}
-  |{kind:"reschedule";input:VendorRescheduleCommand};
-/** Visit-scheduling drafts plus the one sent command, owned by one assignment; an unknown outcome resends the identical command. */
-type Schedule={assignmentId:string|null;drafts:IntervalDraft[];windowId:string|null;slot:IntervalDraft;rescheduling:boolean;sent:ScheduleSend|null;status:"idle"|"submitting"|"uncertain";notice:string};
-const idleSchedule:Schedule={assignmentId:null,drafts:[emptyIntervalDraft()],windowId:null,slot:emptyIntervalDraft(),rescheduling:false,sent:null,status:"idle",notice:""};
+  |{kind:"reschedule";input:VendorRescheduleCommand}
+  |{kind:"visit";appointmentId:string;input:VendorVisitStartCommand}
+  |{kind:"record";input:VendorBlockerCommand}
+  |{kind:"clear";blockerId:string;input:VendorClearBlockerCommand};
+/**
+ * Visit-scheduling and work-evidence drafts plus the one sent command, owned by one assignment;
+ * an unknown outcome resends the identical command.
+ */
+type Schedule={assignmentId:string|null;drafts:IntervalDraft[];windowId:string|null;slot:IntervalDraft;rescheduling:boolean;
+  work:"visit"|"record"|"clear"|null;blockerCode:VendorBlockerCode|null;note:string;sent:ScheduleSend|null;status:"idle"|"submitting"|"uncertain";notice:string};
+const idleSchedule:Schedule={assignmentId:null,drafts:[emptyIntervalDraft()],windowId:null,slot:emptyIntervalDraft(),rescheduling:false,
+  work:null,blockerCode:null,note:"",sent:null,status:"idle",notice:""};
 const UNCERTAIN_SCHEDULE:Record<ScheduleSend["kind"],string>={
   propose:"제안 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
   preauthorized:"방문 확정 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
   reschedule:"일정 변경 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
+  visit:"방문 시작 기록 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
+  record:"막힘 기록 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
+  clear:"막힘 해제 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
 };
+const NOTE_INVALID="메모에 사용할 수 없는 문자가 있습니다. 내용을 고친 뒤 다시 확인해 주세요.";
 const systemNow=()=>new Date();
 
 /** A 4xx answer is authoritative; transport loss, 5xx and malformed replies leave the outcome unknown. */
@@ -213,16 +226,25 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     if(state.assignmentId!==job.assignmentId){setSchedule(idleSchedule);return;}
     setSchedule({...state,sent:send,status:"submitting",notice:""});setTaskNotice("");
     try{
-      const result=await withFreshCsrf(gen,value=>send.kind==="propose"?client.proposeSlots(value,send.input)
-        :send.kind==="preauthorized"?client.selectPreauthorizedSlot(value,send.input):client.reschedule(value,send.input));
+      const result=await withFreshCsrf(gen,value=>{
+        switch(send.kind){
+          case "propose":return client.proposeSlots(value,send.input);
+          case "preauthorized":return client.selectPreauthorizedSlot(value,send.input);
+          case "reschedule":return client.reschedule(value,send.input);
+          case "visit":return client.startVisit(value,send.appointmentId,send.input);
+          case "record":return client.recordBlocker(value,send.input);
+          case "clear":return client.clearBlocker(value,send.blockerId,send.input);
+        }
+      });
       if(gen!==generation.current)return;
       setSchedule({...idleSchedule,assignmentId:job.assignmentId});setPhase({kind:"ready",job:result});
     }catch(error){
       if(gen!==generation.current)return;
       const idle={...state,sent:null,status:"idle" as const};
-      if(statusOf(error)===409){setSchedule({...idle,rescheduling:false});setTaskNotice(STALE_NOTICE);await refresh(gen);}
+      // A stale blocker draft stays editable; visit/clear confirmations close because their target may have changed.
+      if(statusOf(error)===409){setSchedule({...idle,rescheduling:false,work:send.kind==="record"?"record":null});setTaskNotice(STALE_NOTICE);await refresh(gen);}
       else if(statusOf(error)===403){setSchedule(idle);setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
-      else if(statusOf(error)===400)setSchedule({...idle,notice:"입력한 시간을 다시 확인해 주세요. 지난 시간은 선택할 수 없습니다."});
+      else if(statusOf(error)===400)setSchedule({...idle,notice:["visit","record","clear"].includes(send.kind)?"입력한 내용을 다시 확인해 주세요.":"입력한 시간을 다시 확인해 주세요. 지난 시간은 선택할 수 없습니다."});
       else if(definitive(error)){setSchedule(idleSchedule);setPhase({kind:"unavailable"});}
       else setSchedule({...state,sent:send,status:"uncertain"});
     }
@@ -257,6 +279,31 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     if(!job.currentRound||!job.currentPacket||job.appointment?.status!=="SCHEDULED")return;
     void sendSchedule({kind:"reschedule",input:{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,expectedRoundVersion:job.currentRound.version,
       expectedAppointmentId:job.appointment.id,expectedPacketRevisionId:job.currentPacket.id}},state);
+  };
+  /** Work evidence: VISIT_STARTED for the current SCHEDULED Appointment and blocker record/clear, all append-only. */
+  const startVisit=()=>{
+    if(phase.kind!=="ready")return;
+    const job=phase.job,state=ownedSchedule(job);
+    if(!job.currentRound||!job.currentPacket||job.appointment?.status!=="SCHEDULED")return;
+    void sendSchedule({kind:"visit",appointmentId:job.appointment.id,input:{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,
+      expectedRoundVersion:job.currentRound.version,expectedPacketRevisionId:job.currentPacket.id}},state);
+  };
+  const workNote=(state:Schedule)=>{const note=state.note.trim();return VendorBlockerCommandSchema.shape.operationalNote.safeParse(note===""?null:note).success?(note===""?null:note):undefined;};
+  const recordBlocker=()=>{
+    if(phase.kind!=="ready")return;
+    const job=phase.job,state=ownedSchedule(job),note=workNote(state);
+    if(!job.currentPacket||!state.blockerCode)return;
+    if(note===undefined){setSchedule({...state,notice:NOTE_INVALID});return;}
+    void sendSchedule({kind:"record",input:{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,
+      expectedPacketRevisionId:job.currentPacket.id,blockerCode:state.blockerCode,operationalNote:note}},state);
+  };
+  const clearBlocker=()=>{
+    if(phase.kind!=="ready")return;
+    const job=phase.job,state=ownedSchedule(job),note=workNote(state);
+    if(!job.currentPacket||!job.activeBlocker)return;
+    if(note===undefined){setSchedule({...state,notice:NOTE_INVALID});return;}
+    void sendSchedule({kind:"clear",blockerId:job.activeBlocker.id,input:{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,
+      expectedPacketRevisionId:job.currentPacket.id,operationalNote:note}},state);
   };
   const startAccept=()=>{
     if(phase.kind!=="ready")return;
@@ -297,6 +344,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     onSubmitWithdraw={()=>void submitLifecycle("withdraw",lifecycle)} onLogout={()=>void logout()}
     onSchedule={change=>setSchedule(current=>({...(phase.kind==="ready"&&current.assignmentId!==phase.job.assignmentId?{...idleSchedule,assignmentId:phase.job.assignmentId}:current),...change,notice:""}))}
     onProposeSlots={proposeSlots} onSelectPreauthorized={selectPreauthorized} onReschedule={rescheduleVisit}
+    onStartVisit={startVisit} onRecordBlocker={recordBlocker} onClearBlocker={clearBlocker}
     onRetrySchedule={()=>{if(schedule.sent)void sendSchedule(schedule.sent,schedule);}}/>;
 }
 
@@ -305,6 +353,7 @@ type ViewProps={
   onRetryRedeem():void;onRetryLoad():void;onDecline(change:Partial<Decline>):void;onConfirmDecline():void;onSubmitDecline():void;
   onAccept():void;onLifecycle(change:Partial<Lifecycle>):void;onConfirmWithdraw():void;onSubmitWithdraw():void;onLogout():void;
   onSchedule(change:Partial<Schedule>):void;onProposeSlots():void;onSelectPreauthorized():void;onReschedule():void;onRetrySchedule():void;
+  onStartVisit():void;onRecordBlocker():void;onClearBlocker():void;
 };
 export function VendorJobView(props:ViewProps){
   const {phase,notice,busy,photoPath,onRetryRedeem,onRetryLoad,onLogout}=props;
@@ -414,7 +463,8 @@ function CurrentTask(props:ViewProps&{job:VendorJobDto}){
       <h3>방문 일정 조율</h3>
       <p>{schedulingStatus(job,props.now())}</p>
       {!withdrawing?<VisitScheduling {...props} schedule={schedule} submitting={submitting}/>:null}
-      {!withdrawing&&schedule.status==="idle"&&!schedule.rescheduling?<button type="button" disabled={submitting} onClick={()=>onLifecycle({...idleLifecycle,kind:"withdraw",open:true,assignmentId:job.assignmentId})}>작업 철회</button>:null}
+      {!withdrawing?<WorkEvidence {...props} schedule={schedule} submitting={submitting}/>:null}
+      {!withdrawing&&schedule.status==="idle"&&!schedule.rescheduling&&!schedule.work?<button type="button" disabled={submitting} onClick={()=>onLifecycle({...idleLifecycle,kind:"withdraw",open:true,assignmentId:job.assignmentId})}>작업 철회</button>:null}
       {withdrawing&&!lifecycle.confirming&&lifecycle.status==="idle"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onConfirmWithdraw();}}>
         <label>철회 메모 (선택, 500자 이내)
           <textarea maxLength={500} value={lifecycle.note} onChange={event=>onLifecycle({note:event.target.value})}/>
@@ -484,6 +534,49 @@ function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,
       <IntervalFields legend="세입자에게 제안할 방문 시간 (최대 5개)" drafts={schedule.drafts} disabled={submitting} onChange={drafts=>onSchedule({drafts})}/>
       <button type="submit" disabled={submitting}>방문 시간 제안하기</button>
     </form>:null}
+  </>;
+}
+
+function WorkEvidence({job,schedule,submitting,onSchedule,onStartVisit,onRecordBlocker,onClearBlocker}:ViewProps&{job:VendorJobDto;submitting:boolean}){
+  if(schedule.status==="uncertain")return null;
+  const blocker=job.activeBlocker,follow=blocker?.code==="FOLLOW_UP_VISIT_REQUIRED";
+  const appointment=job.phase==="SCHEDULED"&&job.appointment?.status==="SCHEDULED"?job.appointment:null;
+  // A follow-up visit can only be required after a visit actually occurred and nothing else is scheduled.
+  const followUpAllowed=job.appointment?.status==="OCCURRED"&&job.currentRound?.status!=="OPEN";
+  const codes=(Object.keys(BLOCKER_LABELS) as VendorBlockerCode[]).filter(code=>code!=="FOLLOW_UP_VISIT_REQUIRED"||followUpAllowed);
+  const noteField=<label>메모 (선택, 500자 이내)<textarea maxLength={500} value={schedule.note} onChange={event=>onSchedule({note:event.target.value})}/></label>;
+  return <>
+    {blocker?<div className={styles.notice} role="group" aria-labelledby="vendor-current-blocker">
+      <h3 id="vendor-current-blocker">현재 막힘</h3>
+      <p>{BLOCKER_LABELS[blocker.code]}</p>
+      {blocker.note?<p>{blocker.note}</p>:null}
+      {schedule.work==="clear"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onClearBlocker();}}>
+        {follow?<p>추가 방문 일정 조율을 시작합니다. 이 막힘은 해제된 것으로 기록되고, 이전 방문 기록은 그대로 남습니다.</p>:null}
+        {noteField}
+        <button type="submit" disabled={submitting}>{follow?"추가 방문 일정 조율 시작":"막힘 해제 기록"}</button>
+        <button type="button" disabled={submitting} onClick={()=>onSchedule({work:null})}>돌아가기</button>
+      </form>:<button type="button" disabled={submitting} onClick={()=>onSchedule({work:"clear",note:""})}>{follow?"추가 방문 일정 잡기":"막힘 해제"}</button>}
+    </div>:null}
+    {appointment&&!blocker&&!schedule.rescheduling?(schedule.work==="visit"?<div className={styles.confirm} role="group" aria-labelledby="vendor-visit-confirm">
+      <h3 id="vendor-visit-confirm">방문을 시작할까요?</h3>
+      <p>방문을 시작하면 이 방문 일정은 진행된 것으로 기록되며 되돌릴 수 없습니다.</p>
+      {appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?<p>세입자가 출입에 동의한 시간 안에서만 시작할 수 있습니다.</p>:null}
+      <button type="button" disabled={submitting} onClick={onStartVisit}>방문 시작 기록</button>
+      <button type="button" disabled={submitting} onClick={()=>onSchedule({work:null})}>돌아가기</button>
+    </div>:schedule.work===null?<button type="button" disabled={submitting} onClick={()=>onSchedule({work:"visit"})}>방문 시작</button>:null):null}
+    {!blocker&&!schedule.rescheduling?(schedule.work==="record"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onRecordBlocker();}}>
+      <fieldset>
+        <legend>막힘 사유</legend>
+        {codes.map(code=><label key={code} className={styles.choice}>
+          <input type="radio" name="vendor-blocker-code" value={code} checked={schedule.blockerCode===code} onChange={()=>onSchedule({blockerCode:code})}/>
+          <span>{BLOCKER_LABELS[code]}</span>
+        </label>)}
+      </fieldset>
+      {noteField}
+      <p>막힘은 현재 진행 상태 위에 표시되며, 방문 일정과 기록은 바뀌지 않습니다.</p>
+      <button type="submit" disabled={submitting||!schedule.blockerCode}>막힘 기록하기</button>
+      <button type="button" disabled={submitting} onClick={()=>onSchedule({work:null,blockerCode:null,note:""})}>돌아가기</button>
+    </form>:schedule.work===null?<button type="button" disabled={submitting} onClick={()=>onSchedule({work:"record",blockerCode:null,note:""})}>막힘 기록</button>:null):null}
   </>;
 }
 

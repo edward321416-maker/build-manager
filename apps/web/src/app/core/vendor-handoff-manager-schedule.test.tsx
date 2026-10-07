@@ -65,3 +65,11 @@ it("labels the dismiss action without implying cancellation and resets an open c
   expect(button("일정 변경하기")).toBeUndefined();
   expect(button("방문 일정 변경")).toBeDefined();
 });
+it("shows the Vendor's current blocker and waiting state without changing the phase (Task7)",async()=>{
+  await mount(scheduled({phase:"IN_PROGRESS",waitingOn:"PARTS",appointment:{...appointment,status:"OCCURRED"},
+    activeBlocker:{id:"blocker",code:"PARTS_REQUIRED",note:"합성 부품 대기",active:true,createdAt:"2026-10-06T02:30:00Z",clearedAt:null}}));
+  expect(page()).toContain("업체 작업 막힘 · 부품 필요");
+  expect(page()).toContain("합성 부품 대기");
+  expect(page()).toContain("부품 대기");
+  expect(button("방문 일정 변경")).toBeUndefined();
+});

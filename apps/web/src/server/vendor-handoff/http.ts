@@ -1,5 +1,5 @@
 import { VendorHandoffError,type VendorHandoffErrorCode,type VendorHandoffExternalPort } from "@build-manager/application";
-import { VendorAcceptCommandSchema,VendorDeclineCommandSchema,VendorJobDtoSchema,VendorWithdrawCommandSchema,VendorPreauthorizedAppointmentCommandSchema,VendorProposalCommandSchema,VendorRescheduleCommandSchema,VendorLogoutCommandSchema,VendorLogoutResultDtoSchema,VendorRedeemCommandSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
+import { VendorAcceptCommandSchema,VendorBlockerCommandSchema,VendorClearBlockerCommandSchema,VendorDeclineCommandSchema,VendorJobDtoSchema,VendorVisitStartCommandSchema,VendorWithdrawCommandSchema,VendorPreauthorizedAppointmentCommandSchema,VendorProposalCommandSchema,VendorRescheduleCommandSchema,VendorLogoutCommandSchema,VendorLogoutResultDtoSchema,VendorRedeemCommandSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
 import { getVendorHandoffContainer } from "./container";
 import { capabilityFromAuthorization,clearVendorSessionCookie,createVendorSecret,readVendorSessionCookie,vendorSecretDigest,vendorSessionCookie } from "./token";
 
@@ -86,8 +86,11 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
       }
       fail("NOT_FOUND");
     }
-    // Session logout, job lifecycle and scheduling commands. Visit/blocker/completion routes arrive with later tasks.
-    if(!["session/logout","job/decline","job/accept","job/withdraw","scheduling/proposals","scheduling/preauthorized-appointment","scheduling/reschedule"].includes(route))fail("NOT_FOUND");
+    // Session logout, job lifecycle, scheduling, visit and blocker commands. Completion routes arrive with Task8.
+    const visit=segments.length===3&&segments[0]==="appointments"&&segments[2]==="visit-start";
+    const clearing=segments.length===3&&segments[0]==="blockers"&&segments[2]==="clear";
+    if(!visit&&!clearing&&!["session/logout","job/decline","job/accept","job/withdraw","scheduling/proposals","scheduling/preauthorized-appointment","scheduling/reschedule","blockers"].includes(route))fail("NOT_FOUND");
+    if((visit||clearing)&&!UUID.test(segments[1]))fail("NOT_FOUND");
     const csrf=request.headers.get("x-vendor-csrf");
     if(!csrf||!/^[A-Za-z0-9_-]{43}$/.test(csrf))fail("FORBIDDEN");
     const port=deps.external(vendorSecretDigest(csrf!));
@@ -102,6 +105,9 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
     if(route==="scheduling/preauthorized-appointment")return json(project(VendorJobDtoSchema,await port.selectPreauthorizedSlot(sessionDigest,parse(VendorPreauthorizedAppointmentCommandSchema,await readBody(request)))));
     if(route==="scheduling/reschedule")return json(project(VendorJobDtoSchema,await port.reschedule(sessionDigest,parse(VendorRescheduleCommandSchema,await readBody(request)))));
     if(route==="job/withdraw")return json(project(VendorJobDtoSchema,await port.withdraw(sessionDigest,parse(VendorWithdrawCommandSchema,await readBody(request)))));
+    if(visit)return json(project(VendorJobDtoSchema,await port.startVisit(sessionDigest,segments[1],parse(VendorVisitStartCommandSchema,await readBody(request)))));
+    if(route==="blockers")return json(project(VendorJobDtoSchema,await port.recordBlocker(sessionDigest,parse(VendorBlockerCommandSchema,await readBody(request)))));
+    if(clearing)return json(project(VendorJobDtoSchema,await port.clearBlocker(sessionDigest,segments[1],parse(VendorClearBlockerCommandSchema,await readBody(request)))));
     return json(project(VendorJobDtoSchema,await port.decline(sessionDigest,parse(VendorDeclineCommandSchema,await readBody(request)))));
   }catch(error){
     const code=error instanceof VendorHandoffError?error.code:"DEPENDENCY_UNAVAILABLE";
