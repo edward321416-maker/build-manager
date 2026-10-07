@@ -354,6 +354,9 @@ function schedulingStatus(job:VendorJobDto,at:Date):string{
   if(job.proposal&&!job.proposal.slots.some(slot=>Date.parse(slot.startAt)>at.getTime()))
     return "제안한 시간이 모두 지났습니다. 세입자가 새로 가능한 시간을 보내거나, 새 방문 시간을 다시 제안할 수 있습니다.";
   if(job.waitingOn==="TENANT")return job.proposal?"제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다.":"세입자가 가능한 시간을 알려 주기를 기다리고 있습니다. 먼저 방문 시간을 제안할 수도 있습니다.";
+  const authorized=job.availability?.windows.filter(window=>job.availability!.authorizedWindowIds.includes(window.id))??[];
+  if(job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"&&!authorized.some(window=>Date.parse(window.endAt)>at.getTime()))
+    return "세입자가 동의한 시간이 모두 지났습니다. 세입자가 새로 가능한 시간을 보내기를 기다리거나, 방문 시간을 제안할 수 있습니다.";
   return job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"?"세입자가 동의한 시간 안에서 방문 시간을 정할 차례입니다.":"세입자가 가능한 시간을 알려 주었습니다. 방문 시간을 제안할 차례입니다.";
 }
 

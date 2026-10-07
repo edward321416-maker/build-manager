@@ -592,6 +592,15 @@ describe("Task6 Vendor visit scheduling",()=>{
     expect(page()).toContain("입력한 시간을 다시 확인해 주세요");
     expect(host.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe("2026-10-10");
   });
+  it("does not claim a preauthorized selection turn once every authorized window has ended (rereview residual)",async()=>{
+    const ended=vendorTurn({effectiveMode:"PREAUTHORIZED_ENTRY_WINDOW",availability:{...availability,
+      windows:[{id:w1,startAt:"2026-10-05T05:00:00.000Z",endAt:"2026-10-05T07:00:00.000Z"}],authorizedWindowIds:[w1]}});
+    const client=fakeClient({redeem:opened(ended)});
+    await mount(client,`#${tokenB}`,now);
+    expect(page()).toContain("세입자가 동의한 시간이 모두 지났습니다");
+    expect(page().includes("동의한 시간 안에서 방문 시간을 정할 차례입니다")).toBe(false);
+    expect(button("동의된 시간 안에서 방문 확정")).toBeUndefined();
+  });
   it("explains that the Vendor may propose first while the Tenant has not sent availability",async()=>{
     const client=fakeClient({redeem:opened(active(assignmentB,"B"))});
     await mount(client,`#${tokenB}`,now);

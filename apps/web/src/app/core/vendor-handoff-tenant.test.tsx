@@ -258,7 +258,8 @@ describe("Task6 review remediation (Tenant)",()=>{
     await mount(g.client);
     expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
   });
-  it("ignores a late command result from a replaced instance (revision change)",async()=>{
+  // Remount hygiene only: a revision change replaces the instance, so this does not by itself prove the generation guard.
+  it("shows no late command result from a replaced instance (revision remount hygiene)",async()=>{
     let finish!:(value:unknown)=>void;
     const f=fake(dto(),{submitAvailability:()=>new Promise(resolve=>{finish=resolve;})});
     await mount(f.client);
@@ -269,5 +270,14 @@ describe("Task6 review remediation (Tenant)",()=>{
     await act(async()=>{finish(dto({availability}));});
     await flush();
     expect(page().includes("가능한 시간을 저장했습니다")).toBe(false);
+  });
+});
+
+describe("Task6 rereview remediation (Tenant)",()=>{
+  it("words the waiting state with the Tenant's own consent, not the Vendor's (N1)",async()=>{
+    const f=fake(dto({accessPolicy:"TENANT_PREAUTHORIZATION_ALLOWED",effectiveMode:"PREAUTHORIZED_ENTRY_WINDOW",waitingOn:"VENDOR",availability:{...availability,authorizedWindowIds:[w1]}}));
+    await mount(f.client);
+    expect(page()).toContain("출입에 동의하신 시간 안에서 업체가 방문 시간을 정하거나");
+    expect(page().includes("업체가 동의한 시간")).toBe(false);
   });
 });

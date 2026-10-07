@@ -161,7 +161,7 @@ function LoadedVendorHandoffTenant({client,ticketId,now=systemNow}:Props){
     {open&&availability&&!showAvailabilityForm?<section aria-label="보낸 가능한 시간">
       <h4>보낸 가능한 시간</h4>
       <ul>{availability.windows.map(window=><li key={window.id}>{label(window.startAt,window.endAt)}{availability.authorizedWindowIds.includes(window.id)?" · 세입자 없이 출입 동의":""}</li>)}</ul>
-      {!proposal?<p>{availability.authorizedWindowIds.length?"업체가 동의한 시간 안에서 방문 시간을 정하거나, 방문 시간을 제안하기를 기다리고 있습니다.":"업체가 방문 시간을 제안하기를 기다리고 있습니다."}</p>:null}
+      {!proposal?<p>{availability.authorizedWindowIds.length?"출입에 동의하신 시간 안에서 업체가 방문 시간을 정하거나 방문 시간을 제안하기를 기다리고 있습니다.":"업체가 방문 시간을 제안하기를 기다리고 있습니다."}</p>:null}
       <button type="button" disabled={locked} onClick={()=>{setEditingAvailability(true);setConsentReview(false);}}>가능한 시간 바꾸기</button>
     </section>:null}
   </section>;
