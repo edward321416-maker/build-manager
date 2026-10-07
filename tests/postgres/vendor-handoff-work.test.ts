@@ -62,6 +62,11 @@ async function clear(c:Ctx,blockerId:string,note:string|null=null,request=random
 async function memberOf(userId:string){
   return (await f.p.admin.query("SELECT id,org_id,occupancy_id FROM app.occupancy_member WHERE user_id=$1 AND status='ACTIVE' ORDER BY joined_at,id LIMIT 1",[userId])).rows[0] as {id:string;org_id:string;occupancy_id:string};
 }
+/** Runs admin statements under an explicit organization binding, as every owner-context path must. */
+async function bound<T>(org:string,op:()=>Promise<T>):Promise<T>{
+  await f.p.admin.query("SELECT set_config('app.org_id',$1,false)",[org]);
+  try{return await op();}finally{await f.p.admin.query("RESET app.org_id");}
+}
 async function waitForTicketWait(){
   for(let attempt=0;attempt<200;attempt++){
     await f.p.admin.query("SELECT pg_stat_clear_snapshot()");
@@ -248,18 +253,84 @@ describe("append-only evidence and provenance integrity",()=>{
     const [visit]=await events(c.assignmentId);
     const blocker=(await record(other,"OTHER")).activeBlocker!;
     const orgPacket=(await f.p.admin.query("SELECT org_id FROM vendor_handoff.vendor_assignment WHERE id=$1",[c.assignmentId])).rows[0].org_id as string;
-    await expect(f.p.admin.query("INSERT INTO vendor_handoff.work_event(org_id,assignment_id,kind,packet_revision_id,clears_event_id) VALUES($1,$2,'BLOCKER_CLEARED',$3,$4)",
-      [orgPacket,c.assignmentId,c.packetId,visit.id])).rejects.toBeDefined();
-    await expect(f.p.admin.query("INSERT INTO vendor_handoff.work_event(org_id,assignment_id,kind,packet_revision_id,clears_event_id) VALUES($1,$2,'BLOCKER_CLEARED',$3,$4)",
-      [orgPacket,c.assignmentId,c.packetId,blocker.id])).rejects.toMatchObject({code:"23503"});
-    await expect(f.p.admin.query("INSERT INTO vendor_handoff.scheduling_round(org_id,assignment_id,opened_packet_revision_id,purpose,status,source_blocker_id) VALUES($1,$2,$3,'FOLLOW_UP','OPEN',$4)",
-      [orgPacket,c.assignmentId,c.packetId,blocker.id])).rejects.toMatchObject({code:"23503"});
-    await expect(f.p.admin.query("INSERT INTO vendor_handoff.scheduling_round(org_id,assignment_id,opened_packet_revision_id,purpose,status,source_blocker_id) VALUES($1,$2,$3,'FOLLOW_UP','OPEN',$4)",
-      [orgPacket,c.assignmentId,c.packetId,visit.id])).rejects.toBeDefined();
+    await bound(orgPacket,async()=>{
+      await expect(f.p.admin.query("INSERT INTO vendor_handoff.work_event(org_id,assignment_id,kind,packet_revision_id,clears_event_id) VALUES($1,$2,'BLOCKER_CLEARED',$3,$4)",
+        [orgPacket,c.assignmentId,c.packetId,visit.id])).rejects.toMatchObject({code:"23503"});
+      await expect(f.p.admin.query("INSERT INTO vendor_handoff.work_event(org_id,assignment_id,kind,packet_revision_id,clears_event_id) VALUES($1,$2,'BLOCKER_CLEARED',$3,$4)",
+        [orgPacket,c.assignmentId,c.packetId,blocker.id])).rejects.toMatchObject({code:"23503"});
+      await expect(f.p.admin.query("INSERT INTO vendor_handoff.scheduling_round(org_id,assignment_id,opened_packet_revision_id,purpose,status,source_blocker_id) VALUES($1,$2,$3,'FOLLOW_UP','OPEN',$4)",
+        [orgPacket,c.assignmentId,c.packetId,blocker.id])).rejects.toMatchObject({code:"23503"});
+      await expect(f.p.admin.query("INSERT INTO vendor_handoff.scheduling_round(org_id,assignment_id,opened_packet_revision_id,purpose,status,source_blocker_id) VALUES($1,$2,$3,'FOLLOW_UP','OPEN',$4)",
+        [orgPacket,c.assignmentId,c.packetId,visit.id])).rejects.toMatchObject({code:"23503"});
+    });
   });
   it("Withdraw keeps the visit and blocker history",async()=>{
     const c=await scheduled();await startVisit(c);await record(c,"PARTS_REQUIRED");
     await c.vendor.withdraw(c.session,{clientRequestId:randomUUID(),...await workGuards(c),operationalNote:null});
     expect((await events(c.assignmentId)).map(e=>e.kind)).toEqual(["VISIT_STARTED","BLOCKER_RECORDED"]);
+  });
+});
+
+describe("Task7 review remediation",()=>{
+  const orgOf=async(assignmentId:string)=>(await f.p.admin.query("SELECT org_id FROM vendor_handoff.vendor_assignment WHERE id=$1",[assignmentId])).rows[0].org_id as string;
+  it("keeps the blocker category out of the Tenant projection while the Vendor sees its overlay (L1)",async()=>{
+    const c=await accepted();
+    await record(c,"PARTS_REQUIRED","합성 부품 대기");
+    expect(await job(c)).toMatchObject({waitingOn:"PARTS"});
+    expect(await tenantPort.readScheduling(c.tenantDigest,c.ticketId)).toMatchObject({phase:"SCHEDULING",waitingOn:"TENANT"});
+  });
+  it("indexes work evidence by assignment (L3)",async()=>{
+    const defs=(await f.p.admin.query("SELECT indexdef FROM pg_indexes WHERE schemaname='vendor_handoff' AND tablename='work_event'")).rows.map(r=>r.indexdef as string);
+    expect(defs.some(def=>/\(assignment_id, kind, created_at DESC/.test(def))).toBe(true);
+  });
+  it("the insert guard alone keeps one current blocker for a bound direct insert (L4)",async()=>{
+    const c=await scheduled();await record(c,"OTHER");
+    const org=await orgOf(c.assignmentId);
+    await bound(org,async()=>{
+      await expect(f.p.admin.query("INSERT INTO vendor_handoff.work_event(org_id,assignment_id,kind,packet_revision_id,blocker_code) VALUES($1,$2,'BLOCKER_RECORDED',$3,'PARTS_REQUIRED')",
+        [org,c.assignmentId,c.packetId])).rejects.toMatchObject({message:"STATE_CONFLICT"});
+    });
+  });
+  it("refuses FOLLOW_UP_VISIT_REQUIRED while a round is OPEN or an Appointment is SCHEDULED (L4)",async()=>{
+    const c=await scheduled();await startVisit(c);
+    const first=(await record(c,"FOLLOW_UP_VISIT_REQUIRED")).activeBlocker!;
+    await clear(c,first.id);
+    expect(await code(record(c,"FOLLOW_UP_VISIT_REQUIRED"))).toBe("STATE_CONFLICT");
+    await confirmed(c);
+    expect(await code(record(c,"FOLLOW_UP_VISIT_REQUIRED"))).toBe("STATE_CONFLICT");
+    expect((await record(c,"OTHER")).activeBlocker).toMatchObject({code:"OTHER"});
+  });
+  it("never starts unattended entry after the authorized window ended (L4)",async()=>{
+    const c=await accepted("TENANT_PREAUTHORIZATION_ALLOWED","tenantPeer");
+    const s=await tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await tenantGuards(c),windows:[{startAt:atSeconds(2),endAt:atSeconds(5)}]});
+    const w=s.availability!.windows[0];
+    await tenantPort.authorizeEntry(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await tenantGuards(c),availabilitySubmissionId:s.availability!.id,selectedWindowIds:[w.id]});
+    const selected=await c.vendor.selectPreauthorizedSlot(c.session,{clientRequestId:randomUUID(),...await tenantGuards(c),availabilitySubmissionId:s.availability!.id,
+      selectedWindowId:w.id,startAt:atSeconds(3),endAt:atSeconds(4)});
+    await sleep(Date.parse(w.endAt)-Date.now()+300);
+    expect(await code(startVisit({...c,appointment:selected.appointment!}))).toBe("STATE_CONFLICT");
+    expect(await count("SELECT count(*)::int AS n FROM vendor_handoff.work_event WHERE assignment_id=$1",[c.assignmentId])).toBe(0);
+  });
+  it("denies every work command after the assignment ended (L4)",async()=>{
+    const c=await scheduled();
+    const blocker=(await record(c,"OTHER")).activeBlocker!;
+    const g=await visitGuards(c);
+    await c.vendor.withdraw(c.session,{clientRequestId:randomUUID(),expectedAssignmentVersion:g.expectedAssignmentVersion,expectedPacketRevisionId:g.expectedPacketRevisionId,operationalNote:null});
+    const guards={expectedAssignmentVersion:g.expectedAssignmentVersion+1,expectedPacketRevisionId:g.expectedPacketRevisionId};
+    expect(await code(c.vendor.recordBlocker(c.session,{clientRequestId:randomUUID(),...guards,blockerCode:"OTHER",operationalNote:null}))).toBe("UNAUTHENTICATED");
+    expect(await code(c.vendor.clearBlocker(c.session,blocker.id,{clientRequestId:randomUUID(),...guards,operationalNote:null}))).toBe("UNAUTHENTICATED");
+    expect(await code(c.vendor.startVisit(c.session,c.appointment.id,{clientRequestId:randomUUID(),...g,expectedAssignmentVersion:guards.expectedAssignmentVersion}))).toBe("UNAUTHENTICATED");
+  });
+  it("concurrent clear and record against the same version settle on exactly one outcome (L4)",async()=>{
+    const c=await scheduled();
+    const blocker=(await record(c,"OTHER")).activeBlocker!;
+    const g=await workGuards(c);
+    const results=await Promise.all([
+      code(c.vendor.clearBlocker(c.session,blocker.id,{clientRequestId:randomUUID(),...g,operationalNote:null})),
+      code(c.vendor.recordBlocker(c.session,{clientRequestId:randomUUID(),...g,blockerCode:"PARTS_REQUIRED",operationalNote:null})),
+    ]);
+    expect(results.filter(r=>r==="success")).toHaveLength(1);
+    const kinds=(await events(c.assignmentId)).map(e=>e.kind);
+    expect(kinds.filter(k=>k==="BLOCKER_RECORDED").length-kinds.filter(k=>k==="BLOCKER_CLEARED").length).toBeLessThanOrEqual(1);
   });
 });

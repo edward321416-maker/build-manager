@@ -50,9 +50,9 @@ type ScheduleSend=
  * an unknown outcome resends the identical command.
  */
 type Schedule={assignmentId:string|null;drafts:IntervalDraft[];windowId:string|null;slot:IntervalDraft;rescheduling:boolean;
-  work:"visit"|"record"|"clear"|null;blockerCode:VendorBlockerCode|null;note:string;sent:ScheduleSend|null;status:"idle"|"submitting"|"uncertain";notice:string};
+  work:"visit"|"record"|"clear"|null;blockerCode:VendorBlockerCode|null;followUpAck:boolean;note:string;sent:ScheduleSend|null;status:"idle"|"submitting"|"uncertain";notice:string};
 const idleSchedule:Schedule={assignmentId:null,drafts:[emptyIntervalDraft()],windowId:null,slot:emptyIntervalDraft(),rescheduling:false,
-  work:null,blockerCode:null,note:"",sent:null,status:"idle",notice:""};
+  work:null,blockerCode:null,followUpAck:false,note:"",sent:null,status:"idle",notice:""};
 const UNCERTAIN_SCHEDULE:Record<ScheduleSend["kind"],string>={
   propose:"제안 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
   preauthorized:"방문 확정 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
@@ -62,6 +62,15 @@ const UNCERTAIN_SCHEDULE:Record<ScheduleSend["kind"],string>={
   clear:"막힘 해제 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
 };
 const NOTE_INVALID="메모에 사용할 수 없는 문자가 있습니다. 내용을 고친 뒤 다시 확인해 주세요.";
+const PREAUTH_VISIT_DENIED="세입자가 출입에 동의한 시간이 아니거나 동의가 더 이상 유효하지 않아 방문을 시작할 수 없습니다. 관리자에게 문의해 주세요.";
+const VISIT_DENIED="지금은 방문을 시작할 수 없습니다. 관리자에게 문의해 주세요.";
+/** A form intent is shown only while its target still exists; stale intent never hides other actions (Task7 review L2). */
+function effectiveWork(job:VendorJobDto,schedule:Schedule):Schedule["work"]{
+  if(schedule.work==="record"&&job.activeBlocker)return null;
+  if(schedule.work==="clear"&&!job.activeBlocker)return null;
+  if(schedule.work==="visit"&&!(job.phase==="SCHEDULED"&&job.appointment?.status==="SCHEDULED"))return null;
+  return schedule.work;
+}
 const systemNow=()=>new Date();
 
 /** A 4xx answer is authoritative; transport loss, 5xx and malformed replies leave the outcome unknown. */
@@ -164,9 +173,9 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     }
   };
 
-  const refresh=async(gen:number)=>{
-    try{const job=await client.job();if(gen===generation.current)setPhase({kind:"ready",job});}
-    catch(error){if(gen===generation.current)setPhase({kind:definitive(error)?"unavailable":"loadFailed"});}
+  const refresh=async(gen:number):Promise<VendorJobDto|null>=>{
+    try{const job=await client.job();if(gen!==generation.current)return null;setPhase({kind:"ready",job});return job;}
+    catch(error){if(gen===generation.current)setPhase({kind:definitive(error)?"unavailable":"loadFailed"});return null;}
   };
   // Local input problems stay editable; they are never reported as an unknown server outcome.
   const confirmDecline=()=>{
@@ -242,7 +251,14 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
       if(gen!==generation.current)return;
       const idle={...state,sent:null,status:"idle" as const};
       // A stale blocker draft stays editable; visit/clear confirmations close because their target may have changed.
-      if(statusOf(error)===409){setSchedule({...idle,rescheduling:false,work:send.kind==="record"?"record":null});setTaskNotice(STALE_NOTICE);await refresh(gen);}
+      if(statusOf(error)===409){
+        setSchedule({...idle,rescheduling:false,work:send.kind==="record"?"record":null});
+        const fresh=await refresh(gen);
+        if(!fresh)return;
+        // Nothing changed for this visit: the server refused the start itself (e.g. outside the consented window).
+        const refused=send.kind==="visit"&&fresh.assignmentVersion===send.input.expectedAssignmentVersion&&fresh.appointment?.id===send.appointmentId&&fresh.appointment.status==="SCHEDULED";
+        setTaskNotice(refused?(fresh.appointment!.confirmationMode==="PREAUTHORIZED_ENTRY"?PREAUTH_VISIT_DENIED:VISIT_DENIED):STALE_NOTICE);
+      }
       else if(statusOf(error)===403){setSchedule(idle);setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
       else if(statusOf(error)===400)setSchedule({...idle,notice:["visit","record","clear"].includes(send.kind)?"입력한 내용을 다시 확인해 주세요.":"입력한 시간을 다시 확인해 주세요. 지난 시간은 선택할 수 없습니다."});
       else if(definitive(error)){setSchedule(idleSchedule);setPhase({kind:"unavailable"});}
@@ -292,7 +308,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
   const recordBlocker=()=>{
     if(phase.kind!=="ready")return;
     const job=phase.job,state=ownedSchedule(job),note=workNote(state);
-    if(!job.currentPacket||!state.blockerCode)return;
+    if(!job.currentPacket||!state.blockerCode||(state.blockerCode==="FOLLOW_UP_VISIT_REQUIRED"&&(!state.followUpAck||!followUpAllowed(job))))return;
     if(note===undefined){setSchedule({...state,notice:NOTE_INVALID});return;}
     void sendSchedule({kind:"record",input:{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,
       expectedPacketRevisionId:job.currentPacket.id,blockerCode:state.blockerCode,operationalNote:note}},state);
@@ -397,12 +413,19 @@ export function VendorJobView(props:ViewProps){
   </main>;
 }
 
+/** The server's scheduling turn before any blocker overlay (proposal → Tenant; preauthorized or availability → Vendor). */
+function schedulingTurn(job:VendorJobDto):"TENANT"|"VENDOR"{
+  if(job.proposal)return "TENANT";
+  return job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"||job.availability?"VENDOR":"TENANT";
+}
+/** A follow-up visit can only be required after a visit actually occurred and nothing else is scheduled. */
+function followUpAllowed(job:VendorJobDto):boolean{return job.appointment?.status==="OCCURRED"&&job.currentRound?.status!=="OPEN";}
 function schedulingStatus(job:VendorJobDto,at:Date):string{
   if(job.phase==="SCHEDULED")return "방문 일정이 확정되었습니다.";
   if(job.phase!=="SCHEDULING")return "방문 작업이 진행 중입니다.";
   if(job.proposal&&!job.proposal.slots.some(slot=>Date.parse(slot.startAt)>at.getTime()))
     return "제안한 시간이 모두 지났습니다. 세입자가 새로 가능한 시간을 보내거나, 새 방문 시간을 다시 제안할 수 있습니다.";
-  if(job.waitingOn==="TENANT")return job.proposal?"제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다.":"세입자가 가능한 시간을 알려 주기를 기다리고 있습니다. 먼저 방문 시간을 제안할 수도 있습니다.";
+  if(schedulingTurn(job)==="TENANT")return job.proposal?"제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다.":"세입자가 가능한 시간을 알려 주기를 기다리고 있습니다. 먼저 방문 시간을 제안할 수도 있습니다.";
   const authorized=job.availability?.windows.filter(window=>job.availability!.authorizedWindowIds.includes(window.id))??[];
   if(job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"&&!authorized.some(window=>Date.parse(window.endAt)>at.getTime()))
     return "세입자가 동의한 시간이 모두 지났습니다. 세입자가 새로 가능한 시간을 보내기를 기다리거나, 방문 시간을 제안할 수 있습니다.";
@@ -464,7 +487,7 @@ function CurrentTask(props:ViewProps&{job:VendorJobDto}){
       <p>{schedulingStatus(job,props.now())}</p>
       {!withdrawing?<VisitScheduling {...props} schedule={schedule} submitting={submitting}/>:null}
       {!withdrawing?<WorkEvidence {...props} schedule={schedule} submitting={submitting}/>:null}
-      {!withdrawing&&schedule.status==="idle"&&!schedule.rescheduling&&!schedule.work?<button type="button" disabled={submitting} onClick={()=>onLifecycle({...idleLifecycle,kind:"withdraw",open:true,assignmentId:job.assignmentId})}>작업 철회</button>:null}
+      {!withdrawing&&schedule.status==="idle"&&!schedule.rescheduling&&!effectiveWork(job,schedule)?<button type="button" disabled={submitting} onClick={()=>onLifecycle({...idleLifecycle,kind:"withdraw",open:true,assignmentId:job.assignmentId})}>작업 철회</button>:null}
       {withdrawing&&!lifecycle.confirming&&lifecycle.status==="idle"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onConfirmWithdraw();}}>
         <label>철회 메모 (선택, 500자 이내)
           <textarea maxLength={500} value={lifecycle.note} onChange={event=>onLifecycle({note:event.target.value})}/>
@@ -539,44 +562,47 @@ function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,
 
 function WorkEvidence({job,schedule,submitting,onSchedule,onStartVisit,onRecordBlocker,onClearBlocker}:ViewProps&{job:VendorJobDto;submitting:boolean}){
   if(schedule.status==="uncertain")return null;
-  const blocker=job.activeBlocker,follow=blocker?.code==="FOLLOW_UP_VISIT_REQUIRED";
+  const blocker=job.activeBlocker,follow=blocker?.code==="FOLLOW_UP_VISIT_REQUIRED",work=effectiveWork(job,schedule);
   const appointment=job.phase==="SCHEDULED"&&job.appointment?.status==="SCHEDULED"?job.appointment:null;
-  // A follow-up visit can only be required after a visit actually occurred and nothing else is scheduled.
-  const followUpAllowed=job.appointment?.status==="OCCURRED"&&job.currentRound?.status!=="OPEN";
-  const codes=(Object.keys(BLOCKER_LABELS) as VendorBlockerCode[]).filter(code=>code!=="FOLLOW_UP_VISIT_REQUIRED"||followUpAllowed);
+  const codes=(Object.keys(BLOCKER_LABELS) as VendorBlockerCode[]).filter(code=>code!=="FOLLOW_UP_VISIT_REQUIRED"||followUpAllowed(job));
+  const chosen=schedule.blockerCode!==null&&codes.includes(schedule.blockerCode)?schedule.blockerCode:null;
+  const followUpChosen=chosen==="FOLLOW_UP_VISIT_REQUIRED";
   const noteField=<label>메모 (선택, 500자 이내)<textarea maxLength={500} value={schedule.note} onChange={event=>onSchedule({note:event.target.value})}/></label>;
   return <>
     {blocker?<div className={styles.notice} role="group" aria-labelledby="vendor-current-blocker">
       <h3 id="vendor-current-blocker">현재 막힘</h3>
       <p>{BLOCKER_LABELS[blocker.code]}</p>
       {blocker.note?<p>{blocker.note}</p>:null}
-      {schedule.work==="clear"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onClearBlocker();}}>
+      {work==="clear"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onClearBlocker();}}>
         {follow?<p>추가 방문 일정 조율을 시작합니다. 이 막힘은 해제된 것으로 기록되고, 이전 방문 기록은 그대로 남습니다.</p>:null}
         {noteField}
         <button type="submit" disabled={submitting}>{follow?"추가 방문 일정 조율 시작":"막힘 해제 기록"}</button>
         <button type="button" disabled={submitting} onClick={()=>onSchedule({work:null})}>돌아가기</button>
       </form>:<button type="button" disabled={submitting} onClick={()=>onSchedule({work:"clear",note:""})}>{follow?"추가 방문 일정 잡기":"막힘 해제"}</button>}
     </div>:null}
-    {appointment&&!blocker&&!schedule.rescheduling?(schedule.work==="visit"?<div className={styles.confirm} role="group" aria-labelledby="vendor-visit-confirm">
+    {appointment&&!blocker&&!schedule.rescheduling?(work==="visit"?<div className={styles.confirm} role="group" aria-labelledby="vendor-visit-confirm">
       <h3 id="vendor-visit-confirm">방문을 시작할까요?</h3>
       <p>방문을 시작하면 이 방문 일정은 진행된 것으로 기록되며 되돌릴 수 없습니다.</p>
-      {appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?<p>세입자가 출입에 동의한 시간 안에서만 시작할 수 있습니다.</p>:null}
+      {appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?<p>세입자가 출입에 동의한 시간 안에서만 시작할 수 있습니다. 동의한 시간이 지나면 방문을 시작할 수 없습니다. 이 경우 관리자에게 문의해 주세요.</p>:null}
       <button type="button" disabled={submitting} onClick={onStartVisit}>방문 시작 기록</button>
       <button type="button" disabled={submitting} onClick={()=>onSchedule({work:null})}>돌아가기</button>
-    </div>:schedule.work===null?<button type="button" disabled={submitting} onClick={()=>onSchedule({work:"visit"})}>방문 시작</button>:null):null}
-    {!blocker&&!schedule.rescheduling?(schedule.work==="record"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onRecordBlocker();}}>
+    </div>:work===null?<button type="button" disabled={submitting} onClick={()=>onSchedule({work:"visit"})}>방문 시작</button>:null):null}
+    {!blocker&&!schedule.rescheduling?(work==="record"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onRecordBlocker();}}>
       <fieldset>
         <legend>막힘 사유</legend>
         {codes.map(code=><label key={code} className={styles.choice}>
-          <input type="radio" name="vendor-blocker-code" value={code} checked={schedule.blockerCode===code} onChange={()=>onSchedule({blockerCode:code})}/>
+          <input type="radio" name="vendor-blocker-code" value={code} checked={chosen===code} onChange={()=>onSchedule({blockerCode:code,followUpAck:false})}/>
           <span>{BLOCKER_LABELS[code]}</span>
         </label>)}
       </fieldset>
       {noteField}
-      <p>막힘은 현재 진행 상태 위에 표시되며, 방문 일정과 기록은 바뀌지 않습니다.</p>
-      <button type="submit" disabled={submitting||!schedule.blockerCode}>막힘 기록하기</button>
+      {followUpChosen?<div className={styles.confirm} role="group" aria-label="추가 방문 필요 확인">
+        <p>추가 방문 필요를 기록하면, 이 막힘을 해제할 때 추가 방문 일정 조율이 시작되고 추가 방문을 마치기 전에는 완료 보고를 할 수 없습니다.</p>
+        <label className={styles.choice}><input type="checkbox" checked={schedule.followUpAck} onChange={event=>onSchedule({followUpAck:event.target.checked})}/><span>추가 방문이 필요함을 확인했습니다</span></label>
+      </div>:<p>막힘은 현재 진행 상태 위에 표시되며, 방문 일정과 기록은 바뀌지 않습니다.</p>}
+      <button type="submit" disabled={submitting||!chosen||(followUpChosen&&!schedule.followUpAck)}>막힘 기록하기</button>
       <button type="button" disabled={submitting} onClick={()=>onSchedule({work:null,blockerCode:null,note:""})}>돌아가기</button>
-    </form>:schedule.work===null?<button type="button" disabled={submitting} onClick={()=>onSchedule({work:"record",blockerCode:null,note:""})}>막힘 기록</button>:null):null}
+    </form>:work===null?<button type="button" disabled={submitting} onClick={()=>onSchedule({work:"record",blockerCode:null,followUpAck:false,note:""})}>막힘 기록</button>:null):null}
   </>;
 }
 

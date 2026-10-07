@@ -151,6 +151,20 @@ describe("hostile runtime and exact catalog proofs", () => {
     });
   });
 
+  it("an owner bound to organization A cannot insert organization B work evidence, even with a permissive probe policy (Task7 review H1)", async () => {
+    const b = await f.published("otherManager", "otherTenant");
+    await owner(async client => {
+      await client.query("SELECT set_config('app.org_id',$1,true)", [f.data.orgA]);
+      await client.query("CREATE POLICY hostile_probe ON vendor_handoff.work_event TO bm_vendor_handoff_owner USING(true) WITH CHECK(true)");
+      await client.query("SAVEPOINT probe");
+      await expect(client.query("INSERT INTO vendor_handoff.work_event(org_id,assignment_id,kind,packet_revision_id,blocker_code) VALUES($1,$2,'BLOCKER_RECORDED',$3,'OTHER')",
+        [f.data.orgB, b.handoff.assignment!.id, b.handoff.currentPacket!.id])).rejects.toBeDefined();
+      await client.query("ROLLBACK TO SAVEPOINT probe");
+      expect((await client.query("SELECT current_setting('app.org_id') AS org")).rows[0].org).toBe(f.data.orgA);
+    });
+    expect((await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.work_event WHERE assignment_id=$1", [b.handoff.assignment!.id])).rows[0].n).toBe(0);
+  });
+
   it("Core context bridges return only specified fields and bind current exact Tenant occupancy", async () => {
     const p = await f.prepared();
     const context = await owner(async client => {

@@ -731,3 +731,71 @@ describe("Task7 Vendor visit and blocker evidence",()=>{
     expect(button("방문 시작")).toBeDefined();
   });
 });
+
+describe("Task7 review remediation (Vendor screen)",()=>{
+  const now=()=>new Date("2026-10-06T03:00:00Z");
+  const apptB="18181818-1818-4818-8818-181818181818",propB="15151515-1515-4515-8515-151515151515",blockerB="19191919-1919-4919-8919-191919191919";
+  const subB="12121212-1212-4212-8212-121212121212",w1="13131313-1313-4313-8313-131313131313";
+  const confirmedRound={id:roundB,openedPacketRevisionId:packetB,purpose:"INITIAL" as const,status:"CONFIRMED" as const,version:3,createdAt:"2026-10-06T00:00:00.000Z"};
+  const appointment={id:apptB,schedulingRoundId:roundB,packetRevisionId:packetB,proposalId:propB,availabilitySubmissionId:null,selectedWindowId:null,
+    startAt:"2026-10-07T05:00:00.000Z",endAt:"2026-10-07T06:00:00.000Z",confirmationMode:"TENANT_CONFIRMED" as const,status:"SCHEDULED" as const,createdAt:"2026-10-06T02:00:00.000Z"};
+  const preauthorizedAppointment={...appointment,proposalId:null,availabilitySubmissionId:subB,selectedWindowId:w1,confirmationMode:"PREAUTHORIZED_ENTRY" as const};
+  const scheduledJob=(changes:Partial<VendorJobDto>={}):VendorJobDto=>({...active(assignmentB,"B"),phase:"SCHEDULED",waitingOn:"VENDOR",currentRound:confirmedRound,appointment,...changes});
+  const visited=(changes:Partial<VendorJobDto>={})=>scheduledJob({phase:"IN_PROGRESS",assignmentVersion:5,appointment:{...appointment,status:"OCCURRED"},...changes});
+  const blocker=(code:"PARTS_REQUIRED"|"OTHER")=>({id:blockerB,code,note:null,active:true,createdAt:"2026-10-06T02:30:00.000Z",clearedAt:null});
+  const opened=(value:VendorJobDto)=>vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:value}));
+  async function choose(label:string){
+    const input=Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"],input[type="checkbox"]')).find(x=>x.closest("label")?.textContent?.includes(label));
+    expect(Boolean(input),label).toBe(true);await act(async()=>{input!.click();});
+  }
+  async function note(value:string){
+    const area=host.querySelector("textarea")!;
+    const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!;
+    await act(async()=>{setter.call(area,value);area.dispatchEvent(new Event("input",{bubbles:true}));});
+  }
+  it("keeps the scheduling turn truthful while a blocker overlays waitingOn (M1)",async()=>{
+    const client=fakeClient({redeem:opened({...active(assignmentB,"B"),waitingOn:"PARTS",activeBlocker:blocker("PARTS_REQUIRED")})});
+    await mount(client,`#${tokenB}`,now);
+    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있습니다");
+    expect(page().includes("세입자가 가능한 시간을 알려 주었습니다")).toBe(false);
+  });
+  it("explains a refused preauthorized visit start instead of claiming the request changed (M2)",async()=>{
+    const job=scheduledJob({effectiveMode:"PREAUTHORIZED_ENTRY_WINDOW",appointment:preauthorizedAppointment});
+    const client=fakeClient({redeem:opened(job),job:vi.fn(async()=>job),startVisit:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
+    await mount(client,`#${tokenB}`,now);
+    await click("방문 시작");
+    expect(page()).toContain("동의한 시간이 지나면 방문을 시작할 수 없습니다");
+    await click("방문 시작 기록");
+    expect(page()).toContain("세입자가 출입에 동의한 시간이 아니거나 동의가 더 이상 유효하지 않아");
+    expect(page().includes("작업 요청 내용이 바뀌었습니다")).toBe(false);
+  });
+  it("states the follow-up consequence and requires an explicit confirmation for FOLLOW_UP_VISIT_REQUIRED (M3)",async()=>{
+    const client=fakeClient({redeem:opened(visited())});
+    await mount(client,`#${tokenB}`,now);
+    await click("막힘 기록");
+    await choose("추가 방문 필요");
+    expect(page()).toContain("추가 방문을 마치기 전에는 완료 보고를 할 수 없습니다");
+    expect(button("막힘 기록하기")?.disabled).toBe(true);
+    await choose("추가 방문이 필요함을 확인했습니다");
+    expect(button("막힘 기록하기")?.disabled).toBe(false);
+    await choose("부품 필요");
+    expect(page().includes("추가 방문을 마치기 전에는")).toBe(false);
+    expect(button("막힘 기록하기")?.disabled).toBe(false);
+  });
+  it("keeps the blocker draft after a stale record and never hides withdraw behind invisible form state (L2)",async()=>{
+    let reads=0;
+    const client=fakeClient({redeem:opened(scheduledJob()),job:vi.fn(async()=>++reads===1?scheduledJob({assignmentVersion:5}):scheduledJob({assignmentVersion:6,activeBlocker:blocker("OTHER")})),
+      recordBlocker:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
+    await mount(client,`#${tokenB}`,now);
+    await click("막힘 기록");
+    await choose("부품 필요");
+    await note("합성 부품 대기");
+    await click("막힘 기록하기");
+    expect(page()).toContain("최신 내용을 확인해 주세요");
+    expect(host.querySelector("textarea")?.value).toBe("합성 부품 대기");
+    expect(Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]')).find(x=>x.checked)?.value).toBe("PARTS_REQUIRED");
+    await click("막힘 기록하기");
+    expect(page()).toContain("현재 막힘");
+    expect(button("작업 철회")).toBeDefined();
+  });
+});

@@ -30,6 +30,7 @@ CREATE TABLE vendor_handoff.work_event (
 -- One VISIT_STARTED per Appointment; one clear per blocker.
 CREATE UNIQUE INDEX work_event_one_visit ON vendor_handoff.work_event(appointment_id) WHERE kind='VISIT_STARTED';
 CREATE UNIQUE INDEX work_event_one_clear ON vendor_handoff.work_event(clears_event_id) WHERE kind='BLOCKER_CLEARED';
+CREATE INDEX work_event_assignment ON vendor_handoff.work_event(assignment_id,kind,created_at DESC);
 
 -- FOLLOW_UP provenance: a blocker-driven round references a BLOCKER_RECORDED event of the same assignment.
 ALTER TABLE vendor_handoff.scheduling_round
@@ -59,10 +60,11 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
 $$;
 
 -- Defense in depth for direct inserts: serialize per assignment and keep at most one current blocker.
+-- The lookup runs under the caller's organization binding (never rebound from the row), so a row for another
+-- organization finds no assignment and is refused before RLS WITH CHECK.
 CREATE FUNCTION vendor_handoff.work_event_guard() RETURNS trigger
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 BEGIN
-  PERFORM set_config('app.org_id',NEW.org_id::text,true);
   PERFORM 1 FROM vendor_handoff.vendor_assignment WHERE id=NEW.assignment_id AND org_id=NEW.org_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='INVALID_PROVENANCE'; END IF;
   IF NEW.kind='BLOCKER_RECORDED' AND (vendor_handoff.active_blocker(NEW.assignment_id)).id IS NOT NULL
@@ -101,6 +103,19 @@ BEGIN
     END IF;
   END IF;
   RETURN sched;
+END $$;
+
+-- Tenant projection: scheduling turn only; no blocker category, Vendor note or report state.
+CREATE OR REPLACE FUNCTION vendor_handoff.tenant_projection(p_assignment uuid) RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE a vendor_handoff.vendor_assignment;sched jsonb;
+BEGIN
+  SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=p_assignment;
+  sched:=vendor_handoff.scheduling_base_projection(a.id);
+  RETURN jsonb_build_object('ticketId',a.ticket_id,'assignmentVersion',a.version,'packetRevisionId',sched->'packetRevisionId',
+    'effectiveMode',CASE WHEN jsonb_typeof(sched->'effectiveMode')='string' THEN sched->'effectiveMode' ELSE '"RESIDENT_CONFIRMATION_REQUIRED"'::jsonb END,'phase',sched->>'phase','waitingOn',sched->>'waitingOn',
+    'currentRound',sched->'currentRound','appointment',sched->'appointment','accessPolicy',sched->'accessPolicy',
+    'availability',sched->'availability','proposal',sched->'proposal');
 END $$;
 
 CREATE OR REPLACE FUNCTION vendor_handoff.job_projection(p_assignment uuid) RETURNS jsonb
