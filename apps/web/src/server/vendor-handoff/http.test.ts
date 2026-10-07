@@ -372,6 +372,8 @@ describe("Task8 completion photo and report routes",()=>{
     expect((await send(deps,png,"image/png",{...input,unitId:randomUUID()} as never)).status).toBe(400);
     expect((await send(deps,png,"image/png",input,{"x-vendor-upload-command":"{not json"})).status).toBe(400);
     expect((await send(deps,png,"image/png",{...command(),expectedCorrectionRequestId:undefined} as never)).status).toBe(400);
+    // Identity and command problems are refused before any port call, including the session preflight.
+    expect(calls).toEqual([]);
     const noCsrf=await call(deps,"job/completion-photos",{method:"POST",headers:{...authed,origin,"content-type":"image/png","x-upload-id":input.clientRequestId,"x-vendor-upload-command":JSON.stringify(input)},raw:png});
     expect(noCsrf.status).toBe(403);
     expect((await send(deps,png,"image/svg+xml",command())).status).toBe(415);
@@ -380,7 +382,15 @@ describe("Task8 completion photo and report routes",()=>{
     expect((await send(deps,Buffer.alloc(5*1024*1024+1),"image/png",command())).status).toBe(413);
     const huge=await sharp({create:{width:4500,height:4500,channels:3,background:"white"}}).png().toBuffer();
     expect((await send(deps,huge,"image/png",command())).status).toBe(413);
-    expect(calls).toEqual([]);
+    // Image problems are refused after the read-only session preflight and before any persistence.
+    expect(calls.filter(c=>c.method!=="session")).toEqual([]);
+  });
+  it("validates the Vendor session before reading or decoding any image (review M1)",async()=>{
+    const h=harness({session:async()=>{throw new VendorHandoffError("UNAUTHENTICATED");}} as unknown as Partial<VendorHandoffExternalPort>);
+    const oversized=Buffer.alloc(5*1024*1024+1);
+    const response=await send(h.deps,oversized,"image/png",command());
+    expect(response.status).toBe(401);
+    expect(h.calls.map(c=>c.method)).toEqual(["session"]);
   });
   it("serves only the session's own completion photo bytes and hides malformed or unknown ids",async()=>{
     const bytes=new Uint8Array([255,216,255,0]);

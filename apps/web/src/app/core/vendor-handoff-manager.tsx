@@ -76,15 +76,15 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
         <button type="button" disabled={p.busy} onClick={()=>p.onRescheduleReview?.(false)}>돌아가기</button>
       </div>:<button type="button" disabled={blocked} onClick={()=>p.onRescheduleReview?.(true)}>방문 일정 변경</button>):null}
     </div>:null}
-    {p.handoff?.currentReport?<section className={styles.preview} aria-label="업체 완료 보고">
-      <h3>업체 완료 보고 · {p.handoff.currentReport.revision}차</h3>
+    {p.handoff?.currentReport?<section className={styles.preview} aria-label="업체 작업 보고">
+      <h3>업체 작업 보고 · {p.handoff.currentReport.revision}차</h3>
       <p>{formatVendorInstant(p.handoff.currentReport.submittedAt,at)} 제출{p.handoff.phase==="COMPLETION_REPORTED"?" · 관리자 확인 대기":""}</p>
       <p>{p.handoff.currentReport.workSummary}</p>
       {p.handoff.currentReport.componentOrPartNote?<p>사용한 부품·자재: {p.handoff.currentReport.componentOrPartNote}</p>:null}
-      {p.handoff.currentReport.photoOmissionReason?<p>완료 사진 없음 · {OMISSION_LABELS[p.handoff.currentReport.photoOmissionReason]}</p>
+      {p.handoff.currentReport.photoOmissionReason?<p>보고 사진 없음 · {OMISSION_LABELS[p.handoff.currentReport.photoOmissionReason]}</p>
         :p.handoff.currentReport.completionPhotoIds.map((id,index)=>{const photo=p.reportPhotos?.find(item=>item.photoId===id);
-          return <figure key={id}>{photo?<Image unoptimized src={photo.url} width={640} height={480} style={{width:"100%",height:"auto"}} alt={`업체 완료 사진 ${index+1}`}/>:<p>사진 불러오는 중 또는 연결 확인 필요</p>}</figure>;})}
-      {p.handoff.reportHistory.length>1?<p>완료 보고 이력 {p.handoff.reportHistory.length}건</p>:null}
+          return <figure key={id}>{photo?<Image unoptimized src={photo.url} width={640} height={480} style={{width:"100%",height:"auto"}} alt={`업체 보고 사진 ${index+1}`}/>:<p>사진 불러오는 중 또는 연결 확인 필요</p>}</figure>;})}
+      {p.handoff.reportHistory.length>1?<p>작업 보고 이력 {p.handoff.reportHistory.length}건</p>:null}
     </section>:null}
     {p.uncertain?<p role="alert">저장 결과를 확정하지 못했습니다. 최신 상태를 먼저 확인하세요. 같은 화면 값만으로 성공을 확정하지 않습니다.</p>:null}
     {p.linkUnavailable?<p role="status">원래 링크는 다시 표시할 수 없습니다. 최신 상태에서 허용되는 경우 보안 링크를 재발급해 직접 전달하세요.</p>:null}
@@ -118,7 +118,7 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     {eligible&&packet&&assignment?.status==="PREPARING"&&!p.linkUnavailable?<button type="button" disabled={blocked} onClick={p.onIssue}>보안 링크 발급</button>:null}
     {canReissue&&!p.pendingLink?<button type="button" disabled={p.busy||p.loading||Boolean(p.error)} onClick={p.onReissue}>보안 링크 재발급</button>:null}
     {p.immediateLink?<div className={styles.link}><label>직접 전달할 보안 링크<input aria-label="직접 전달할 보안 링크" readOnly value={p.immediateLink}/></label><p>이 화면의 링크를 복사해 업체에 직접 전달하세요. 새로고침하거나 다른 접수로 이동하면 다시 표시할 수 없습니다.</p></div>:null}
-    {active?<button type="button" disabled={blocked} onClick={p.onRevoke}>업체 접근 철회</button>:null}
+    {active&&p.handoff?.phase!=="COMPLETION_REPORTED"?<button type="button" disabled={blocked} onClick={p.onRevoke}>업체 접근 철회</button>:null}
   </section>;
 }
 

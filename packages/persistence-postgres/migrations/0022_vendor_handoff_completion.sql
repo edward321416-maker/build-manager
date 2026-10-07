@@ -290,9 +290,11 @@ BEGIN
   IF a.status='ENDED' THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
   SELECT * INTO p FROM vendor_handoff.work_packet_revision WHERE org_id=a.org_id AND assignment_id=a.id ORDER BY revision DESC LIMIT 1;
   appt:=vendor_handoff.current_visit(a.id,p_appointment);
-  -- Task8 opens only the initial context: no correction request, no report yet (an earlier report closed it).
+  -- Task8 opens only the initial context: no correction request, no report yet (an earlier report closed it), and no
+  -- OPEN round (a pending FOLLOW_UP visit makes the previous visit's context obsolete; review L1).
   IF a.status<>'ACTIVE' OR a.version<>p_expected_assignment OR p.id IS DISTINCT FROM p_expected_packet OR appt.id IS NULL
     OR p_correction IS NOT NULL OR EXISTS(SELECT 1 FROM vendor_handoff.completion_report WHERE org_id=a.org_id AND assignment_id=a.id)
+    OR EXISTS(SELECT 1 FROM vendor_handoff.scheduling_round WHERE org_id=a.org_id AND assignment_id=a.id AND status='OPEN')
   THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='STATE_CONFLICT'; END IF;
   IF (SELECT count(*) FROM vendor_handoff.completion_photo WHERE org_id=a.org_id AND assignment_id=a.id AND appointment_id=appt.id
       AND correction_request_id IS NULL)>=10
@@ -307,7 +309,8 @@ END $$;
 
 -- Initial Completion Report: requires the current OCCURRED visit, no current blocker, no OPEN round, the current packet,
 -- no earlier report, and 1-5 PENDING photos of the exact initial context XOR one approved omission reason.
--- Selected photos become ATTACHED; the rest of that context becomes UNATTACHED_RETAINED and the context closes.
+-- Selected photos become ATTACHED; every other staged initial-context photo of the assignment (including earlier visits)
+-- becomes UNATTACHED_RETAINED, so no initial staging remains open after the report (review L1).
 CREATE FUNCTION vendor_handoff.submit_completion_report(p_session_digest bytea,p_csrf_digest bytea,p_request uuid,
   p_expected_assignment bigint,p_expected_packet uuid,p_appointment uuid,p_correction uuid,p_supersedes uuid,
   p_summary text,p_note text,p_photo_ids uuid[],p_omission text) RETURNS jsonb
@@ -345,7 +348,7 @@ BEGIN
     completion_photo_ids,photo_omission_reason) VALUES(a.org_id,a.id,appt.id,p.id,1,summary,note,p_photo_ids,p_omission) RETURNING * INTO r;
   UPDATE vendor_handoff.completion_photo SET disposition='ATTACHED' WHERE org_id=a.org_id AND assignment_id=a.id AND id=ANY(p_photo_ids);
   UPDATE vendor_handoff.completion_photo SET disposition='UNATTACHED_RETAINED'
-    WHERE org_id=a.org_id AND assignment_id=a.id AND appointment_id=appt.id AND correction_request_id IS NULL AND disposition='PENDING';
+    WHERE org_id=a.org_id AND assignment_id=a.id AND correction_request_id IS NULL AND disposition='PENDING';
   UPDATE vendor_handoff.vendor_assignment SET version=version+1 WHERE id=a.id;
   result:=vendor_handoff.report_dto(r);
   INSERT INTO vendor_handoff.command_receipt(org_id,assignment_id,actor_scope,actor_id,request_key,fingerprint,result)
@@ -353,7 +356,7 @@ BEGIN
   RETURN result;
 END $$;
 
--- Vendor own-photo read: any of the current session's own completion photos (staging preview/reconciliation only).
+-- Vendor own-photo read: any completion photo of the session's assignment (staging preview/reconciliation only; review L6).
 CREATE FUNCTION vendor_handoff.read_completion_photo(p_session_digest bytea,p_photo uuid)
 RETURNS TABLE(metadata jsonb,content bytea)
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$

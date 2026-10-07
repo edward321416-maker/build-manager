@@ -85,6 +85,6 @@ it("loads only the report's selected photos through the Manager completion-photo
   await act(async()=>{root!.render(<VendorHandoffManager client={client} ticket={ticket} revision={0} now={now} onHandoff={()=>{}} onChanged={()=>{}}/>);});
   await act(async()=>{for(let i=0;i<12;i++)await Promise.resolve();});
   expect(vendorCompletionPhoto.mock.calls).toEqual([["ticket","photo-1"]]);
-  expect(host.querySelector('img[alt="업체 완료 사진 1"]')?.getAttribute("src")).toBe("blob:synthetic-report");
+  expect(host.querySelector('img[alt="업체 보고 사진 1"]')?.getAttribute("src")).toBe("blob:synthetic-report");
   }finally{URL.createObjectURL=original.create;URL.revokeObjectURL=original.revoke;}
 });

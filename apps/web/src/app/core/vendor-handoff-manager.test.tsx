@@ -92,12 +92,14 @@ const reported=(changes:Partial<VendorCompletionReportDto>={}):ManagerVendorHand
   phase:"COMPLETION_REPORTED",waitingOn:"MANAGER",currentReport:{...report,...changes},reportHistory:[{...report,...changes}]});
 it("shows the Vendor completion report with only its selected photos while awaiting the Manager (Task8)",()=>{
   const html=view({handoff:reported(),reportPhotos:[{photoId:"photo-1",url:"blob:synthetic-report"}],now:new Date("2026-10-07T06:00:00Z")});
-  for(const text of ["업체 완료 보고 · 1차","10월 7일(수) 오후 2:00 제출","관리자 확인 대기","합성 배관 교체","사용한 부품·자재: 합성 밸브"])expect(html).toContain(text);
-  expect(html).toContain('alt="업체 완료 사진 1"');
-  expect(html.includes("수리 완료")).toBe(false);
+  for(const text of ["업체 작업 보고 · 1차","10월 7일(수) 오후 2:00 제출","관리자 확인 대기","합성 배관 교체","사용한 부품·자재: 합성 밸브"])expect(html).toContain(text);
+  expect(html).toContain('alt="업체 보고 사진 1"');
+  for(const phrase of ["업체 완료","수리 완료","완료 보고"])expect(html.includes(phrase),phrase).toBe(false);
+  // D9 §19.19: no competing Manager mutation while the report awaits its disposition.
+  expect(html.includes("업체 접근 철회")).toBe(false);
 });
 it("shows an approved omission reason instead of photos (Task8)",()=>{
   const html=view({handoff:reported({completionPhotoIds:[],photoOmissionReason:"SAFETY_OR_PRIVACY"}),now:new Date("2026-10-07T06:00:00Z")});
-  expect(html).toContain("완료 사진 없음 · 안전·사생활 보호");
-  expect(html.includes("업체 완료 사진 1")).toBe(false);
+  expect(html).toContain("보고 사진 없음 · 안전·사생활 보호");
+  expect(html.includes("업체 보고 사진 1")).toBe(false);
 });

@@ -63,11 +63,18 @@ const UNCERTAIN_SCHEDULE:Record<ScheduleSend["kind"],string>={
 };
 const NOTE_INVALID="메모에 사용할 수 없는 문자가 있습니다. 내용을 고친 뒤 다시 확인해 주세요.";
 /** Initial completion report draft, photo staging and the one sent command, owned by one assignment. */
-type Completion={assignmentId:string|null;uploads:{photoId:string;selected:boolean}[];pending:{file:Blob;input:VendorCompletionPhotoUploadCommand}|null;
-  uploadStatus:"idle"|"uploading"|"uncertain";omission:VendorPhotoOmissionReason|null;summary:string;note:string;ack:boolean;confirming:boolean;
-  sent:VendorCompletionReportCommand|null;status:"idle"|"submitting"|"uncertain";notice:string};
-const idleCompletion:Completion={assignmentId:null,uploads:[],pending:null,uploadStatus:"idle",omission:null,summary:"",note:"",ack:false,confirming:false,
-  sent:null,status:"idle",notice:""};
+type Completion={assignmentId:string|null;appointmentId:string|null;uploads:{photoId:string;selected:boolean}[];pending:{file:Blob;input:VendorCompletionPhotoUploadCommand}|null;
+  uploadStatus:"idle"|"uploading"|"uncertain";omission:VendorPhotoOmissionReason|null;summary:string;note:string;
+  /** The exact packet revision the Vendor acknowledged; a republished packet needs a fresh acknowledgment (review M3). */
+  ackPacketId:string|null;confirming:boolean;sent:VendorCompletionReportCommand|null;status:"idle"|"submitting"|"uncertain";notice:string};
+const idleCompletion:Completion={assignmentId:null,appointmentId:null,uploads:[],pending:null,uploadStatus:"idle",omission:null,summary:"",note:"",ackPacketId:null,
+  confirming:false,sent:null,status:"idle",notice:""};
+const VISIT_PHOTO_LIMIT=10;
+/** Staged photos and the report draft belong to exactly one assignment and visit (review L2). */
+const ownsCompletion=(job:VendorJobDto,state:Completion)=>state.assignmentId===job.assignmentId&&state.appointmentId===(job.appointment?.id??null);
+const freshCompletion=(job:VendorJobDto):Completion=>({...idleCompletion,assignmentId:job.assignmentId,appointmentId:job.appointment?.id??null});
+const VISIT_LIMIT="사진은 한 방문에 10장까지 올릴 수 있습니다. 남은 장수만큼만 올렸습니다.";
+const VISIT_FULL="이 방문에는 사진을 더 올릴 수 없습니다. 사진은 한 방문에 10장까지 올릴 수 있습니다.";
 const PHOTO_REJECTED="사진을 확인해 주세요. JPEG 또는 PNG, 5MB 이하만 올릴 수 있습니다.";
 const PREAUTH_VISIT_DENIED="세입자가 출입에 동의한 시간이 아니거나 동의가 더 이상 유효하지 않아 방문을 시작할 수 없습니다. 관리자에게 문의해 주세요.";
 const VISIT_DENIED="지금은 방문을 시작할 수 없습니다. 관리자에게 문의해 주세요.";
@@ -330,7 +337,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
       expectedPacketRevisionId:job.currentPacket.id,operationalNote:note}},state);
   };
   /** Completion evidence: one upload at a time; an unknown outcome resends the identical file and command. */
-  const ownedCompletion=(job:VendorJobDto,state:Completion=completion)=>state.assignmentId===job.assignmentId?state:{...idleCompletion,assignmentId:job.assignmentId};
+  const ownedCompletion=(job:VendorJobDto,state:Completion=completion)=>ownsCompletion(job,state)?state:freshCompletion(job);
   const uploadOne=async(file:Blob,input:VendorCompletionPhotoUploadCommand,gen:number):Promise<boolean>=>{
     setCompletion(current=>({...current,uploadStatus:"uploading",notice:""}));setTaskNotice("");
     try{
@@ -342,7 +349,15 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     }catch(error){
       if(gen!==generation.current)return false;
       const idle={pending:null,uploadStatus:"idle" as const};
-      if(statusOf(error)===409){setCompletion(current=>({...current,...idle}));setTaskNotice(STALE_NOTICE);await refresh(gen);}
+      if(statusOf(error)===409){
+        setCompletion(current=>({...current,...idle}));
+        const fresh=await refresh(gen);
+        if(!fresh)return false;
+        // Nothing changed for this visit: the per-visit capacity is used up, not a stale request (review L3).
+        const full=fresh.assignmentVersion===input.expectedAssignmentVersion&&fresh.appointment?.id===input.expectedAppointmentId
+          &&fresh.appointment.status==="OCCURRED"&&!fresh.currentReport;
+        if(full)setCompletion(current=>({...current,notice:VISIT_FULL}));else setTaskNotice(STALE_NOTICE);
+      }
       else if(statusOf(error)===403){setCompletion(current=>({...current,...idle}));setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
       else if(statusOf(error)===401){setCompletion(idleCompletion);setPhase({kind:"unavailable"});}
       else if(definitive(error))setCompletion(current=>({...current,...idle,notice:PHOTO_REJECTED}));
@@ -354,12 +369,16 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     if(phase.kind!=="ready"||!csrf.current)return;
     const job=phase.job,gen=generation.current;
     if(!job.currentPacket||job.appointment?.status!=="OCCURRED")return;
-    setCompletion(current=>ownedCompletion(job,current));
-    for(const file of files){
+    const owned=ownedCompletion(job,completion);
+    const remaining=Math.max(0,VISIT_PHOTO_LIMIT-owned.uploads.length),chosen=files.slice(0,remaining);
+    setCompletion(owned);
+    let completed=true;
+    for(const file of chosen){
       const input={clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,expectedPacketRevisionId:job.currentPacket.id,
         expectedAppointmentId:job.appointment.id,expectedCorrectionRequestId:null};
-      if(!await uploadOne(file,input,gen))break;
+      if(!await uploadOne(file,input,gen)){completed=false;break;}
     }
+    if(completed&&chosen.length<files.length&&gen===generation.current)setCompletion(current=>({...current,notice:VISIT_LIMIT}));
   };
   const retryUpload=()=>{if(completion.pending)void uploadOne(completion.pending.file,completion.pending.input,generation.current);};
   const sendReport=async(input:VendorCompletionReportCommand,state:Completion)=>{
@@ -375,7 +394,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     }catch(error){
       if(gen!==generation.current)return;
       const idle={...state,sent:null,status:"idle" as const,confirming:false};
-      if(statusOf(error)===409){setCompletion({...idle,ack:false});setTaskNotice(STALE_NOTICE);await refresh(gen);}
+      if(statusOf(error)===409){setCompletion({...idle,ackPacketId:null});setTaskNotice(STALE_NOTICE);await refresh(gen);}
       else if(statusOf(error)===403){setCompletion(idle);setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
       else if(statusOf(error)===400)setCompletion({...idle,notice:"입력한 내용을 다시 확인해 주세요."});
       else if(definitive(error)){setCompletion(idleCompletion);setPhase({kind:"unavailable"});}
@@ -385,7 +404,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
   const submitReport=()=>{
     if(phase.kind!=="ready")return;
     const job=phase.job,state=ownedCompletion(job);
-    if(!job.currentPacket||job.appointment?.status!=="OCCURRED"||!state.ack)return;
+    if(!job.currentPacket||job.appointment?.status!=="OCCURRED"||state.ackPacketId!==job.currentPacket.id)return;
     const note=state.note.trim();
     const parsed=VendorCompletionReportCommandSchema.safeParse({clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,
       expectedPacketRevisionId:job.currentPacket.id,expectedAppointmentId:job.appointment.id,expectedCorrectionRequestId:null,supersedesReportId:null,
@@ -435,7 +454,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     onProposeSlots={proposeSlots} onSelectPreauthorized={selectPreauthorized} onReschedule={rescheduleVisit}
     onStartVisit={startVisit} onRecordBlocker={recordBlocker} onClearBlocker={clearBlocker}
     completion={completion} completionPhotoPath={client.completionPhotoPath}
-    onCompletion={change=>setCompletion(current=>({...(phase.kind==="ready"&&current.assignmentId!==phase.job.assignmentId?{...idleCompletion,assignmentId:phase.job.assignmentId}:current),...change,notice:""}))}
+    onCompletion={change=>setCompletion(current=>({...(phase.kind==="ready"&&!ownsCompletion(phase.job,current)?freshCompletion(phase.job):current),...change,notice:""}))}
     onPickPhotos={files=>void pickPhotos(files)} onRetryUpload={retryUpload} onSubmitReport={submitReport}
     onRetryReport={()=>{if(completion.sent)void sendReport(completion.sent,completion);}}
     onRetrySchedule={()=>{if(schedule.sent)void sendSchedule(schedule.sent,schedule);}}/>;
@@ -677,7 +696,7 @@ function WorkEvidence({job,schedule,submitting,onSchedule,onStartVisit,onRecordB
       </fieldset>
       {noteField}
       {followUpChosen?<div className={styles.confirm} role="group" aria-label="추가 방문 필요 확인">
-        <p>추가 방문 필요를 기록하면, 이 막힘을 해제할 때 추가 방문 일정 조율이 시작되고 추가 방문을 마치기 전에는 완료 보고를 할 수 없습니다.</p>
+        <p>추가 방문 필요를 기록하면, 이 막힘을 해제할 때 추가 방문 일정 조율이 시작되고 추가 방문을 마치기 전에는 작업 보고를 할 수 없습니다.</p>
         <label className={styles.choice}><input type="checkbox" checked={schedule.followUpAck} onChange={event=>onSchedule({followUpAck:event.target.checked})}/><span>추가 방문이 필요함을 확인했습니다</span></label>
       </div>:<p>막힘은 현재 진행 상태 위에 표시되며, 방문 일정과 기록은 바뀌지 않습니다.</p>}
       <button type="submit" disabled={submitting||!chosen||(followUpChosen&&!schedule.followUpAck)}>막힘 기록하기</button>
@@ -690,35 +709,36 @@ function WorkEvidence({job,schedule,submitting,onSchedule,onStartVisit,onRecordB
 function ReportedView({job}:{job:VendorJobDto}){
   const report=job.currentReport;
   return <div role="group" aria-labelledby="vendor-reported">
-    <h3 id="vendor-reported">완료 보고를 제출했습니다</h3>
+    <h3 id="vendor-reported">작업 보고를 제출했습니다</h3>
     <p>관리자가 확인하고 있습니다. 확인이 끝날 때까지 보고 내용을 바꿀 수 없습니다.</p>
     {report?<dl className={styles.facts}>
       <dt>작업 내용 요약</dt><dd>{report.workSummary}</dd>
       {report.componentOrPartNote?<><dt>사용한 부품·자재</dt><dd>{report.componentOrPartNote}</dd></>:null}
-      <dt>완료 사진</dt><dd>{report.photoOmissionReason?`사진 없음 · ${OMISSION_LABELS[report.photoOmissionReason]}`:`${report.completionPhotoIds.length}장`}</dd>
+      <dt>작업 사진</dt><dd>{report.photoOmissionReason?`사진 없음 · ${OMISSION_LABELS[report.photoOmissionReason]}`:`${report.completionPhotoIds.length}장`}</dd>
     </dl>:null}
   </div>;
 }
 
 /** Initial completion report: only after the latest visit occurred, with no current blocker, no OPEN round and no report yet. */
 function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,onPickPhotos,onRetryUpload,onSubmitReport,onRetryReport}:ViewProps&{job:VendorJobDto}){
-  const completion=held.assignmentId!==null&&held.assignmentId!==job.assignmentId?idleCompletion:held;
+  const completion=ownsCompletion(job,held)?held:idleCompletion;
   if(job.phase!=="IN_PROGRESS"||job.appointment?.status!=="OCCURRED"||job.activeBlocker||job.currentRound?.status==="OPEN"||job.currentReport||!job.currentPacket)return null;
   const selected=completion.uploads.filter(item=>item.selected).length;
   const busy=completion.uploadStatus==="uploading"||completion.status==="submitting";
-  const ready=completion.ack&&completion.summary.trim().length>0&&((selected>=1&&selected<=5)!==(completion.omission!==null));
-  if(completion.status==="uncertain"&&completion.sent)return <div className={styles.confirm} role="group" aria-label="완료 보고 결과 확인">
-    <p role="alert">완료 보고 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.</p>
+  const acknowledged=completion.ackPacketId===job.currentPacket.id;
+  const ready=acknowledged&&completion.summary.trim().length>0&&((selected>=1&&selected<=5)!==(completion.omission!==null));
+  if(completion.status==="uncertain"&&completion.sent)return <div className={styles.confirm} role="group" aria-label="작업 보고 결과 확인">
+    <p role="alert">작업 보고 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.</p>
     <button type="button" onClick={onRetryReport}>같은 요청으로 결과 확인</button>
   </div>;
   return <form className={styles.form} aria-labelledby="vendor-completion" onSubmit={event=>{event.preventDefault();onCompletion({confirming:true});}}>
-    <h3 id="vendor-completion">완료 보고</h3>
-    <p>완료 보고는 맡은 작업을 마쳤다는 업체의 보고입니다. 관리자가 확인한 뒤 처리가 마무리됩니다.</p>
+    <h3 id="vendor-completion">작업 보고</h3>
+    <p>작업 보고는 맡은 작업을 마쳤다는 업체의 보고입니다. 관리자가 내용을 확인합니다.</p>
     {completion.notice?<p role="alert">{completion.notice}</p>:null}
     <fieldset disabled={busy}>
-      <legend>완료 사진 (선택, 최대 5장 포함)</legend>
+      <legend>작업 사진 (선택, 최대 5장 포함)</legend>
       <label>사진 올리기 (JPEG 또는 PNG)
-        <input type="file" accept="image/jpeg,image/png" multiple disabled={completion.uploads.length>=10||completion.uploadStatus!=="idle"}
+        <input type="file" accept="image/jpeg,image/png" multiple disabled={completion.uploads.length>=VISIT_PHOTO_LIMIT||completion.uploadStatus!=="idle"}
           onChange={event=>{const files=Array.from(event.target.files??[]);event.target.value="";if(files.length)onPickPhotos(files);}}/>
       </label>
       {completion.uploadStatus==="uncertain"?<div role="group" aria-label="사진 업로드 결과 확인">
@@ -726,9 +746,9 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
         <button type="button" onClick={onRetryUpload}>같은 요청으로 사진 업로드 다시 확인</button>
       </div>:null}
       {completion.uploads.map((item,index)=><div key={item.photoId}>
-        <Image unoptimized src={completionPhotoPath(item.photoId)} width={320} height={240} alt={`업로드한 완료 사진 ${index+1}`}/>
+        <Image unoptimized src={completionPhotoPath(item.photoId)} width={320} height={240} alt={`업로드한 작업 사진 ${index+1}`}/>
         <label className={styles.choice}><input type="checkbox" checked={item.selected} disabled={!item.selected&&(selected>=5||completion.omission!==null)}
-          onChange={event=>onCompletion({uploads:completion.uploads.map(other=>other.photoId===item.photoId?{...other,selected:event.target.checked}:other)})}/><span>완료 사진 {index+1} 보고에 포함</span></label>
+          onChange={event=>onCompletion({uploads:completion.uploads.map(other=>other.photoId===item.photoId?{...other,selected:event.target.checked}:other)})}/><span>작업 사진 {index+1} 보고에 포함</span></label>
       </div>)}
     </fieldset>
     <fieldset disabled={busy||selected>0}>
@@ -744,14 +764,14 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
     <label>사용한 부품·자재 (선택, 500자 이내)
       <textarea aria-label="사용한 부품·자재" maxLength={500} value={completion.note} disabled={busy} onChange={event=>onCompletion({note:event.target.value})}/>
     </label>
-    <label className={styles.choice}><input type="checkbox" checked={completion.ack} disabled={busy} onChange={event=>onCompletion({ack:event.target.checked})}/>
+    <label className={styles.choice}><input type="checkbox" checked={acknowledged} disabled={busy} onChange={event=>onCompletion({ackPacketId:event.target.checked?job.currentPacket!.id:null})}/>
       <span>현재 작업 요청 내용({job.currentPacket.revision}번째 게시본)을 확인했습니다</span></label>
     {completion.confirming?<div className={styles.confirm} role="group" aria-labelledby="vendor-completion-confirm">
-      <h3 id="vendor-completion-confirm">완료 보고를 제출할까요?</h3>
-      <p>완료 보고를 제출하면 관리자가 확인할 때까지 수정할 수 없습니다.</p>
-      <button type="button" disabled={busy||!ready} onClick={onSubmitReport}>완료 보고 제출하기</button>
+      <h3 id="vendor-completion-confirm">작업 보고를 제출할까요?</h3>
+      <p>작업 보고를 제출하면 관리자가 확인할 때까지 수정할 수 없습니다.</p>
+      <button type="button" disabled={busy||!ready} onClick={onSubmitReport}>작업 보고 제출하기</button>
       <button type="button" disabled={busy} onClick={()=>onCompletion({confirming:false})}>돌아가기</button>
-    </div>:<button type="submit" disabled={busy||!ready}>완료 보고 제출</button>}
+    </div>:<button type="submit" disabled={busy||!ready}>작업 보고 제출</button>}
   </form>;
 }
 

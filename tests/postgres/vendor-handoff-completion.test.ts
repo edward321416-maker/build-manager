@@ -267,6 +267,55 @@ describe("append-only evidence and final FOLLOW_UP provenance",()=>{
   });
 });
 
+describe("Task8 review remediation",()=>{
+  async function followUpOpen(c:Visited){
+    const j=await job(c);
+    const blocker=(await c.vendor.recordBlocker(c.session,{clientRequestId:randomUUID(),expectedAssignmentVersion:j.assignmentVersion,expectedPacketRevisionId:j.currentPacket!.id,
+      blockerCode:"FOLLOW_UP_VISIT_REQUIRED",operationalNote:null})).activeBlocker!;
+    const k=await job(c);
+    await c.vendor.clearBlocker(c.session,blocker.id,{clientRequestId:randomUUID(),expectedAssignmentVersion:k.assignmentVersion,expectedPacketRevisionId:k.currentPacket!.id,operationalNote:null});
+  }
+  it("refuses uploads while a FOLLOW_UP round is OPEN and retires every staged photo of the assignment on report (L1)",async()=>{
+    const c=await visited();
+    const early=await upload(c);
+    await followUpOpen(c);
+    expect(await code(upload(c))).toBe("STATE_CONFLICT");
+    const second=await confirmed(c);
+    const s2=await job(c);
+    await c.vendor.startVisit(c.session,second.id,{clientRequestId:randomUUID(),expectedAssignmentVersion:s2.assignmentVersion,expectedRoundVersion:s2.currentRound!.version,expectedPacketRevisionId:s2.currentPacket!.id});
+    const latest={...c,appointmentId:second.id};
+    const kept=await upload(latest);
+    await report(latest,{completionPhotoIds:[kept.photoId]});
+    expect(await photos(c.assignmentId)).toEqual([{id:early.photoId,disposition:"UNATTACHED_RETAINED"},{id:kept.photoId,disposition:"ATTACHED"}]);
+  });
+  it("lets exactly one of two concurrent uploads take the tenth slot (L5)",async()=>{
+    const c=await visited();
+    for(let i=0;i<9;i++)await upload(c);
+    const results=await Promise.all([code(upload(c)),code(upload(c))]);
+    expect(results.sort()).toEqual(["STATE_CONFLICT","success"]);
+    expect(await count("SELECT count(*)::int AS n FROM vendor_handoff.completion_photo WHERE assignment_id=$1",[c.assignmentId])).toBe(10);
+  });
+  it("lets exactly one of two concurrent reports become current (L5)",async()=>{
+    const c=await visited();
+    const results=await Promise.all([code(report(c,{photoOmissionReason:"NOT_APPLICABLE"})),code(report(c,{photoOmissionReason:"TECHNICAL_FAILURE"}))]);
+    expect(results.sort()).toEqual(["STATE_CONFLICT","success"]);
+    expect(await count("SELECT count(*)::int AS n FROM vendor_handoff.completion_report WHERE assignment_id=$1",[c.assignmentId])).toBe(1);
+  });
+  it("never leaves an upload that raced a report staged after the report committed (L5)",async()=>{
+    const c=await visited();const first=await upload(c);
+    const [uploaded,reported]=await Promise.all([code(upload(c)),code(report(c,{completionPhotoIds:[first.photoId]}))]);
+    expect(reported).toBe("success");
+    expect(["success","STATE_CONFLICT"]).toContain(uploaded);
+    expect((await photos(c.assignmentId)).filter(p=>p.disposition==="PENDING")).toEqual([]);
+  });
+  it("hides another assignment's completion photo from the Vendor own read (L5)",async()=>{
+    const c=await visited();const other=await visited();
+    const foreign=await upload(other);
+    await expect(c.vendor.readCompletionPhoto(c.session,foreign.photoId)).rejects.toMatchObject({code:"NOT_FOUND"});
+    expect((await other.vendor.readCompletionPhoto(other.session,foreign.photoId)).photo.photoId).toBe(foreign.photoId);
+  });
+});
+
 async function waitForTicketWait(){
   for(let attempt=0;attempt<200;attempt++){
     await f.p.admin.query("SELECT pg_stat_clear_snapshot()");

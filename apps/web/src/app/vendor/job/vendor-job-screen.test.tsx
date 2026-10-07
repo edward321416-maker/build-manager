@@ -777,7 +777,7 @@ describe("Task7 review remediation (Vendor screen)",()=>{
     await mount(client,`#${tokenB}`,now);
     await click("막힘 기록");
     await choose("추가 방문 필요");
-    expect(page()).toContain("추가 방문을 마치기 전에는 완료 보고를 할 수 없습니다");
+    expect(page()).toContain("추가 방문을 마치기 전에는 작업 보고를 할 수 없습니다");
     expect(button("막힘 기록하기")?.disabled).toBe(true);
     await choose("추가 방문이 필요함을 확인했습니다");
     expect(button("막힘 기록하기")?.disabled).toBe(false);
@@ -843,18 +843,18 @@ describe("Task8 Vendor completion report",()=>{
     expect(uploads[0][0]).toBe(csrf);
     expect(uploads[0][1]).toMatchObject({expectedAssignmentVersion:5,expectedPacketRevisionId:packetB,expectedAppointmentId:apptB,expectedCorrectionRequestId:null});
     expect(uploads[0][1].clientRequestId).not.toBe(uploads[1][1].clientRequestId);
-    expect(host.querySelectorAll('img[alt^="업로드한 완료 사진"]')).toHaveLength(2);
-    await toggle("완료 사진 1");
+    expect(host.querySelectorAll('img[alt^="업로드한 작업 사진"]')).toHaveLength(2);
+    await toggle("작업 사진 1");
     await summary("합성 배관 교체");
-    expect(button("완료 보고 제출")?.disabled).toBe(true);
+    expect(button("작업 보고 제출")?.disabled).toBe(true);
     await toggle("1번째 게시본");
-    await click("완료 보고 제출");
+    await click("작업 보고 제출");
     expect(client.submitCompletionReport).not.toHaveBeenCalled();
     expect(page()).toContain("관리자가 확인할 때까지 수정할 수 없습니다");
-    await click("완료 보고 제출하기");
+    await click("작업 보고 제출하기");
     expect(client.submitCompletionReport.mock.calls[0]).toEqual([csrf,expect.objectContaining({expectedAssignmentVersion:5,expectedPacketRevisionId:packetB,expectedAppointmentId:apptB,
       expectedCorrectionRequestId:null,supersedesReportId:null,workSummary:"합성 배관 교체",componentOrPartNote:null,completionPhotoIds:[photo1],photoOmissionReason:null})]);
-    expect(page()).toContain("완료 보고를 제출했습니다");
+    expect(page()).toContain("작업 보고를 제출했습니다");
     for(const label of ["막힘 기록","작업 철회","방문 시작"])expect(button(label),label).toBeUndefined();
   });
   it("reports with one approved omission reason instead of photos",async()=>{
@@ -863,8 +863,8 @@ describe("Task8 Vendor completion report",()=>{
     await toggle("안전·사생활 보호");
     await summary("합성 배관 교체");
     await toggle("1번째 게시본");
-    await click("완료 보고 제출");
-    await click("완료 보고 제출하기");
+    await click("작업 보고 제출");
+    await click("작업 보고 제출하기");
     expect(client.submitCompletionReport.mock.calls[0][1]).toMatchObject({completionPhotoIds:[],photoOmissionReason:"SAFETY_OR_PRIVACY"});
   });
   it("needs either a selected photo or an omission reason, a summary and the packet acknowledgment",async()=>{
@@ -872,9 +872,9 @@ describe("Task8 Vendor completion report",()=>{
     await mount(client,`#${tokenB}`,now);
     await summary("합성 배관 교체");
     await toggle("1번째 게시본");
-    expect(button("완료 보고 제출")?.disabled).toBe(true);
+    expect(button("작업 보고 제출")?.disabled).toBe(true);
     await toggle("사진이 필요 없는 작업");
-    expect(button("완료 보고 제출")?.disabled).toBe(false);
+    expect(button("작업 보고 제출")?.disabled).toBe(false);
   });
   it("reconciles an unknown upload outcome with the same request identity and the same file",async()=>{
     let fail=true;
@@ -889,20 +889,126 @@ describe("Task8 Vendor completion report",()=>{
     expect(calls).toHaveLength(2);
     expect(calls[1][1].clientRequestId).toBe(calls[0][1].clientRequestId);
     expect(calls[1][2]).toBe(picked);
-    expect(host.querySelectorAll('img[alt^="업로드한 완료 사진"]')).toHaveLength(1);
+    expect(host.querySelectorAll('img[alt^="업로드한 작업 사진"]')).toHaveLength(1);
   });
   it("shows COMPLETION_REPORTED read-only without scheduling, visit, blocker or withdraw actions",async()=>{
     const client=fakeClient({redeem:opened(reported())});
     await mount(client,`#${tokenB}`,now);
-    expect(page()).toContain("완료 보고를 제출했습니다");
+    expect(page()).toContain("작업 보고를 제출했습니다");
     expect(page()).toContain("합성 배관 교체");
     expect(host.querySelector('input[type="file"]')).toBeNull();
-    for(const label of ["막힘 기록","작업 철회","방문 시작","방문 시간 제안하기","완료 보고 제출"])expect(button(label),label).toBeUndefined();
+    for(const label of ["막힘 기록","작업 철회","방문 시작","방문 시간 제안하기","작업 보고 제출"])expect(button(label),label).toBeUndefined();
   });
   it("offers no completion report while a blocker or an OPEN round exists",async()=>{
     const blocked=fakeClient({redeem:opened(visited({activeBlocker:{id:"24242424-2424-4424-8424-242424242424",code:"OTHER",note:null,active:true,createdAt:"2026-10-06T02:30:00.000Z",clearedAt:null}}))});
     await mount(blocked,`#${tokenB}`,now);
     expect(host.querySelector('input[type="file"]')).toBeNull();
-    expect(button("완료 보고 제출")).toBeUndefined();
+    expect(button("작업 보고 제출")).toBeUndefined();
+  });
+});
+
+describe("Task8 review remediation (Vendor screen)",()=>{
+  const now=()=>new Date("2026-10-06T03:00:00Z");
+  const apptB="18181818-1818-4818-8818-181818181818",apptC="26262626-2626-4626-8626-262626262626",propB="15151515-1515-4515-8515-151515151515";
+  const packetC="27272727-2727-4727-8727-272727272727";
+  const photo1="21212121-2121-4121-8121-212121212121";
+  const confirmedRound={id:roundB,openedPacketRevisionId:packetB,purpose:"INITIAL" as const,status:"CONFIRMED" as const,version:3,createdAt:"2026-10-06T00:00:00.000Z"};
+  const occurred={id:apptB,schedulingRoundId:roundB,packetRevisionId:packetB,proposalId:propB,availabilitySubmissionId:null,selectedWindowId:null,
+    startAt:"2026-10-07T05:00:00.000Z",endAt:"2026-10-07T06:00:00.000Z",confirmationMode:"TENANT_CONFIRMED" as const,status:"OCCURRED" as const,createdAt:"2026-10-06T02:00:00.000Z"};
+  const visited=(changes:Partial<VendorJobDto>={}):VendorJobDto=>({...active(assignmentB,"B"),phase:"IN_PROGRESS",waitingOn:"VENDOR",assignmentVersion:5,currentRound:confirmedRound,appointment:occurred,...changes});
+  const republished=()=>visited({assignmentVersion:6,currentPacket:{...visited().currentPacket!,id:packetC,revision:2}});
+  const opened=(value:VendorJobDto)=>vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:value}));
+  const file=(name:string)=>new File([new Uint8Array([137,80,78,71])],name,{type:"image/png"});
+  const photoDto=(id:string)=>({photoId:id,mime:"image/png",byteSize:3,width:1,height:1,createdAt:"2026-10-06T03:00:00.000Z"});
+  async function pick(files:File[]){
+    const input=host.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input,"files",{value:files,configurable:true});
+    await act(async()=>{input.dispatchEvent(new Event("change",{bubbles:true}));});
+    await flush();
+  }
+  async function toggle(label:string){
+    const input=Array.from(host.querySelectorAll<HTMLInputElement>('input[type="checkbox"],input[type="radio"]')).find(x=>x.closest("label")?.textContent?.includes(label));
+    expect(Boolean(input),label).toBe(true);await act(async()=>{input!.click();});
+  }
+  async function summary(value:string){
+    const area=host.querySelector<HTMLTextAreaElement>('textarea[aria-label="작업 내용 요약"]')!;
+    const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!;
+    await act(async()=>{setter.call(area,value);area.dispatchEvent(new Event("input",{bubbles:true}));});
+  }
+  const ackBox=()=>Array.from(host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')).find(x=>x.closest("label")?.textContent?.includes("번째 게시본"));
+  it("ties the packet acknowledgment to the exact packet revision across a refresh (M3)",async()=>{
+    let n=0;
+    const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>republished()),
+      uploadCompletionPhoto:vi.fn(async()=>{if(n++===0)throw http(409,"STATE_CONFLICT");return photoDto(photo1);})});
+    await mount(client,`#${tokenB}`,now);
+    await toggle("사진이 필요 없는 작업");
+    await summary("합성 배관 교체");
+    await toggle("1번째 게시본");
+    expect(ackBox()?.checked).toBe(true);
+    await pick([file("a.png")]);
+    expect(page()).toContain("2번째 게시본");
+    expect(ackBox()?.checked).toBe(false);
+    expect(button("작업 보고 제출")?.disabled).toBe(true);
+    await toggle("2번째 게시본");
+    expect(button("작업 보고 제출")?.disabled).toBe(false);
+  });
+  it("keeps staged photos with the visit they were uploaded for (L2)",async()=>{
+    const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>visited({assignmentVersion:8,appointment:{...occurred,id:apptC}})),
+      uploadCompletionPhoto:vi.fn(async()=>photoDto(photo1)),submitCompletionReport:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
+    await mount(client,`#${tokenB}`,now);
+    await pick([file("a.png")]);
+    expect(host.querySelectorAll('img[alt^="업로드한 작업 사진"]')).toHaveLength(1);
+    await toggle("작업 사진 1");
+    await summary("합성 배관 교체");
+    await toggle("1번째 게시본");
+    await click("작업 보고 제출");
+    await click("작업 보고 제출하기");
+    expect(host.querySelectorAll('img[alt^="업로드한 작업 사진"]')).toHaveLength(0);
+  });
+  it("uploads only the remaining per-visit capacity and explains a full visit (L3)",async()=>{
+    let n=0;
+    const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>visited()),
+      uploadCompletionPhoto:vi.fn(async()=>{n++;if(n>10)throw http(409,"STATE_CONFLICT");return photoDto(`21212121-2121-4121-8121-${String(n).padStart(12,"0")}`);})});
+    await mount(client,`#${tokenB}`,now);
+    await pick(Array.from({length:12},(_,i)=>file(`p${i}.png`)));
+    expect(client.uploadCompletionPhoto).toHaveBeenCalledTimes(10);
+    expect(page()).toContain("사진은 한 방문에 10장까지 올릴 수 있습니다");
+    await act(async()=>root?.unmount());root=undefined;host.remove();
+    const full=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>visited()),uploadCompletionPhoto:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
+    await mount(full,`#${tokenB}`,now);
+    await pick([file("a.png")]);
+    expect(page()).toContain("이 방문에는 사진을 더 올릴 수 없습니다");
+    expect(page().includes("작업 요청 내용이 바뀌었습니다")).toBe(false);
+  });
+  it("uses the preferred work-report terms without overstating what follows (L4)",async()=>{
+    const client=fakeClient({redeem:opened(visited())});
+    await mount(client,`#${tokenB}`,now);
+    expect(page()).toContain("작업 보고");
+    for(const phrase of ["완료 보고","처리가 마무리됩니다","업체 완료","수리 완료"])expect(page().includes(phrase),phrase).toBe(false);
+  });
+  it("reconciles an unknown report outcome with the same request identity (L5)",async()=>{
+    let fail=true;
+    const report={id:"22222222-3333-4444-8555-666666666666",assignmentId:assignmentB,appointmentId:apptB,packetRevisionId:packetB,revision:1,supersedesReportId:null,
+      workSummary:"합성 배관 교체",componentOrPartNote:null,completionPhotoIds:[] as string[],photoOmissionReason:"NOT_APPLICABLE" as const,submittedAt:"2026-10-06T04:00:00.000Z"};
+    const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>visited({phase:"COMPLETION_REPORTED",waitingOn:"MANAGER",assignmentVersion:6,currentReport:report})),
+      submitCompletionReport:vi.fn(async()=>{if(fail)throw network();return report;})});
+    await mount(client,`#${tokenB}`,now);
+    await toggle("사진이 필요 없는 작업");
+    await summary("합성 배관 교체");
+    await toggle("1번째 게시본");
+    await click("작업 보고 제출");
+    await click("작업 보고 제출하기");
+    expect(page()).toContain("작업 보고 결과를 확인하지 못했습니다");
+    fail=false;
+    await click("같은 요청으로 결과 확인");
+    const ids=client.submitCompletionReport.mock.calls.map(c=>c[1].clientRequestId);
+    expect(ids).toHaveLength(2);expect(ids[0]).toBe(ids[1]);
+    expect(page()).toContain("작업 보고를 제출했습니다");
+  });
+  it("offers no work report while a FOLLOW_UP round is OPEN (L5)",async()=>{
+    const client=fakeClient({redeem:opened(visited({phase:"SCHEDULING",waitingOn:"TENANT",currentRound:{...confirmedRound,purpose:"FOLLOW_UP",status:"OPEN",version:1}}))});
+    await mount(client,`#${tokenB}`,now);
+    expect(host.querySelector('input[type="file"]')).toBeNull();
+    expect(button("작업 보고 제출")).toBeUndefined();
   });
 });

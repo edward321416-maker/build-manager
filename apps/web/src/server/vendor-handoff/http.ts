@@ -118,8 +118,10 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
     if(visit)return json(project(VendorJobDtoSchema,await port.startVisit(sessionDigest,segments[1],parse(VendorVisitStartCommandSchema,await readBody(request)))));
     if(route==="blockers")return json(project(VendorJobDtoSchema,await port.recordBlocker(sessionDigest,parse(VendorBlockerCommandSchema,await readBody(request)))));
     if(route==="job/completion-photos"){
-      // Identity and command are checked before the image body is read; sanitized bytes alone reach persistence.
+      // Identity, command and a read-only live-session check precede reading or decoding the image body (review M1);
+      // the durable transaction rechecks everything under the source-ticket lock. Sanitized bytes alone reach persistence.
       const input=readVendorUploadCommand(request);
+      await port.session(sessionDigest);
       const sanitized=await sanitizeVendorPhoto(request);
       return json(project(VendorCompletionPhotoDtoSchema,await port.uploadCompletionPhoto(sessionDigest,input,sanitized)));
     }
