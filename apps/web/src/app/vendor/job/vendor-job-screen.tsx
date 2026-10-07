@@ -274,7 +274,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     if(!csrf.current)return;
     const gen=generation.current;
     const id=logoutId.current??crypto.randomUUID();logoutId.current=id;setBusy(true);setNotice("");
-    const done=()=>{csrf.current=null;logoutId.current=null;setPhase({kind:"loggedOut"});};
+    const done=()=>{generation.current+=1;csrf.current=null;logoutId.current=null;setPhase({kind:"loggedOut"});};
     try{
       await withFreshCsrf(gen,value=>client.logout(value,{clientRequestId:id}));
       if(gen===generation.current)done();
@@ -348,10 +348,12 @@ export function VendorJobView(props:ViewProps){
   </main>;
 }
 
-function schedulingStatus(job:VendorJobDto):string{
+function schedulingStatus(job:VendorJobDto,at:Date):string{
   if(job.phase==="SCHEDULED")return "방문 일정이 확정되었습니다.";
   if(job.phase!=="SCHEDULING")return "방문 작업이 진행 중입니다.";
-  if(job.waitingOn==="TENANT")return job.proposal?"제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다.":"세입자가 가능한 시간을 알려 주기를 기다리고 있습니다.";
+  if(job.proposal&&!job.proposal.slots.some(slot=>Date.parse(slot.startAt)>at.getTime()))
+    return "제안한 시간이 모두 지났습니다. 세입자가 새로 가능한 시간을 보내거나, 새 방문 시간을 다시 제안할 수 있습니다.";
+  if(job.waitingOn==="TENANT")return job.proposal?"제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다.":"세입자가 가능한 시간을 알려 주기를 기다리고 있습니다. 먼저 방문 시간을 제안할 수도 있습니다.";
   return job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"?"세입자가 동의한 시간 안에서 방문 시간을 정할 차례입니다.":"세입자가 가능한 시간을 알려 주었습니다. 방문 시간을 제안할 차례입니다.";
 }
 
@@ -407,7 +409,7 @@ function CurrentTask(props:ViewProps&{job:VendorJobDto}){
       </div>:null}
     </>:active?<>
       <h3>방문 일정 조율</h3>
-      <p>{schedulingStatus(job)}</p>
+      <p>{schedulingStatus(job,props.now())}</p>
       {!withdrawing?<VisitScheduling {...props} schedule={schedule} submitting={submitting}/>:null}
       {!withdrawing&&schedule.status==="idle"&&!schedule.rescheduling?<button type="button" disabled={submitting} onClick={()=>onLifecycle({...idleLifecycle,kind:"withdraw",open:true,assignmentId:job.assignmentId})}>작업 철회</button>:null}
       {withdrawing&&!lifecycle.confirming&&lifecycle.status==="idle"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onConfirmWithdraw();}}>
@@ -440,7 +442,6 @@ function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,
   const windows=availability?.windows.filter(item=>future(item.endAt))??[];
   const authorized=job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"?windows.filter(item=>availability!.authorizedWindowIds.includes(item.id)):[];
   const liveSlots=open?job.proposal?.slots.filter(slot=>future(slot.startAt))??[]:[];
-  const expired=open&&Boolean(job.proposal)&&liveSlots.length===0;
   if(schedule.status==="uncertain"&&schedule.sent)return <div className={styles.confirm} role="group" aria-label="방문 일정 결과 확인">
     <p role="alert">{UNCERTAIN_SCHEDULE[schedule.sent.kind]}</p>
     <button type="button" onClick={onRetrySchedule}>같은 요청으로 결과 확인</button>
@@ -476,7 +477,6 @@ function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,
       <h3>제안한 방문 시간</h3>
       <ul>{liveSlots.map(slot=><li key={slot.id}>{label(slot.startAt,slot.endAt)}</li>)}</ul>
     </div>:null}
-    {expired?<p>제안한 시간이 모두 지났습니다. 새 방문 시간을 제안해 주세요.</p>:null}
     {open&&!liveSlots.length?<form className={styles.form} onSubmit={event=>{event.preventDefault();onProposeSlots();}}>
       <IntervalFields legend="세입자에게 제안할 방문 시간 (최대 5개)" drafts={schedule.drafts} disabled={submitting} onChange={drafts=>onSchedule({drafts})}/>
       <button type="submit" disabled={submitting}>방문 시간 제안하기</button>

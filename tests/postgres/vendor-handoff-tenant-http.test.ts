@@ -4,7 +4,7 @@ import { createPostgresDatabase } from "@build-manager/persistence-postgres";
 import { createCoreAccessPort,createCoreFlowPort } from "@build-manager/persistence-postgres/core-flow";
 import { createVendorHandoffManagerPort,createVendorHandoffTenantPort } from "@build-manager/persistence-postgres/vendor-handoff";
 import type { VendorHandoffTenantPort } from "@build-manager/application";
-import type { ManagerVendorHandoffDto,TenantVendorSchedulingDto } from "@build-manager/api-contracts";
+import type { ManagerVendorHandoffDto,TenantVendorSchedulingDto,VendorAccessPolicy } from "@build-manager/api-contracts";
 import { handleCoreFlow } from "../../apps/web/src/server/core-flow/http";
 import type { CoreHTTPDependencies } from "../../apps/web/src/server/core-flow/container";
 import { createVendorHandoffFixture } from "./helpers/vendor-handoff-fixture";
@@ -32,10 +32,10 @@ function call(d:CoreHTTPDependencies,org:string,path:string,body?:unknown){
     headers:{Origin:origin,"X-Core-Organization":org,"X-B1-CSRF":"synthetic-proof","Content-Type":"application/json"},...(body===undefined?{}:{body:JSON.stringify(body)})}),path.split("/"),()=>d);
 }
 /** An ACTIVE orgB assignment for the orgB Tenant's ticket, accepted through the real Vendor boundary. */
-async function acceptedInB(){
+async function acceptedInB(policy:VendorAccessPolicy="TENANT_PRESENT_REQUIRED"){
   // B1 selection persists the session's current organization (frozen 0013); fixture ticket creation follows it, so select orgB first.
   await createCoreAccessPort(f.managerDatabase).inOrganization(f.data.orgB).run(f.data.accounts.otherTenant.digest,async()=>undefined);
-  const p=await f.published("otherManager","otherTenant");
+  const p=await f.published("otherManager","otherTenant",{accessPolicy:policy});
   const assignmentId=p.handoff.assignment!.id,packetId=p.handoff.currentPacket!.id;
   const link=await f.manager.issueLink(f.data.accounts.otherManager.digest,assignmentId,{clientRequestId:randomUUID(),expectedAssignmentVersion:2,expectedPacketRevisionId:packetId});
   const session=hash("session"),csrf=hash("csrf"),vendor=f.externalWith(csrf);
@@ -92,6 +92,28 @@ it("refuses Tenant scheduling routes to a Manager session",async()=>{
   try{
     const c=await acceptedInB();
     expect((await call(dependencies(database,"otherManager"),f.data.orgB,c.path)).status).toBe(403);
+  }finally{await database.close();}
+});
+it("authorizes selected-window entry and reschedules through the real Core HTTP boundary (Task6 review L6)",async()=>{
+  const database=createPostgresDatabase({...f.roles.b1.webConfig,max:3});
+  try{
+    const c=await acceptedInB("TENANT_PREAUTHORIZATION_ALLOWED");
+    const tenant=dependencies(database,"otherTenant");
+    const read=await (await call(tenant,f.data.orgB,c.path)).json() as TenantVendorSchedulingDto;
+    const submitted=await (await call(tenant,f.data.orgB,`${c.path}/availability`,{clientRequestId:randomUUID(),...guards(read),windows:[{startAt:at(24),endAt:at(28)}]})).json() as TenantVendorSchedulingDto;
+    const w=submitted.availability!.windows[0];
+    const authorized=await call(tenant,f.data.orgB,`${c.path}/entry-authorization`,{clientRequestId:randomUUID(),...guards(submitted),
+      availabilitySubmissionId:submitted.availability!.id,selectedWindowIds:[w.id]});
+    expect(authorized.status).toBe(200);
+    const consented=await authorized.json() as TenantVendorSchedulingDto;
+    expect(consented).toMatchObject({effectiveMode:"PREAUTHORIZED_ENTRY_WINDOW",availability:{authorizedWindowIds:[w.id]}});
+    await c.vendor.selectPreauthorizedSlot(c.session,{clientRequestId:randomUUID(),...guards(consented),availabilitySubmissionId:submitted.availability!.id,
+      selectedWindowId:w.id,startAt:at(25),endAt:at(26)});
+    const current=await (await call(tenant,f.data.orgB,c.path)).json() as TenantVendorSchedulingDto;
+    expect(current.appointment).toMatchObject({status:"SCHEDULED",confirmationMode:"PREAUTHORIZED_ENTRY"});
+    const rescheduled=await call(tenant,f.data.orgB,`${c.path}/reschedule`,{clientRequestId:randomUUID(),...guards(current),expectedAppointmentId:current.appointment!.id});
+    expect(rescheduled.status).toBe(200);
+    expect(await rescheduled.json()).toMatchObject({phase:"SCHEDULING",currentRound:{purpose:"RESCHEDULE",status:"OPEN"},appointment:null});
   }finally{await database.close();}
 });
 // Last on purpose: it ends the orgB Tenant occupancy for the rest of this file.

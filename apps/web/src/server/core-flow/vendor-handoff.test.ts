@@ -119,7 +119,7 @@ it("dispatches every Tenant scheduling route with the request-scoped B1 digest a
     expect(last).toMatchObject({method:name,digest,id:ticketId,org:orgId});
     if(body!==undefined)expect(last.input).toEqual(body);
   }
-  for(const [path,body] of [[`${base}/availability`,{clientRequestId:randomUUID(),...roundGuards,windows:[],unitId:randomUUID()}],[`${base}/confirm`,{clientRequestId:randomUUID(),...roundGuards,proposalId,selectedSlotId:slotId,orgId}]] as const)
+  for(const [path,body] of [[`${base}/availability`,{clientRequestId:randomUUID(),...roundGuards,windows:[{startAt:"2026-10-10T01:00:00Z",endAt:"2026-10-10T03:00:00Z"}],unitId:randomUUID()}],[`${base}/confirm`,{clientRequestId:randomUUID(),...roundGuards,proposalId,selectedSlotId:slotId,orgId}]] as const)
     expect((await s.call(path,"POST",body)).status).toBe(400);
   expect(s.calls).toHaveLength(5);
 });

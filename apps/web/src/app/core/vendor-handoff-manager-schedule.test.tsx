@@ -54,3 +54,14 @@ it("keeps an unknown reschedule outcome uncertain instead of claiming success",a
   expect(page()).toContain("저장 결과를 확정하지 못했습니다");
   expect(page().includes("방문 일정 변경을 기록했습니다")).toBe(false);
 });
+it("labels the dismiss action without implying cancellation and resets an open confirmation on refresh (review L2, L3)",async()=>{
+  const s=await mount(scheduled());
+  await click("방문 일정 변경");
+  expect(button("돌아가기")).toBeDefined();
+  expect(button("취소")).toBeUndefined();
+  s.readHandoff.mockResolvedValue(scheduled({appointment:{...appointment,id:"appointment-2",startAt:"2026-10-08T05:00:00Z",endAt:"2026-10-08T06:00:00Z"}}));
+  await click("업체 연결 상태 다시 확인");
+  expect(page()).toContain("10월 8일(목) 오후 2:00–3:00");
+  expect(button("일정 변경하기")).toBeUndefined();
+  expect(button("방문 일정 변경")).toBeDefined();
+});

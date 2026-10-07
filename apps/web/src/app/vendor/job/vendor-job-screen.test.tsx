@@ -413,7 +413,7 @@ describe("Task5 review remediation (screen)",()=>{
   it("attributes a pending proposal to the Vendor in the waiting copy",async()=>{
     const waiting={...active(assignmentB,"B"),waitingOn:"TENANT" as const,proposal:proposalB};
     const client=fakeClient({redeem:vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:waiting}))});
-    await mount(client,`#${tokenB}`);
+    await mount(client,`#${tokenB}`,()=>new Date("2026-10-07T00:00:00Z"));
     expect(page()).toContain("제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다");
     expect(page().includes("세입자가 제안한 시간")).toBe(false);
   });
@@ -565,6 +565,39 @@ describe("Task6 Vendor visit scheduling",()=>{
     expect(client.job).toHaveBeenCalled();
     expect(page()).toContain("최신 내용을 확인해 주세요");
     expect(host.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe("2026-10-10");
+  });
+  it("never shows a late scheduling result over the logged-out screen (review L4)",async()=>{
+    let finish!:(value:unknown)=>void;
+    const client=fakeClient({redeem:opened(vendorTurn()),proposeSlots:vi.fn(()=>new Promise(resolve=>{finish=resolve;}))});
+    await mount(client,`#${tokenB}`,now);
+    await enter("2026-10-10","10:00","11:00");
+    await click("방문 시간 제안하기");
+    await click("이 기기에서 나가기");
+    expect(page()).toContain("이 기기에서 작업 화면을 닫았습니다");
+    await act(async()=>{finish(proposed([{id:slotNew,startAt:"2026-10-10T01:00:00.000Z",endAt:"2026-10-10T02:00:00.000Z"}]));});
+    await flush();
+    expect(page()).toContain("이 기기에서 작업 화면을 닫았습니다");
+    expect(page().includes("합성 업체 B")).toBe(false);
+  });
+  it("maps a persistent 403 to a security notice and a 400 to an input notice, keeping the draft (review L6)",async()=>{
+    const client=fakeClient({redeem:opened(vendorTurn()),session:vi.fn(async()=>({assignmentId:assignmentB,expiresAt,csrf:csrf2})),
+      proposeSlots:vi.fn(async()=>{throw http(403,"FORBIDDEN");})});
+    await mount(client,`#${tokenB}`,now);
+    await enter("2026-10-10","10:00","11:00");
+    await click("방문 시간 제안하기");
+    expect(page()).toContain("보안 확인을 마치지 못했습니다");
+    expect(host.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe("2026-10-10");
+    client.proposeSlots.mockImplementation(async()=>{throw http(400,"INVALID_INPUT");});
+    await click("방문 시간 제안하기");
+    expect(page()).toContain("입력한 시간을 다시 확인해 주세요");
+    expect(host.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe("2026-10-10");
+  });
+  it("explains that the Vendor may propose first while the Tenant has not sent availability",async()=>{
+    const client=fakeClient({redeem:opened(active(assignmentB,"B"))});
+    await mount(client,`#${tokenB}`,now);
+    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있습니다");
+    expect(page()).toContain("먼저 방문 시간을 제안할 수도 있습니다");
+    expect(button("방문 시간 제안하기")).toBeDefined();
   });
   it("ignores a late proposal result that started before a same-tab assignment switch",async()=>{
     let finish!:(value:unknown)=>void;

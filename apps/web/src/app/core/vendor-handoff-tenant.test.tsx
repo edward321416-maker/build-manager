@@ -128,10 +128,12 @@ describe("Tenant Vendor scheduling task zone",()=>{
   it("requests a RESCHEDULE of a future Appointment only after confirmation",async()=>{
     const f=fake(scheduled);
     await mount(f.client);
-    await click("방문 일정 변경 요청");
+    await click("방문 일정 변경");
     expect(f.vendorHandoff.tenantReschedule).not.toHaveBeenCalled();
     expect(page()).toContain("기존 방문 일정은 취소되고");
-    await click("일정 변경 요청하기");
+    expect(button("돌아가기")).toBeDefined();
+    expect(button("취소")).toBeUndefined();
+    await click("일정 변경하기");
     expect(f.vendorHandoff.tenantReschedule.mock.calls[0][1]).toMatchObject({expectedAppointmentId:apptId,expectedRoundVersion:3,expectedAssignmentVersion:4});
   });
   it("reconciles an unknown outcome with the same request identity",async()=>{
@@ -162,5 +164,110 @@ describe("Tenant Vendor scheduling task zone",()=>{
     await click("가능한 시간 보내기");
     expect(f.vendorHandoff.submitAvailability).not.toHaveBeenCalled();
     expect(page()).toContain("지난 시간은 선택할 수 없습니다");
+  });
+});
+
+describe("Task6 review remediation (Tenant)",()=>{
+  const w3="cccccccc-cccc-4ccc-8ccc-cccccccccccc",subB="dddddddd-dddd-4ddd-8ddd-dddddddddddd",s3="eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",appt2="ffffffff-ffff-4fff-8fff-ffffffffffff";
+  const preauth=(changes:Partial<TenantVendorSchedulingDto>={})=>dto({accessPolicy:"TENANT_PREAUTHORIZATION_ALLOWED",availability,waitingOn:"VENDOR",...changes});
+  const confirmGroup=()=>host.querySelector('[aria-label="출입 동의 확인"]')?.textContent??"";
+  it("confirms and sends only currently selectable consent windows, also after a stale conflict (M1, M3)",async()=>{
+    let reads=0;
+    const replaced=preauth({availability:{id:subB,windows:[{id:w3,startAt:"2026-10-09T01:00:00Z",endAt:"2026-10-09T03:00:00Z"}],authorizedWindowIds:[],createdAt:"2026-10-06T02:30:00Z"}});
+    let conflict=true;
+    const f=fake(preauth(),{readScheduling:async()=>++reads===1?preauth():replaced,
+      authorizeEntry:async()=>{if(conflict){conflict=false;throw http(409,"STATE_CONFLICT");}return replaced;}});
+    await mount(f.client);
+    await check("10월 7일(수) 오후 2:00–4:00");
+    await click("선택한 시간 동의 확인");
+    expect(confirmGroup()).toContain("10월 7일(수) 오후 2:00–4:00");
+    expect(confirmGroup().includes("10월 8일(목)")).toBe(false);
+    expect(confirmGroup()).toContain("따로 다시 확인을 요청하지 않습니다");
+    await click("동의하기");
+    expect(page()).toContain("최신 일정을 확인해 주세요");
+    expect(Array.from(host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')).every(x=>!x.checked)).toBe(true);
+    expect(button("선택한 시간 동의 확인")?.disabled).toBe(true);
+    await check("10월 9일(금) 오전 10:00–오후 12:00");
+    await click("선택한 시간 동의 확인");
+    expect(confirmGroup()).toContain("10월 9일(금) 오전 10:00–오후 12:00");
+    expect(confirmGroup().includes("10월 7일(수)")).toBe(false);
+    await click("동의하기");
+    expect(f.vendorHandoff.authorizeEntry.mock.calls[1][1]).toMatchObject({availabilitySubmissionId:subB,selectedWindowIds:[w3]});
+  });
+  it("drops a selected slot that is no longer in the current proposal after a stale conflict",async()=>{
+    const proposal={id:propId,slots:[{id:s2,startAt:"2026-10-07T05:00:00Z",endAt:"2026-10-07T06:00:00Z"}],createdAt:"2026-10-06T00:30:00Z"};
+    const newer={id:"abababab-abab-4bab-8bab-abababababab",slots:[{id:s3,startAt:"2026-10-08T05:00:00Z",endAt:"2026-10-08T06:00:00Z"}],createdAt:"2026-10-06T02:30:00Z"};
+    let reads=0;
+    const f=fake(dto({availability,proposal}),{readScheduling:async()=>++reads===1?dto({availability,proposal}):dto({availability,proposal:newer}),
+      confirmSlot:async()=>{throw http(409,"STATE_CONFLICT");}});
+    await mount(f.client);
+    await check("10월 7일(수) 오후 2:00–3:00");
+    await click("이 시간으로 확정");
+    expect(page()).toContain("10월 8일(목) 오후 2:00–3:00");
+    expect(button("이 시간으로 확정")?.disabled).toBe(true);
+  });
+  it("asks for new availability when every submitted window has passed and promises no containment (M2)",async()=>{
+    const past={...availability,windows:[{id:w1,startAt:"2026-10-05T05:00:00Z",endAt:"2026-10-05T07:00:00Z"}]};
+    const f=fake(dto({availability:past,waitingOn:"VENDOR"}));
+    await mount(f.client);
+    expect(zone()?.textContent).toContain("보낸 가능한 시간이 모두 지났습니다");
+    expect(button("가능한 시간 보내기")).toBeDefined();
+    expect(page().includes("정하고 있습니다")).toBe(false);
+  });
+  it("uses neutral copy after availability and warns that a live proposal is discarded on resubmission (M2)",async()=>{
+    const proposal={id:propId,slots:[{id:s2,startAt:"2026-10-07T05:00:00Z",endAt:"2026-10-07T06:00:00Z"}],createdAt:"2026-10-06T00:30:00Z"};
+    const f=fake(dto(),{submitAvailability:async()=>dto({availability,waitingOn:"VENDOR"})});
+    await mount(f.client);
+    await type('input[type="date"]',"2026-10-10");await type('input[type="time"]',"10:00",0);await type('input[type="time"]',"12:00",1);
+    await click("가능한 시간 보내기");
+    expect(page()).toContain("가능한 시간을 저장했습니다");
+    expect(page().includes("이 시간 안에서")).toBe(false);
+    await act(async()=>root!.unmount());root=undefined;host.remove();
+    const g=fake(dto({availability,proposal}));
+    await mount(g.client);
+    await click("가능한 시간 바꾸기");
+    expect(page()).toContain("업체가 제안한 시간");
+  });
+  it("hides the scheduling panel when a command finds the Vendor scheduling gone (L1)",async()=>{
+    let reads=0;
+    const f=fake(dto(),{readScheduling:async()=>{if(++reads===1)return dto();throw http(404,"NOT_FOUND");},submitAvailability:async()=>{throw http(404,"NOT_FOUND");}});
+    await mount(f.client);
+    await type('input[type="date"]',"2026-10-10");await type('input[type="time"]',"10:00",0);await type('input[type="time"]',"12:00",1);
+    await click("가능한 시간 보내기");
+    expect(host.querySelector("section")).toBeNull();
+  });
+  it("never carries an open reschedule confirmation over to a different Appointment (L3)",async()=>{
+    let reads=0;
+    const other={...scheduled,appointment:{...scheduled.appointment!,id:appt2,startAt:"2026-10-08T05:00:00Z",endAt:"2026-10-08T06:00:00Z"}};
+    const f=fake(scheduled,{readScheduling:async()=>++reads===1?scheduled:other,tenantReschedule:async()=>{throw network();}});
+    await mount(f.client);
+    await click("방문 일정 변경");
+    await click("일정 변경하기");
+    await click("최신 일정 다시 불러오기");
+    expect(page()).toContain("10월 8일(목) 오후 2:00–3:00");
+    expect(page().includes("기존 방문 일정은 취소되고")).toBe(false);
+    expect(button("방문 일정 변경")).toBeDefined();
+  });
+  it("offers no consent once a proposal or an authorization exists",async()=>{
+    const proposal={id:propId,slots:[{id:s2,startAt:"2026-10-07T05:00:00Z",endAt:"2026-10-07T06:00:00Z"}],createdAt:"2026-10-06T00:30:00Z"};
+    const f=fake(preauth({proposal,waitingOn:"TENANT"}));
+    await mount(f.client);
+    expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+    await act(async()=>root!.unmount());root=undefined;host.remove();
+    const g=fake(preauth({availability:{...availability,authorizedWindowIds:[w1]},effectiveMode:"PREAUTHORIZED_ENTRY_WINDOW"}));
+    await mount(g.client);
+    expect(host.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+  });
+  it("ignores a late command result from a replaced instance (revision change)",async()=>{
+    let finish!:(value:unknown)=>void;
+    const f=fake(dto(),{submitAvailability:()=>new Promise(resolve=>{finish=resolve;})});
+    await mount(f.client);
+    await type('input[type="date"]',"2026-10-10");await type('input[type="time"]',"10:00",0);await type('input[type="time"]',"12:00",1);
+    await click("가능한 시간 보내기");
+    await act(async()=>{root!.render(<VendorHandoffTenant client={f.client} ticketId={ticketId} revision={1} now={now}/>);});
+    await flush();
+    await act(async()=>{finish(dto({availability}));});
+    await flush();
+    expect(page().includes("가능한 시간을 저장했습니다")).toBe(false);
   });
 });

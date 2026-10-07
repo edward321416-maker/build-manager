@@ -68,7 +68,7 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
       {canReschedule?(p.rescheduleReview?<div role="group" aria-label="방문 일정 변경 확인">
         <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 세입자와 업체가 새로 일정을 조율합니다.</p>
         <button type="button" disabled={blocked} onClick={p.onReschedule}>일정 변경하기</button>
-        <button type="button" disabled={p.busy} onClick={()=>p.onRescheduleReview?.(false)}>취소</button>
+        <button type="button" disabled={p.busy} onClick={()=>p.onRescheduleReview?.(false)}>돌아가기</button>
       </div>:<button type="button" disabled={blocked} onClick={()=>p.onRescheduleReview?.(true)}>방문 일정 변경</button>):null}
     </div>:null}
     {p.uncertain?<p role="alert">저장 결과를 확정하지 못했습니다. 최신 상태를 먼저 확인하세요. 같은 화면 값만으로 성공을 확정하지 않습니다.</p>:null}
@@ -129,7 +129,7 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,now=syste
     setHandoff(value);onHandoff(value);
   },[onHandoff,rememberLink]);
   const refresh=useCallback(async()=>{
-    const current=++generation.current;setLoading(true);setImmediateLink(null);setError("");onHandoff(null);
+    const current=++generation.current;setLoading(true);setImmediateLink(null);setError("");setRescheduleReview(false);onHandoff(null);
     try{const h=await client.vendorHandoff.readHandoff(ticket.ticketId);if(current===generation.current)apply(h);}
     catch{if(current===generation.current){apply(null);setError("업체 연결 상태를 확인하지 못했습니다. 다시 불러오세요.");}}
     finally{if(current===generation.current)setLoading(false);}

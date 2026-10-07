@@ -60,9 +60,3 @@ export function seoulLocalToInstant(date:string,time:string):string|null{
   if(check.getUTCFullYear()!==year||check.getUTCMonth()!==month-1||check.getUTCDate()!==day)return null;
   return new Date(wall-OFFSET_MS).toISOString();
 }
-
-/** Inverse of `seoulLocalToInstant` for pre-filling date/time inputs. */
-export function instantToSeoulLocal(at:string):{date:string;time:string}{
-  const p=seoul(at),pad=(n:number)=>String(n).padStart(2,"0");
-  return {date:`${p.year}-${pad(p.month)}-${pad(p.day)}`,time:`${pad(p.hour)}:${pad(p.minute)}`};
-}
