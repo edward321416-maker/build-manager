@@ -340,9 +340,11 @@ describe("Vendor Secure Handoff security boundary", () => {
   });
 
   it("denies direct Vendor table access and owner SET ROLE to Web runtimes", async () => {
-    const tables = ["vendor_assignment","work_packet_revision","work_packet_source_photo","vendor_capability","vendor_session","command_receipt"];
+    // Cumulative exact inventory (Task5 review L4): every 0019 and 0020 Vendor table.
+    const localTables = ["vendor_assignment","work_packet_revision","work_packet_source_photo","vendor_capability","vendor_session","command_receipt",...schedulingTables];
+    expect([...localTables].sort()).toEqual(tables);
     for (const role of ["bm_vendor_web","bm_b1_web"]) {
-      for (const table of tables) {
+      for (const table of localTables) {
         for (const privilege of ["SELECT","INSERT","UPDATE","DELETE"]) {
           const result = await f.p.admin.query("SELECT has_table_privilege($1,$2,$3) AS allowed", [role, `vendor_handoff.${table}`, privilege]);
           expect(result.rows[0].allowed, `${role} ${privilege} ${table}`).toBe(false);

@@ -120,13 +120,18 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
   useEffect(()=>{let live=true;void Promise.resolve().then(()=>{if(live)void begin();});return()=>{live=false;};},[begin]);
   // A reissued link pasted into an already open job tab only changes the fragment; redeem it the same way.
   useEffect(()=>{const onHash=()=>{void begin();};window.addEventListener("hashchange",onHash);return()=>window.removeEventListener("hashchange",onHash);},[begin]);
-  /** A 403 means the CSRF went stale (another tab rotated it) while the session lives: refresh once, same request. */
-  const withFreshCsrf=async<T,>(send:(value:string)=>Promise<T>):Promise<T>=>{
+  /**
+   * A 403 means the CSRF went stale (another tab rotated it) while the session lives: refresh once, same request.
+   * Never refresh or retry once a same-tab switch started a newer generation; that CSRF belongs to another session.
+   */
+  const withFreshCsrf=async<T,>(gen:number,send:(value:string)=>Promise<T>):Promise<T>=>{
     try{return await send(csrf.current!);}
     catch(error){
-      if(statusOf(error)!==403)throw error;
-      csrf.current=(await client.session()).csrf;
-      return send(csrf.current);
+      if(statusOf(error)!==403||gen!==generation.current)throw error;
+      const fresh=(await client.session()).csrf;
+      if(gen!==generation.current)throw error;
+      csrf.current=fresh;
+      return send(fresh);
     }
   };
 
@@ -151,7 +156,7 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
     setDecline({...state,requestId:id,status:"submitting",notice:""});
     try{
       const reason=state.reason;
-      const result=await withFreshCsrf(value=>client.decline(value,{clientRequestId:id,expectedAssignmentVersion:job.assignmentVersion,
+      const result=await withFreshCsrf(gen,value=>client.decline(value,{clientRequestId:id,expectedAssignmentVersion:job.assignmentVersion,
         expectedPacketRevisionId:job.currentPacket?.id??"",reason,operationalNote:note===""?null:note}));
       if(gen!==generation.current)return;
       setDecline(closedDecline);setPhase({kind:"declined",job:result});
@@ -172,13 +177,14 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
     setLifecycle({...state,requestId:id,status:"submitting"});setTaskNotice("");
     try{
       const guards={clientRequestId:id,expectedAssignmentVersion:job.assignmentVersion,expectedPacketRevisionId:job.currentPacket?.id??""};
-      const result=await withFreshCsrf(value=>kind==="accept"?client.accept(value,guards):client.withdraw(value,{...guards,operationalNote:note===""?null:note}));
+      const result=await withFreshCsrf(gen,value=>kind==="accept"?client.accept(value,guards):client.withdraw(value,{...guards,operationalNote:note===""?null:note}));
       if(gen!==generation.current)return;
       setLifecycle(idleLifecycle);
       setPhase(kind==="withdraw"?{kind:"withdrawn",job:result}:{kind:"ready",job:result});
     }catch(error){
       if(gen!==generation.current)return;
-      if(statusOf(error)===409){setLifecycle(idleLifecycle);setTaskNotice(STALE_NOTICE);await refresh(gen);}
+      // A rejected (not committed) Withdraw keeps its safe local draft; the next attempt is a new request.
+      if(statusOf(error)===409){setLifecycle(kind==="withdraw"?{...state,requestId:null,status:"idle",confirming:false}:idleLifecycle);setTaskNotice(STALE_NOTICE);await refresh(gen);}
       else if(statusOf(error)===403){setLifecycle(idleLifecycle);setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
       else if(definitive(error)){setLifecycle(idleLifecycle);setPhase({kind:"unavailable"});}
       else setLifecycle({...state,requestId:id,status:"uncertain"});
@@ -202,13 +208,13 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
     const id=logoutId.current??crypto.randomUUID();logoutId.current=id;setBusy(true);setNotice("");
     const done=()=>{csrf.current=null;logoutId.current=null;setPhase({kind:"loggedOut"});};
     try{
-      await withFreshCsrf(value=>client.logout(value,{clientRequestId:id}));
+      await withFreshCsrf(gen,value=>client.logout(value,{clientRequestId:id}));
       if(gen===generation.current)done();
     }catch(error){
       if(gen!==generation.current)return;
       if(statusOf(error)===401){
         // Only an authoritative dead session confirms logout; a live session must never show a false logout.
-        try{csrf.current=(await client.session()).csrf;if(gen===generation.current)setNotice("나가기를 완료하지 못했습니다. 다시 시도해 주세요.");}
+        try{const live=await client.session();if(gen!==generation.current)return;csrf.current=live.csrf;setNotice("나가기를 완료하지 못했습니다. 다시 시도해 주세요.");}
         catch(check){if(gen!==generation.current)return;if(definitive(check))done();else setNotice("나가기 결과를 확인하지 못했습니다. 같은 요청으로 다시 시도해 주세요.");}
       }
       else if(definitive(error))setNotice("나가기를 완료하지 못했습니다. 다시 시도해 주세요.");
@@ -273,7 +279,7 @@ export function VendorJobView(props:ViewProps){
 function schedulingStatus(job:VendorJobDto):string{
   if(job.phase==="SCHEDULED")return "방문 일정이 확정되었습니다.";
   if(job.phase!=="SCHEDULING")return "방문 작업이 진행 중입니다.";
-  if(job.waitingOn==="TENANT")return job.proposal?"세입자가 제안한 시간 중 하나를 고르기를 기다리고 있습니다.":"세입자가 가능한 시간을 알려 주기를 기다리고 있습니다.";
+  if(job.waitingOn==="TENANT")return job.proposal?"제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다.":"세입자가 가능한 시간을 알려 주기를 기다리고 있습니다.";
   return job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"?"세입자가 동의한 시간 안에서 방문 시간을 정할 차례입니다.":"세입자가 가능한 시간을 알려 주었습니다. 방문 시간을 제안할 차례입니다.";
 }
 

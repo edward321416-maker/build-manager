@@ -2,11 +2,14 @@
 -- Additive only. Every table is owner-owned, org-scoped and FORCE-RLS constrained; runtimes get EXECUTE on exact functions only.
 SET LOCAL ROLE bm_vendor_handoff_owner;
 
+-- Composite target so every scheduling row's packet revision belongs to the same assignment.
+ALTER TABLE vendor_handoff.work_packet_revision ADD CONSTRAINT work_packet_revision_id_assignment_key UNIQUE(id,assignment_id);
+
 CREATE TABLE vendor_handoff.scheduling_round (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id uuid NOT NULL,
   assignment_id uuid NOT NULL REFERENCES vendor_handoff.vendor_assignment(id),
-  opened_packet_revision_id uuid NOT NULL REFERENCES vendor_handoff.work_packet_revision(id),
+  opened_packet_revision_id uuid NOT NULL,
   purpose text NOT NULL CHECK(purpose IN ('INITIAL','RESCHEDULE','FOLLOW_UP')),
   status text NOT NULL CHECK(status IN ('OPEN','CONFIRMED','SUPERSEDED','CANCELLED')),
   version bigint NOT NULL DEFAULT 1 CHECK(version>0),
@@ -18,6 +21,7 @@ CREATE TABLE vendor_handoff.scheduling_round (
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   closed_at timestamptz NULL,
   UNIQUE(id,assignment_id),
+  FOREIGN KEY(opened_packet_revision_id,assignment_id) REFERENCES vendor_handoff.work_packet_revision(id,assignment_id),
   CHECK(purpose='FOLLOW_UP' OR (source_blocker_id IS NULL AND source_completion_report_id IS NULL)),
   CHECK(NOT (source_blocker_id IS NOT NULL AND source_completion_report_id IS NOT NULL)),
   CHECK((purpose='RESCHEDULE')=(previous_appointment_id IS NOT NULL)),
@@ -30,12 +34,14 @@ CREATE TABLE vendor_handoff.tenant_availability_submission (
   org_id uuid NOT NULL,
   assignment_id uuid NOT NULL,
   round_id uuid NOT NULL,
-  packet_revision_id uuid NOT NULL REFERENCES vendor_handoff.work_packet_revision(id),
+  packet_revision_id uuid NOT NULL,
   occupancy_member_id uuid NOT NULL,
   round_sequence bigint NOT NULL CHECK(round_sequence>0),
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   FOREIGN KEY(round_id,assignment_id) REFERENCES vendor_handoff.scheduling_round(id,assignment_id),
-  UNIQUE(id,round_id)
+  FOREIGN KEY(packet_revision_id,assignment_id) REFERENCES vendor_handoff.work_packet_revision(id,assignment_id),
+  UNIQUE(id,round_id),
+  UNIQUE(round_id,round_sequence)
 );
 
 CREATE TABLE vendor_handoff.tenant_availability_window (
@@ -56,12 +62,15 @@ CREATE TABLE vendor_handoff.tenant_entry_authorization (
   submission_id uuid NOT NULL,
   -- Exact current-Tenant occupancy relationship relied on; rechecked before any unattended entry.
   occupancy_member_id uuid NOT NULL,
-  packet_revision_id uuid NOT NULL REFERENCES vendor_handoff.work_packet_revision(id),
+  packet_revision_id uuid NOT NULL,
   round_sequence bigint NOT NULL CHECK(round_sequence>0),
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   FOREIGN KEY(submission_id,round_id) REFERENCES vendor_handoff.tenant_availability_submission(id,round_id),
   FOREIGN KEY(round_id,assignment_id) REFERENCES vendor_handoff.scheduling_round(id,assignment_id),
-  UNIQUE(id,submission_id)
+  FOREIGN KEY(packet_revision_id,assignment_id) REFERENCES vendor_handoff.work_packet_revision(id,assignment_id),
+  UNIQUE(id,submission_id),
+  UNIQUE(id,occupancy_member_id),
+  UNIQUE(round_id,round_sequence)
 );
 
 CREATE TABLE vendor_handoff.tenant_entry_authorization_window (
@@ -79,12 +88,15 @@ CREATE TABLE vendor_handoff.vendor_slot_proposal (
   org_id uuid NOT NULL,
   assignment_id uuid NOT NULL,
   round_id uuid NOT NULL,
-  packet_revision_id uuid NOT NULL REFERENCES vendor_handoff.work_packet_revision(id),
-  availability_submission_id uuid NULL REFERENCES vendor_handoff.tenant_availability_submission(id),
+  packet_revision_id uuid NOT NULL,
+  availability_submission_id uuid NULL,
   round_sequence bigint NOT NULL CHECK(round_sequence>0),
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   FOREIGN KEY(round_id,assignment_id) REFERENCES vendor_handoff.scheduling_round(id,assignment_id),
-  UNIQUE(id,round_id)
+  FOREIGN KEY(packet_revision_id,assignment_id) REFERENCES vendor_handoff.work_packet_revision(id,assignment_id),
+  FOREIGN KEY(availability_submission_id,round_id) REFERENCES vendor_handoff.tenant_availability_submission(id,round_id),
+  UNIQUE(id,round_id),
+  UNIQUE(round_id,round_sequence)
 );
 
 CREATE TABLE vendor_handoff.vendor_slot (
@@ -102,7 +114,7 @@ CREATE TABLE vendor_handoff.appointment (
   org_id uuid NOT NULL,
   assignment_id uuid NOT NULL,
   round_id uuid NOT NULL,
-  packet_revision_id uuid NOT NULL REFERENCES vendor_handoff.work_packet_revision(id),
+  packet_revision_id uuid NOT NULL,
   proposal_id uuid NULL,
   slot_id uuid NULL,
   availability_submission_id uuid NULL,
@@ -116,6 +128,10 @@ CREATE TABLE vendor_handoff.appointment (
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   status_changed_at timestamptz NULL,
   FOREIGN KEY(round_id,assignment_id) REFERENCES vendor_handoff.scheduling_round(id,assignment_id),
+  FOREIGN KEY(packet_revision_id,assignment_id) REFERENCES vendor_handoff.work_packet_revision(id,assignment_id),
+  FOREIGN KEY(proposal_id,round_id) REFERENCES vendor_handoff.vendor_slot_proposal(id,round_id),
+  FOREIGN KEY(availability_submission_id,round_id) REFERENCES vendor_handoff.tenant_availability_submission(id,round_id),
+  FOREIGN KEY(entry_authorization_id,occupancy_member_id) REFERENCES vendor_handoff.tenant_entry_authorization(id,occupancy_member_id),
   FOREIGN KEY(slot_id,proposal_id) REFERENCES vendor_handoff.vendor_slot(id,proposal_id),
   FOREIGN KEY(selected_window_id,availability_submission_id) REFERENCES vendor_handoff.tenant_availability_window(id,submission_id),
   FOREIGN KEY(entry_authorization_id,availability_submission_id) REFERENCES vendor_handoff.tenant_entry_authorization(id,submission_id),
@@ -200,6 +216,10 @@ CREATE FUNCTION vendor_handoff.appointment_transition() RETURNS trigger
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 BEGIN
   IF TG_OP='DELETE' THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='IMMUTABLE_HISTORY'; END IF;
+  IF OLD.status<>'SCHEDULED' THEN
+    IF NEW IS DISTINCT FROM OLD THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='IMMUTABLE_HISTORY'; END IF;
+    RETURN NEW;
+  END IF;
   IF (NEW.id,NEW.org_id,NEW.assignment_id,NEW.round_id,NEW.packet_revision_id,NEW.proposal_id,NEW.slot_id,NEW.availability_submission_id,
       NEW.selected_window_id,NEW.entry_authorization_id,NEW.occupancy_member_id,NEW.start_at,NEW.end_at,NEW.confirmation_mode,NEW.created_at)
      IS DISTINCT FROM
@@ -208,7 +228,9 @@ BEGIN
   THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='IMMUTABLE_HISTORY'; END IF;
   IF NEW.status IS DISTINCT FROM OLD.status AND NOT (OLD.status='SCHEDULED' AND NEW.status IN ('OCCURRED','SUPERSEDED','CANCELLED'))
   THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='IMMUTABLE_HISTORY'; END IF;
-  IF NEW.status IS DISTINCT FROM OLD.status THEN NEW.status_changed_at:=coalesce(NEW.status_changed_at,clock_timestamp()); END IF;
+  -- The transition time is owned by the trigger; callers cannot supply or later change it.
+  IF NEW.status IS DISTINCT FROM OLD.status THEN NEW.status_changed_at:=clock_timestamp();
+  ELSIF NEW.status_changed_at IS DISTINCT FROM OLD.status_changed_at THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='IMMUTABLE_HISTORY'; END IF;
   RETURN NEW;
 END $$;
 CREATE TRIGGER appointment_transition BEFORE UPDATE OR DELETE ON vendor_handoff.appointment
@@ -218,18 +240,45 @@ CREATE FUNCTION vendor_handoff.round_transition() RETURNS trigger
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 BEGIN
   IF TG_OP='DELETE' THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='IMMUTABLE_HISTORY'; END IF;
-  IF (NEW.id,NEW.org_id,NEW.assignment_id,NEW.opened_packet_revision_id,NEW.purpose,NEW.previous_appointment_id,NEW.created_at)
-     IS DISTINCT FROM (OLD.id,OLD.org_id,OLD.assignment_id,OLD.opened_packet_revision_id,OLD.purpose,OLD.previous_appointment_id,OLD.created_at)
+  -- A closed round is history: no field (version, closed_at, provenance) may change afterwards.
+  IF OLD.status<>'OPEN' THEN
+    IF NEW IS DISTINCT FROM OLD THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='IMMUTABLE_HISTORY'; END IF;
+    RETURN NEW;
+  END IF;
+  IF (NEW.id,NEW.org_id,NEW.assignment_id,NEW.opened_packet_revision_id,NEW.purpose,NEW.previous_appointment_id,NEW.source_blocker_id,
+      NEW.source_completion_report_id,NEW.created_at)
+     IS DISTINCT FROM (OLD.id,OLD.org_id,OLD.assignment_id,OLD.opened_packet_revision_id,OLD.purpose,OLD.previous_appointment_id,OLD.source_blocker_id,
+      OLD.source_completion_report_id,OLD.created_at)
      OR NEW.version<OLD.version
   THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='IMMUTABLE_HISTORY'; END IF;
-  IF NEW.status IS DISTINCT FROM OLD.status AND NOT (OLD.status='OPEN' AND NEW.status IN ('CONFIRMED','SUPERSEDED','CANCELLED'))
-  THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='IMMUTABLE_HISTORY'; END IF;
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    IF NEW.status NOT IN ('CONFIRMED','SUPERSEDED','CANCELLED') THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='IMMUTABLE_HISTORY'; END IF;
+    NEW.closed_at:=clock_timestamp();
+  ELSIF NEW.closed_at IS DISTINCT FROM OLD.closed_at THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='IMMUTABLE_HISTORY'; END IF;
   RETURN NEW;
 END $$;
 CREATE TRIGGER scheduling_round_transition BEFORE UPDATE OR DELETE ON vendor_handoff.scheduling_round
   FOR EACH ROW EXECUTE FUNCTION vendor_handoff.round_transition();
 
--- Validates 1-5 future finite non-overlapping intervals and returns them normalized and ordered.
+-- Explicit-offset ISO-8601 instant only (no relative words, no session-time-zone interpretation).
+CREATE FUNCTION vendor_handoff.parse_instant(p_value text) RETURNS timestamptz
+LANGUAGE plpgsql IMMUTABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+DECLARE v timestamptz;
+BEGIN
+  IF p_value IS NULL OR p_value !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?(Z|[+-][0-9]{2}:[0-9]{2})$'
+  THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
+  BEGIN v:=p_value::timestamptz;
+  EXCEPTION WHEN others THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END;
+  IF NOT isfinite(v) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
+  RETURN v;
+END $$;
+-- Canonical UTC text so request fingerprints never depend on the session TimeZone.
+CREATE FUNCTION vendor_handoff.utc_text(p_value timestamptz) RETURNS text
+LANGUAGE sql IMMUTABLE SECURITY DEFINER SET search_path=pg_catalog
+AS $$ SELECT to_char(p_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') $$;
+
+-- Validates 1-5 finite, ordered, non-overlapping explicit-offset intervals and returns them UTC-normalized.
+-- Whether they start in the future is checked separately, after exact-replay reconciliation.
 CREATE FUNCTION vendor_handoff.parse_intervals(p_intervals jsonb) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE x jsonb;s timestamptz;e timestamptz;parsed jsonb:='[]'::jsonb;ordered jsonb;prev_end timestamptz;
@@ -239,11 +288,9 @@ BEGIN
   FOR x IN SELECT value FROM jsonb_array_elements(p_intervals) LOOP
     IF jsonb_typeof(x)<>'object' OR jsonb_typeof(x->'startAt')<>'string' OR jsonb_typeof(x->'endAt')<>'string'
     THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
-    BEGIN s:=(x->>'startAt')::timestamptz;e:=(x->>'endAt')::timestamptz;
-    EXCEPTION WHEN others THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END;
-    IF NOT isfinite(s) OR NOT isfinite(e) OR s>=e OR s<=clock_timestamp()
-    THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
-    parsed:=parsed||jsonb_build_array(jsonb_build_object('startAt',s,'endAt',e));
+    s:=vendor_handoff.parse_instant(x->>'startAt');e:=vendor_handoff.parse_instant(x->>'endAt');
+    IF s>=e THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
+    parsed:=parsed||jsonb_build_array(jsonb_build_object('startAt',vendor_handoff.utc_text(s),'endAt',vendor_handoff.utc_text(e)));
   END LOOP;
   SELECT jsonb_agg(v ORDER BY (v->>'startAt')::timestamptz,(v->>'endAt')::timestamptz) INTO ordered FROM jsonb_array_elements(parsed) v;
   FOR x IN SELECT value FROM jsonb_array_elements(ordered) LOOP
@@ -253,9 +300,16 @@ BEGIN
   RETURN ordered;
 END $$;
 
+CREATE FUNCTION vendor_handoff.require_future(p_intervals jsonb) RETURNS void
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
+BEGIN
+  IF EXISTS(SELECT 1 FROM jsonb_array_elements(p_intervals) x WHERE (x->>'startAt')::timestamptz<=clock_timestamp())
+  THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
+END $$;
+
 -- Private role-neutral scheduling projection. Callers have bound app.org_id from authenticated state.
 CREATE FUNCTION vendor_handoff.scheduling_projection(p_assignment uuid) RETURNS jsonb
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;r vendor_handoff.scheduling_round;
   sub vendor_handoff.tenant_availability_submission;auth vendor_handoff.tenant_entry_authorization;prop vendor_handoff.vendor_slot_proposal;
   appt vendor_handoff.appointment;availability jsonb;proposal jsonb;mode text;phase text;waiting text;
@@ -271,6 +325,9 @@ BEGIN
     SELECT * INTO sub FROM vendor_handoff.tenant_availability_submission WHERE org_id=a.org_id AND round_id=r.id ORDER BY round_sequence DESC LIMIT 1;
     IF sub.id IS NOT NULL THEN
       SELECT * INTO auth FROM vendor_handoff.tenant_entry_authorization WHERE org_id=a.org_id AND submission_id=sub.id ORDER BY round_sequence DESC LIMIT 1;
+      -- Consent is valid only while the exact authorizing occupancy member is still current.
+      IF auth.id IS NOT NULL AND NOT core_flow.vendor_handoff_recheck_occupancy(a.org_id,a.ticket_id,auth.occupancy_member_id) THEN auth:=NULL; END IF;
+      PERFORM set_config('app.org_id',a.org_id::text,true);
     END IF;
     SELECT * INTO prop FROM vendor_handoff.vendor_slot_proposal WHERE org_id=a.org_id AND round_id=r.id AND round_sequence>coalesce(sub.round_sequence,0)
       ORDER BY round_sequence DESC LIMIT 1;
@@ -300,7 +357,7 @@ BEGIN
   ELSIF a.status='PREPARING' THEN phase:='IN_PROGRESS';waiting:='NONE';
   ELSIF r.status='OPEN' THEN
     phase:='SCHEDULING';
-    waiting:=CASE WHEN mode='PREAUTHORIZED_ENTRY_WINDOW' THEN 'VENDOR' WHEN prop.id IS NOT NULL THEN 'TENANT' WHEN sub.id IS NOT NULL THEN 'VENDOR' ELSE 'TENANT' END;
+    waiting:=CASE WHEN prop.id IS NOT NULL THEN 'TENANT' WHEN mode='PREAUTHORIZED_ENTRY_WINDOW' THEN 'VENDOR' WHEN sub.id IS NOT NULL THEN 'VENDOR' ELSE 'TENANT' END;
   ELSIF appt.status='SCHEDULED' THEN phase:='SCHEDULED';waiting:='VENDOR';
   ELSE phase:='IN_PROGRESS';waiting:='VENDOR';
   END IF;
@@ -316,7 +373,7 @@ BEGIN
 END $$;
 
 CREATE OR REPLACE FUNCTION vendor_handoff.job_projection(p_assignment uuid) RETURNS jsonb
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;sched jsonb;
 BEGIN
   SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=p_assignment;
@@ -331,7 +388,7 @@ END $$;
 
 -- Tenant projection: no vendorLabel, private notes, occupancy provenance or Vendor credentials.
 CREATE FUNCTION vendor_handoff.tenant_projection(p_assignment uuid) RETURNS jsonb
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE a vendor_handoff.vendor_assignment;sched jsonb;
 BEGIN
   SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=p_assignment;
@@ -521,6 +578,7 @@ BEGIN
   prior:=vendor_handoff.receipt(a.org_id,'VENDOR',ctx->>'sessionId',p_request,fp);
   IF prior IS NOT NULL THEN RETURN prior; END IF;
   IF a.status='ENDED' THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
+  PERFORM vendor_handoff.require_future(slots);
   SELECT * INTO p FROM vendor_handoff.work_packet_revision WHERE org_id=a.org_id AND assignment_id=a.id ORDER BY revision DESC LIMIT 1;
   SELECT * INTO r FROM vendor_handoff.scheduling_round WHERE org_id=a.org_id AND assignment_id=a.id AND status='OPEN' FOR UPDATE;
   IF a.status<>'ACTIVE' OR a.version<>p_expected_assignment OR p.id IS DISTINCT FROM p_expected_packet OR r.id IS NULL OR r.version<>p_expected_round
@@ -547,12 +605,11 @@ BEGIN
   IF p_request IS NULL OR p_expected_assignment IS NULL OR p_expected_assignment<1 OR p_expected_round IS NULL OR p_expected_round<1
     OR p_expected_packet IS NULL OR p_submission IS NULL OR p_window IS NULL
   THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
-  BEGIN s:=p_start::timestamptz;e:=p_end::timestamptz;
-  EXCEPTION WHEN others THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END;
-  IF s IS NULL OR e IS NULL OR NOT isfinite(s) OR NOT isfinite(e) OR s>=e THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
+  s:=vendor_handoff.parse_instant(p_start);e:=vendor_handoff.parse_instant(p_end);
+  IF s>=e THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
   ctx:=vendor_handoff.vendor_command(p_session_digest,p_csrf_digest);
   SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=(ctx->>'assignmentId')::uuid;
-  fp:=vendor_handoff.request_fingerprint(jsonb_build_array('selectPreauthorizedSlot',a.id,p_expected_assignment,p_expected_round,p_expected_packet,p_submission,p_window,s,e));
+  fp:=vendor_handoff.request_fingerprint(jsonb_build_array('selectPreauthorizedSlot',a.id,p_expected_assignment,p_expected_round,p_expected_packet,p_submission,p_window,vendor_handoff.utc_text(s),vendor_handoff.utc_text(e)));
   prior:=vendor_handoff.receipt(a.org_id,'VENDOR',ctx->>'sessionId',p_request,fp);
   IF prior IS NOT NULL THEN RETURN prior; END IF;
   IF a.status='ENDED' THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
@@ -630,6 +687,7 @@ BEGIN
   fp:=vendor_handoff.request_fingerprint(jsonb_build_array('submitAvailability',a.id,p_expected_assignment,p_expected_round,p_expected_packet,windows));
   prior:=vendor_handoff.receipt(a.org_id,'TENANT',c->>'occupancyMemberId',p_request,fp);
   IF prior IS NOT NULL THEN RETURN prior; END IF;
+  PERFORM vendor_handoff.require_future(windows);
   SELECT * INTO p FROM vendor_handoff.work_packet_revision WHERE org_id=a.org_id AND assignment_id=a.id ORDER BY revision DESC LIMIT 1;
   SELECT * INTO r FROM vendor_handoff.scheduling_round WHERE org_id=a.org_id AND assignment_id=a.id AND status='OPEN' FOR UPDATE;
   IF a.status<>'ACTIVE' OR a.version<>p_expected_assignment OR p.id IS DISTINCT FROM p_expected_packet OR r.id IS NULL OR r.version<>p_expected_round
@@ -670,6 +728,7 @@ BEGIN
   -- Only the current Tenant, only under a permitting policy, only exact windows of the current submission.
   IF a.status<>'ACTIVE' OR a.version<>p_expected_assignment OR p.id IS DISTINCT FROM p_expected_packet OR r.id IS NULL OR r.version<>p_expected_round
     OR p.body->>'accessPolicy'<>'TENANT_PREAUTHORIZATION_ALLOWED' OR sub.id IS NULL OR sub.id<>p_submission
+    OR sub.occupancy_member_id<>(c->>'occupancyMemberId')::uuid
     OR cardinality(windows)<>(SELECT count(*) FROM vendor_handoff.tenant_availability_window w WHERE w.org_id=a.org_id AND w.submission_id=sub.id AND w.id=ANY(windows))
   THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='STATE_CONFLICT'; END IF;
   INSERT INTO vendor_handoff.tenant_entry_authorization(org_id,assignment_id,round_id,submission_id,occupancy_member_id,packet_revision_id,round_sequence)

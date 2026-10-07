@@ -44,6 +44,18 @@ async function scheduled(c:Ctx){
   const s=await tenantPort.confirmSlot(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await guards(c),proposalId:job.proposal!.id,selectedSlotId:job.proposal!.slots[0].id});
   return s;
 }
+/** Throws unless a real lock wait on the source ticket is observed (no silent fall-through). */
+async function waitForTicketWait(){
+  for(let attempt=0;attempt<200;attempt++){
+    await f.p.admin.query("SELECT pg_stat_clear_snapshot()");
+    const {rows}=await f.p.admin.query("SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND wait_event_type='Lock' AND query LIKE '%vendor_handoff%'");
+    if(rows[0].n>0)return;
+    await new Promise(resolve=>setTimeout(resolve,10));
+  }
+  throw new Error("Expected real source-ticket lock wait was not observed");
+}
+const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+const at_s=(seconds:number)=>new Date(Date.now()+seconds*1000).toISOString();
 const rounds=(assignmentId:string)=>f.p.admin.query("SELECT purpose,status FROM vendor_handoff.scheduling_round WHERE assignment_id=$1 ORDER BY created_at,id",[assignmentId]).then(r=>r.rows);
 
 describe("atomic Accept / Withdraw",()=>{
@@ -106,7 +118,7 @@ describe("shared command prologues",()=>{
     await f.p.admin.query("BEGIN");await f.p.admin.query("SELECT id FROM core_flow.ticket WHERE id=$1 FOR UPDATE",[o.ticketId]);
     const pending=code(o.vendor.accept(o.session,{clientRequestId:request,expectedAssignmentVersion:3,expectedPacketRevisionId:o.packetId}));
     try{
-      for(let i=0;i<100;i++){await f.p.admin.query("SELECT pg_stat_clear_snapshot()");if((await f.p.admin.query("SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND wait_event_type='Lock' AND query LIKE '%vendor_handoff%'")).rows[0].n>0)break;await new Promise(r=>setTimeout(r,10));}
+      await waitForTicketWait();
       await f.p.admin.query("UPDATE vendor_handoff.vendor_session SET revoked_at=clock_timestamp() WHERE assignment_id=$1",[o.assignmentId]);
       await f.p.admin.query("COMMIT");
       expect(await pending).toBe("UNAUTHENTICATED");
@@ -144,7 +156,7 @@ describe("current Tenant authority",()=>{
     await f.p.admin.query("BEGIN");await f.p.admin.query("SELECT id FROM core_flow.ticket WHERE id=$1 FOR UPDATE",[c.ticketId]);
     const pending=code(tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...g,windows:[{startAt:at(24),endAt:at(26)}]}));
     try{
-      for(let i=0;i<100;i++){await f.p.admin.query("SELECT pg_stat_clear_snapshot()");if((await f.p.admin.query("SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND wait_event_type='Lock' AND query LIKE '%vendor_handoff%'")).rows[0].n>0)break;await new Promise(r=>setTimeout(r,10));}
+      await waitForTicketWait();
       await f.p.admin.query("UPDATE app.occupancy_member SET status='ENDED',ended_at=clock_timestamp() WHERE user_id=$1",[f.data.accounts.tenant.userId]);
       await f.p.admin.query("COMMIT");
       expect(await pending).toBe("FORBIDDEN");
@@ -311,5 +323,93 @@ describe("immutable Appointments, RESCHEDULE and FOLLOW_UP distinction",()=>{
     expect(await rounds(c.assignmentId)).toEqual([{purpose:"INITIAL",status:"SUPERSEDED"},{purpose:"INITIAL",status:"OPEN"}]);
     const s:TenantVendorSchedulingDto=await read(c);
     expect(s).toMatchObject({accessPolicy:"TENANT_PREAUTHORIZATION_ALLOWED",availability:null,proposal:null,assignmentVersion:5});
+  });
+});
+
+describe("Task5 review remediation",()=>{
+  it("exact replay of a committed near-term availability and proposal still returns the committed result after the start passes",async()=>{
+    const c=await accepted();
+    const availabilityInput={clientRequestId:randomUUID(),...await guards(c),windows:[{startAt:at_s(2),endAt:at_s(3600)}]};
+    const first=await tenantPort.submitAvailability(c.tenantDigest,c.ticketId,availabilityInput);
+    const proposalInput={clientRequestId:randomUUID(),...await guards(c),slots:[{startAt:at_s(2),endAt:at_s(1800)}]};
+    const proposed=await c.vendor.proposeSlots(c.session,proposalInput);
+    await sleep(2500);
+    expect(await tenantPort.submitAvailability(c.tenantDigest,c.ticketId,availabilityInput)).toEqual(first);
+    expect(await c.vendor.proposeSlots(c.session,proposalInput)).toEqual(proposed);
+    expect(await code(tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{...availabilityInput,clientRequestId:randomUUID()}))).toBe("INVALID_INPUT");
+  });
+  it("rejects offset-less or relative timestamps at the SQL boundary",async()=>{
+    const c=await accepted("TENANT_PREAUTHORIZATION_ALLOWED");
+    expect(await code(tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await guards(c),windows:[{startAt:"tomorrow",endAt:"2099-01-01T00:00:00Z"}]}))).toBe("INVALID_INPUT");
+    expect(await code(tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await guards(c),windows:[{startAt:"2099-01-01 10:00",endAt:"2099-01-01 11:00"}]}))).toBe("INVALID_INPUT");
+    const s=await availability(c);const w=s.availability!.windows[0];
+    await tenantPort.authorizeEntry(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await guards(c),availabilitySubmissionId:s.availability!.id,selectedWindowIds:[w.id]});
+    expect(await code(c.vendor.selectPreauthorizedSlot(c.session,{clientRequestId:randomUUID(),...await guards(c),availabilitySubmissionId:s.availability!.id,selectedWindowId:w.id,startAt:"2099-01-01 10:00",endAt:"2099-01-01 11:00"}))).toBe("INVALID_INPUT");
+  });
+  it("projects preauthorized mode only while the authorizing occupancy member is current, and a pending proposal waits on the Tenant",async()=>{
+    const c=await accepted("TENANT_PREAUTHORIZATION_ALLOWED");
+    const s=await availability(c);
+    await tenantPort.authorizeEntry(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await guards(c),availabilitySubmissionId:s.availability!.id,selectedWindowIds:[s.availability!.windows[0].id]});
+    expect(await c.vendor.readJob(c.session)).toMatchObject({effectiveMode:"PREAUTHORIZED_ENTRY_WINDOW",waitingOn:"VENDOR"});
+    await f.p.admin.query("UPDATE app.occupancy_member SET status='ENDED',ended_at=clock_timestamp() WHERE user_id=$1",[f.data.accounts.tenant.userId]);
+    try{expect(await c.vendor.readJob(c.session)).toMatchObject({effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",waitingOn:"VENDOR"});}
+    finally{await f.p.admin.query("UPDATE app.occupancy_member SET status='ACTIVE',ended_at=NULL WHERE user_id=$1",[f.data.accounts.tenant.userId]);}
+    await propose(c);
+    expect(await c.vendor.readJob(c.session)).toMatchObject({effectiveMode:"PREAUTHORIZED_ENTRY_WINDOW",waitingOn:"TENANT"});
+  });
+  it("authorizes entry only for the Tenant occupancy member that submitted the availability",async()=>{
+    const c=await accepted("TENANT_PREAUTHORIZATION_ALLOWED");
+    await availability(c);
+    const round=(await read(c)).currentRound!;
+    const foreign=randomUUID();
+    await f.p.admin.query("UPDATE vendor_handoff.scheduling_round SET version=version+1 WHERE id=$1",[round.id]);
+    await f.p.admin.query("INSERT INTO vendor_handoff.tenant_availability_submission(id,org_id,assignment_id,round_id,packet_revision_id,occupancy_member_id,round_sequence) VALUES($1,$2,$3,$4,$5,$6,$7)",
+      [foreign,f.data.orgA,c.assignmentId,round.id,c.packetId,randomUUID(),round.version+1]);
+    const window=randomUUID();
+    await f.p.admin.query("INSERT INTO vendor_handoff.tenant_availability_window(id,org_id,submission_id,start_at,end_at) VALUES($1,$2,$3,clock_timestamp()+interval '30 hours',clock_timestamp()+interval '31 hours')",[window,f.data.orgA,foreign]);
+    expect(await code(tenantPort.authorizeEntry(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await guards(c),availabilitySubmissionId:foreign,selectedWindowIds:[window]}))).toBe("STATE_CONFLICT");
+    expect(await count("SELECT count(*)::int AS n FROM vendor_handoff.tenant_entry_authorization WHERE assignment_id=$1",[c.assignmentId])).toBe(0);
+  });
+  it("a past SCHEDULED Appointment cannot be rescheduled",async()=>{
+    const c=await accepted();await availability(c);
+    const job=await propose(c,[{startAt:at_s(2),endAt:at_s(3600)}]);
+    const s=await tenantPort.confirmSlot(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await guards(c),proposalId:job.proposal!.id,selectedSlotId:job.proposal!.slots[0].id});
+    await sleep(2500);
+    expect(await code(c.vendor.reschedule(c.session,{clientRequestId:randomUUID(),...await guards(c),expectedAppointmentId:s.appointment!.id}))).toBe("STATE_CONFLICT");
+    expect((await f.p.admin.query("SELECT status FROM vendor_handoff.appointment WHERE id=$1",[s.appointment!.id])).rows[0].status).toBe("SCHEDULED");
+  });
+  it.each(["serviceAddress","unitLabel"] as const)("a confirmed Appointment blocks a silent %s change",async field=>{
+    const c=await accepted();await scheduled(c);
+    if(field==="serviceAddress")await f.p.admin.query("UPDATE core_flow.building_context SET body=body||jsonb_build_object('serviceAddress','합성 변경 주소')");
+    else await f.p.admin.query("UPDATE app.unit SET label='합성 변경 호실' WHERE id=$1",[f.data.unitA]);
+    try{
+      expect(await code(f.manager.publishPacket(c.managerDigest,c.assignmentId,{clientRequestId:randomUUID(),expectedAssignmentVersion:4,expectedPacketRevisionId:c.packetId,workSummary:"합성 누수 점검",accessPolicy:"TENANT_PRESENT_REQUIRED",sharedDetailKeys:[],allowedPhotoIds:[],accessInstruction:null}))).toBe("STATE_CONFLICT");
+    }finally{
+      if(field==="serviceAddress")await f.p.admin.query("UPDATE core_flow.building_context SET body=body||jsonb_build_object('serviceAddress','합성 테스트 주소')");
+      else await f.p.admin.query("UPDATE app.unit SET label=$2 WHERE id=$1",[f.data.unitA,c.p.handoff.currentPacket!.unitLabel]);
+    }
+  });
+  it("freezes closed rounds and appointment transition timestamps and keeps round sequences unique",async()=>{
+    const c=await accepted();const s=await scheduled(c);
+    const round=s.currentRound!;
+    await expect(f.p.admin.query("UPDATE vendor_handoff.scheduling_round SET version=version+1 WHERE id=$1",[round.id])).rejects.toMatchObject({code:"P0001"});
+    await expect(f.p.admin.query("UPDATE vendor_handoff.scheduling_round SET closed_at=clock_timestamp() WHERE id=$1",[round.id])).rejects.toMatchObject({code:"P0001"});
+    await f.p.admin.query("UPDATE vendor_handoff.appointment SET status='OCCURRED',status_changed_at='2000-01-01T00:00:00Z' WHERE id=$1",[s.appointment!.id]);
+    const changed=(await f.p.admin.query("SELECT status_changed_at FROM vendor_handoff.appointment WHERE id=$1",[s.appointment!.id])).rows[0].status_changed_at as Date;
+    expect(changed.getUTCFullYear()).toBeGreaterThan(2020);
+    await expect(f.p.admin.query("UPDATE vendor_handoff.appointment SET status_changed_at=clock_timestamp() WHERE id=$1",[s.appointment!.id])).rejects.toMatchObject({code:"P0001"});
+    const open=await accepted();const sub=await availability(open);const r=(await read(open)).currentRound!;
+    const seq=(await f.p.admin.query("SELECT round_sequence FROM vendor_handoff.tenant_availability_submission WHERE id=$1",[sub.availability!.id])).rows[0].round_sequence;
+    await expect(f.p.admin.query("INSERT INTO vendor_handoff.tenant_availability_submission(org_id,assignment_id,round_id,packet_revision_id,occupancy_member_id,round_sequence) VALUES($1,$2,$3,$4,$5,$6)",
+      [f.data.orgA,open.assignmentId,r.id,open.packetId,randomUUID(),seq])).rejects.toMatchObject({code:"23505"});
+  });
+  it("ties scheduling children to the same round, assignment and authorizing member",async()=>{
+    const c=await accepted();const other=await accepted();
+    const sub=await availability(other);
+    const r=(await read(c)).currentRound!;
+    await expect(f.p.admin.query("INSERT INTO vendor_handoff.vendor_slot_proposal(org_id,assignment_id,round_id,packet_revision_id,availability_submission_id,round_sequence) VALUES($1,$2,$3,$4,$5,999)",
+      [f.data.orgA,c.assignmentId,r.id,c.packetId,sub.availability!.id])).rejects.toMatchObject({code:"23503"});
+    await expect(f.p.admin.query("INSERT INTO vendor_handoff.vendor_slot_proposal(org_id,assignment_id,round_id,packet_revision_id,round_sequence) VALUES($1,$2,$3,$4,998)",
+      [f.data.orgA,c.assignmentId,r.id,other.packetId])).rejects.toMatchObject({code:"23503"});
   });
 });

@@ -385,3 +385,78 @@ describe("decline and logout",()=>{
     expect(page().includes("합성 업체 B")).toBe(false);
   });
 });
+
+describe("Task5 review remediation (screen)",()=>{
+  const proposalB={id:"ffffffff-ffff-4fff-8fff-ffffffffffff",slots:[{id:"abababab-abab-4bab-8bab-abababababab",startAt:"2026-10-08T05:00:00.000Z",endAt:"2026-10-08T06:00:00.000Z"}],createdAt:"2026-10-07T00:00:00.000Z"};
+  it("never lets a stale logout refresh and retry against a session redeemed after a same-tab switch",async()=>{
+    let release!:(value:unknown)=>void;
+    let first=true;
+    const client=fakeClient({
+      redeem:vi.fn(async(token:string)=>({session:{assignmentId:token===tokenC?assignmentA:assignmentB,expiresAt,csrf:token===tokenC?csrf2:csrf},job:job(token===tokenC?assignmentA:assignmentB,token===tokenC?"A":"B")})),
+      logout:vi.fn(async()=>{if(first){first=false;throw http(403,"FORBIDDEN");}return {revoked:true};}),
+      session:vi.fn(()=>new Promise(resolve=>{release=resolve;})),
+    });
+    await mount(client,`#${tokenB}`);
+    await click("이 기기에서 나가기");
+    await act(async()=>{window.history.pushState(null,"",`/vendor/job#${tokenC}`);window.dispatchEvent(new Event("hashchange"));});
+    await flush();
+    expect(page()).toContain("합성 업체 A");
+    await act(async()=>{release({assignmentId:assignmentA,expiresAt,csrf:csrf2});});
+    await flush();
+    expect(client.logout).toHaveBeenCalledTimes(1);
+    expect(page()).toContain("합성 업체 A");
+    expect(page().includes("이 기기에서 작업 화면을 닫았습니다")).toBe(false);
+  });
+  it("attributes a pending proposal to the Vendor in the waiting copy",async()=>{
+    const waiting={...active(assignmentB,"B"),waitingOn:"TENANT" as const,proposal:proposalB};
+    const client=fakeClient({redeem:vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:waiting}))});
+    await mount(client,`#${tokenB}`);
+    expect(page()).toContain("제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다");
+    expect(page().includes("세입자가 제안한 시간")).toBe(false);
+  });
+  it("keeps the withdraw note after a stale conflict",async()=>{
+    const client=fakeClient({redeem:vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:active(assignmentB,"B")})),
+      job:vi.fn(async()=>active(assignmentB,"B")),withdraw:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
+    await mount(client,`#${tokenB}`);
+    await click("작업 철회");
+    const area=host.querySelector("textarea")!;
+    const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!;
+    await act(async()=>{setter.call(area,"합성 철회 사유");area.dispatchEvent(new Event("input",{bubbles:true}));});
+    await click("철회 내용 확인");
+    await click("철회하기");
+    expect(page()).toContain("최신 내용을 확인해 주세요");
+    expect(host.querySelector("textarea")?.value).toBe("합성 철회 사유");
+  });
+  it("ignores a late Accept result that started before a same-tab assignment switch",async()=>{
+    let finish!:(value:unknown)=>void;
+    const client=fakeClient({
+      redeem:vi.fn(async(token:string)=>({session:{assignmentId:token===tokenC?assignmentA:assignmentB,expiresAt,csrf},job:job(token===tokenC?assignmentA:assignmentB,token===tokenC?"A":"B")})),
+      accept:vi.fn(()=>new Promise(resolve=>{finish=resolve;})),
+    });
+    await mount(client,`#${tokenB}`);
+    await click("작업 수락");
+    await act(async()=>{window.history.pushState(null,"",`/vendor/job#${tokenC}`);window.dispatchEvent(new Event("hashchange"));});
+    await flush();
+    await act(async()=>{finish(active(assignmentB,"B"));});
+    await flush();
+    expect(page()).toContain("합성 업체 A");
+    expect(page().includes("방문 일정 조율")).toBe(false);
+    expect(button("작업 수락")).toBeDefined();
+  });
+  it("reconciles an unknown Withdraw outcome with the same request identity",async()=>{
+    let fail=true;
+    const client=fakeClient({redeem:vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:active(assignmentB,"B")})),
+      withdraw:vi.fn(async()=>{if(fail)throw network();return {...active(assignmentB,"B"),status:"ENDED",endReason:"WITHDRAWN",phase:"ENDED",assignmentVersion:5,currentRound:null};})});
+    await mount(client,`#${tokenB}`);
+    await click("작업 철회");
+    await click("철회 내용 확인");
+    await click("철회하기");
+    expect(page()).toContain("철회 결과를 확인하지 못했습니다");
+    fail=false;
+    await click("같은 요청으로 결과 확인");
+    const ids=client.withdraw.mock.calls.map(c=>c[1].clientRequestId);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toBe(ids[1]);
+    expect(page()).toContain("작업을 철회했습니다");
+  });
+});
