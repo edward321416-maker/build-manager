@@ -1,5 +1,5 @@
 import { VendorHandoffError,type VendorHandoffErrorCode,type VendorHandoffExternalPort } from "@build-manager/application";
-import { VendorAcceptCommandSchema,VendorDeclineCommandSchema,VendorJobDtoSchema,VendorWithdrawCommandSchema,VendorLogoutCommandSchema,VendorLogoutResultDtoSchema,VendorRedeemCommandSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
+import { VendorAcceptCommandSchema,VendorDeclineCommandSchema,VendorJobDtoSchema,VendorWithdrawCommandSchema,VendorPreauthorizedAppointmentCommandSchema,VendorProposalCommandSchema,VendorRescheduleCommandSchema,VendorLogoutCommandSchema,VendorLogoutResultDtoSchema,VendorRedeemCommandSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
 import { getVendorHandoffContainer } from "./container";
 import { capabilityFromAuthorization,clearVendorSessionCookie,createVendorSecret,readVendorSessionCookie,vendorSecretDigest,vendorSessionCookie } from "./token";
 
@@ -86,8 +86,8 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
       }
       fail("NOT_FOUND");
     }
-    // Session logout and job lifecycle commands. Vendor scheduling routes arrive with Task 6.
-    if(!["session/logout","job/decline","job/accept","job/withdraw"].includes(route))fail("NOT_FOUND");
+    // Session logout, job lifecycle and scheduling commands. Visit/blocker/completion routes arrive with later tasks.
+    if(!["session/logout","job/decline","job/accept","job/withdraw","scheduling/proposals","scheduling/preauthorized-appointment","scheduling/reschedule"].includes(route))fail("NOT_FOUND");
     const csrf=request.headers.get("x-vendor-csrf");
     if(!csrf||!/^[A-Za-z0-9_-]{43}$/.test(csrf))fail("FORBIDDEN");
     const port=deps.external(vendorSecretDigest(csrf!));
@@ -98,6 +98,9 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
       return json(result);
     }
     if(route==="job/accept")return json(project(VendorJobDtoSchema,await port.accept(sessionDigest,parse(VendorAcceptCommandSchema,await readBody(request)))));
+    if(route==="scheduling/proposals")return json(project(VendorJobDtoSchema,await port.proposeSlots(sessionDigest,parse(VendorProposalCommandSchema,await readBody(request)))));
+    if(route==="scheduling/preauthorized-appointment")return json(project(VendorJobDtoSchema,await port.selectPreauthorizedSlot(sessionDigest,parse(VendorPreauthorizedAppointmentCommandSchema,await readBody(request)))));
+    if(route==="scheduling/reschedule")return json(project(VendorJobDtoSchema,await port.reschedule(sessionDigest,parse(VendorRescheduleCommandSchema,await readBody(request)))));
     if(route==="job/withdraw")return json(project(VendorJobDtoSchema,await port.withdraw(sessionDigest,parse(VendorWithdrawCommandSchema,await readBody(request)))));
     return json(project(VendorJobDtoSchema,await port.decline(sessionDigest,parse(VendorDeclineCommandSchema,await readBody(request)))));
   }catch(error){

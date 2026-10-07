@@ -1,5 +1,6 @@
-import { VendorHandoffError, type VendorHandoffManagerPort } from "@build-manager/application";
-import { ManagerVendorHandoffDtoSchema, VendorCreateAssignmentCommandSchema, VendorPublishPacketCommandSchema, VendorIssueLinkCommandSchema, VendorReissueLinkCommandSchema, VendorRevokeCommandSchema, VendorLinkIssueDtoSchema } from "@build-manager/api-contracts";
+import { VendorHandoffError, type VendorHandoffManagerPort, type VendorHandoffTenantPort } from "@build-manager/application";
+import { ManagerVendorHandoffDtoSchema, VendorCreateAssignmentCommandSchema, VendorPublishPacketCommandSchema, VendorIssueLinkCommandSchema, VendorReissueLinkCommandSchema, VendorRevokeCommandSchema, VendorLinkIssueDtoSchema,
+  VendorManagerRescheduleCommandSchema, VendorAvailabilityCommandSchema, VendorEntryAuthorizationCommandSchema, VendorConfirmSlotCommandSchema, VendorTenantRescheduleCommandSchema, VendorTenantSchedulingDtoSchema } from "@build-manager/api-contracts";
 
 export function isManagerVendorHandoffRoute(segments:string[]):boolean{
   return segments[0]==="manager"&&((segments[1]==="tickets"&&["vendor-handoff","vendor-assignment"].includes(segments[3]))||segments[1]==="vendor-assignments");
@@ -34,11 +35,44 @@ export async function handleManagerVendorHandoff(request:Request,segments:string
         return json(result,result.created?201:200);
       }
       if(route==="revoke")return json(ManagerVendorHandoffDtoSchema.parse(await port.revoke(digest,id,parse(VendorRevokeCommandSchema,await readBody(request)))));
+      if(route==="reschedule")return json(ManagerVendorHandoffDtoSchema.parse(await port.reschedule(digest,id,parse(VendorManagerRescheduleCommandSchema,await readBody(request)))));
     }
     throw new VendorHandoffError("NOT_FOUND");
   }catch(error){
     const code=error instanceof VendorHandoffError?error.code:"DEPENDENCY_UNAVAILABLE";
     const status=code==="UNAUTHENTICATED"?401:code==="FORBIDDEN"?403:code==="NOT_FOUND"?404:code==="INVALID_INPUT"?400:code==="STATE_CONFLICT"?409:503;
     return json({error:{code,message:status===409?"최신 외부 업체 인계 상태를 확인해 주세요.":status===503?"외부 업체 인계 서비스에 연결하지 못했습니다.":"접근 권한이나 입력을 확인해 주세요."}},status);
+  }
+}
+
+const TENANT_ACTIONS=["availability","entry-authorization","confirm","reschedule"];
+/** `tickets/:ticketId/vendor-scheduling[/action]` only; every other ticket route stays with Core. */
+export function isTenantVendorSchedulingRoute(segments:string[]):boolean{
+  return segments[0]==="tickets"&&segments[2]==="vendor-scheduling"&&(segments.length===3||(segments.length===4&&TENANT_ACTIONS.includes(segments[3])));
+}
+/**
+ * Tenant scheduling over the B1 Core boundary. Authority is only the request-scoped digest: the port derives the
+ * current Tenant/occupancy in SQL; no client-supplied organization, unit or occupancy value is accepted.
+ */
+export async function handleTenantVendorScheduling(request:Request,segments:string[],digest:string,port:VendorHandoffTenantPort|undefined,headers:Headers):Promise<Response>{
+  const json=(data:unknown,status=200)=>Response.json(data,{status,headers});
+  try{
+    const id=segments[1];
+    if(!id||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id))throw new VendorHandoffError("INVALID_INPUT");
+    if(!port)throw new VendorHandoffError("DEPENDENCY_UNAVAILABLE");
+    const action=segments[3];
+    const respond=async(value:unknown)=>json(VendorTenantSchedulingDtoSchema.parse(await value));
+    if(action===undefined&&request.method==="GET")return await respond(port.readScheduling(digest,id));
+    if(request.method==="POST"){
+      if(action==="availability")return await respond(port.submitAvailability(digest,id,parse(VendorAvailabilityCommandSchema,await readBody(request))));
+      if(action==="entry-authorization")return await respond(port.authorizeEntry(digest,id,parse(VendorEntryAuthorizationCommandSchema,await readBody(request))));
+      if(action==="confirm")return await respond(port.confirmSlot(digest,id,parse(VendorConfirmSlotCommandSchema,await readBody(request))));
+      if(action==="reschedule")return await respond(port.reschedule(digest,id,parse(VendorTenantRescheduleCommandSchema,await readBody(request))));
+    }
+    throw new VendorHandoffError("NOT_FOUND");
+  }catch(error){
+    const code=error instanceof VendorHandoffError?error.code:"DEPENDENCY_UNAVAILABLE";
+    const status=code==="UNAUTHENTICATED"?401:code==="FORBIDDEN"?403:code==="NOT_FOUND"?404:code==="INVALID_INPUT"?400:code==="STATE_CONFLICT"?409:503;
+    return json({error:{code,message:status===409?"방문 일정이 바뀌었습니다. 최신 일정을 확인해 주세요.":status===503?"방문 일정 서비스에 연결하지 못했습니다.":"접근 권한이나 입력을 확인해 주세요."}},status);
   }
 }

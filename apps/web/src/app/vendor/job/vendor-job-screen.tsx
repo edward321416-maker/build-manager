@@ -2,7 +2,9 @@
 import Image from "next/image";
 import { useCallback,useEffect,useRef,useState } from "react";
 import { ApiClientError,createVendorJobClient,type VendorJobClient } from "@build-manager/api-client";
-import { VendorDeclineCommandSchema,type VendorDeclineReason,type VendorJobDto,type VendorSharedDetailSourceType } from "@build-manager/api-contracts";
+import { VendorDeclineCommandSchema,type VendorDeclineReason,type VendorJobDto,type VendorPreauthorizedAppointmentCommand,type VendorProposalCommand,type VendorRescheduleCommand,type VendorSharedDetailSourceType } from "@build-manager/api-contracts";
+import { IntervalFields,draftsToIntervals,emptyIntervalDraft,type IntervalDraft } from "../../../components/vendor-interval-fields";
+import { formatVendorInterval,intervalWithin } from "../../../lib/vendor-time";
 import styles from "./vendor-job.module.css";
 
 const RAW=/^[A-Za-z0-9_-]{43}$/;
@@ -35,6 +37,19 @@ const closedDecline:Decline={assignmentId:null,open:false,reason:null,note:"",co
 type Lifecycle={kind:"accept"|"withdraw"|null;assignmentId:string|null;open:boolean;note:string;confirming:boolean;requestId:string|null;status:"idle"|"submitting"|"uncertain"};
 const idleLifecycle:Lifecycle={kind:null,assignmentId:null,open:false,note:"",confirming:false,requestId:null,status:"idle"};
 const STALE_NOTICE="작업 요청 내용이 바뀌었습니다. 최신 내용을 확인해 주세요.";
+type ScheduleSend=
+  |{kind:"propose";input:VendorProposalCommand}
+  |{kind:"preauthorized";input:VendorPreauthorizedAppointmentCommand}
+  |{kind:"reschedule";input:VendorRescheduleCommand};
+/** Visit-scheduling drafts plus the one sent command, owned by one assignment; an unknown outcome resends the identical command. */
+type Schedule={assignmentId:string|null;drafts:IntervalDraft[];windowId:string|null;slot:IntervalDraft;rescheduling:boolean;sent:ScheduleSend|null;status:"idle"|"submitting"|"uncertain";notice:string};
+const idleSchedule:Schedule={assignmentId:null,drafts:[emptyIntervalDraft()],windowId:null,slot:emptyIntervalDraft(),rescheduling:false,sent:null,status:"idle",notice:""};
+const UNCERTAIN_SCHEDULE:Record<ScheduleSend["kind"],string>={
+  propose:"제안 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
+  preauthorized:"방문 확정 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
+  reschedule:"일정 변경 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
+};
+const systemNow=()=>new Date();
 
 /** A 4xx answer is authoritative; transport loss, 5xx and malformed replies leave the outcome unknown. */
 function definitive(error:unknown):boolean{
@@ -64,11 +79,12 @@ function browserClient():VendorJobClient{
   return createVendorJobClient(async(input,init)=>fetch(input,{...init,cache:"no-store",credentials:"same-origin"}));
 }
 
-export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
+export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJobClient;now?:()=>Date}){
   const [client]=useState(()=>injected??browserClient());
   const [phase,setPhase]=useState<Phase>({kind:"loading"});
   const [decline,setDecline]=useState<Decline>(closedDecline);
   const [lifecycle,setLifecycle]=useState<Lifecycle>(idleLifecycle);
+  const [schedule,setSchedule]=useState<Schedule>(idleSchedule);
   const [taskNotice,setTaskNotice]=useState("");
   const [notice,setNotice]=useState("");
   const [busy,setBusy]=useState(false);
@@ -109,7 +125,7 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
   const begin=useCallback(async()=>{
     // A new redemption/load may switch assignment: drop every pending per-assignment intent first.
     generation.current+=1;
-    setDecline(closedDecline);setLifecycle(idleLifecycle);setTaskNotice("");setNotice("");logoutId.current=null;
+    setDecline(closedDecline);setLifecycle(idleLifecycle);setSchedule(idleSchedule);setTaskNotice("");setNotice("");logoutId.current=null;
     const fragment=window.location.hash.slice(1);
     if(!fragment)return loadSession();
     if(!RAW.test(fragment)){clearFragment();setPhase({kind:"unavailable"});return;}
@@ -190,6 +206,58 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
       else setLifecycle({...state,requestId:id,status:"uncertain"});
     }
   };
+  /** Scheduling commands: identical resend on an unknown outcome; authoritative refresh (draft kept) on a stale conflict. */
+  const sendSchedule=async(send:ScheduleSend,state:Schedule)=>{
+    if(phase.kind!=="ready"||!csrf.current)return;
+    const job=phase.job,gen=generation.current;
+    if(state.assignmentId!==job.assignmentId){setSchedule(idleSchedule);return;}
+    setSchedule({...state,sent:send,status:"submitting",notice:""});setTaskNotice("");
+    try{
+      const result=await withFreshCsrf(gen,value=>send.kind==="propose"?client.proposeSlots(value,send.input)
+        :send.kind==="preauthorized"?client.selectPreauthorizedSlot(value,send.input):client.reschedule(value,send.input));
+      if(gen!==generation.current)return;
+      setSchedule({...idleSchedule,assignmentId:job.assignmentId});setPhase({kind:"ready",job:result});
+    }catch(error){
+      if(gen!==generation.current)return;
+      const idle={...state,sent:null,status:"idle" as const};
+      if(statusOf(error)===409){setSchedule({...idle,rescheduling:false});setTaskNotice(STALE_NOTICE);await refresh(gen);}
+      else if(statusOf(error)===403){setSchedule(idle);setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
+      else if(statusOf(error)===400)setSchedule({...idle,notice:"입력한 시간을 다시 확인해 주세요. 지난 시간은 선택할 수 없습니다."});
+      else if(definitive(error)){setSchedule(idleSchedule);setPhase({kind:"unavailable"});}
+      else setSchedule({...state,sent:send,status:"uncertain"});
+    }
+  };
+  const ownedSchedule=(job:VendorJobDto)=>schedule.assignmentId===job.assignmentId?schedule:{...idleSchedule,assignmentId:job.assignmentId};
+  const proposeSlots=()=>{
+    if(phase.kind!=="ready")return;
+    const job=phase.job,state=ownedSchedule(job);
+    if(!job.currentRound||!job.currentPacket)return;
+    const result=draftsToIntervals(state.drafts,now());
+    if(!result.ok){setSchedule({...state,notice:result.message});return;}
+    void sendSchedule({kind:"propose",input:{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,expectedRoundVersion:job.currentRound.version,
+      expectedPacketRevisionId:job.currentPacket.id,slots:result.intervals}},state);
+  };
+  const selectPreauthorized=()=>{
+    if(phase.kind!=="ready")return;
+    const job=phase.job,state=ownedSchedule(job),availability=job.availability;
+    if(!job.currentRound||!job.currentPacket||!availability)return;
+    const chosen=availability.windows.find(item=>item.id===state.windowId&&availability.authorizedWindowIds.includes(item.id));
+    if(!chosen){setSchedule({...state,notice:"세입자가 동의한 시간을 먼저 골라 주세요."});return;}
+    const result=draftsToIntervals([state.slot],now());
+    if(!result.ok){setSchedule({...state,notice:result.message});return;}
+    const slot=result.intervals[0];
+    // Containment is checked by absolute instant; the server re-checks the same rule under lock.
+    if(!intervalWithin(slot,chosen)){setSchedule({...state,notice:"동의된 시간 안에서만 방문 시간을 정할 수 있습니다."});return;}
+    void sendSchedule({kind:"preauthorized",input:{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,expectedRoundVersion:job.currentRound.version,
+      expectedPacketRevisionId:job.currentPacket.id,availabilitySubmissionId:availability.id,selectedWindowId:chosen.id,startAt:slot.startAt,endAt:slot.endAt}},state);
+  };
+  const rescheduleVisit=()=>{
+    if(phase.kind!=="ready")return;
+    const job=phase.job,state=ownedSchedule(job);
+    if(!job.currentRound||!job.currentPacket||job.appointment?.status!=="SCHEDULED")return;
+    void sendSchedule({kind:"reschedule",input:{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,expectedRoundVersion:job.currentRound.version,
+      expectedAppointmentId:job.appointment.id,expectedPacketRevisionId:job.currentPacket.id}},state);
+  };
   const startAccept=()=>{
     if(phase.kind!=="ready")return;
     const held=lifecycle.kind==="accept"&&lifecycle.assignmentId===phase.job.assignmentId?lifecycle:{...idleLifecycle,kind:"accept" as const,assignmentId:phase.job.assignmentId};
@@ -222,17 +290,21 @@ export function VendorJobScreen({client:injected}:{client?:VendorJobClient}){
     }finally{setBusy(false);}
   };
 
-  return <VendorJobView phase={phase} decline={decline} lifecycle={lifecycle} taskNotice={taskNotice} notice={notice} busy={busy} photoPath={client.sourcePhotoPath}
+  return <VendorJobView phase={phase} decline={decline} lifecycle={lifecycle} schedule={schedule} now={now} taskNotice={taskNotice} notice={notice} busy={busy} photoPath={client.sourcePhotoPath}
     onRetryRedeem={()=>void redeem()} onRetryLoad={()=>{setPhase({kind:"loading"});void loadSession();}} onDecline={change=>setDecline(current=>({...current,...change}))}
     onConfirmDecline={confirmDecline} onSubmitDecline={()=>void submitDecline(decline)}
     onAccept={startAccept} onLifecycle={change=>setLifecycle(current=>({...current,...change}))} onConfirmWithdraw={confirmWithdraw}
-    onSubmitWithdraw={()=>void submitLifecycle("withdraw",lifecycle)} onLogout={()=>void logout()}/>;
+    onSubmitWithdraw={()=>void submitLifecycle("withdraw",lifecycle)} onLogout={()=>void logout()}
+    onSchedule={change=>setSchedule(current=>({...(phase.kind==="ready"&&current.assignmentId!==phase.job.assignmentId?{...idleSchedule,assignmentId:phase.job.assignmentId}:current),...change,notice:""}))}
+    onProposeSlots={proposeSlots} onSelectPreauthorized={selectPreauthorized} onReschedule={rescheduleVisit}
+    onRetrySchedule={()=>{if(schedule.sent)void sendSchedule(schedule.sent,schedule);}}/>;
 }
 
 type ViewProps={
-  phase:Phase;decline:Decline;lifecycle:Lifecycle;taskNotice:string;notice:string;busy:boolean;photoPath:(id:string)=>string;
+  phase:Phase;decline:Decline;lifecycle:Lifecycle;schedule:Schedule;now:()=>Date;taskNotice:string;notice:string;busy:boolean;photoPath:(id:string)=>string;
   onRetryRedeem():void;onRetryLoad():void;onDecline(change:Partial<Decline>):void;onConfirmDecline():void;onSubmitDecline():void;
   onAccept():void;onLifecycle(change:Partial<Lifecycle>):void;onConfirmWithdraw():void;onSubmitWithdraw():void;onLogout():void;
+  onSchedule(change:Partial<Schedule>):void;onProposeSlots():void;onSelectPreauthorized():void;onReschedule():void;onRetrySchedule():void;
 };
 export function VendorJobView(props:ViewProps){
   const {phase,notice,busy,photoPath,onRetryRedeem,onRetryLoad,onLogout}=props;
@@ -283,13 +355,15 @@ function schedulingStatus(job:VendorJobDto):string{
   return job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"?"세입자가 동의한 시간 안에서 방문 시간을 정할 차례입니다.":"세입자가 가능한 시간을 알려 주었습니다. 방문 시간을 제안할 차례입니다.";
 }
 
-function CurrentTask({job,decline:heldDecline,lifecycle:heldLifecycle,taskNotice,onDecline,onConfirmDecline,onSubmitDecline,onAccept,onLifecycle,onConfirmWithdraw,onSubmitWithdraw}:ViewProps&{job:VendorJobDto}){
+function CurrentTask(props:ViewProps&{job:VendorJobDto}){
+  const {job,decline:heldDecline,lifecycle:heldLifecycle,schedule:heldSchedule,taskNotice,onDecline,onConfirmDecline,onSubmitDecline,onAccept,onLifecycle,onConfirmWithdraw,onSubmitWithdraw}=props;
   // Intents held for another assignment are never rendered or sent for this one.
   const decline=heldDecline.open&&heldDecline.assignmentId!==job.assignmentId?closedDecline:heldDecline;
   const lifecycle=heldLifecycle.assignmentId!==null&&heldLifecycle.assignmentId!==job.assignmentId?idleLifecycle:heldLifecycle;
+  const schedule=heldSchedule.assignmentId!==null&&heldSchedule.assignmentId!==job.assignmentId?idleSchedule:heldSchedule;
   const offered=job.status==="OFFERED"&&job.currentPacket!==null;
   const active=job.status==="ACTIVE"&&job.currentPacket!==null;
-  const submitting=decline.status==="submitting"||lifecycle.status==="submitting";
+  const submitting=decline.status==="submitting"||lifecycle.status==="submitting"||schedule.status==="submitting";
   const accepting=lifecycle.kind==="accept";
   const withdrawing=lifecycle.kind==="withdraw"&&lifecycle.open;
   const notice=decline.notice||taskNotice;
@@ -334,7 +408,8 @@ function CurrentTask({job,decline:heldDecline,lifecycle:heldLifecycle,taskNotice
     </>:active?<>
       <h3>방문 일정 조율</h3>
       <p>{schedulingStatus(job)}</p>
-      {!withdrawing?<button type="button" disabled={submitting} onClick={()=>onLifecycle({...idleLifecycle,kind:"withdraw",open:true,assignmentId:job.assignmentId})}>작업 철회</button>:null}
+      {!withdrawing?<VisitScheduling {...props} schedule={schedule} submitting={submitting}/>:null}
+      {!withdrawing&&schedule.status==="idle"&&!schedule.rescheduling?<button type="button" disabled={submitting} onClick={()=>onLifecycle({...idleLifecycle,kind:"withdraw",open:true,assignmentId:job.assignmentId})}>작업 철회</button>:null}
       {withdrawing&&!lifecycle.confirming&&lifecycle.status==="idle"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onConfirmWithdraw();}}>
         <label>철회 메모 (선택, 500자 이내)
           <textarea maxLength={500} value={lifecycle.note} onChange={event=>onLifecycle({note:event.target.value})}/>
@@ -355,6 +430,58 @@ function CurrentTask({job,decline:heldDecline,lifecycle:heldLifecycle,taskNotice
       </div>:null}
     </>:<p>지금 진행할 수 있는 작업이 없습니다.</p>}
   </section>;
+}
+
+function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,onSelectPreauthorized,onReschedule,onRetrySchedule}:ViewProps&{job:VendorJobDto;submitting:boolean}){
+  const at=now(),future=(instant:string)=>Date.parse(instant)>at.getTime(),label=(startAt:string,endAt:string)=>formatVendorInterval(startAt,endAt,at);
+  const round=job.currentRound,open=job.phase==="SCHEDULING"&&round?.status==="OPEN";
+  const appointment=job.appointment?.status==="SCHEDULED"?job.appointment:null;
+  const availability=open?job.availability:null;
+  const windows=availability?.windows.filter(item=>future(item.endAt))??[];
+  const authorized=job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"?windows.filter(item=>availability!.authorizedWindowIds.includes(item.id)):[];
+  const liveSlots=open?job.proposal?.slots.filter(slot=>future(slot.startAt))??[]:[];
+  const expired=open&&Boolean(job.proposal)&&liveSlots.length===0;
+  if(schedule.status==="uncertain"&&schedule.sent)return <div className={styles.confirm} role="group" aria-label="방문 일정 결과 확인">
+    <p role="alert">{UNCERTAIN_SCHEDULE[schedule.sent.kind]}</p>
+    <button type="button" onClick={onRetrySchedule}>같은 요청으로 결과 확인</button>
+  </div>;
+  return <>
+    {schedule.notice?<p role="alert">{schedule.notice}</p>:null}
+    {appointment?<div aria-label="확정된 방문 일정" role="group">
+      <h3>확정된 방문 일정</h3>
+      <p>{label(appointment.startAt,appointment.endAt)}</p>
+      <p>{appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?"세입자가 부재 중 출입에 동의한 시간 안에서 정한 방문입니다.":"세입자가 확정한 방문 시간입니다."}</p>
+      {future(appointment.startAt)&&round?.status==="CONFIRMED"?(schedule.rescheduling?<div className={styles.confirm} role="group" aria-labelledby="vendor-reschedule-confirm">
+        <h3 id="vendor-reschedule-confirm">방문 일정을 바꿀까요?</h3>
+        <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 세입자와 새로 일정을 조율해야 합니다.</p>
+        <button type="button" disabled={submitting} onClick={onReschedule}>일정 변경하기</button>
+        <button type="button" disabled={submitting} onClick={()=>onSchedule({rescheduling:false})}>돌아가기</button>
+      </div>:<button type="button" disabled={submitting} onClick={()=>onSchedule({rescheduling:true})}>방문 일정 변경</button>):null}
+    </div>:null}
+    {windows.length?<div>
+      <h3>세입자가 알려 준 가능한 시간</h3>
+      <ul>{windows.map(item=><li key={item.id}>{label(item.startAt,item.endAt)}{availability!.authorizedWindowIds.includes(item.id)?" · 부재 중 출입 동의":""}</li>)}</ul>
+    </div>:null}
+    {authorized.length?<form className={styles.form} onSubmit={event=>{event.preventDefault();onSelectPreauthorized();}}>
+      <fieldset disabled={submitting}>
+        <legend>세입자가 동의한 시간</legend>
+        {authorized.map(item=><label key={item.id} className={styles.choice}>
+          <input type="radio" name="vendor-authorized-window" checked={schedule.windowId===item.id} onChange={()=>onSchedule({windowId:item.id})}/>{label(item.startAt,item.endAt)}
+        </label>)}
+      </fieldset>
+      <IntervalFields legend="동의된 시간 안의 방문 시간" drafts={[schedule.slot]} max={1} disabled={submitting} onChange={([slot])=>onSchedule({slot:slot??emptyIntervalDraft()})}/>
+      <button type="submit" disabled={submitting}>동의된 시간 안에서 방문 확정</button>
+    </form>:null}
+    {liveSlots.length?<div>
+      <h3>제안한 방문 시간</h3>
+      <ul>{liveSlots.map(slot=><li key={slot.id}>{label(slot.startAt,slot.endAt)}</li>)}</ul>
+    </div>:null}
+    {expired?<p>제안한 시간이 모두 지났습니다. 새 방문 시간을 제안해 주세요.</p>:null}
+    {open&&!liveSlots.length?<form className={styles.form} onSubmit={event=>{event.preventDefault();onProposeSlots();}}>
+      <IntervalFields legend="세입자에게 제안할 방문 시간 (최대 5개)" drafts={schedule.drafts} disabled={submitting} onChange={drafts=>onSchedule({drafts})}/>
+      <button type="submit" disabled={submitting}>방문 시간 제안하기</button>
+    </form>:null}
+  </>;
 }
 
 function Packet({job,photoPath}:{job:VendorJobDto;photoPath:(id:string)=>string}){

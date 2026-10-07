@@ -6,7 +6,7 @@ import { parseRouteCode } from "../http/route-code";
 import { getCoreFlowContainer,type CoreHTTPDependencies } from "./container";
 import { handlePhotoRequest,PhotoRequestError } from "./photos";
 import { handleOnboarding } from "./onboarding";
-import { handleManagerVendorHandoff,isManagerVendorHandoffRoute } from "./vendor-handoff";
+import { handleManagerVendorHandoff,handleTenantVendorScheduling,isManagerVendorHandoffRoute,isTenantVendorSchedulingRoute } from "./vendor-handoff";
 import { CoreManagerWorkItemsSchema,CoreManagerWorkItemSchema,CoreManagerWorkUpdateSchema,CoreManagerInternalNotesSchema,CoreManagerInternalNoteSchema,CoreManagerInternalNoteCreateSchema } from "@build-manager/api-contracts";
 import { sendCoreCommunication } from "@build-manager/application";
 import { CoreCommunicationPageSchema,CoreCommunicationSendSchema,CorePublicMessageSchema,CoreCommunicationSummariesSchema } from "@build-manager/api-contracts";
@@ -95,6 +95,12 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
       // Vendor adapter binds and reauthorizes this selection in its own operation transaction.
       await port.run(hash,scope=>{if(scope.session.role!=="ORG_ADMIN"&&scope.session.role!=="PROPERTY_STAFF")fail("FORBIDDEN");return Promise.resolve();});
       return await handleManagerVendorHandoff(request,segments,hash,d.b1&&organization?d.vendorHandoff?.inOrganization(organization):undefined,headers);
+    }
+    if(isTenantVendorSchedulingRoute(segments)){
+      // Same pattern for the Tenant: Core role precedence first, then the request-local adapter binds the
+      // selected organization inside its own transaction; the digest alone carries Tenant authority.
+      await port.run(hash,scope=>{if(scope.session.role!=="TENANT")fail("FORBIDDEN");return Promise.resolve();});
+      return await handleTenantVendorScheduling(request,segments,hash,d.b1&&organization?d.vendorHandoff?.tenantInOrganization(organization):undefined,headers);
     }
     return await port.run(hash,async scope=>{
       if(communicationSummaries)return json(CoreCommunicationSummariesSchema.parse(await scope.communication.summaries(summaryIds)));

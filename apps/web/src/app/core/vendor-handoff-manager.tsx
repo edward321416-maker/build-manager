@@ -4,9 +4,10 @@ import { VendorCreateAssignmentCommandSchema,VendorPublishPacketCommandSchema,ty
 import { ApiClientError,type CoreVendorHandoffClient,type CoreFlowClient } from "@build-manager/api-client";
 import styles from "./vendor-handoff.module.css";
 import Image from "next/image";
+import { formatVendorInterval } from "../../lib/vendor-time";
 export type VendorPacketDraft={vendorLabel:string;workSummary:string;sharedDetailKeys:string[];allowedPhotoIds:string[];accessPolicy:VendorAccessPolicy;accessInstruction:string};
 type PendingLinkRequest={kind:"ISSUE"|"REISSUE";assignmentId:string;input:Parameters<CoreVendorHandoffClient["issueLink"]>[1]};
-export type VendorHandoffViewProps={ticket:CoreTicketDto;handoff:ManagerVendorHandoffDto|null;loading:boolean;busy:boolean;error:string;validationError?:string;notice:string;uncertain:boolean;pendingLink?:PendingLinkRequest|null;linkUnavailable:boolean;immediateLink:string|null;preview:boolean;draft:VendorPacketDraft;photoPreviews:{photoId:string;url:string}[];onDraft:(draft:VendorPacketDraft)=>void;onPreview:()=>void;onCreate:()=>void;onPublish:()=>void;onIssue:()=>void;onReissue:()=>void;onReconcileLink?:()=>void;onRevoke:()=>void;onRefresh:()=>void;onReview:()=>void};
+export type VendorHandoffViewProps={ticket:CoreTicketDto;handoff:ManagerVendorHandoffDto|null;loading:boolean;busy:boolean;error:string;validationError?:string;notice:string;uncertain:boolean;pendingLink?:PendingLinkRequest|null;linkUnavailable:boolean;immediateLink:string|null;preview:boolean;draft:VendorPacketDraft;photoPreviews:{photoId:string;url:string}[];onDraft:(draft:VendorPacketDraft)=>void;onPreview:()=>void;onCreate:()=>void;onPublish:()=>void;onIssue:()=>void;onReissue:()=>void;onReconcileLink?:()=>void;onRevoke:()=>void;onRefresh:()=>void;onReview:()=>void;now?:Date;rescheduleReview?:boolean;onRescheduleReview?:(open:boolean)=>void;onReschedule?:()=>void};
 const provenance={TENANT_REPORTED:"세입자 설명",BUILDING_VERIFIED:"확인된 건물 정보",MANAGER_REVIEWED:"관리자 검토"};
 const policyLabels={TENANT_PRESENT_REQUIRED:"세입자 재실 필요",TENANT_PREAUTHORIZATION_ALLOWED:"세입자 별도 사전 동의 허용"};
 export function vendorHandoffEligible(ticket:CoreTicketDto):boolean{
@@ -52,6 +53,8 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
   const selectedDetails=source?.sharedDetails.filter(d=>p.draft.sharedDetailKeys.includes(d.key))??[];
   const photosReady=p.draft.allowedPhotoIds.every(id=>p.photoPreviews.some(photo=>photo.photoId===id));
   const choose=(values:string[],key:string,checked:boolean)=>checked?[...values,key]:values.filter(v=>v!==key);
+  const at=p.now??new Date(),appointment=p.handoff?.appointment?.status==="SCHEDULED"?p.handoff.appointment:null;
+  const canReschedule=Boolean(p.onReschedule&&appointment&&assignment?.status==="ACTIVE"&&p.handoff?.currentRound?.status==="CONFIRMED"&&Date.parse(appointment.startAt)>at.getTime());
   return <section className={styles.panel} aria-label="업체 연결 및 작업 요청">
     <h2>업체 연결 / 작업 요청</h2>
     {p.loading?<p role="status">업체 연결 상태 불러오는 중…</p>:null}
@@ -59,6 +62,15 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     {p.validationError?<p role="alert">{p.validationError}</p>:null}
     {p.notice?<p role="status">{p.notice}</p>:null}
     {assignment?<p>업체 {assignment.vendorLabel} · {assignment.status==="PREPARING"?"전달 준비":assignment.status==="OFFERED"?"요청 확인 대기":assignment.status==="ACTIVE"?"작업 진행":"연결 종료"}</p>:null}
+    {p.handoff?.phase==="SCHEDULING"&&assignment?.status==="ACTIVE"?<p>방문 일정 조율 중 · {p.handoff.waitingOn==="TENANT"?"세입자 응답 대기":"업체 응답 대기"}</p>:null}
+    {appointment?<div role="group" aria-label="방문 일정">
+      <p>방문 일정 · {formatVendorInterval(appointment.startAt,appointment.endAt,at)} · {appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?"세입자가 동의한 시간 안에서 업체가 선택":"세입자 확정"}</p>
+      {canReschedule?(p.rescheduleReview?<div role="group" aria-label="방문 일정 변경 확인">
+        <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 세입자와 업체가 새로 일정을 조율합니다.</p>
+        <button type="button" disabled={blocked} onClick={p.onReschedule}>일정 변경하기</button>
+        <button type="button" disabled={p.busy} onClick={()=>p.onRescheduleReview?.(false)}>취소</button>
+      </div>:<button type="button" disabled={blocked} onClick={()=>p.onRescheduleReview?.(true)}>방문 일정 변경</button>):null}
+    </div>:null}
     {p.uncertain?<p role="alert">저장 결과를 확정하지 못했습니다. 최신 상태를 먼저 확인하세요. 같은 화면 값만으로 성공을 확정하지 않습니다.</p>:null}
     {p.linkUnavailable?<p role="status">원래 링크는 다시 표시할 수 없습니다. 최신 상태에서 허용되는 경우 보안 링크를 재발급해 직접 전달하세요.</p>:null}
     <button type="button" disabled={p.busy||p.loading} onClick={p.onRefresh}>업체 연결 상태 다시 확인</button>
@@ -96,13 +108,14 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
 }
 
 const blankDraft:VendorPacketDraft={vendorLabel:"",workSummary:"",sharedDetailKeys:[],allowedPhotoIds:[],accessPolicy:"TENANT_PRESENT_REQUIRED",accessInstruction:""};
-type ManagerProps={client:CoreFlowClient;ticket:CoreTicketDto;revision:number;onHandoff:(handoff:ManagerVendorHandoffDto|null)=>void;onChanged:()=>void};
+type ManagerProps={client:CoreFlowClient;ticket:CoreTicketDto;revision:number;onHandoff:(handoff:ManagerVendorHandoffDto|null)=>void;onChanged:()=>void;now?:()=>Date};
+const systemNow=()=>new Date();
 export function VendorHandoffManager(props:ManagerProps){return <LoadedVendorHandoffManager key={`${props.ticket.ticketId}-${props.revision}`} {...props}/>;}
-function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged}:ManagerProps){
+function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,now=systemNow}:ManagerProps){
   const [handoff,setHandoff]=useState<ManagerVendorHandoffDto|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const [draft,setDraft]=useState(blankDraft),[preview,setPreview]=useState(false),[uncertain,setUncertain]=useState(false),[linkUnavailable,setLinkUnavailable]=useState(false),[immediateLink,setImmediateLink]=useState<string|null>(null);
   const [validationError,setValidationError]=useState(""),[pendingLink,setPendingLink]=useState<PendingLinkRequest|null>(null);
-  const [photoPreviews,setPhotoPreviews]=useState<{photoId:string;url:string}[]>([]);
+  const [photoPreviews,setPhotoPreviews]=useState<{photoId:string;url:string}[]>([]),[rescheduleReview,setRescheduleReview]=useState(false);
   const generation=useRef(0),sending=useRef(false);
   const pendingLinkRef=useRef<PendingLinkRequest|null>(null);
   const linkAssignmentRef=useRef<string|null>(null);
@@ -130,8 +143,8 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged}:ManagerP
       if(live)setPhotoPreviews(loaded);
     }catch{if(live)setPhotoPreviews([]);}})();return()=>{live=false;urls.forEach(url=>URL.revokeObjectURL(url));};
   },[client,ticket.ticketId,photoKey]);
-  const mutate=async(kind:"CREATE"|"PUBLISH"|"ISSUE"|"REISSUE"|"REVOKE",operation:()=>Promise<ManagerVendorHandoffDto|VendorLinkIssueDto>)=>{
-    if(sending.current)return;sending.current=true;const current=++generation.current;setBusy(true);setError("");setNotice("");setImmediateLink(null);onHandoff(null);
+  const mutate=async(kind:"CREATE"|"PUBLISH"|"ISSUE"|"REISSUE"|"REVOKE"|"RESCHEDULE",operation:()=>Promise<ManagerVendorHandoffDto|VendorLinkIssueDto>)=>{
+    if(sending.current)return;sending.current=true;const current=++generation.current;setBusy(true);setError("");setNotice("");setImmediateLink(null);setRescheduleReview(false);onHandoff(null);
     try{
       const result=await reconcileManagerHandoff(client.vendorHandoff,ticket.ticketId,operation,()=>current===generation.current);
       if(current!==generation.current)return;apply(result.handoff);
@@ -156,7 +169,7 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged}:ManagerP
         setNotice(link?"보안 링크를 발급했습니다. 업체에 직접 전달하세요.":currentAuthority?"발급 기록을 확인했습니다. 원래 링크는 다시 표시할 수 없습니다.":"발급 기록은 이전 상태입니다. 최신 업체 연결 상태를 확인하세요.");
       }else{
         if(kind==="CREATE"){linkAssignmentRef.current=null;setLinkUnavailable(false);}
-        setNotice(kind==="CREATE"?"작업 요청 준비를 저장했습니다.":kind==="PUBLISH"?"업체 전달 내용을 게시했습니다.":"업체 접근 철회를 기록했습니다.");
+        setNotice(kind==="CREATE"?"작업 요청 준비를 저장했습니다.":kind==="PUBLISH"?"업체 전달 내용을 게시했습니다.":kind==="RESCHEDULE"?"방문 일정 변경을 기록했습니다. 세입자와 업체가 새로 일정을 조율합니다.":"업체 접근 철회를 기록했습니다.");
       }
       onChanged();
     }finally{if(current===generation.current)setBusy(false);sending.current=false;}
@@ -177,6 +190,12 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged}:ManagerP
     const request:PendingLinkRequest={kind:reissue?"REISSUE":"ISSUE",assignmentId:handoff.assignment.id,input};
     rememberLink(request);recoverLink(request);
   };
+  const reschedule=()=>{
+    const assignment=handoff?.assignment,round=handoff?.currentRound,appointment=handoff?.appointment,packet=handoff?.currentPacket;
+    if(!assignment||!round||!packet||appointment?.status!=="SCHEDULED")return;
+    void mutate("RESCHEDULE",()=>client.vendorHandoff.reschedule(assignment.id,{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:assignment.version,expectedRoundVersion:round.version,expectedAppointmentId:appointment.id,expectedPacketRevisionId:packet.id}));
+  };
   const revoke=()=>{if(handoff?.assignment)void mutate("REVOKE",()=>client.vendorHandoff.revoke(handoff.assignment!.id,{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:handoff.assignment!.version}));};
-  return <VendorHandoffManagerView ticket={ticket} handoff={handoff} loading={loading} busy={busy} error={error} validationError={validationError} notice={notice} uncertain={uncertain} pendingLink={pendingLink} linkUnavailable={linkUnavailable} immediateLink={immediateLink} preview={preview} draft={draft} photoPreviews={photoPreviews} onDraft={value=>{setDraft(value);setPreview(false);setValidationError("");}} onPreview={()=>setPreview(true)} onCreate={create} onPublish={publish} onIssue={()=>link(false)} onReissue={()=>link(true)} onReconcileLink={()=>{if(pendingLink)recoverLink(pendingLink);}} onRevoke={revoke} onRefresh={()=>void refresh()} onReview={()=>{setUncertain(false);setNotice("");}}/>;
+  return <VendorHandoffManagerView ticket={ticket} handoff={handoff} loading={loading} busy={busy} error={error} validationError={validationError} notice={notice} uncertain={uncertain} pendingLink={pendingLink} linkUnavailable={linkUnavailable} immediateLink={immediateLink} preview={preview} draft={draft} photoPreviews={photoPreviews} onDraft={value=>{setDraft(value);setPreview(false);setValidationError("");}} onPreview={()=>setPreview(true)} onCreate={create} onPublish={publish} onIssue={()=>link(false)} onReissue={()=>link(true)} onReconcileLink={()=>{if(pendingLink)recoverLink(pendingLink);}} onRevoke={revoke} onRefresh={()=>void refresh()} onReview={()=>{setUncertain(false);setNotice("");}}
+    now={now()} rescheduleReview={rescheduleReview} onRescheduleReview={setRescheduleReview} onReschedule={reschedule}/>;
 }

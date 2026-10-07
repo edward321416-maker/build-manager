@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot,type Root } from "react-dom/client";
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import { ApiClientError,type VendorJobClient } from "@build-manager/api-client";
-import type { VendorAcceptCommand,VendorDeclineCommand,VendorJobDto,VendorWithdrawCommand } from "@build-manager/api-contracts";
+import type { VendorAcceptCommand,VendorDeclineCommand,VendorJobDto,VendorPreauthorizedAppointmentCommand,VendorProposalCommand,VendorRescheduleCommand,VendorWithdrawCommand } from "@build-manager/api-contracts";
 import { VendorJobScreen } from "./vendor-job-screen";
 
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
@@ -31,7 +31,7 @@ function active(assignmentId:string,label:string):VendorJobDto{
 }
 const network=()=>new ApiClientError("NETWORK_ERROR","API 요청을 전송하지 못했습니다.");
 const http=(status:number,code:string)=>new ApiClientError(code,"요청을 처리하지 못했습니다.",{status});
-type Overrides={[K in "redeem"|"session"|"job"|"decline"|"logout"|"accept"|"withdraw"]?:(...args:Parameters<VendorJobClient[K]>)=>Promise<unknown>};
+type Overrides={[K in "redeem"|"session"|"job"|"decline"|"logout"|"accept"|"withdraw"|"proposeSlots"|"selectPreauthorizedSlot"|"reschedule"]?:(...args:Parameters<VendorJobClient[K]>)=>Promise<unknown>};
 function fakeClient(overrides:Overrides={}){
   const redeemed=async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:job(assignmentB,"B")}) as unknown;
   return {
@@ -42,6 +42,9 @@ function fakeClient(overrides:Overrides={}){
     logout:vi.fn<(csrf:string,input:{clientRequestId:string})=>Promise<unknown>>(overrides.logout??(async()=>({revoked:true}))),
     accept:vi.fn<(csrf:string,input:VendorAcceptCommand)=>Promise<unknown>>(overrides.accept??(async()=>active(assignmentB,"B"))),
     withdraw:vi.fn<(csrf:string,input:VendorWithdrawCommand)=>Promise<unknown>>(overrides.withdraw??(async()=>({...active(assignmentB,"B"),status:"ENDED",endReason:"WITHDRAWN",phase:"ENDED",assignmentVersion:5,currentRound:null}))),
+    proposeSlots:vi.fn<(csrf:string,input:VendorProposalCommand)=>Promise<unknown>>(overrides.proposeSlots??(async()=>active(assignmentB,"B"))),
+    selectPreauthorizedSlot:vi.fn<(csrf:string,input:VendorPreauthorizedAppointmentCommand)=>Promise<unknown>>(overrides.selectPreauthorizedSlot??(async()=>active(assignmentB,"B"))),
+    reschedule:vi.fn<(csrf:string,input:VendorRescheduleCommand)=>Promise<unknown>>(overrides.reschedule??(async()=>active(assignmentB,"B"))),
     sourcePhotoPath:(id:string)=>`/api/v2/vendor/job/source-photos/${id}`,
   };
 }
@@ -49,10 +52,10 @@ type FakeClient=ReturnType<typeof fakeClient>;
 let root:Root|undefined,host:HTMLDivElement;
 beforeEach(()=>{window.sessionStorage.clear();window.history.replaceState(null,"","/vendor/job");});
 afterEach(async()=>{if(root)await act(async()=>root?.unmount());root=undefined;host?.remove();vi.restoreAllMocks();});
-async function mount(client:FakeClient,hash=""){
+async function mount(client:FakeClient,hash="",now?:()=>Date){
   window.history.replaceState(null,"",`/vendor/job${hash}`);
   host=document.createElement("div");document.body.append(host);root=createRoot(host);
-  await act(async()=>{root!.render(<VendorJobScreen client={client as unknown as VendorJobClient}/>);});
+  await act(async()=>{root!.render(<VendorJobScreen client={client as unknown as VendorJobClient} now={now}/>);});
   await act(async()=>{await Promise.resolve();});
 }
 async function remount(client:FakeClient){
@@ -458,5 +461,126 @@ describe("Task5 review remediation (screen)",()=>{
     expect(ids).toHaveLength(2);
     expect(ids[0]).toBe(ids[1]);
     expect(page()).toContain("작업을 철회했습니다");
+  });
+});
+
+describe("Task6 Vendor visit scheduling",()=>{
+  const now=()=>new Date("2026-10-06T03:00:00Z");
+  const subB="12121212-1212-4212-8212-121212121212",w1="13131313-1313-4313-8313-131313131313",w2="14141414-1414-4414-8414-141414141414";
+  const propB="15151515-1515-4515-8515-151515151515",slotOld="16161616-1616-4616-8616-161616161616",slotNew="17171717-1717-4717-8717-171717171717",apptB="18181818-1818-4818-8818-181818181818";
+  const availability={id:subB,windows:[{id:w1,startAt:"2026-10-07T05:00:00.000Z",endAt:"2026-10-07T07:00:00.000Z"},{id:w2,startAt:"2026-10-08T01:00:00.000Z",endAt:"2026-10-08T04:00:00.000Z"}],authorizedWindowIds:[] as string[],createdAt:"2026-10-06T01:00:00.000Z"};
+  const vendorTurn=(changes:Partial<VendorJobDto>={}):VendorJobDto=>({...active(assignmentB,"B"),waitingOn:"VENDOR",availability,...changes});
+  const preauthorized=()=>vendorTurn({effectiveMode:"PREAUTHORIZED_ENTRY_WINDOW",availability:{...availability,authorizedWindowIds:[w1]}});
+  const proposed=(slots:{id:string;startAt:string;endAt:string}[])=>vendorTurn({waitingOn:"TENANT",proposal:{id:propB,slots,createdAt:"2026-10-06T02:00:00.000Z"}});
+  const scheduled=():VendorJobDto=>({...active(assignmentB,"B"),phase:"SCHEDULED",waitingOn:"VENDOR",currentRound:{id:roundB,openedPacketRevisionId:packetB,purpose:"INITIAL",status:"CONFIRMED",version:3,createdAt:"2026-10-07T00:00:00.000Z"},
+    appointment:{id:apptB,schedulingRoundId:roundB,packetRevisionId:packetB,proposalId:propB,availabilitySubmissionId:null,selectedWindowId:null,startAt:"2026-10-07T05:00:00.000Z",endAt:"2026-10-07T06:00:00.000Z",confirmationMode:"TENANT_CONFIRMED",status:"SCHEDULED",createdAt:"2026-10-06T02:00:00.000Z"}});
+  const opened=(value:VendorJobDto)=>vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:value}));
+  async function type(selector:string,value:string,index=0){
+    const element=host.querySelectorAll<HTMLInputElement>(selector)[index]!;
+    const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!;
+    await act(async()=>{setter.call(element,value);element.dispatchEvent(new Event("input",{bubbles:true}));});
+  }
+  async function enter(date:string,start:string,end:string){await type('input[type="date"]',date);await type('input[type="time"]',start,0);await type('input[type="time"]',end,1);}
+  async function choose(label:string){
+    const input=Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]')).find(x=>x.closest("label")?.textContent?.includes(label));
+    expect(Boolean(input),label).toBe(true);await act(async()=>{input!.click();});
+  }
+  it("shows Tenant availability in Seoul time and proposes future slots with current guards and server CSRF",async()=>{
+    const client=fakeClient({redeem:opened(vendorTurn()),proposeSlots:vi.fn(async()=>proposed([{id:slotNew,startAt:"2026-10-10T01:00:00.000Z",endAt:"2026-10-10T02:00:00.000Z"}]))});
+    await mount(client,`#${tokenB}`,now);
+    expect(page()).toContain("10월 7일(수) 오후 2:00–4:00");
+    expect(page()).toContain("10월 8일(목) 오전 10:00–오후 1:00");
+    await enter("2026-10-10","10:00","11:00");
+    await click("방문 시간 제안하기");
+    const [sent,input]=client.proposeSlots.mock.calls[0];
+    expect(sent).toBe(csrf);
+    expect(input).toMatchObject({expectedAssignmentVersion:4,expectedRoundVersion:1,expectedPacketRevisionId:packetB,slots:[{startAt:"2026-10-10T01:00:00.000Z",endAt:"2026-10-10T02:00:00.000Z"}]});
+    expect(page()).toContain("제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다");
+    expect(page()).toContain("10월 10일(토) 오전 10:00–11:00");
+    expect(tokenFree()).toBe(true);
+  });
+  it("rejects a past proposal slot locally without sending",async()=>{
+    const client=fakeClient({redeem:opened(vendorTurn())});
+    await mount(client,`#${tokenB}`,now);
+    await enter("2026-10-05","10:00","11:00");
+    await click("방문 시간 제안하기");
+    expect(client.proposeSlots).not.toHaveBeenCalled();
+    expect(page()).toContain("지난 시간은 선택할 수 없습니다");
+  });
+  it("hides expired proposal slots and lets the Vendor propose again when all have passed",async()=>{
+    const client=fakeClient({redeem:opened(proposed([{id:slotOld,startAt:"2026-10-06T01:00:00.000Z",endAt:"2026-10-06T02:00:00.000Z"}]))});
+    await mount(client,`#${tokenB}`,now);
+    expect(page().includes("10월 6일(화) 오전 10:00–11:00")).toBe(false);
+    expect(page()).toContain("제안한 시간이 모두 지났습니다");
+    expect(button("방문 시간 제안하기")).toBeDefined();
+  });
+  it("selects a visit time only inside an explicitly authorized window",async()=>{
+    const client=fakeClient({redeem:opened(preauthorized()),selectPreauthorizedSlot:vi.fn(async()=>scheduled())});
+    await mount(client,`#${tokenB}`,now);
+    expect(Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]')).map(x=>x.closest("label")?.textContent)).toEqual(["10월 7일(수) 오후 2:00–4:00"]);
+    await choose("10월 7일(수) 오후 2:00–4:00");
+    await enter("2026-10-07","14:30","15:30");
+    await click("동의된 시간 안에서 방문 확정");
+    const [sent,input]=client.selectPreauthorizedSlot.mock.calls[0];
+    expect(sent).toBe(csrf);
+    expect(input).toMatchObject({availabilitySubmissionId:subB,selectedWindowId:w1,startAt:"2026-10-07T05:30:00.000Z",endAt:"2026-10-07T06:30:00.000Z",expectedRoundVersion:1,expectedAssignmentVersion:4});
+    expect(page()).toContain("방문 일정이 확정되었습니다");
+  });
+  it("rejects a preauthorized time that leaves the authorized window by absolute instant",async()=>{
+    const client=fakeClient({redeem:opened(preauthorized())});
+    await mount(client,`#${tokenB}`,now);
+    await choose("10월 7일(수) 오후 2:00–4:00");
+    await enter("2026-10-07","15:30","16:30");
+    await click("동의된 시간 안에서 방문 확정");
+    expect(client.selectPreauthorizedSlot).not.toHaveBeenCalled();
+    expect(page()).toContain("동의된 시간 안에서만 방문 시간을 정할 수 있습니다");
+  });
+  it("shows the SCHEDULED Appointment and reschedules only after an explicit confirmation",async()=>{
+    const client=fakeClient({redeem:opened(scheduled())});
+    await mount(client,`#${tokenB}`,now);
+    expect(page()).toContain("10월 7일(수) 오후 2:00–3:00");
+    await click("방문 일정 변경");
+    expect(client.reschedule).not.toHaveBeenCalled();
+    expect(page()).toContain("기존 방문 일정은 취소되고");
+    await click("일정 변경하기");
+    expect(client.reschedule.mock.calls[0][1]).toMatchObject({expectedAppointmentId:apptB,expectedRoundVersion:3,expectedAssignmentVersion:4,expectedPacketRevisionId:packetB});
+  });
+  it("reconciles an unknown proposal outcome with the same request identity",async()=>{
+    let fail=true;
+    const client=fakeClient({redeem:opened(vendorTurn()),proposeSlots:vi.fn(async()=>{if(fail)throw network();return proposed([{id:slotNew,startAt:"2026-10-10T01:00:00.000Z",endAt:"2026-10-10T02:00:00.000Z"}]);})});
+    await mount(client,`#${tokenB}`,now);
+    await enter("2026-10-10","10:00","11:00");
+    await click("방문 시간 제안하기");
+    expect(page()).toContain("제안 결과를 확인하지 못했습니다");
+    fail=false;
+    await click("같은 요청으로 결과 확인");
+    const ids=client.proposeSlots.mock.calls.map(c=>c[1].clientRequestId);
+    expect(ids).toHaveLength(2);expect(ids[0]).toBe(ids[1]);
+  });
+  it("refreshes authoritative state and keeps the draft after a stale proposal conflict",async()=>{
+    const client=fakeClient({redeem:opened(vendorTurn()),job:vi.fn(async()=>vendorTurn()),proposeSlots:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
+    await mount(client,`#${tokenB}`,now);
+    await enter("2026-10-10","10:00","11:00");
+    await click("방문 시간 제안하기");
+    expect(client.job).toHaveBeenCalled();
+    expect(page()).toContain("최신 내용을 확인해 주세요");
+    expect(host.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe("2026-10-10");
+  });
+  it("ignores a late proposal result that started before a same-tab assignment switch",async()=>{
+    let finish!:(value:unknown)=>void;
+    const client=fakeClient({
+      redeem:vi.fn(async(token:string)=>token===tokenC?{session:{assignmentId:assignmentA,expiresAt,csrf},job:job(assignmentA,"A")}:{session:{assignmentId:assignmentB,expiresAt,csrf},job:vendorTurn()}),
+      proposeSlots:vi.fn(()=>new Promise(resolve=>{finish=resolve;})),
+    });
+    await mount(client,`#${tokenB}`,now);
+    await enter("2026-10-10","10:00","11:00");
+    await click("방문 시간 제안하기");
+    await act(async()=>{window.history.pushState(null,"",`/vendor/job#${tokenC}`);window.dispatchEvent(new Event("hashchange"));});
+    await flush();
+    await act(async()=>{finish(proposed([{id:slotNew,startAt:"2026-10-10T01:00:00.000Z",endAt:"2026-10-10T02:00:00.000Z"}]));});
+    await flush();
+    expect(page()).toContain("합성 업체 A");
+    expect(page().includes("방문 일정 조율")).toBe(false);
+    expect(page().includes("10월 10일(토)")).toBe(false);
   });
 });

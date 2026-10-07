@@ -1,6 +1,6 @@
 import {
-  VendorAcceptCommandSchema,VendorDeclineCommandSchema,VendorJobDtoSchema,VendorWithdrawCommandSchema,VendorLogoutCommandSchema,VendorLogoutResultDtoSchema,VendorRedeemCommandSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema,
-  type VendorAcceptCommand,type VendorDeclineCommand,type VendorWithdrawCommand,type VendorJobDto,type VendorLogoutCommand,type VendorLogoutResultDto,type VendorRedeemCommand,type VendorRedeemResultDto,type VendorSessionStateDto,
+  VendorAcceptCommandSchema,VendorDeclineCommandSchema,VendorJobDtoSchema,VendorWithdrawCommandSchema,VendorPreauthorizedAppointmentCommandSchema,VendorProposalCommandSchema,VendorRescheduleCommandSchema,VendorLogoutCommandSchema,VendorLogoutResultDtoSchema,VendorRedeemCommandSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema,
+  type VendorAcceptCommand,type VendorDeclineCommand,type VendorWithdrawCommand,type VendorPreauthorizedAppointmentCommand,type VendorProposalCommand,type VendorRescheduleCommand,type VendorJobDto,type VendorLogoutCommand,type VendorLogoutResultDto,type VendorRedeemCommand,type VendorRedeemResultDto,type VendorSessionStateDto,
 } from "@build-manager/api-contracts";
 import { sendRequest,type FetchLike } from "./http";
 
@@ -23,6 +23,12 @@ export function createVendorJobClient(fetcher:FetchLike,baseUrl=""){
       {method:"POST",path:`${root}/job/accept`,body:VendorAcceptCommandSchema.parse(input),schema:VendorJobDtoSchema}),
     withdraw:(csrf:string,input:VendorWithdrawCommand)=>sendRequest<VendorJobDto>(withHeaders(fetcher,{"X-Vendor-CSRF":csrf}),baseUrl,
       {method:"POST",path:`${root}/job/withdraw`,body:VendorWithdrawCommandSchema.parse(input),schema:VendorJobDtoSchema}),
+    proposeSlots:(csrf:string,input:VendorProposalCommand)=>sendRequest<VendorJobDto>(withHeaders(fetcher,{"X-Vendor-CSRF":csrf}),baseUrl,
+      {method:"POST",path:`${root}/scheduling/proposals`,body:VendorProposalCommandSchema.parse(input),schema:VendorJobDtoSchema}),
+    selectPreauthorizedSlot:(csrf:string,input:VendorPreauthorizedAppointmentCommand)=>sendRequest<VendorJobDto>(withHeaders(fetcher,{"X-Vendor-CSRF":csrf}),baseUrl,
+      {method:"POST",path:`${root}/scheduling/preauthorized-appointment`,body:VendorPreauthorizedAppointmentCommandSchema.parse(input),schema:VendorJobDtoSchema}),
+    reschedule:(csrf:string,input:VendorRescheduleCommand)=>sendRequest<VendorJobDto>(withHeaders(fetcher,{"X-Vendor-CSRF":csrf}),baseUrl,
+      {method:"POST",path:`${root}/scheduling/reschedule`,body:VendorRescheduleCommandSchema.parse(input),schema:VendorJobDtoSchema}),
     logout:(csrf:string,input:VendorLogoutCommand)=>sendRequest<VendorLogoutResultDto>(withHeaders(fetcher,{"X-Vendor-CSRF":csrf}),baseUrl,
       {method:"POST",path:`${root}/session/logout`,body:VendorLogoutCommandSchema.parse(input),schema:VendorLogoutResultDtoSchema}),
     sourcePhotoPath:(photoId:string)=>`${baseUrl}${root}/job/source-photos/${encodeURIComponent(photoId)}`,

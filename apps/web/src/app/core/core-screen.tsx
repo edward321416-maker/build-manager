@@ -17,6 +17,7 @@ import { clearOutcomeRecovery,saveOutcomeRecovery } from "./outcome-recovery";
 import { FollowUpContext,freshFollowUp,OutcomeRecoveryPanel,TicketOutcome,type FollowUpKind } from "./ticket-outcome";
 import { createRequestFence,sendFollowUp } from "./follow-up-request";
 import { VendorHandoffManager,ManagerDirectCompletionGate } from "./vendor-handoff-manager";
+import { VendorHandoffTenant } from "./vendor-handoff-tenant";
 
 const eventLabels:Record<string,string>={CREATED:"접수 내용 저장",ANSWERED:"답변 저장",FINALIZED:"수리 요청 제출",MORE_INFO:"추가 확인 요청",DECISION:"추천 경로 결정",HANDLING:"처리 기록"};
 const sessionMessage="접속이 만료되었거나 코드가 유효하지 않습니다. 개발 환경에서 새 코드를 발급받아 다시 들어가 주세요.";
@@ -151,6 +152,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
           </TicketProgress>
 
         </section>
+        {b1&&session.role==="TENANT"?<VendorHandoffTenant key={`vendor-tenant-${b1.orgId}-${selected.ticketId}`} client={client} ticketId={selected.ticketId} revision={revision}/>:null}
         <TicketOutcome key={`outcome-${selected.ticketId}`} client={client} ticket={selected} tenant={session.role==="TENANT"} revision={revision} onFollowUp={beginFollowUp} onOpen={openOutcome}/>
         <TicketCommunication key={selected.ticketId} client={client} ticketId={selected.ticketId} tenant={session.role==="TENANT"} revision={revision} completed={selected.workStatus==="COMPLETED"} onVersion={setCommunicationVersion}>        <div className={styles.photoArea}>
         <PhotoGallery client={client} ticketId={selected.ticketId} revision={revision} />

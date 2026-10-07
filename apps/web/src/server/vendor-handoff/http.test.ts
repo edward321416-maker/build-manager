@@ -33,6 +33,9 @@ function harness(overrides:Partial<VendorHandoffExternalPort>={},configured=orig
       accept:async()=>({...job,status:"ACTIVE",phase:"SCHEDULING",waitingOn:"TENANT",assignmentVersion:4,effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",
         currentRound:{id:roundId,openedPacketRevisionId:packetId,purpose:"INITIAL",status:"OPEN",version:1,createdAt:"2026-10-07T00:00:00.000Z"}}),
       withdraw:async()=>({...job,status:"ENDED",endReason:"WITHDRAWN",phase:"ENDED",assignmentVersion:5}),
+      proposeSlots:async()=>({...job,status:"ACTIVE",phase:"SCHEDULING",waitingOn:"TENANT",assignmentVersion:4}),
+      selectPreauthorizedSlot:async()=>({...job,status:"ACTIVE",phase:"SCHEDULED",waitingOn:"VENDOR",assignmentVersion:4}),
+      reschedule:async()=>({...job,status:"ACTIVE",phase:"SCHEDULING",waitingOn:"TENANT",assignmentVersion:4}),
       readSourcePhoto:async()=>({photo:{photoId,mime:"image/jpeg",byteSize:3,width:1,height:1},bytes:new Uint8Array([1,2,3])}),
       ...overrides,
     } as unknown as Record<string,(...args:unknown[])=>Promise<unknown>>;
@@ -251,9 +254,31 @@ describe("job ownership",()=>{
     expect(VendorJobDtoSchema.parse(await withdrawn.json())).toMatchObject({status:"ENDED",endReason:"WITHDRAWN"});
     expect(calls).toEqual([{method:"accept",csrf:sha(csrf),args:[sha(session),accept]},{method:"withdraw",csrf:sha(csrf),args:[sha(session),withdraw]}]);
   });
-  it("keeps the Task 6 scheduling routes unimplemented",async()=>{
+  it("dispatches Vendor scheduling commands only with the presented CSRF and exact bodies",async()=>{
     const {deps,calls}=harness();
-    for(const path of ["scheduling/proposals","scheduling/preauthorized-appointment","scheduling/reschedule"])expect((await call(deps,path,{method:"POST",headers:mutation,body:{clientRequestId:randomUUID()}})).status).toBe(404);
+    const g={clientRequestId:randomUUID(),expectedAssignmentVersion:4,expectedRoundVersion:2,expectedPacketRevisionId:packetId};
+    const startAt="2026-10-10T05:00:00Z",endAt="2026-10-10T06:00:00Z";
+    const rows=[
+      ["scheduling/proposals",{...g,slots:[{startAt,endAt}]},"proposeSlots"],
+      ["scheduling/preauthorized-appointment",{...g,availabilitySubmissionId:photoId,selectedWindowId:packetId,startAt,endAt},"selectPreauthorizedSlot"],
+      ["scheduling/reschedule",{...g,expectedAppointmentId:photoId},"reschedule"],
+    ] as const;
+    const noCsrf=Object.fromEntries(Object.entries(mutation).filter(([key])=>key!=="x-vendor-csrf"));
+    for(const [path,body] of rows){
+      expect((await call(deps,path,{method:"POST",headers:noCsrf,body})).status).toBe(403);
+      expect((await call(deps,path,{method:"POST",headers:mutation,body:{...body,assignmentId}})).status).toBe(400);
+    }
+    expect(calls).toEqual([]);
+    for(const [path,body,method] of rows){
+      const response=await call(deps,path,{method:"POST",headers:mutation,body});
+      expect(response.status,path).toBe(200);
+      VendorJobDtoSchema.parse(await response.json());
+      expect(calls.at(-1)).toEqual({method,csrf:sha(csrf),args:[sha(session),body]});
+    }
+  });
+  it("keeps the Task 7 visit and blocker routes unimplemented",async()=>{
+    const {deps,calls}=harness();
+    for(const path of [`appointments/${photoId}/visit-start`,"blockers",`blockers/${photoId}/clear`])expect((await call(deps,path,{method:"POST",headers:mutation,body:{clientRequestId:randomUUID()}})).status).toBe(404);
     expect(calls).toEqual([]);
   });
   it("serves an allowlisted source photo and hides guessed, malformed or cross-assignment IDs identically",async()=>{

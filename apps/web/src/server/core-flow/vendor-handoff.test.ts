@@ -83,3 +83,65 @@ it("runs every SDK operation through the real authenticated dispatcher and stric
   await client.reissueLink(assignmentId,input);await client.revoke(assignmentId,{clientRequestId:randomUUID(),expectedAssignmentVersion:1});
   expect(s.calls.map(call=>call.method)).toEqual(["readHandoff","createAssignment","publishPacket","issueLink","reissueLink","revoke"]);expect(s.calls.every(call=>call.digest===digest&&call.digest!==orgId)).toBe(true);
 });
+
+// Task6: Tenant scheduling and Manager reschedule over the existing B1 Core boundary.
+const appointmentId=randomUUID(),submissionId=randomUUID(),windowId=randomUUID(),proposalId=randomUUID(),slotId=randomUUID();
+const tenantDto={ticketId,assignmentVersion:4,packetRevisionId:packetId,effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",phase:"SCHEDULING",waitingOn:"TENANT",
+  currentRound:null,appointment:null,accessPolicy:"TENANT_PRESENT_REQUIRED",availability:null,proposal:null};
+const roundGuards={expectedAssignmentVersion:4,expectedRoundVersion:2,expectedPacketRevisionId:packetId};
+function setupTenant(role="TENANT"){
+  const calls:{method:string;digest:string;id:string;input:unknown;org:string}[]=[];
+  const tenantFor=(org:string)=>new Proxy({},{get:(_t,method:string)=>async(hash:string,id:string,body:unknown)=>{calls.push({method,digest:hash,id,input:body,org});return tenantDto;}});
+  const managerFor=(org:string)=>new Proxy({},{get:(_t,method:string)=>async(hash:string,id:string,body:unknown)=>{calls.push({method,digest:hash,id,input:body,org});return handoff;}});
+  const port:CoreFlowPort={run:async(_hash,op)=>op({session:{role}} as CoreScope)};
+  const dependencies={port,revoke:async()=>{},origins:["http://127.0.0.1:3130"],vendorHandoff:{inOrganization:managerFor,tenantInOrganization:tenantFor},b1:{
+    current:async()=>({digest,csrf:"synthetic-proof"}),access:{inOrganization:()=>port,organizations:async()=>[]},
+  }} as unknown as CoreHTTPDependencies;
+  const call=(path:string,method="GET",body:unknown=undefined)=>handleCoreFlow(new Request("http://127.0.0.1:3130/api/v2/core/"+path,{method,
+    headers:{Origin:"http://127.0.0.1:3130","X-Core-Organization":orgId,"X-B1-CSRF":"synthetic-proof","Content-Type":"application/json"},...(body===undefined?{}:{body:JSON.stringify(body)})}),path.split("/"),()=>dependencies);
+  return {calls,call};
+}
+it("dispatches every Tenant scheduling route with the request-scoped B1 digest and strict bodies",async()=>{
+  const s=setupTenant();
+  const base=`tickets/${ticketId}/vendor-scheduling`;
+  const rows=[
+    [base,"GET",undefined,"readScheduling"],
+    [`${base}/availability`,"POST",{clientRequestId:randomUUID(),...roundGuards,windows:[{startAt:"2026-10-10T01:00:00Z",endAt:"2026-10-10T03:00:00Z"}]},"submitAvailability"],
+    [`${base}/entry-authorization`,"POST",{clientRequestId:randomUUID(),...roundGuards,availabilitySubmissionId:submissionId,selectedWindowIds:[windowId]},"authorizeEntry"],
+    [`${base}/confirm`,"POST",{clientRequestId:randomUUID(),...roundGuards,proposalId,selectedSlotId:slotId},"confirmSlot"],
+    [`${base}/reschedule`,"POST",{clientRequestId:randomUUID(),...roundGuards,expectedAppointmentId:appointmentId},"reschedule"],
+  ] as const;
+  for(const [path,method,body,name] of rows){
+    const response=await s.call(path,method,body);
+    expect(response.status,name).toBe(200);
+    expect(await response.json()).toEqual(tenantDto);
+    const last=s.calls.at(-1)!;
+    expect(last).toMatchObject({method:name,digest,id:ticketId,org:orgId});
+    if(body!==undefined)expect(last.input).toEqual(body);
+  }
+  for(const [path,body] of [[`${base}/availability`,{clientRequestId:randomUUID(),...roundGuards,windows:[],unitId:randomUUID()}],[`${base}/confirm`,{clientRequestId:randomUUID(),...roundGuards,proposalId,selectedSlotId:slotId,orgId}]] as const)
+    expect((await s.call(path,"POST",body)).status).toBe(400);
+  expect(s.calls).toHaveLength(5);
+});
+it("denies Tenant scheduling routes to non-Tenant sessions before any Vendor port call",async()=>{
+  const s=setupTenant("ORG_ADMIN");
+  expect((await s.call(`tickets/${ticketId}/vendor-scheduling`)).status).toBe(403);
+  expect(s.calls).toEqual([]);
+});
+it("dispatches Manager RESCHEDULE with the request-scoped digest",async()=>{
+  const s=setupTenant("ORG_ADMIN");
+  const body={clientRequestId:randomUUID(),...roundGuards,expectedAppointmentId:appointmentId};
+  const response=await s.call(`manager/vendor-assignments/${assignmentId}/reschedule`,"POST",body);
+  expect(response.status).toBe(200);
+  expect(s.calls.at(-1)).toMatchObject({method:"reschedule",digest,id:assignmentId,input:body,org:orgId});
+});
+it("exposes Tenant scheduling and Manager reschedule through the typed Core client",async()=>{
+  const s=setupTenant();
+  const client=coreVendorHandoff(async(input,init)=>{const path=input.replace("http://127.0.0.1:3130/api/v2/core/","");return s.call(path,init?.method??"GET",init?.body?JSON.parse(init.body):undefined);},"http://127.0.0.1:3130");
+  expect(await client.readScheduling(ticketId)).toEqual(tenantDto);
+  await client.submitAvailability(ticketId,{clientRequestId:randomUUID(),...roundGuards,windows:[{startAt:"2026-10-10T01:00:00Z",endAt:"2026-10-10T03:00:00Z"}]});
+  await client.authorizeEntry(ticketId,{clientRequestId:randomUUID(),...roundGuards,availabilitySubmissionId:submissionId,selectedWindowIds:[windowId]});
+  await client.confirmSlot(ticketId,{clientRequestId:randomUUID(),...roundGuards,proposalId,selectedSlotId:slotId});
+  await client.tenantReschedule(ticketId,{clientRequestId:randomUUID(),...roundGuards,expectedAppointmentId:appointmentId});
+  expect(s.calls.map(c=>c.method)).toEqual(["readScheduling","submitAvailability","authorizeEntry","confirmSlot","reschedule"]);
+});

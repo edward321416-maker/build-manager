@@ -413,3 +413,20 @@ describe("Task5 review remediation",()=>{
       [f.data.orgA,c.assignmentId,r.id,other.packetId])).rejects.toMatchObject({code:"23503"});
   });
 });
+
+describe("Task6 consent after a new availability submission",()=>{
+  it("a new availability submission leaves earlier consent ineffective until the Tenant consents again",async()=>{
+    const c=await accepted("TENANT_PREAUTHORIZATION_ALLOWED");
+    const first=await availability(c),w=first.availability!.windows[0];
+    await tenantPort.authorizeEntry(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await guards(c),availabilitySubmissionId:first.availability!.id,selectedWindowIds:[w.id]});
+    expect(await c.vendor.readJob(c.session)).toMatchObject({effectiveMode:"PREAUTHORIZED_ENTRY_WINDOW"});
+    const second=await availability(c,[{startAt:w.startAt,endAt:w.endAt}]);
+    expect(second).toMatchObject({effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",availability:{authorizedWindowIds:[]}});
+    expect(await c.vendor.readJob(c.session)).toMatchObject({effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",availability:{id:second.availability!.id,authorizedWindowIds:[]}});
+    const select=async(submission:string,window:string)=>code(c.vendor.selectPreauthorizedSlot(c.session,{clientRequestId:randomUUID(),...await guards(c),
+      availabilitySubmissionId:submission,selectedWindowId:window,startAt:w.startAt,endAt:w.endAt}));
+    expect(await select(first.availability!.id,w.id)).toBe("STATE_CONFLICT");
+    expect(await select(second.availability!.id,second.availability!.windows[0].id)).toBe("STATE_CONFLICT");
+    expect(await count("SELECT count(*)::int AS n FROM vendor_handoff.appointment WHERE assignment_id=$1",[c.assignmentId])).toBe(0);
+  });
+});

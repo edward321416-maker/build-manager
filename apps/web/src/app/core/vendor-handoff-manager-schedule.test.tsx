@@ -1,0 +1,56 @@
+// @vitest-environment jsdom
+import { act } from "react";
+import { createRoot,type Root } from "react-dom/client";
+import { afterEach,expect,it,vi } from "vitest";
+import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
+import type { CoreTicketDto,ManagerVendorHandoffDto } from "@build-manager/api-contracts";
+import { VendorHandoffManager } from "./vendor-handoff-manager";
+
+Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
+const ticket={ticketId:"ticket",workStatus:"IN_PROGRESS",version:1,detail:{status:"OVERRIDDEN",decision:{type:"OVERRIDE",routeCode:"GENERAL_VENDOR"},repairPacket:{safetyEscalated:false}}} as unknown as CoreTicketDto;
+const now=()=>new Date("2026-10-06T03:00:00Z");
+const round={id:"round",openedPacketRevisionId:"packet",purpose:"INITIAL",status:"CONFIRMED",version:3,createdAt:"2026-10-06T00:00:00Z"};
+const appointment={id:"appointment",schedulingRoundId:"round",packetRevisionId:"packet",proposalId:"proposal",availabilitySubmissionId:null,selectedWindowId:null,
+  startAt:"2026-10-07T05:00:00Z",endAt:"2026-10-07T06:00:00Z",confirmationMode:"TENANT_CONFIRMED",status:"SCHEDULED",createdAt:"2026-10-06T02:00:00Z"};
+function scheduled(changes:Record<string,unknown>={}):ManagerVendorHandoffDto{
+  return {ticketId:"ticket",assignment:{id:"assignment",status:"ACTIVE",endReason:null,vendorLabel:"합성 업체",version:4},currentPacket:{id:"packet",revision:1,workSummary:"합성 작업",accessPolicy:"TENANT_PRESENT_REQUIRED",allowedPhotoIds:[],sharedDetails:[]},
+    currentRound:round,appointment,activeBlocker:null,currentReport:null,reportHistory:[],phase:"SCHEDULED",waitingOn:"VENDOR",...changes} as unknown as ManagerVendorHandoffDto;
+}
+let root:Root|undefined,host:HTMLDivElement;
+afterEach(async()=>{if(root)await act(async()=>root?.unmount());root=undefined;host?.remove();});
+async function mount(initial:ManagerVendorHandoffDto,reschedule:()=>Promise<unknown>=async()=>initial){
+  host=document.createElement("div");document.body.append(host);root=createRoot(host);
+  const readHandoff=vi.fn(async()=>initial),rescheduleFn=vi.fn<(id:string,input:Record<string,unknown>)=>Promise<unknown>>(reschedule);
+  const client={vendorHandoff:{readHandoff,reschedule:rescheduleFn},photos:async()=>[]} as unknown as CoreFlowClient;
+  await act(async()=>{root!.render(<VendorHandoffManager client={client} ticket={ticket} revision={0} now={now} onHandoff={()=>{}} onChanged={()=>{}}/>);});
+  await act(async()=>{for(let i=0;i<8;i++)await Promise.resolve();});
+  return {readHandoff,reschedule:rescheduleFn};
+}
+const page=()=>host.textContent??"";
+const button=(label:string)=>Array.from(host.querySelectorAll("button")).find(item=>item.textContent===label);
+async function click(label:string){expect(Boolean(button(label)),label).toBe(true);await act(async()=>{button(label)!.click();});await act(async()=>{for(let i=0;i<8;i++)await Promise.resolve();});}
+
+it("shows the SCHEDULED Appointment in Seoul time and reschedules only after an explicit confirmation",async()=>{
+  const s=await mount(scheduled());
+  expect(page()).toContain("10월 7일(수) 오후 2:00–3:00");
+  await click("방문 일정 변경");
+  expect(s.reschedule).not.toHaveBeenCalled();
+  expect(page()).toContain("기존 방문 일정은 취소되고");
+  await click("일정 변경하기");
+  const [id,input]=s.reschedule.mock.calls[0];
+  expect(id).toBe("assignment");
+  expect(input).toMatchObject({expectedAssignmentVersion:4,expectedRoundVersion:3,expectedAppointmentId:"appointment",expectedPacketRevisionId:"packet"});
+  expect(s.readHandoff).toHaveBeenCalledTimes(2);
+});
+it("never offers a reschedule for an Appointment that already started",async()=>{
+  await mount(scheduled({appointment:{...appointment,startAt:"2026-10-06T02:00:00Z",endAt:"2026-10-06T04:00:00Z"}}));
+  expect(button("방문 일정 변경")).toBeUndefined();
+});
+it("keeps an unknown reschedule outcome uncertain instead of claiming success",async()=>{
+  const s=await mount(scheduled(),async()=>{throw new ApiClientError("NETWORK_ERROR","synthetic loss");});
+  await click("방문 일정 변경");
+  await click("일정 변경하기");
+  expect(s.reschedule).toHaveBeenCalledTimes(1);
+  expect(page()).toContain("저장 결과를 확정하지 못했습니다");
+  expect(page().includes("방문 일정 변경을 기록했습니다")).toBe(false);
+});

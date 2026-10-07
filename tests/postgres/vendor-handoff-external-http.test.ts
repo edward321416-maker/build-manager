@@ -1,6 +1,6 @@
 import { afterAll,beforeAll,describe,expect,it } from "vitest";
 import { createHash,randomUUID } from "node:crypto";
-import { createVendorHandoffExternalPort } from "@build-manager/persistence-postgres/vendor-handoff";
+import { createVendorHandoffExternalPort,createVendorHandoffTenantPort } from "@build-manager/persistence-postgres/vendor-handoff";
 import { VendorJobDtoSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
 import { handleVendorHandoff,type VendorHTTPDependencies } from "../../apps/web/src/server/vendor-handoff/http";
 import { createVendorHandoffFixture } from "./helpers/vendor-handoff-fixture";
@@ -227,6 +227,18 @@ describe("Vendor HTTP decline and assignment scope on PostgreSQL",()=>{
     await expect(f.p.admin.query("UPDATE vendor_handoff.vendor_assignment SET status='ENDED',end_reason='DECLINED',ended_at=clock_timestamp() WHERE id=$1",[o.assignmentId])).rejects.toMatchObject({code:"23514"});
     await expect(f.p.admin.query("UPDATE vendor_handoff.vendor_assignment SET status='ENDED',end_reason='REVOKED',ended_at=clock_timestamp(),decline_reason='OTHER' WHERE id=$1",[o.assignmentId])).rejects.toMatchObject({code:"23514"});
   });
+  it("proposes visit slots through the real HTTP boundary after Tenant availability",async()=>{
+    const o=await offered(),cred=(await redeem(o.token)).cred!;
+    const accepted=VendorJobDtoSchema.parse(await (await mutate(cred,"job/accept",{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:o.packetId})).json());
+    const tenant=createVendorHandoffTenantPort(f.managerDatabase);
+    const soon=(hours:number)=>new Date(Date.now()+hours*3_600_000).toISOString();
+    const availability=await tenant.submitAvailability(f.data.accounts.tenant.digest,o.ticket.ticket.id,{clientRequestId:randomUUID(),expectedAssignmentVersion:4,
+      expectedRoundVersion:accepted.currentRound!.version,expectedPacketRevisionId:o.packetId,windows:[{startAt:soon(24),endAt:soon(28)}]});
+    const proposed=await mutate(cred,"scheduling/proposals",{clientRequestId:randomUUID(),expectedAssignmentVersion:4,expectedRoundVersion:availability.currentRound!.version,
+      expectedPacketRevisionId:o.packetId,slots:[{startAt:soon(25),endAt:soon(26)}]});
+    expect(proposed.status).toBe(200);
+    expect(VendorJobDtoSchema.parse(await proposed.json())).toMatchObject({phase:"SCHEDULING",waitingOn:"TENANT",proposal:{slots:[{}]}});
+  });
   it("denies decline after the assignment leaves OFFERED",async()=>{
     const o=await offered(),cred=(await redeem(o.token)).cred!;
     await f.p.admin.query("UPDATE vendor_handoff.vendor_assignment SET status='ACTIVE' WHERE id=$1",[o.assignmentId]);
@@ -243,7 +255,7 @@ describe("Vendor HTTP decline and assignment scope on PostgreSQL",()=>{
     expect(withdrawn.status).toBe(200);
     expect(VendorJobDtoSchema.parse(await withdrawn.json())).toMatchObject({status:"ENDED",endReason:"WITHDRAWN"});
     expect((await read(cred)).status).toBe(401);
-    for(const path of ["scheduling/proposals","scheduling/preauthorized-appointment","scheduling/reschedule"])expect((await mutate(cred,path,{clientRequestId:randomUUID()})).status).toBe(404);
+    for(const path of [`appointments/${randomUUID()}/visit-start`,"blockers"])expect((await mutate(cred,path,{clientRequestId:randomUUID()})).status).toBe(404);
   });
   it("serves only the current packet's allowlisted source photo and hides other assignment or unshared photos identically",async()=>{
     const a=await offered("manager","tenant",true),b=await offered("otherManager","otherTenant",true);
