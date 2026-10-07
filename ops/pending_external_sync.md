@@ -390,3 +390,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-TASK3-FINAL-REVIEW-CLOSED-20261006-2130: sync_status=pending; Task3 final bounded rereview at 3c7d3ad closed B0/H0/M0/L0 and frozen audit 28/28 PASS. Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
 
 - Event VENDOR-TASK4-VENDOR-SESSION-BOUNDARY-CLOSED-20261007-0100: sync_status=pending; Task4 Vendor session boundary closed at dc29c47 after independent review/remediation (final rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK5-SCHEDULING-CLOSED-20261007-0400: sync_status=pending; Task5 scheduling closed at bac8cda after independent review/remediation (rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
