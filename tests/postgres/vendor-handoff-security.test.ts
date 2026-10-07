@@ -156,11 +156,9 @@ describe("hostile runtime and exact catalog proofs", () => {
     await owner(async client => {
       await client.query("SELECT set_config('app.org_id',$1,true)", [f.data.orgA]);
       await client.query("CREATE POLICY hostile_probe ON vendor_handoff.work_event TO bm_vendor_handoff_owner USING(true) WITH CHECK(true)");
-      await client.query("SAVEPOINT probe");
+      // The guard looks the assignment up under the caller's org A binding, so the org B row is refused by the guard itself.
       await expect(client.query("INSERT INTO vendor_handoff.work_event(org_id,assignment_id,kind,packet_revision_id,blocker_code) VALUES($1,$2,'BLOCKER_RECORDED',$3,'OTHER')",
-        [f.data.orgB, b.handoff.assignment!.id, b.handoff.currentPacket!.id])).rejects.toBeDefined();
-      await client.query("ROLLBACK TO SAVEPOINT probe");
-      expect((await client.query("SELECT current_setting('app.org_id') AS org")).rows[0].org).toBe(f.data.orgA);
+        [f.data.orgB, b.handoff.assignment!.id, b.handoff.currentPacket!.id])).rejects.toMatchObject({ message: "INVALID_PROVENANCE" });
     });
     expect((await f.p.admin.query("SELECT count(*)::int AS n FROM vendor_handoff.work_event WHERE assignment_id=$1", [b.handoff.assignment!.id])).rows[0].n).toBe(0);
   });
