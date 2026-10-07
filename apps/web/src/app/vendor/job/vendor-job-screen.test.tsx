@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot,type Root } from "react-dom/client";
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import { ApiClientError,type VendorJobClient } from "@build-manager/api-client";
-import type { VendorAcceptCommand,VendorBlockerCommand,VendorClearBlockerCommand,VendorDeclineCommand,VendorJobDto,VendorPreauthorizedAppointmentCommand,VendorProposalCommand,VendorRescheduleCommand,VendorVisitStartCommand,VendorWithdrawCommand } from "@build-manager/api-contracts";
+import type { VendorAcceptCommand,VendorBlockerCommand,VendorClearBlockerCommand,VendorCompletionPhotoUploadCommand,VendorCompletionReportCommand,VendorDeclineCommand,VendorJobDto,VendorPreauthorizedAppointmentCommand,VendorProposalCommand,VendorRescheduleCommand,VendorVisitStartCommand,VendorWithdrawCommand } from "@build-manager/api-contracts";
 import { VendorJobScreen } from "./vendor-job-screen";
 
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
@@ -31,7 +31,7 @@ function active(assignmentId:string,label:string):VendorJobDto{
 }
 const network=()=>new ApiClientError("NETWORK_ERROR","API 요청을 전송하지 못했습니다.");
 const http=(status:number,code:string)=>new ApiClientError(code,"요청을 처리하지 못했습니다.",{status});
-type Overrides={[K in "redeem"|"session"|"job"|"decline"|"logout"|"accept"|"withdraw"|"proposeSlots"|"selectPreauthorizedSlot"|"reschedule"|"startVisit"|"recordBlocker"|"clearBlocker"]?:(...args:Parameters<VendorJobClient[K]>)=>Promise<unknown>};
+type Overrides={[K in "redeem"|"session"|"job"|"decline"|"logout"|"accept"|"withdraw"|"proposeSlots"|"selectPreauthorizedSlot"|"reschedule"|"startVisit"|"recordBlocker"|"clearBlocker"|"uploadCompletionPhoto"|"submitCompletionReport"]?:(...args:Parameters<VendorJobClient[K]>)=>Promise<unknown>};
 function fakeClient(overrides:Overrides={}){
   const redeemed=async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:job(assignmentB,"B")}) as unknown;
   return {
@@ -48,7 +48,10 @@ function fakeClient(overrides:Overrides={}){
     startVisit:vi.fn<(csrf:string,appointmentId:string,input:VendorVisitStartCommand)=>Promise<unknown>>(overrides.startVisit??(async()=>active(assignmentB,"B"))),
     recordBlocker:vi.fn<(csrf:string,input:VendorBlockerCommand)=>Promise<unknown>>(overrides.recordBlocker??(async()=>active(assignmentB,"B"))),
     clearBlocker:vi.fn<(csrf:string,blockerId:string,input:VendorClearBlockerCommand)=>Promise<unknown>>(overrides.clearBlocker??(async()=>active(assignmentB,"B"))),
+    uploadCompletionPhoto:vi.fn<(csrf:string,input:VendorCompletionPhotoUploadCommand,file:Blob)=>Promise<unknown>>(overrides.uploadCompletionPhoto??(async()=>({photoId:"21212121-2121-4121-8121-212121212121",mime:"image/png",byteSize:3,width:1,height:1,createdAt:"2026-10-06T03:00:00.000Z"}))),
+    submitCompletionReport:vi.fn<(csrf:string,input:VendorCompletionReportCommand)=>Promise<unknown>>(overrides.submitCompletionReport??(async()=>({}))),
     sourcePhotoPath:(id:string)=>`/api/v2/vendor/job/source-photos/${id}`,
+    completionPhotoPath:(id:string)=>`/api/v2/vendor/job/completion-photos/${id}`,
   };
 }
 type FakeClient=ReturnType<typeof fakeClient>;
@@ -797,5 +800,109 @@ describe("Task7 review remediation (Vendor screen)",()=>{
     await click("막힘 기록하기");
     expect(page()).toContain("현재 막힘");
     expect(button("작업 철회")).toBeDefined();
+  });
+});
+
+describe("Task8 Vendor completion report",()=>{
+  const now=()=>new Date("2026-10-06T03:00:00Z");
+  const apptB="18181818-1818-4818-8818-181818181818",propB="15151515-1515-4515-8515-151515151515",reportB="22222222-3333-4444-8555-666666666666";
+  const photo1="21212121-2121-4121-8121-212121212121",photo2="23232323-2323-4323-8323-232323232323";
+  const confirmedRound={id:roundB,openedPacketRevisionId:packetB,purpose:"INITIAL" as const,status:"CONFIRMED" as const,version:3,createdAt:"2026-10-06T00:00:00.000Z"};
+  const occurred={id:apptB,schedulingRoundId:roundB,packetRevisionId:packetB,proposalId:propB,availabilitySubmissionId:null,selectedWindowId:null,
+    startAt:"2026-10-07T05:00:00.000Z",endAt:"2026-10-07T06:00:00.000Z",confirmationMode:"TENANT_CONFIRMED" as const,status:"OCCURRED" as const,createdAt:"2026-10-06T02:00:00.000Z"};
+  const visited=(changes:Partial<VendorJobDto>={}):VendorJobDto=>({...active(assignmentB,"B"),phase:"IN_PROGRESS",waitingOn:"VENDOR",assignmentVersion:5,currentRound:confirmedRound,appointment:occurred,...changes});
+  const report={id:reportB,assignmentId:assignmentB,appointmentId:apptB,packetRevisionId:packetB,revision:1,supersedesReportId:null,workSummary:"합성 배관 교체",
+    componentOrPartNote:null,completionPhotoIds:[photo1],photoOmissionReason:null,submittedAt:"2026-10-06T04:00:00.000Z"};
+  const reported=()=>visited({phase:"COMPLETION_REPORTED",waitingOn:"MANAGER",assignmentVersion:6,currentReport:report});
+  const opened=(value:VendorJobDto)=>vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:value}));
+  const file=(name:string)=>new File([new Uint8Array([137,80,78,71])],name,{type:"image/png"});
+  async function pick(files:File[]){
+    const input=host.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input,"files",{value:files,configurable:true});
+    await act(async()=>{input.dispatchEvent(new Event("change",{bubbles:true}));});
+    await flush();
+  }
+  async function toggle(label:string){
+    const input=Array.from(host.querySelectorAll<HTMLInputElement>('input[type="checkbox"],input[type="radio"]')).find(x=>x.closest("label")?.textContent?.includes(label));
+    expect(Boolean(input),label).toBe(true);await act(async()=>{input!.click();});
+  }
+  async function summary(value:string){
+    const area=host.querySelector<HTMLTextAreaElement>('textarea[aria-label="작업 내용 요약"]')!;
+    const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!;
+    await act(async()=>{setter.call(area,value);area.dispatchEvent(new Event("input",{bubbles:true}));});
+  }
+  it("uploads each photo with its own identity and submits selected photos after acknowledging the current packet",async()=>{
+    let n=0;
+    const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>reported()),
+      uploadCompletionPhoto:vi.fn(async()=>({photoId:[photo1,photo2][n++],mime:"image/png",byteSize:3,width:1,height:1,createdAt:"2026-10-06T03:00:00.000Z"})),
+      submitCompletionReport:vi.fn(async()=>report)});
+    await mount(client,`#${tokenB}`,now);
+    await pick([file("a.png"),file("b.png")]);
+    const uploads=client.uploadCompletionPhoto.mock.calls;
+    expect(uploads).toHaveLength(2);
+    expect(uploads[0][0]).toBe(csrf);
+    expect(uploads[0][1]).toMatchObject({expectedAssignmentVersion:5,expectedPacketRevisionId:packetB,expectedAppointmentId:apptB,expectedCorrectionRequestId:null});
+    expect(uploads[0][1].clientRequestId).not.toBe(uploads[1][1].clientRequestId);
+    expect(host.querySelectorAll('img[alt^="업로드한 완료 사진"]')).toHaveLength(2);
+    await toggle("완료 사진 1");
+    await summary("합성 배관 교체");
+    expect(button("완료 보고 제출")?.disabled).toBe(true);
+    await toggle("1번째 게시본");
+    await click("완료 보고 제출");
+    expect(client.submitCompletionReport).not.toHaveBeenCalled();
+    expect(page()).toContain("관리자가 확인할 때까지 수정할 수 없습니다");
+    await click("완료 보고 제출하기");
+    expect(client.submitCompletionReport.mock.calls[0]).toEqual([csrf,expect.objectContaining({expectedAssignmentVersion:5,expectedPacketRevisionId:packetB,expectedAppointmentId:apptB,
+      expectedCorrectionRequestId:null,supersedesReportId:null,workSummary:"합성 배관 교체",componentOrPartNote:null,completionPhotoIds:[photo1],photoOmissionReason:null})]);
+    expect(page()).toContain("완료 보고를 제출했습니다");
+    for(const label of ["막힘 기록","작업 철회","방문 시작"])expect(button(label),label).toBeUndefined();
+  });
+  it("reports with one approved omission reason instead of photos",async()=>{
+    const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>reported()),submitCompletionReport:vi.fn(async()=>({...report,completionPhotoIds:[],photoOmissionReason:"SAFETY_OR_PRIVACY"}))});
+    await mount(client,`#${tokenB}`,now);
+    await toggle("안전·사생활 보호");
+    await summary("합성 배관 교체");
+    await toggle("1번째 게시본");
+    await click("완료 보고 제출");
+    await click("완료 보고 제출하기");
+    expect(client.submitCompletionReport.mock.calls[0][1]).toMatchObject({completionPhotoIds:[],photoOmissionReason:"SAFETY_OR_PRIVACY"});
+  });
+  it("needs either a selected photo or an omission reason, a summary and the packet acknowledgment",async()=>{
+    const client=fakeClient({redeem:opened(visited())});
+    await mount(client,`#${tokenB}`,now);
+    await summary("합성 배관 교체");
+    await toggle("1번째 게시본");
+    expect(button("완료 보고 제출")?.disabled).toBe(true);
+    await toggle("사진이 필요 없는 작업");
+    expect(button("완료 보고 제출")?.disabled).toBe(false);
+  });
+  it("reconciles an unknown upload outcome with the same request identity and the same file",async()=>{
+    let fail=true;
+    const client=fakeClient({redeem:opened(visited()),uploadCompletionPhoto:vi.fn(async()=>{if(fail)throw network();return {photoId:photo1,mime:"image/png",byteSize:3,width:1,height:1,createdAt:"2026-10-06T03:00:00.000Z"};})});
+    await mount(client,`#${tokenB}`,now);
+    const picked=file("a.png");
+    await pick([picked]);
+    expect(page()).toContain("사진 업로드 결과를 확인하지 못했습니다");
+    fail=false;
+    await click("같은 요청으로 사진 업로드 다시 확인");
+    const calls=client.uploadCompletionPhoto.mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[1][1].clientRequestId).toBe(calls[0][1].clientRequestId);
+    expect(calls[1][2]).toBe(picked);
+    expect(host.querySelectorAll('img[alt^="업로드한 완료 사진"]')).toHaveLength(1);
+  });
+  it("shows COMPLETION_REPORTED read-only without scheduling, visit, blocker or withdraw actions",async()=>{
+    const client=fakeClient({redeem:opened(reported())});
+    await mount(client,`#${tokenB}`,now);
+    expect(page()).toContain("완료 보고를 제출했습니다");
+    expect(page()).toContain("합성 배관 교체");
+    expect(host.querySelector('input[type="file"]')).toBeNull();
+    for(const label of ["막힘 기록","작업 철회","방문 시작","방문 시간 제안하기","완료 보고 제출"])expect(button(label),label).toBeUndefined();
+  });
+  it("offers no completion report while a blocker or an OPEN round exists",async()=>{
+    const blocked=fakeClient({redeem:opened(visited({activeBlocker:{id:"24242424-2424-4424-8424-242424242424",code:"OTHER",note:null,active:true,createdAt:"2026-10-06T02:30:00.000Z",clearedAt:null}}))});
+    await mount(blocked,`#${tokenB}`,now);
+    expect(host.querySelector('input[type="file"]')).toBeNull();
+    expect(button("완료 보고 제출")).toBeUndefined();
   });
 });

@@ -17,6 +17,7 @@ function setup(role="ORG_ADMIN"){
   const manager=new Proxy({}, {get:(_target,method:string)=>async(hash:string,id:string,body:unknown)=>{
     calls.push({method,digest:hash,id,input:body});if(failure)throw failure;
     if(method==="issueLink"||method==="reissueLink")return {created:createdLink,assignmentId,assignmentVersion:2,expiresAt:"2026-10-09T00:00:00Z",...(createdLink?{link:"/vendor/job#synthetic-value"}:{})};
+    if(method==="completionPhoto")return {photo:{photoId:body,mime:"image/png",byteSize:3,width:1,height:1,createdAt:"2026-10-07T00:00:00Z"},bytes:new Uint8Array([1,2,3])};
     return handoff;
   }}) as VendorHandoffManagerPort;
   const port:CoreFlowPort={run:async(_hash,op)=>op({session:{role}} as CoreScope)};
@@ -144,4 +145,20 @@ it("exposes Tenant scheduling and Manager reschedule through the typed Core clie
   await client.confirmSlot(ticketId,{clientRequestId:randomUUID(),...roundGuards,proposalId,selectedSlotId:slotId});
   await client.tenantReschedule(ticketId,{clientRequestId:randomUUID(),...roundGuards,expectedAppointmentId:appointmentId});
   expect(s.calls.map(c=>c.method)).toEqual(["readScheduling","submitAvailability","authorizeEntry","confirmSlot","reschedule"]);
+});
+it("serves a Manager completion photo through the request-scoped digest with safe headers and no Tenant route (Task8)",async()=>{
+  const s=setup();const photoId=randomUUID();
+  const r=await s.call(`manager/tickets/${ticketId}/vendor-completion-photos/${photoId}`);
+  expect(r.status).toBe(200);
+  expect([r.headers.get("content-type"),r.headers.get("cache-control"),r.headers.get("x-content-type-options")]).toEqual(["image/png","private, no-store","nosniff"]);
+  expect(new Uint8Array(await r.arrayBuffer())).toEqual(new Uint8Array([1,2,3]));
+  expect(s.calls.at(-1)).toMatchObject({method:"completionPhoto",digest,id:ticketId,input:photoId});
+  const before=s.calls.length;
+  expect((await s.call(`manager/tickets/${ticketId}/vendor-completion-photos/not-a-uuid`)).status).toBe(404);
+  expect((await s.call(`manager/tickets/${ticketId}/vendor-completion-photos/${photoId}`,"POST",{})).status).toBe(404);
+  expect(s.calls.length).toBe(before);
+  const tenant=setup("TENANT");
+  expect((await tenant.call(`manager/tickets/${ticketId}/vendor-completion-photos/${photoId}`)).status).toBe(403);
+  expect((await tenant.call(`tickets/${ticketId}/vendor-completion-photos/${photoId}`)).status).toBe(404);
+  expect(tenant.calls).toEqual([]);
 });

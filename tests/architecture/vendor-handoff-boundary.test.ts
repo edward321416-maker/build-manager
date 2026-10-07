@@ -11,6 +11,9 @@ const entries=[
 const forbiddenModules=[/^@auth0\//,/^jose$/,/^@build-manager\/persistence-postgres\/(b1|core-flow|core-onboarding|testing)$/,/^@build-manager\/fixtures/,/^node:sqlite$/];
 const forbiddenLocal=[/^apps\/web\/src\/server\/(b1|b3|b4|b5|core-flow|http|persistence)\//,/^apps\/web\/src\/server\/container\./,/^apps\/web\/src\/proxy\./,/^apps\/web\/src\/app\/(core|workspace|demo)\//,/^packages\/persistence-postgres\/src\/(b1|core-flow|core-onboarding|testing)/];
 
+// Plan Task8 requires the Vendor upload to reuse the accepted Core photo sanitizer unchanged. Exactly that module is
+// allowed; the walker still descends into its imports, so B1/Auth0, Core routing/persistence and fixtures stay forbidden.
+const allowedLocal=["apps/web/src/server/core-flow/photos.ts"];
 async function graph(entry:string){
   const seen=new Set<string>(),bare=new Set<string>(),specifiers=new Set<string>(),violations:string[]=[];
   async function walk(file:string){
@@ -22,7 +25,7 @@ async function graph(entry:string){
       const local=await resolveLocal(root,file,edge.specifier);
       if(local===null){bare.add(edge.specifier);if(forbiddenModules.some(x=>x.test(edge.specifier)))violations.push(`${file} -> ${edge.specifier}`);continue;}
       if(local.startsWith("<")){violations.push(`${file} -> ${edge.specifier} ${local}`);continue;}
-      if(forbiddenModules.some(x=>x.test(edge.specifier))||forbiddenLocal.some(x=>x.test(local)))violations.push(`${file} -> ${local}`);
+      if(forbiddenModules.some(x=>x.test(edge.specifier))||(forbiddenLocal.some(x=>x.test(local))&&!allowedLocal.includes(local)))violations.push(`${file} -> ${local}`);
       if(local.startsWith("apps/web/src/")||local.startsWith("packages/"))await walk(local);
     }
   }
@@ -47,6 +50,8 @@ describe("standalone Vendor Web boundary",()=>{
     expect(seen.has("apps/web/src/server/vendor-handoff/http.ts")).toBe(true);
     expect([...specifiers].filter(x=>x.startsWith("@build-manager/persistence-postgres")).sort()).toEqual(["@build-manager/persistence-postgres","@build-manager/persistence-postgres/vendor-handoff"]);
     expect(seen.has("packages/persistence-postgres/src/vendor-handoff/external.ts")).toBe(true);
+    // The only Core module reachable is the reused sanitizer; never the Core router, container or persistence.
+    expect([...seen].filter(x=>x.startsWith("apps/web/src/server/core-flow/"))).toEqual(["apps/web/src/server/core-flow/photos.ts"]);
     const container=await readFile(join(root,"apps/web/src/server/vendor-handoff/container.ts"),"utf8");
     expect(container).toContain("createVendorHandoffExternalPort");
     expect(container).toContain("VENDOR_HANDOFF_DATABASE_CONFIG");

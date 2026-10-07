@@ -1,12 +1,14 @@
 import {
   VendorHandoffError,
+  type VendorCompletionPhotoDto,
+  type VendorCompletionReportDto,
   type VendorHandoffExternalPort,
   type VendorJobDto,
   type VendorSessionDto,
   type VendorSourcePhotoDto,
 } from "@build-manager/application";
 import type { PostgresDatabase } from "../database";
-import { notYetImplemented, vendorDigest, vendorJson, vendorTransaction } from "./common";
+import { vendorDigest, vendorJson, vendorTransaction } from "./common";
 
 /**
  * `csrfDigest` is the request-local digest of the presented server-issued CSRF value. Mutations pass it
@@ -136,7 +138,36 @@ export function createVendorHandoffExternalPort(database: PostgresDatabase, csrf
           input.expectedPacketRevisionId, input.operationalNote],
       );
     },
-    async uploadCompletionPhoto() { return notYetImplemented(); },
-    async submitCompletionReport() { return notYetImplemented(); },
+    async uploadCompletionPhoto(sessionDigest, input, sanitized) {
+      if (!/^[0-9a-f]{64}$/.test(sanitized.sha256)) throw new VendorHandoffError("INVALID_INPUT");
+      return vendorJson<VendorCompletionPhotoDto>(
+        database,
+        "SELECT vendor_handoff.upload_completion_photo($1::bytea,$2::bytea,$3::uuid,$4::bigint,$5::uuid,$6::uuid,$7::uuid,$8::text,$9::integer,$10::integer,$11::integer,$12::bytea,$13::bytea) AS value",
+        [vendorDigest(sessionDigest), presentedCsrf(), input.clientRequestId, input.expectedAssignmentVersion, input.expectedPacketRevisionId,
+          input.expectedAppointmentId, input.expectedCorrectionRequestId, sanitized.mime, sanitized.byteSize, sanitized.width, sanitized.height,
+          Buffer.from(sanitized.sha256, "hex"), Buffer.from(sanitized.bytes)],
+      );
+    },
+    async submitCompletionReport(sessionDigest, input) {
+      return vendorJson<VendorCompletionReportDto>(
+        database,
+        "SELECT vendor_handoff.submit_completion_report($1::bytea,$2::bytea,$3::uuid,$4::bigint,$5::uuid,$6::uuid,$7::uuid,$8::uuid,$9::text,$10::text,$11::uuid[],$12::text) AS value",
+        [vendorDigest(sessionDigest), presentedCsrf(), input.clientRequestId, input.expectedAssignmentVersion, input.expectedPacketRevisionId,
+          input.expectedAppointmentId, input.expectedCorrectionRequestId, input.supersedesReportId, input.workSummary, input.componentOrPartNote,
+          input.completionPhotoIds, input.photoOmissionReason],
+      );
+    },
+    async readCompletionPhoto(sessionDigest, photoId) {
+      const session = vendorDigest(sessionDigest);
+      return vendorTransaction(database, async (client) => {
+        const result = await client.query<{ metadata: VendorCompletionPhotoDto; content: Buffer }>(
+          "SELECT metadata,content FROM vendor_handoff.read_completion_photo($1::bytea,$2::uuid)",
+          [session, photoId],
+        );
+        const row = result.rows[0];
+        if (!row) throw new VendorHandoffError("NOT_FOUND");
+        return { photo: row.metadata, bytes: new Uint8Array(row.content) };
+      });
+    },
   };
 }

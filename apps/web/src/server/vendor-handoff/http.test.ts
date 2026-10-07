@@ -1,7 +1,8 @@
 import { createHash,randomUUID } from "node:crypto";
 import { describe,expect,it } from "vitest";
 import { VendorHandoffError,type VendorHandoffExternalPort,type VendorJobDto } from "@build-manager/application";
-import { VendorJobDtoSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
+import sharp from "sharp";
+import { VendorCompletionPhotoDtoSchema,VendorCompletionReportDtoSchema,VendorJobDtoSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
 import { handleVendorHandoff,type VendorHTTPDependencies } from "./http";
 import * as route from "../../app/api/v2/vendor/[...path]/route";
 
@@ -47,10 +48,11 @@ function harness(overrides:Partial<VendorHandoffExternalPort>={},configured=orig
 const session=synthetic("vendor-session");
 const csrf=synthetic("vendor-csrf");
 const token=synthetic("vendor-capability");
-function call(deps:VendorHTTPDependencies,path:string,init:{method?:string;headers?:Record<string,string>;body?:unknown;base?:string}={}){
+function call(deps:VendorHTTPDependencies,path:string,init:{method?:string;headers?:Record<string,string>;body?:unknown;raw?:Uint8Array;base?:string}={}){
   const headers=new Headers(init.headers);
   if(init.body!==undefined&&!headers.has("content-type"))headers.set("content-type","application/json");
-  const request=new Request(`${init.base??origin}/api/v2/vendor/${path}`,{method:init.method??"GET",headers,body:init.body===undefined?undefined:JSON.stringify(init.body)});
+  const body=init.raw!==undefined?new Uint8Array(init.raw).buffer:init.body===undefined?undefined:JSON.stringify(init.body);
+  const request=new Request(`${init.base??origin}/api/v2/vendor/${path}`,{method:init.method??"GET",headers,body});
   return handleVendorHandoff(request,path.split("/"),()=>deps);
 }
 const authed={cookie:`vendor_session=${session}`};
@@ -301,9 +303,10 @@ describe("job ownership",()=>{
       expect(calls.at(-1)).toEqual({method,csrf:sha(csrf),args:[sha(session),...ids,body]});
     }
   });
-  it("keeps the Task 8 completion routes unimplemented",async()=>{
+  it("exposes only the exact completion routes",async()=>{
     const {deps,calls}=harness();
-    for(const path of ["completion-reports","completion-photos"])expect((await call(deps,path,{method:"POST",headers:mutation,body:{clientRequestId:randomUUID()}})).status).toBe(404);
+    for(const path of ["completion-photos",`job/completion-photos/${photoId}/extra`,"completion-reports/extra"])
+      expect((await call(deps,path,{method:"POST",headers:mutation,body:{clientRequestId:randomUUID()}})).status,path).toBe(404);
     expect(calls).toEqual([]);
   });
   it("serves an allowlisted source photo and hides guessed, malformed or cross-assignment IDs identically",async()=>{
@@ -320,5 +323,89 @@ describe("job ownership",()=>{
     expect([guessed.status,malformed.status]).toEqual([404,404]);
     expect(await text(guessed)).toBe(await text(malformed));
     expect(hidden.calls.length).toBe(1);
+  });
+});
+
+describe("Task8 completion photo and report routes",()=>{
+  const appointmentId="44444444-4444-4444-8444-444444444444";
+  const dto=(bytes:number,width=40,height=80)=>({photoId,mime:"image/jpeg" as const,byteSize:bytes,width,height,createdAt:"2026-10-07T00:00:00.000Z"});
+  const command=(changes:Record<string,unknown>={})=>({clientRequestId:randomUUID(),expectedAssignmentVersion:6,expectedPacketRevisionId:packetId,expectedAppointmentId:appointmentId,expectedCorrectionRequestId:null,...changes});
+  function uploader(){
+    const seen:{input:unknown;sanitized:{bytes:Uint8Array;mime:string;byteSize:number;width:number;height:number;sha256:string}}[]=[];
+    const h=harness({uploadCompletionPhoto:async(_session:string,input:unknown,sanitized:{bytes:Uint8Array;mime:string;byteSize:number;width:number;height:number;sha256:string})=>{
+      seen.push({input,sanitized});return {...dto(sanitized.byteSize,sanitized.width,sanitized.height),mime:sanitized.mime};}} as unknown as Partial<VendorHandoffExternalPort>);
+    return {...h,seen};
+  }
+  const send=(deps:VendorHTTPDependencies,bytes:Uint8Array,mime:string,input:{clientRequestId:string},extra:Record<string,string>={})=>call(deps,"job/completion-photos",
+    {method:"POST",headers:{...mutation,"content-type":mime,"x-upload-id":input.clientRequestId,"x-vendor-upload-command":JSON.stringify(input),...extra},raw:bytes});
+  const base=()=>sharp({create:{width:80,height:40,channels:3,background:"#16846b"}}).png().toBuffer();
+  it("re-encodes a JPEG with EXIF/GPS and orientation before the port and keeps a stable sanitized SHA-256 for replay",async()=>{
+    const {deps,seen}=uploader();
+    const jpeg=await sharp(await base()).jpeg().withMetadata({orientation:6}).withExif({IFD0:{Artist:"SYNTHETIC_TEST"},IFD3:{GPSLatitudeRef:"N",GPSLatitude:"1/1 2/1 3/1"}}).toBuffer();
+    expect((await sharp(jpeg).metadata()).exif).toBeDefined();
+    const input=command();
+    const response=await send(deps,jpeg,"image/jpeg",input);
+    expect(response.status).toBe(200);
+    expect(VendorCompletionPhotoDtoSchema.parse(await response.json())).toMatchObject({width:40,height:80});
+    const [{input:sentInput,sanitized}]=seen;
+    expect(sentInput).toEqual(input);
+    const meta=await sharp(sanitized.bytes).metadata();
+    expect([meta.exif,meta.xmp,meta.icc,meta.orientation]).toEqual([undefined,undefined,undefined,undefined]);
+    expect([sanitized.mime,sanitized.width,sanitized.height,sanitized.byteSize]).toEqual(["image/jpeg",40,80,sanitized.bytes.byteLength]);
+    expect(sanitized.sha256).toBe(createHash("sha256").update(sanitized.bytes).digest("hex"));
+    expect(Buffer.from(sanitized.bytes).equals(jpeg)).toBe(false);
+    await send(deps,jpeg,"image/jpeg",input);
+    expect(seen[1].sanitized.sha256).toBe(sanitized.sha256);
+  });
+  it("re-encodes a PNG carrying EXIF and XMP metadata",async()=>{
+    const {deps,seen}=uploader();
+    const png=await sharp(await base()).png().withExif({IFD0:{Artist:"SYNTHETIC_TEST"}}).withXmp('<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"/></x:xmpmeta>').toBuffer();
+    const original=await sharp(png).metadata();expect([Boolean(original.exif),Boolean(original.xmp)]).toEqual([true,true]);
+    expect((await send(deps,png,"image/png",command())).status).toBe(200);
+    const meta=await sharp(seen[0].sanitized.bytes).metadata();
+    expect([meta.format,meta.exif,meta.xmp,meta.width,meta.height]).toEqual(["png",undefined,undefined,80,40]);
+  });
+  it("rejects identity, command, CSRF and image problems before the port and before any persistence",async()=>{
+    const {deps,calls}=uploader();
+    const png=await base(),input=command();
+    expect((await send(deps,png,"image/png",input,{"x-upload-id":randomUUID()})).status).toBe(400);
+    expect((await send(deps,png,"image/png",{...input,unitId:randomUUID()} as never)).status).toBe(400);
+    expect((await send(deps,png,"image/png",input,{"x-vendor-upload-command":"{not json"})).status).toBe(400);
+    expect((await send(deps,png,"image/png",{...command(),expectedCorrectionRequestId:undefined} as never)).status).toBe(400);
+    const noCsrf=await call(deps,"job/completion-photos",{method:"POST",headers:{...authed,origin,"content-type":"image/png","x-upload-id":input.clientRequestId,"x-vendor-upload-command":JSON.stringify(input)},raw:png});
+    expect(noCsrf.status).toBe(403);
+    expect((await send(deps,png,"image/svg+xml",command())).status).toBe(415);
+    expect((await send(deps,Buffer.from("not an image"),"image/png",command())).status).toBe(415);
+    expect((await send(deps,Buffer.from([137,80,78,71,13,10,26,10]),"image/png",command())).status).toBe(400);
+    expect((await send(deps,Buffer.alloc(5*1024*1024+1),"image/png",command())).status).toBe(413);
+    const huge=await sharp({create:{width:4500,height:4500,channels:3,background:"white"}}).png().toBuffer();
+    expect((await send(deps,huge,"image/png",command())).status).toBe(413);
+    expect(calls).toEqual([]);
+  });
+  it("serves only the session's own completion photo bytes and hides malformed or unknown ids",async()=>{
+    const bytes=new Uint8Array([255,216,255,0]);
+    const {deps,calls}=harness({readCompletionPhoto:async(_session:string,id:string)=>{if(id!==photoId)throw new VendorHandoffError("NOT_FOUND");return {photo:dto(bytes.byteLength),bytes};}} as unknown as Partial<VendorHandoffExternalPort>);
+    const served=await call(deps,`job/completion-photos/${photoId}`,{headers:authed});
+    expect(served.status).toBe(200);
+    expect([served.headers.get("content-type"),served.headers.get("cache-control")]).toEqual(["image/jpeg","no-store"]);
+    expect(new Uint8Array(await served.arrayBuffer())).toEqual(bytes);
+    expect((await call(deps,"job/completion-photos/not-a-uuid",{headers:authed})).status).toBe(404);
+    expect((await call(deps,`job/completion-photos/${packetId}`,{headers:authed})).status).toBe(404);
+    expect(calls.map(c=>c.method)).toEqual(["readCompletionPhoto","readCompletionPhoto"]);
+  });
+  it("dispatches a completion report only with the presented CSRF and an exact body",async()=>{
+    const reportDto={id:photoId,assignmentId,appointmentId,packetRevisionId:packetId,revision:1,supersedesReportId:null,workSummary:"합성 작업 완료",
+      componentOrPartNote:null,completionPhotoIds:[],photoOmissionReason:"NOT_APPLICABLE",submittedAt:"2026-10-07T00:00:00.000Z"};
+    const {deps,calls}=harness({submitCompletionReport:async()=>reportDto} as unknown as Partial<VendorHandoffExternalPort>);
+    const body={...command(),supersedesReportId:null,workSummary:"합성 작업 완료",componentOrPartNote:null,completionPhotoIds:[],photoOmissionReason:"NOT_APPLICABLE"};
+    const noCsrf=Object.fromEntries(Object.entries(mutation).filter(([key])=>key!=="x-vendor-csrf"));
+    expect((await call(deps,"completion-reports",{method:"POST",headers:noCsrf,body})).status).toBe(403);
+    expect((await call(deps,"completion-reports",{method:"POST",headers:mutation,body:{...body,assignmentId}})).status).toBe(400);
+    expect((await call(deps,"completion-reports",{method:"POST",headers:mutation,body:{...body,photoOmissionReason:null}})).status).toBe(400);
+    expect(calls).toEqual([]);
+    const response=await call(deps,"completion-reports",{method:"POST",headers:mutation,body});
+    expect(response.status).toBe(200);
+    expect(VendorCompletionReportDtoSchema.parse(await response.json())).toEqual(reportDto);
+    expect(calls.at(-1)).toEqual({method:"submitCompletionReport",csrf:sha(csrf),args:[sha(session),body]});
   });
 });

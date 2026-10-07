@@ -299,8 +299,8 @@ describe("Vendor Secure Handoff foundation", () => {
     ]);
   }, 120_000);
 
-  // Cumulative current Vendor-owned inventory: six 0019 foundation tables, eight 0020 scheduling tables and the 0021 work evidence table.
-  it("creates exactly the cumulative Vendor tables (0019 foundation + 0020 scheduling + 0021 work evidence) with FORCE RLS and org ownership", async () => {
+  // Cumulative current Vendor-owned inventory: 0019 foundation, 0020 scheduling, 0021 work evidence and 0022 completion tables.
+  it("creates exactly the cumulative Vendor tables (0019 foundation + 0020 scheduling + 0021 work evidence + 0022 completion) with FORCE RLS and org ownership", async () => {
     const rows = await f.p.admin.query(`
       SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity,
              EXISTS (
@@ -328,6 +328,9 @@ describe("Vendor Secure Handoff foundation", () => {
       "vendor_slot",
       "vendor_slot_proposal",
       "work_event",
+      "completion_photo",
+      "completion_report",
+      "manager_disposition",
     ].sort().map((relname) => ({ relname, relrowsecurity: true, relforcerowsecurity: true, has_org: true })));
   });
 

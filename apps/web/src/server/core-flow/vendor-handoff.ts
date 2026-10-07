@@ -1,9 +1,9 @@
 import { VendorHandoffError, type VendorHandoffManagerPort, type VendorHandoffTenantPort } from "@build-manager/application";
 import { ManagerVendorHandoffDtoSchema, VendorCreateAssignmentCommandSchema, VendorPublishPacketCommandSchema, VendorIssueLinkCommandSchema, VendorReissueLinkCommandSchema, VendorRevokeCommandSchema, VendorLinkIssueDtoSchema,
-  VendorManagerRescheduleCommandSchema, VendorAvailabilityCommandSchema, VendorEntryAuthorizationCommandSchema, VendorConfirmSlotCommandSchema, VendorTenantRescheduleCommandSchema, VendorTenantSchedulingDtoSchema } from "@build-manager/api-contracts";
+  VendorManagerRescheduleCommandSchema, VendorAvailabilityCommandSchema, VendorEntryAuthorizationCommandSchema, VendorConfirmSlotCommandSchema, VendorTenantRescheduleCommandSchema, VendorTenantSchedulingDtoSchema, VendorCompletionPhotoDtoSchema } from "@build-manager/api-contracts";
 
 export function isManagerVendorHandoffRoute(segments:string[]):boolean{
-  return segments[0]==="manager"&&((segments[1]==="tickets"&&["vendor-handoff","vendor-assignment"].includes(segments[3]))||segments[1]==="vendor-assignments");
+  return segments[0]==="manager"&&((segments[1]==="tickets"&&["vendor-handoff","vendor-assignment","vendor-completion-photos"].includes(segments[3]))||segments[1]==="vendor-assignments");
 }
 async function readBody(request:Request):Promise<unknown>{
   if(request.headers.get("content-type")?.split(";")[0].trim()!=="application/json")throw new VendorHandoffError("INVALID_INPUT");
@@ -23,6 +23,16 @@ export async function handleManagerVendorHandoff(request:Request,segments:string
     if(!id||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id))throw new VendorHandoffError("INVALID_INPUT");
     const route=segments.slice(3).join("/");
     if(!port)throw new VendorHandoffError("DEPENDENCY_UNAVAILABLE");
+    // Manager review of ATTACHED report photos only; persistence returns the same NOT_FOUND for every other id.
+    if(segments[1]==="tickets"&&segments[3]==="vendor-completion-photos"){
+      const photoId=segments[4];
+      if(segments.length!==5||request.method!=="GET"||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(photoId))throw new VendorHandoffError("NOT_FOUND");
+      const {photo,bytes}=await port.completionPhoto(digest,id,photoId);
+      const safe=VendorCompletionPhotoDtoSchema.safeParse(photo);
+      if(!safe.success||safe.data.photoId!==photoId||bytes.byteLength!==safe.data.byteSize)throw new VendorHandoffError("DEPENDENCY_UNAVAILABLE");
+      headers.set("Content-Type",safe.data.mime);headers.set("Content-Length",String(bytes.byteLength));
+      return new Response(new Uint8Array(bytes),{status:200,headers});
+    }
     if(segments[1]==="tickets"&&segments.length===4){
       if(route==="vendor-handoff"&&request.method==="GET")return json(ManagerVendorHandoffDtoSchema.parse(await port.readHandoff(digest,id)));
       if(route==="vendor-assignment"&&request.method==="POST")return json(ManagerVendorHandoffDtoSchema.parse(await port.createAssignment(digest,id,parse(VendorCreateAssignmentCommandSchema,await readBody(request)))),201);

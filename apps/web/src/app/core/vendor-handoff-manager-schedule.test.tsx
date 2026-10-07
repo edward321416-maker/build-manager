@@ -72,3 +72,19 @@ it("shows the Vendor's current blocker and waiting state without changing the ph
   expect(page()).toContain("합성 메모");
   expect(button("방문 일정 변경")).toBeUndefined();
 });
+it("loads only the report's selected photos through the Manager completion-photo route (Task8)",async()=>{
+  const original={create:URL.createObjectURL,revoke:URL.revokeObjectURL};
+  URL.createObjectURL=vi.fn(()=>"blob:synthetic-report");URL.revokeObjectURL=vi.fn();
+  try{
+  host=document.createElement("div");document.body.append(host);root=createRoot(host);
+  const report={id:"report",assignmentId:"assignment",appointmentId:"appointment",packetRevisionId:"packet",revision:1,supersedesReportId:null,workSummary:"합성 배관 교체",
+    componentOrPartNote:null,completionPhotoIds:["photo-1"],photoOmissionReason:null,submittedAt:"2026-10-07T05:00:00Z"};
+  const handoff=scheduled({phase:"COMPLETION_REPORTED",waitingOn:"MANAGER",appointment:{...appointment,status:"OCCURRED"},currentReport:report,reportHistory:[report]});
+  const vendorCompletionPhoto=vi.fn(async()=>new Blob(["abc"],{type:"image/png"}));
+  const client={vendorHandoff:{readHandoff:vi.fn(async()=>handoff)},photos:async()=>[],vendorCompletionPhoto} as unknown as CoreFlowClient;
+  await act(async()=>{root!.render(<VendorHandoffManager client={client} ticket={ticket} revision={0} now={now} onHandoff={()=>{}} onChanged={()=>{}}/>);});
+  await act(async()=>{for(let i=0;i<12;i++)await Promise.resolve();});
+  expect(vendorCompletionPhoto.mock.calls).toEqual([["ticket","photo-1"]]);
+  expect(host.querySelector('img[alt="업체 완료 사진 1"]')?.getAttribute("src")).toBe("blob:synthetic-report");
+  }finally{URL.createObjectURL=original.create;URL.revokeObjectURL=original.revoke;}
+});

@@ -1,7 +1,8 @@
 import {
-  VendorAcceptCommandSchema,VendorBlockerCommandSchema,VendorClearBlockerCommandSchema,VendorDeclineCommandSchema,VendorJobDtoSchema,VendorVisitStartCommandSchema,VendorWithdrawCommandSchema,VendorPreauthorizedAppointmentCommandSchema,VendorProposalCommandSchema,VendorRescheduleCommandSchema,VendorLogoutCommandSchema,VendorLogoutResultDtoSchema,VendorRedeemCommandSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema,
-  type VendorAcceptCommand,type VendorBlockerCommand,type VendorClearBlockerCommand,type VendorDeclineCommand,type VendorVisitStartCommand,type VendorWithdrawCommand,type VendorPreauthorizedAppointmentCommand,type VendorProposalCommand,type VendorRescheduleCommand,type VendorJobDto,type VendorLogoutCommand,type VendorLogoutResultDto,type VendorRedeemCommand,type VendorRedeemResultDto,type VendorSessionStateDto,
+  VendorAcceptCommandSchema,VendorBlockerCommandSchema,VendorCompletionPhotoDtoSchema,VendorCompletionPhotoUploadCommandSchema,VendorCompletionReportCommandSchema,VendorCompletionReportDtoSchema,VendorClearBlockerCommandSchema,VendorDeclineCommandSchema,VendorJobDtoSchema,VendorVisitStartCommandSchema,VendorWithdrawCommandSchema,VendorPreauthorizedAppointmentCommandSchema,VendorProposalCommandSchema,VendorRescheduleCommandSchema,VendorLogoutCommandSchema,VendorLogoutResultDtoSchema,VendorRedeemCommandSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema,
+  type VendorAcceptCommand,type VendorBlockerCommand,type VendorCompletionPhotoDto,type VendorCompletionPhotoUploadCommand,type VendorCompletionReportCommand,type VendorCompletionReportDto,type VendorClearBlockerCommand,type VendorDeclineCommand,type VendorVisitStartCommand,type VendorWithdrawCommand,type VendorPreauthorizedAppointmentCommand,type VendorProposalCommand,type VendorRescheduleCommand,type VendorJobDto,type VendorLogoutCommand,type VendorLogoutResultDto,type VendorRedeemCommand,type VendorRedeemResultDto,type VendorSessionStateDto,
 } from "@build-manager/api-contracts";
+import { ApiClientError } from "./errors";
 import { sendRequest,type FetchLike } from "./http";
 
 const root="/api/v2/vendor";
@@ -11,7 +12,20 @@ function withHeaders(fetcher:FetchLike,extra:Record<string,string>):FetchLike{
 }
 
 /** Standalone no-account Vendor job client. The session cookie is HttpOnly; CSRF is held by the caller in memory. */
-export function createVendorJobClient(fetcher:FetchLike,baseUrl=""){
+export function createVendorJobClient(fetcher:FetchLike,baseUrl="",binaryFetch:typeof fetch=(input,init)=>globalThis.fetch(input,init)){
+  const base=baseUrl.replace(/\/$/,"");
+  /** Binary upload stays outside the bounded JSON helper; the command travels in its own header beside the raw image. */
+  const uploadCompletionPhoto=async(csrf:string,input:VendorCompletionPhotoUploadCommand,file:Blob):Promise<VendorCompletionPhotoDto>=>{
+    const command=VendorCompletionPhotoUploadCommandSchema.parse(input);
+    let response:Response;
+    try{
+      response=await binaryFetch(`${base}${root}/job/completion-photos`,{method:"POST",credentials:"same-origin",cache:"no-store",body:file,
+        headers:{"Content-Type":file.type,"X-Upload-Id":command.clientRequestId,"X-Vendor-Upload-Command":JSON.stringify(command),"X-Vendor-CSRF":csrf}});
+    }catch{throw new ApiClientError("NETWORK_ERROR","사진을 전송하지 못했습니다.");}
+    if(!response.ok)throw new ApiClientError("PHOTO_ERROR","사진 요청을 처리하지 못했습니다.",{status:response.status});
+    try{return VendorCompletionPhotoDtoSchema.parse(await response.json());}
+    catch{throw new ApiClientError("INVALID_RESPONSE","사진 응답이 올바르지 않습니다.");}
+  };
   return {
     redeem:(token:string,input:VendorRedeemCommand)=>sendRequest<VendorRedeemResultDto>(withHeaders(fetcher,{Authorization:`VendorCapability ${token}`}),baseUrl,
       {method:"POST",path:`${root}/session/redeem`,body:VendorRedeemCommandSchema.parse(input),schema:VendorRedeemResultDtoSchema}),
@@ -38,6 +52,10 @@ export function createVendorJobClient(fetcher:FetchLike,baseUrl=""){
     logout:(csrf:string,input:VendorLogoutCommand)=>sendRequest<VendorLogoutResultDto>(withHeaders(fetcher,{"X-Vendor-CSRF":csrf}),baseUrl,
       {method:"POST",path:`${root}/session/logout`,body:VendorLogoutCommandSchema.parse(input),schema:VendorLogoutResultDtoSchema}),
     sourcePhotoPath:(photoId:string)=>`${baseUrl}${root}/job/source-photos/${encodeURIComponent(photoId)}`,
+    uploadCompletionPhoto,
+    submitCompletionReport:(csrf:string,input:VendorCompletionReportCommand)=>sendRequest<VendorCompletionReportDto>(withHeaders(fetcher,{"X-Vendor-CSRF":csrf}),baseUrl,
+      {method:"POST",path:`${root}/completion-reports`,body:VendorCompletionReportCommandSchema.parse(input),schema:VendorCompletionReportDtoSchema}),
+    completionPhotoPath:(photoId:string)=>`${baseUrl}${root}/job/completion-photos/${encodeURIComponent(photoId)}`,
   };
 }
 export type VendorJobClient=ReturnType<typeof createVendorJobClient>;

@@ -1,8 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
-import type {
-  ManagerVendorHandoffDto,
-  VendorHandoffManagerPort,
-  VendorLinkIssueDto,
+import {
+  VendorHandoffError,
+  type ManagerVendorHandoffDto,
+  type VendorCompletionPhotoDto,
+  type VendorHandoffManagerPort,
+  type VendorLinkIssueDto,
 } from "@build-manager/application";
 import type { PostgresDatabase } from "../database";
 import { b1DigestCall, notYetImplemented } from "./common";
@@ -90,6 +92,17 @@ export function createVendorHandoffManagerPort(database: PostgresDatabase, organ
       );
     },
     async closeout() { return notYetImplemented(); },
-    async completionPhoto() { return notYetImplemented(); },
+    async completionPhoto(digest, ticketId, photoId) {
+      const value = await managerCall<{ photo: VendorCompletionPhotoDto; content: string }>(
+        database,
+        digest,
+        "SELECT vendor_handoff.manager_completion_photo($1::bytea,$2::text,$3::uuid) AS value",
+        [ticketId, photoId],
+        organization,
+      );
+      const bytes = new Uint8Array(Buffer.from(value.content, "base64"));
+      if (bytes.byteLength !== value.photo.byteSize) throw new VendorHandoffError("DEPENDENCY_UNAVAILABLE");
+      return { photo: value.photo, bytes };
+    },
   };
 }

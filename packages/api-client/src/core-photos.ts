@@ -26,6 +26,13 @@ export function corePhotos(options:{baseUrl:string;accessCode?:string;photoFetch
       if(blob.size!==safe.byteSize)throw new ApiClientError("INVALID_RESPONSE","사진 크기가 올바르지 않습니다.");
       return blob;
     },
+    /** Manager review of an ATTACHED Vendor completion photo; the server hides every other id identically. */
+    vendorCompletionPhoto:async(ticketId:string,photoId:string)=>{
+      const response=await request(`/api/v2/core/manager/tickets/${encodeURIComponent(ticketId)}/vendor-completion-photos/${encodeURIComponent(photoId)}`);
+      const mime=response.headers.get("content-type");
+      if(mime!=="image/jpeg"&&mime!=="image/png")throw new ApiClientError("INVALID_RESPONSE","사진 형식이 올바르지 않습니다.");
+      return response.blob();
+    },
     photoSource:(photo:CorePhotoDto)=>({uri:options.baseUrl.replace(/\/$/,"")+CorePhotoSchema.parse(photo).path,headers:headers(),cache:"reload" as const}),
   };
 }

@@ -1,7 +1,8 @@
 import { afterAll,beforeAll,describe,expect,it } from "vitest";
 import { createHash,randomUUID } from "node:crypto";
 import { createVendorHandoffExternalPort,createVendorHandoffTenantPort } from "@build-manager/persistence-postgres/vendor-handoff";
-import { VendorJobDtoSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
+import sharp from "sharp";
+import { VendorCompletionPhotoDtoSchema,VendorCompletionReportDtoSchema,VendorJobDtoSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
 import { handleVendorHandoff,type VendorHTTPDependencies } from "../../apps/web/src/server/vendor-handoff/http";
 import { createVendorHandoffFixture } from "./helpers/vendor-handoff-fixture";
 
@@ -268,6 +269,45 @@ describe("Vendor HTTP decline and assignment scope on PostgreSQL",()=>{
     expect((await f.p.admin.query("SELECT kind FROM vendor_handoff.work_event WHERE assignment_id=$1 ORDER BY created_at,id",[o.assignmentId])).rows.map(r=>r.kind))
       .toEqual(["VISIT_STARTED","BLOCKER_RECORDED","BLOCKER_CLEARED"]);
   });
+  it("uploads a sanitized photo and submits a report through the real HTTP boundary; the Manager reads only the attached photo (Task8)",async()=>{
+    const o=await offered(),cred=(await redeem(o.token)).cred!;
+    await mutate(cred,"job/accept",{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:o.packetId});
+    const tenant=createVendorHandoffTenantPort(f.managerDatabase),digest=f.data.accounts.tenant.digest,ticketId=o.ticket.ticket.id;
+    const soon=(hours:number)=>new Date(Date.now()+hours*3_600_000).toISOString();
+    const guards=async()=>{const t=await tenant.readScheduling(digest,ticketId);return {expectedAssignmentVersion:t.assignmentVersion,expectedRoundVersion:t.currentRound!.version,expectedPacketRevisionId:o.packetId};};
+    await tenant.submitAvailability(digest,ticketId,{clientRequestId:randomUUID(),...await guards(),windows:[{startAt:soon(24),endAt:soon(28)}]});
+    const proposed=VendorJobDtoSchema.parse(await (await mutate(cred,"scheduling/proposals",{clientRequestId:randomUUID(),...await guards(),slots:[{startAt:soon(25),endAt:soon(26)}]})).json());
+    const confirmed=await tenant.confirmSlot(digest,ticketId,{clientRequestId:randomUUID(),...await guards(),proposalId:proposed.proposal!.id,selectedSlotId:proposed.proposal!.slots[0].id});
+    const appointmentId=confirmed.appointment!.id;
+    const visited=VendorJobDtoSchema.parse(await (await mutate(cred,`appointments/${appointmentId}/visit-start`,{clientRequestId:randomUUID(),expectedAssignmentVersion:confirmed.assignmentVersion,
+      expectedRoundVersion:confirmed.currentRound!.version,expectedPacketRevisionId:o.packetId})).json());
+    const jpeg=await sharp({create:{width:12,height:8,channels:3,background:"#16846b"}}).jpeg().withExif({IFD0:{Artist:"SYNTHETIC_TEST"},IFD3:{GPSLatitudeRef:"N",GPSLatitude:"1/1 2/1 3/1"}}).toBuffer();
+    const upload=async(changes:Record<string,unknown>={})=>{
+      const command={clientRequestId:randomUUID(),expectedAssignmentVersion:visited.assignmentVersion,expectedPacketRevisionId:o.packetId,expectedAppointmentId:appointmentId,expectedCorrectionRequestId:null,...changes};
+      const response=await handleVendorHandoff(new Request(`${origin}/api/v2/vendor/job/completion-photos`,{method:"POST",body:new Uint8Array(jpeg).buffer,headers:{origin,cookie:`vendor_session=${cred.cookie}`,
+        "x-vendor-csrf":cred.csrf,"content-type":"image/jpeg","x-upload-id":String(command.clientRequestId),"x-vendor-upload-command":JSON.stringify(command)}}),["job","completion-photos"],()=>deps);
+      return response;
+    };
+    const attachedResponse=await upload();
+    expect(attachedResponse.status).toBe(200);
+    const attached=VendorCompletionPhotoDtoSchema.parse(await attachedResponse.json());
+    const unused=VendorCompletionPhotoDtoSchema.parse(await (await upload()).json());
+    const stored=(await f.p.admin.query("SELECT bytes FROM vendor_handoff.completion_photo WHERE id=$1",[attached.photoId])).rows[0].bytes as Buffer;
+    expect((await sharp(stored).metadata()).exif).toBeUndefined();
+    expect(stored.equals(jpeg)).toBe(false);
+    const own=await send(`job/completion-photos/${attached.photoId}`,{headers:{cookie:`vendor_session=${cred.cookie}`}});
+    expect([own.status,own.headers.get("content-type")]).toEqual([200,"image/jpeg"]);
+    const submitted=await mutate(cred,"completion-reports",{clientRequestId:randomUUID(),expectedAssignmentVersion:visited.assignmentVersion,expectedPacketRevisionId:o.packetId,
+      expectedAppointmentId:appointmentId,expectedCorrectionRequestId:null,supersedesReportId:null,workSummary:"합성 배관 교체",componentOrPartNote:null,
+      completionPhotoIds:[attached.photoId],photoOmissionReason:null});
+    expect(submitted.status).toBe(200);
+    expect(VendorCompletionReportDtoSchema.parse(await submitted.json())).toMatchObject({completionPhotoIds:[attached.photoId],revision:1});
+    expect(VendorJobDtoSchema.parse(await (await read(cred)).json())).toMatchObject({phase:"COMPLETION_REPORTED",waitingOn:"MANAGER"});
+    const manager=f.data.accounts.manager.digest;
+    expect((await f.manager.completionPhoto(manager,ticketId,attached.photoId)).bytes.byteLength).toBe(stored.byteLength);
+    await expect(f.manager.completionPhoto(manager,ticketId,unused.photoId)).rejects.toMatchObject({code:"NOT_FOUND"});
+    expect((await upload()).status).toBe(409);
+  });
   it("denies decline after the assignment leaves OFFERED",async()=>{
     const o=await offered(),cred=(await redeem(o.token)).cred!;
     await f.p.admin.query("UPDATE vendor_handoff.vendor_assignment SET status='ACTIVE' WHERE id=$1",[o.assignmentId]);
@@ -284,7 +324,9 @@ describe("Vendor HTTP decline and assignment scope on PostgreSQL",()=>{
     expect(withdrawn.status).toBe(200);
     expect(VendorJobDtoSchema.parse(await withdrawn.json())).toMatchObject({status:"ENDED",endReason:"WITHDRAWN"});
     expect((await read(cred)).status).toBe(401);
-    expect((await mutate(cred,"completion-reports",{clientRequestId:randomUUID()})).status).toBe(404);
+    // A withdrawn assignment's session can no longer report completion.
+    expect((await mutate(cred,"completion-reports",{clientRequestId:randomUUID(),expectedAssignmentVersion:5,expectedPacketRevisionId:o.packetId,expectedAppointmentId:randomUUID(),
+      expectedCorrectionRequestId:null,supersedesReportId:null,workSummary:"합성 보고",componentOrPartNote:null,completionPhotoIds:[],photoOmissionReason:"NOT_APPLICABLE"})).status).toBe(401);
   });
   it("serves only the current packet's allowlisted source photo and hides other assignment or unshared photos identically",async()=>{
     const a=await offered("manager","tenant",true),b=await offered("otherManager","otherTenant",true);

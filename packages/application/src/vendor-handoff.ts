@@ -169,6 +169,8 @@ export type VendorHandoffExternalPort={
   readJob(sessionDigest:string):Promise<VendorJobDto>;
   /** Current published packet allowlist only; every other photo ID is the same hidden NOT_FOUND. */
   readSourcePhoto(sessionDigest:string,photoId:string):Promise<{photo:VendorSourcePhotoDto;bytes:Uint8Array}>;
+  /** Task8: the session's own completion photo (staging preview/reconciliation); never Manager/Tenant evidence by itself. */
+  readCompletionPhoto(sessionDigest:string,photoId:string):Promise<{photo:VendorCompletionPhotoDto;bytes:Uint8Array}>;
   accept(sessionDigest:string,input:VendorAcceptCommand):Promise<VendorJobDto>;
   decline(sessionDigest:string,input:VendorDeclineCommand):Promise<VendorJobDto>;
   withdraw(sessionDigest:string,input:VendorWithdrawCommand):Promise<VendorJobDto>;

@@ -1,6 +1,8 @@
 import { VendorHandoffError,type VendorHandoffErrorCode,type VendorHandoffExternalPort } from "@build-manager/application";
-import { VendorAcceptCommandSchema,VendorBlockerCommandSchema,VendorClearBlockerCommandSchema,VendorDeclineCommandSchema,VendorJobDtoSchema,VendorVisitStartCommandSchema,VendorWithdrawCommandSchema,VendorPreauthorizedAppointmentCommandSchema,VendorProposalCommandSchema,VendorRescheduleCommandSchema,VendorLogoutCommandSchema,VendorLogoutResultDtoSchema,VendorRedeemCommandSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
+import { VendorAcceptCommandSchema,VendorBlockerCommandSchema,VendorClearBlockerCommandSchema,VendorCompletionPhotoDtoSchema,VendorCompletionReportCommandSchema,VendorCompletionReportDtoSchema,VendorDeclineCommandSchema,VendorJobDtoSchema,VendorVisitStartCommandSchema,VendorWithdrawCommandSchema,VendorPreauthorizedAppointmentCommandSchema,VendorProposalCommandSchema,VendorRescheduleCommandSchema,VendorLogoutCommandSchema,VendorLogoutResultDtoSchema,VendorRedeemCommandSchema,VendorRedeemResultDtoSchema,VendorSessionStateDtoSchema } from "@build-manager/api-contracts";
 import { getVendorHandoffContainer } from "./container";
+import { PhotoRequestError } from "../core-flow/photos";
+import { readVendorUploadCommand,sanitizeVendorPhoto } from "./photos";
 import { capabilityFromAuthorization,clearVendorSessionCookie,createVendorSecret,readVendorSessionCookie,vendorSecretDigest,vendorSessionCookie } from "./token";
 
 /**
@@ -84,12 +86,20 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
         headers.set("Content-Type",photo.mime);headers.set("Content-Length",String(bytes.byteLength));
         return new Response(new Uint8Array(bytes),{status:200,headers});
       }
+      // The session's own completion photo (staging preview/reconciliation); never Manager or Tenant evidence by itself.
+      if(segments.length===3&&segments[0]==="job"&&segments[1]==="completion-photos"){
+        if(!UUID.test(segments[2]))fail("NOT_FOUND");
+        const {photo,bytes}=await deps.external().readCompletionPhoto(sessionDigest,segments[2]);
+        if(photo.mime!=="image/jpeg"&&photo.mime!=="image/png")fail("DEPENDENCY_UNAVAILABLE");
+        headers.set("Content-Type",photo.mime);headers.set("Content-Length",String(bytes.byteLength));
+        return new Response(new Uint8Array(bytes),{status:200,headers});
+      }
       fail("NOT_FOUND");
     }
-    // Session logout, job lifecycle, scheduling, visit and blocker commands. Completion routes arrive with Task8.
+    // Session logout, job lifecycle, scheduling, visit/blocker evidence and completion commands.
     const visit=segments.length===3&&segments[0]==="appointments"&&segments[2]==="visit-start";
     const clearing=segments.length===3&&segments[0]==="blockers"&&segments[2]==="clear";
-    if(!visit&&!clearing&&!["session/logout","job/decline","job/accept","job/withdraw","scheduling/proposals","scheduling/preauthorized-appointment","scheduling/reschedule","blockers"].includes(route))fail("NOT_FOUND");
+    if(!visit&&!clearing&&!["session/logout","job/decline","job/accept","job/withdraw","scheduling/proposals","scheduling/preauthorized-appointment","scheduling/reschedule","blockers","job/completion-photos","completion-reports"].includes(route))fail("NOT_FOUND");
     if((visit||clearing)&&!UUID.test(segments[1]))fail("NOT_FOUND");
     const csrf=request.headers.get("x-vendor-csrf");
     if(!csrf||!/^[A-Za-z0-9_-]{43}$/.test(csrf))fail("FORBIDDEN");
@@ -107,9 +117,20 @@ export async function handleVendorHandoff(request:Request,segments:string[],reso
     if(route==="job/withdraw")return json(project(VendorJobDtoSchema,await port.withdraw(sessionDigest,parse(VendorWithdrawCommandSchema,await readBody(request)))));
     if(visit)return json(project(VendorJobDtoSchema,await port.startVisit(sessionDigest,segments[1],parse(VendorVisitStartCommandSchema,await readBody(request)))));
     if(route==="blockers")return json(project(VendorJobDtoSchema,await port.recordBlocker(sessionDigest,parse(VendorBlockerCommandSchema,await readBody(request)))));
+    if(route==="job/completion-photos"){
+      // Identity and command are checked before the image body is read; sanitized bytes alone reach persistence.
+      const input=readVendorUploadCommand(request);
+      const sanitized=await sanitizeVendorPhoto(request);
+      return json(project(VendorCompletionPhotoDtoSchema,await port.uploadCompletionPhoto(sessionDigest,input,sanitized)));
+    }
+    if(route==="completion-reports")return json(project(VendorCompletionReportDtoSchema,await port.submitCompletionReport(sessionDigest,parse(VendorCompletionReportCommandSchema,await readBody(request)))));
     if(clearing)return json(project(VendorJobDtoSchema,await port.clearBlocker(sessionDigest,segments[1],parse(VendorClearBlockerCommandSchema,await readBody(request)))));
     return json(project(VendorJobDtoSchema,await port.decline(sessionDigest,parse(VendorDeclineCommandSchema,await readBody(request)))));
   }catch(error){
+    if(error instanceof PhotoRequestError){
+      headers.delete("Content-Type");headers.delete("Content-Length");
+      return json({error:{code:"INVALID_PHOTO",message:"사진을 확인해 주세요. JPEG 또는 PNG, 5MB 이하만 올릴 수 있습니다."}},error.status);
+    }
     const code=error instanceof VendorHandoffError?error.code:"DEPENDENCY_UNAVAILABLE";
     const status=STATUS[code];
     headers.delete("Set-Cookie");headers.delete("Content-Type");headers.delete("Content-Length");

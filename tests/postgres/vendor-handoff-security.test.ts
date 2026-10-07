@@ -9,14 +9,15 @@ beforeAll(async () => {
   f = await createVendorHandoffFixture();
 });
 
-// Cumulative exact Vendor-owned inventory: 0019 foundation tables, the eight 0020 scheduling tables (Task5) and 0021 work evidence (Task7).
+// Cumulative exact Vendor-owned inventory: 0019 foundation, eight 0020 scheduling tables (Task5), 0021 work evidence (Task7) and 0022 completion (Task8).
 const schedulingTables = ["appointment", "scheduling_round", "tenant_availability_submission", "tenant_availability_window", "tenant_entry_authorization", "tenant_entry_authorization_window", "vendor_slot", "vendor_slot_proposal"];
 const workTables = ["work_event"];
-const tables = ["command_receipt", "vendor_assignment", "vendor_capability", "vendor_session", "work_packet_revision", "work_packet_source_photo", ...schedulingTables, ...workTables].sort();
+const completionTables = ["completion_photo", "completion_report", "manager_disposition"];
+const tables = ["command_receipt", "vendor_assignment", "vendor_capability", "vendor_session", "work_packet_revision", "work_packet_source_photo", ...schedulingTables, ...workTables, ...completionTables].sort();
 // bm_b1_web: Manager functions plus the digest-bound Tenant scheduling functions (Task5).
-const managerFunctions = ["guard_direct_completion", "manager_create_assignment", "manager_issue_link", "manager_publish_packet", "manager_read", "manager_reschedule", "tenant_authorize_entry", "tenant_confirm_slot", "tenant_read", "tenant_reschedule", "tenant_submit_availability"].sort();
-// Cumulative external inventory: Task2/Task4 session and decline, Task5 scheduling, Task7 visit and blocker evidence.
-const externalFunctions = ["accept", "clear_blocker", "decline", "logout", "propose_slots", "read_job", "read_source_photo", "record_blocker", "redeem", "refresh_session", "select_preauthorized_slot", "session_info", "start_visit", "vendor_reschedule", "withdraw"].sort();
+const managerFunctions = ["guard_direct_completion", "manager_create_assignment", "manager_issue_link", "manager_completion_photo", "manager_publish_packet", "manager_read", "manager_reschedule", "tenant_authorize_entry", "tenant_confirm_slot", "tenant_read", "tenant_reschedule", "tenant_submit_availability"].sort();
+// Cumulative external inventory: Task2/Task4 session and decline, Task5 scheduling, Task7 visit and blocker evidence, Task8 completion.
+const externalFunctions = ["accept", "clear_blocker", "decline", "logout", "propose_slots", "read_completion_photo", "read_job", "read_source_photo", "record_blocker", "redeem", "refresh_session", "select_preauthorized_slot", "session_info", "start_visit", "submit_completion_report", "upload_completion_photo", "vendor_reschedule", "withdraw"].sort();
 const bridges = ["vendor_handoff_lock_ticket", "vendor_handoff_manager_context", "vendor_handoff_mark_offered", "vendor_handoff_recheck_occupancy", "vendor_handoff_source", "vendor_handoff_source_photo", "vendor_handoff_tenant_context"].sort();
 const hash = (label: string) => createHash("sha256").update(label + randomUUID()).digest("hex");
 const proof = (value: string) => Buffer.from(value, "hex");
@@ -353,8 +354,8 @@ describe("Vendor Secure Handoff security boundary", () => {
   });
 
   it("denies direct Vendor table access and owner SET ROLE to Web runtimes", async () => {
-    // Cumulative exact inventory (Task5 review L4): every 0019, 0020 and 0021 Vendor table.
-    const localTables = ["vendor_assignment","work_packet_revision","work_packet_source_photo","vendor_capability","vendor_session","command_receipt",...schedulingTables,...workTables];
+    // Cumulative exact inventory (Task5 review L4): every 0019-0022 Vendor table.
+    const localTables = ["vendor_assignment","work_packet_revision","work_packet_source_photo","vendor_capability","vendor_session","command_receipt",...schedulingTables,...workTables,...completionTables];
     expect([...localTables].sort()).toEqual(tables);
     for (const role of ["bm_vendor_web","bm_b1_web"]) {
       for (const table of localTables) {
