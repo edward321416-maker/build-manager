@@ -394,3 +394,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-TASK5-SCHEDULING-CLOSED-20261007-0400: sync_status=pending; Task5 scheduling closed at bac8cda after independent review/remediation (rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
 
 - Event VENDOR-TASK6-SCHEDULING-UI-CLOSED-20261007-1531: sync_status=pending; Task6 scheduling UI closed at afb8cb7 after independent review/remediation (final rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK7-VISIT-BLOCKER-CLOSED-20261007-2007: sync_status=pending; Task7 visit/blocker evidence closed at d80c9e4 after independent review/remediation (final rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
