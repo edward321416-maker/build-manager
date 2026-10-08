@@ -15,10 +15,10 @@ const workTables = ["work_event"];
 const completionTables = ["completion_photo", "completion_report", "manager_disposition"];
 const tables = ["command_receipt", "vendor_assignment", "vendor_capability", "vendor_session", "work_packet_revision", "work_packet_source_photo", ...schedulingTables, ...workTables, ...completionTables].sort();
 // bm_b1_web: Manager functions plus the digest-bound Tenant scheduling functions (Task5).
-const managerFunctions = ["guard_direct_completion", "manager_create_assignment", "manager_issue_link", "manager_completion_photo", "manager_publish_packet", "manager_read", "manager_reschedule", "tenant_authorize_entry", "tenant_confirm_slot", "tenant_read", "tenant_reschedule", "tenant_submit_availability"].sort();
+const managerFunctions = ["closeout", "manager_request_correction", "manager_require_follow_up", "manager_revoke", "manager_reassign", "guard_direct_completion", "manager_create_assignment", "manager_issue_link", "manager_completion_photo", "manager_publish_packet", "manager_read", "manager_reschedule", "tenant_authorize_entry", "tenant_confirm_slot", "tenant_read", "tenant_reschedule", "tenant_submit_availability"].sort();
 // Cumulative external inventory: Task2/Task4 session and decline, Task5 scheduling, Task7 visit and blocker evidence, Task8 completion.
 const externalFunctions = ["accept", "clear_blocker", "decline", "logout", "propose_slots", "read_completion_photo", "read_job", "read_source_photo", "record_blocker", "redeem", "refresh_session", "select_preauthorized_slot", "session_info", "start_visit", "submit_completion_report", "upload_completion_photo", "vendor_reschedule", "withdraw"].sort();
-const bridges = ["vendor_handoff_lock_ticket", "vendor_handoff_manager_context", "vendor_handoff_mark_offered", "vendor_handoff_recheck_occupancy", "vendor_handoff_source", "vendor_handoff_source_photo", "vendor_handoff_tenant_context"].sort();
+const bridges = ["vendor_handoff_complete", "vendor_handoff_lock_ticket", "vendor_handoff_manager_context", "vendor_handoff_mark_offered", "vendor_handoff_recheck_occupancy", "vendor_handoff_source", "vendor_handoff_source_photo", "vendor_handoff_tenant_context"].sort();
 const hash = (label: string) => createHash("sha256").update(label + randomUUID()).digest("hex");
 const proof = (value: string) => Buffer.from(value, "hex");
 async function owner<T>(op: (client: Client) => Promise<T>) {
@@ -99,6 +99,7 @@ describe("hostile runtime and exact catalog proofs", () => {
   });
   it("pins every table owner and exact runtime/bridge execute set, PUBLIC absence and minimum owner grants", async () => {
     expect((await f.p.admin.query("SELECT relname,pg_get_userbyid(relowner) AS owner FROM pg_class WHERE relnamespace='vendor_handoff'::regnamespace AND relkind='r' ORDER BY relname")).rows).toEqual(tables.map(relname => ({ relname, owner: "bm_vendor_handoff_owner" })));
+    expect((await f.p.admin.query("SELECT has_schema_privilege('bm_core_flow_owner','core_flow','CREATE') AS allowed")).rows[0].allowed).toBe(false);
     const funcs = (await f.p.admin.query("SELECT proname,has_function_privilege('bm_b1_web',oid,'EXECUTE') AS manager,has_function_privilege('bm_vendor_web',oid,'EXECUTE') AS vendor FROM pg_proc WHERE pronamespace='vendor_handoff'::regnamespace ORDER BY proname")).rows;
     expect(funcs.filter(r => r.manager).map(r => r.proname)).toEqual(managerFunctions);
     expect(funcs.filter(r => r.vendor).map(r => r.proname)).toEqual(externalFunctions);
@@ -274,6 +275,13 @@ describe("hostile runtime and exact catalog proofs", () => {
     await f.web.query("SELECT vendor_handoff.guard_direct_completion($1,$2)", [proof(f.data.accounts.manager.digest), t.ticket.id]);
     for (const who of ["tenant", "otherManager"]) await expect(f.web.query("SELECT vendor_handoff.guard_direct_completion($1,$2)", [proof(f.data.accounts[who].digest), t.ticket.id])).rejects.toMatchObject({ code: "P0002" });
     await expect(f.web.query("SELECT vendor_handoff.guard_direct_completion($1,$2)", [proof(hash("unknown-manager")), t.ticket.id])).rejects.toMatchObject({ code: "28000" });
+  });
+
+  it("Task9 historical ENDED assignments still deny stale and unauthorized Manager digests",async()=>{
+    const p=await f.prepared();await f.manager.revoke(f.data.accounts.manager.digest,p.handoff.assignment!.id,{clientRequestId:randomUUID(),expectedAssignmentVersion:1});
+    await f.web.query("SELECT vendor_handoff.guard_direct_completion($1,$2)",[proof(f.data.accounts.manager.digest),p.t.ticket.id]);
+    for(const who of ["tenant","otherManager"])await expect(f.web.query("SELECT vendor_handoff.guard_direct_completion($1,$2)",[proof(f.data.accounts[who].digest),p.t.ticket.id])).rejects.toMatchObject({code:"P0002"});
+    await expect(f.web.query("SELECT vendor_handoff.guard_direct_completion($1,$2)",[proof(hash("stale-manager")),p.t.ticket.id])).rejects.toMatchObject({code:"28000"});
   });
 
   it("Tenant bridge rechecks the caller role after ticket wait instead of retaining a pre-wait Tenant role", async () => {

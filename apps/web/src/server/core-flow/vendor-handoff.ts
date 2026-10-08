@@ -1,3 +1,4 @@
+import { VendorReassignCommandSchema, VendorRequestCorrectionCommandSchema, VendorRequireFollowUpCommandSchema, VendorCloseoutCommandSchema } from "@build-manager/api-contracts";
 import { VendorHandoffError, type VendorHandoffManagerPort, type VendorHandoffTenantPort } from "@build-manager/application";
 import { ManagerVendorHandoffDtoSchema, VendorCreateAssignmentCommandSchema, VendorPublishPacketCommandSchema, VendorIssueLinkCommandSchema, VendorReissueLinkCommandSchema, VendorRevokeCommandSchema, VendorLinkIssueDtoSchema,
   VendorManagerRescheduleCommandSchema, VendorAvailabilityCommandSchema, VendorEntryAuthorizationCommandSchema, VendorConfirmSlotCommandSchema, VendorTenantRescheduleCommandSchema, VendorTenantSchedulingDtoSchema, VendorCompletionPhotoDtoSchema } from "@build-manager/api-contracts";
@@ -44,6 +45,10 @@ export async function handleManagerVendorHandoff(request:Request,segments:string
         const result=VendorLinkIssueDtoSchema.parse(await (route==="link"?port.issueLink(digest,id,body):port.reissueLink(digest,id,body)));
         return json(result,result.created?201:200);
       }
+      if(route==="reassign")return json(ManagerVendorHandoffDtoSchema.parse(await port.reassign(digest,id,parse(VendorReassignCommandSchema,await readBody(request)))));
+      if(route==="completion-correction")return json(ManagerVendorHandoffDtoSchema.parse(await port.requestCorrection(digest,id,parse(VendorRequestCorrectionCommandSchema,await readBody(request)))));
+      if(route==="follow-up")return json(ManagerVendorHandoffDtoSchema.parse(await port.requireFollowUp(digest,id,parse(VendorRequireFollowUpCommandSchema,await readBody(request)))));
+      if(route==="closeout")return json(ManagerVendorHandoffDtoSchema.parse(await port.closeout(digest,id,parse(VendorCloseoutCommandSchema,await readBody(request)))));
       if(route==="revoke")return json(ManagerVendorHandoffDtoSchema.parse(await port.revoke(digest,id,parse(VendorRevokeCommandSchema,await readBody(request)))));
       if(route==="reschedule")return json(ManagerVendorHandoffDtoSchema.parse(await port.reschedule(digest,id,parse(VendorManagerRescheduleCommandSchema,await readBody(request)))));
     }

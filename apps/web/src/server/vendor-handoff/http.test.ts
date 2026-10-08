@@ -339,6 +339,17 @@ describe("Task8 completion photo and report routes",()=>{
   const send=(deps:VendorHTTPDependencies,bytes:Uint8Array,mime:string,input:{clientRequestId:string},extra:Record<string,string>={})=>call(deps,"job/completion-photos",
     {method:"POST",headers:{...mutation,"content-type":mime,"x-upload-id":input.clientRequestId,"x-vendor-upload-command":JSON.stringify(input),...extra},raw:bytes});
   const base=()=>sharp({create:{width:80,height:40,channels:3,background:"#16846b"}}).png().toBuffer();
+  it("Task9 transports the exact durable correction identity through sanitized upload and report",async()=>{
+    const correction=randomUUID(),supersedes=randomUUID(),{deps,seen}=uploader(),input=command({expectedCorrectionRequestId:correction});
+    expect((await send(deps,await base(),"image/png",input)).status).toBe(200);
+    expect(seen[0].input).toEqual(input);
+    const body={...input,supersedesReportId:supersedes,workSummary:"수정한 설명",componentOrPartNote:null,completionPhotoIds:[],photoOmissionReason:"NOT_APPLICABLE"};
+    let received:unknown;
+    const reportDto={id:randomUUID(),assignmentId,appointmentId,packetRevisionId:packetId,revision:2,supersedesReportId:supersedes,workSummary:body.workSummary,componentOrPartNote:null,completionPhotoIds:[],photoOmissionReason:"NOT_APPLICABLE",submittedAt:"2026-10-07T00:00:00.000Z"};
+    const h=harness({submitCompletionReport:async(_session:string,command:unknown)=>{received=command;return reportDto;}} as unknown as Partial<VendorHandoffExternalPort>);
+    const response=await call(h.deps,"completion-reports",{method:"POST",headers:mutation,body});
+    expect(response.status).toBe(200);expect(received).toEqual(body);expect((await response.json()).revision).toBe(2);
+  });
   it("re-encodes a JPEG with EXIF/GPS and orientation before the port and keeps a stable sanitized SHA-256 for replay",async()=>{
     const {deps,seen}=uploader();
     const jpeg=await sharp(await base()).jpeg().withMetadata({orientation:6}).withExif({IFD0:{Artist:"SYNTHETIC_TEST"},IFD3:{GPSLatitudeRef:"N",GPSLatitude:"1/1 2/1 3/1"}}).toBuffer();

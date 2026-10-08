@@ -831,6 +831,19 @@ describe("Task8 Vendor completion report",()=>{
     const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!;
     await act(async()=>{setter.call(area,value);area.dispatchEvent(new Event("input",{bubbles:true}));});
   }
+  it("Task9 exact correction enables only its report form and sends durable request identity",async()=>{
+    const correctionId="abababab-abab-4bab-8bab-abababababab";
+    const current={...reported(),waitingOn:"VENDOR",correctionRequest:{id:correctionId,completionReportId:reportB,reason:"사진 설명을 수정해 주세요"}} as VendorJobDto;
+    const client=fakeClient({redeem:opened(current),job:vi.fn(async()=>current),uploadCompletionPhoto:vi.fn(async()=>({photoId:photo2,mime:"image/png",byteSize:3,width:1,height:1,createdAt:"2026-10-06T03:00:00.000Z"}))});
+    await mount(client,`#${tokenB}`,now);
+    expect(page()).toContain("사진 설명을 수정해 주세요");expect(button("작업 철회")).toBeUndefined();
+    expect(host.querySelector('textarea[aria-label="작업 내용 요약"]')).not.toBeNull();
+    await pick([file("correction.png")]);
+    expect(client.uploadCompletionPhoto.mock.calls[0][1].expectedCorrectionRequestId).toBe(correctionId);
+    await toggle("작업 사진 1");await toggle("작업 사진 2");await toggle("1번째 게시본");
+    await summary("관리자 요청에 맞춘 설명");await click("작업 보고 제출");await click("작업 보고 제출하기");
+    expect(client.submitCompletionReport.mock.calls[0][1]).toMatchObject({expectedCorrectionRequestId:correctionId,supersedesReportId:reportB,completionPhotoIds:[photo1,photo2],workSummary:"관리자 요청에 맞춘 설명"});
+  });
   it("uploads each photo with its own identity and submits selected photos after acknowledging the current packet",async()=>{
     let n=0;
     const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>reported()),

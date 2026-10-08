@@ -7,7 +7,7 @@ import {
   type VendorLinkIssueDto,
 } from "@build-manager/application";
 import type { PostgresDatabase } from "../database";
-import { b1DigestCall, notYetImplemented } from "./common";
+import { b1DigestCall } from "./common";
 
 // Routing selection is authenticated again and held through the actual operation.
 // A committed preflight binding alone cannot isolate concurrent selections.
@@ -78,10 +78,26 @@ export function createVendorHandoffManagerPort(database: PostgresDatabase, organ
       if (!state.created) return { ...state, created: false } satisfies VendorLinkIssueDto;
       return { created: true, assignmentId: state.assignmentId, assignmentVersion: state.assignmentVersion, link: `/vendor/job#${raw}`, expiresAt: state.expiresAt } satisfies VendorLinkIssueDto;
     },
-    async revoke() { return notYetImplemented(); },
-    async reassign() { return notYetImplemented(); },
-    async requestCorrection() { return notYetImplemented(); },
-    async requireFollowUp() { return notYetImplemented(); },
+    revoke(digest, assignmentId, input) {
+      return managerCall<ManagerVendorHandoffDto>(database, digest,
+        "SELECT vendor_handoff.manager_revoke($1::bytea,$2::uuid,$3::uuid,$4::bigint) AS value",
+        [assignmentId, input.clientRequestId, input.expectedAssignmentVersion], organization);
+    },
+    reassign(digest, assignmentId, input) {
+      return managerCall<ManagerVendorHandoffDto>(database, digest,
+        "SELECT vendor_handoff.manager_reassign($1::bytea,$2::uuid,$3::uuid,$4::bigint,$5::text) AS value",
+        [assignmentId, input.clientRequestId, input.expectedAssignmentVersion, input.vendorLabel], organization);
+    },
+    requestCorrection(digest, assignmentId, input) {
+      return managerCall<ManagerVendorHandoffDto>(database, digest,
+        "SELECT vendor_handoff.manager_request_correction($1::bytea,$2::uuid,$3::uuid,$4::bigint,$5::uuid,$6::text) AS value",
+        [assignmentId, input.clientRequestId, input.expectedAssignmentVersion, input.expectedCompletionReportId, input.reason], organization);
+    },
+    requireFollowUp(digest, assignmentId, input) {
+      return managerCall<ManagerVendorHandoffDto>(database, digest,
+        "SELECT vendor_handoff.manager_require_follow_up($1::bytea,$2::uuid,$3::uuid,$4::bigint,$5::uuid) AS value",
+        [assignmentId, input.clientRequestId, input.expectedAssignmentVersion, input.expectedCompletionReportId], organization);
+    },
     reschedule(digest, assignmentId, input) {
       return managerCall<ManagerVendorHandoffDto>(
         database,
@@ -91,7 +107,11 @@ export function createVendorHandoffManagerPort(database: PostgresDatabase, organ
         organization,
       );
     },
-    async closeout() { return notYetImplemented(); },
+    closeout(digest, assignmentId, input) {
+      return managerCall<ManagerVendorHandoffDto>(database, digest,
+        "SELECT vendor_handoff.closeout($1::bytea,$2::uuid,$3::uuid,$4::bigint,$5::uuid,$6::bigint,$7::text) AS value",
+        [assignmentId, input.clientRequestId, input.expectedAssignmentVersion, input.expectedCompletionReportId, input.expectedCommunicationVersion, input.message], organization);
+    },
     async completionPhoto(digest, ticketId, photoId) {
       const value = await managerCall<{ photo: VendorCompletionPhotoDto; content: string }>(
         database,

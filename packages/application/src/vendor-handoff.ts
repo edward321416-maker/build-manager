@@ -77,7 +77,10 @@ export type VendorPhase="OFFERED"|"SCHEDULING"|"SCHEDULED"|"IN_PROGRESS"|"COMPLE
 export type VendorWaitingOn="NONE"|"TENANT"|"VENDOR"|"MANAGER"|"PARTS";
 /** Authenticated Manager candidates only; never included in the external Vendor DTO. */
 export type VendorManagerPacketSource={jobReference:string;buildingName:string;serviceAddress:string|null;unitLabel:string|null;issueType:"HEATING"|"LEAK";sharedDetails:VendorSharedDetail[];sourcePhotoIds:string[];safetyNotice:string[]};
+export type VendorCorrectionRequestDto={id:string;completionReportId:string;reason:string};
 export type ManagerVendorHandoffDto={
+  ticketWorkStatus?:"OPEN"|"IN_PROGRESS"|"COMPLETED";correctionRequest?:VendorCorrectionRequestDto|null;
+  assignmentHistory?:{id:string;vendorLabel:string;endReason:VendorAssignmentEndReason|null;declineReason:VendorDeclineReason|null;operationalNote:string|null}[];
   ticketId:string;assignment:{id:string;status:VendorAssignmentStatus;endReason:VendorAssignmentEndReason|null;vendorLabel:string;version:number}|null;
   currentPacket:VendorWorkPacketRevisionDto|null;currentRound:VendorSchedulingRoundDto|null;appointment:VendorAppointmentDto|null;
   activeBlocker:VendorBlockerDto|null;currentReport:VendorCompletionReportDto|null;reportHistory:VendorCompletionReportDto[];phase:VendorPhase;waitingOn:VendorWaitingOn;
@@ -92,6 +95,7 @@ export type TenantVendorSchedulingDto={
   accessPolicy:VendorAccessPolicy;availability:VendorAvailabilityDto|null;proposal:VendorProposalDto|null;
 };
 export type VendorJobDto={
+  correctionRequest?:VendorCorrectionRequestDto|null;
   assignmentId:string;assignmentVersion:number;status:VendorAssignmentStatus;endReason:VendorAssignmentEndReason|null;phase:VendorPhase;waitingOn:VendorWaitingOn;
   currentPacket:VendorWorkPacketRevisionDto|null;currentRound:VendorSchedulingRoundDto|null;appointment:VendorAppointmentDto|null;
   activeBlocker:VendorBlockerDto|null;currentReport:VendorCompletionReportDto|null;

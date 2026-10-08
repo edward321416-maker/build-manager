@@ -63,16 +63,18 @@ const UNCERTAIN_SCHEDULE:Record<ScheduleSend["kind"],string>={
 };
 const NOTE_INVALID="메모에 사용할 수 없는 문자가 있습니다. 내용을 고친 뒤 다시 확인해 주세요.";
 /** Initial completion report draft, photo staging and the one sent command, owned by one assignment. */
-type Completion={assignmentId:string|null;appointmentId:string|null;uploads:{photoId:string;selected:boolean}[];pending:{file:Blob;input:VendorCompletionPhotoUploadCommand}|null;
+type Completion={assignmentId:string|null;appointmentId:string|null;correctionRequestId:string|null;uploads:{photoId:string;selected:boolean;reused?:boolean}[];pending:{file:Blob;input:VendorCompletionPhotoUploadCommand}|null;
   uploadStatus:"idle"|"uploading"|"uncertain";omission:VendorPhotoOmissionReason|null;summary:string;note:string;
   /** The exact packet revision the Vendor acknowledged; a republished packet needs a fresh acknowledgment (review M3). */
   ackPacketId:string|null;confirming:boolean;sent:VendorCompletionReportCommand|null;status:"idle"|"submitting"|"uncertain";notice:string};
-const idleCompletion:Completion={assignmentId:null,appointmentId:null,uploads:[],pending:null,uploadStatus:"idle",omission:null,summary:"",note:"",ackPacketId:null,
+const idleCompletion:Completion={assignmentId:null,appointmentId:null,correctionRequestId:null,uploads:[],pending:null,uploadStatus:"idle",omission:null,summary:"",note:"",ackPacketId:null,
   confirming:false,sent:null,status:"idle",notice:""};
 const VISIT_PHOTO_LIMIT=10;
 /** Staged photos and the report draft belong to exactly one assignment and visit (review L2). */
-const ownsCompletion=(job:VendorJobDto,state:Completion)=>state.assignmentId===job.assignmentId&&state.appointmentId===(job.appointment?.id??null);
-const freshCompletion=(job:VendorJobDto):Completion=>({...idleCompletion,assignmentId:job.assignmentId,appointmentId:job.appointment?.id??null});
+const ownsCompletion=(job:VendorJobDto,state:Completion)=>state.assignmentId===job.assignmentId&&state.appointmentId===(job.appointment?.id??null)&&state.correctionRequestId===(job.correctionRequest?.id??null);
+const freshCompletion=(job:VendorJobDto):Completion=>({...idleCompletion,assignmentId:job.assignmentId,appointmentId:job.appointment?.id??null,correctionRequestId:job.correctionRequest?.id??null,
+  ...(job.correctionRequest&&job.currentReport?{summary:job.currentReport.workSummary,note:job.currentReport.componentOrPartNote??"",uploads:job.currentReport.completionPhotoIds.map(photoId=>({photoId,selected:false,reused:true}))}:{})});
+const reportActionable=(job:VendorJobDto)=>Boolean(job.correctionRequest)||(job.phase==="IN_PROGRESS"&&(!job.currentReport||job.currentReport.appointmentId!==job.appointment?.id));
 const VISIT_LIMIT="사진은 한 방문에 10장까지 올릴 수 있습니다. 남은 장수만큼만 올렸습니다.";
 const VISIT_FULL="이 방문에는 사진을 더 올릴 수 없습니다. 사진은 한 방문에 10장까지 올릴 수 있습니다.";
 const PHOTO_REJECTED="사진을 확인해 주세요. JPEG 또는 PNG, 5MB 이하만 올릴 수 있습니다.";
@@ -355,7 +357,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
         if(!fresh)return false;
         // Nothing changed for this visit: the per-visit capacity is used up, not a stale request (review L3).
         const full=fresh.assignmentVersion===input.expectedAssignmentVersion&&fresh.appointment?.id===input.expectedAppointmentId
-          &&fresh.appointment.status==="OCCURRED"&&!fresh.currentReport;
+          &&fresh.appointment.status==="OCCURRED"&&reportActionable(fresh)&&(fresh.correctionRequest?.id??null)===input.expectedCorrectionRequestId;
         if(full)setCompletion(current=>({...current,notice:VISIT_FULL}));else setTaskNotice(STALE_NOTICE);
       }
       else if(statusOf(error)===403){setCompletion(current=>({...current,...idle}));setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
@@ -370,12 +372,12 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     const job=phase.job,gen=generation.current;
     if(!job.currentPacket||job.appointment?.status!=="OCCURRED")return;
     const owned=ownedCompletion(job,completion);
-    const remaining=Math.max(0,VISIT_PHOTO_LIMIT-owned.uploads.length),chosen=files.slice(0,remaining);
+    const remaining=Math.max(0,VISIT_PHOTO_LIMIT-owned.uploads.filter(item=>!item.reused).length),chosen=files.slice(0,remaining);
     setCompletion(owned);
     let completed=true;
     for(const file of chosen){
       const input={clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,expectedPacketRevisionId:job.currentPacket.id,
-        expectedAppointmentId:job.appointment.id,expectedCorrectionRequestId:null};
+        expectedAppointmentId:job.appointment.id,expectedCorrectionRequestId:job.correctionRequest?.id??null};
       if(!await uploadOne(file,input,gen)){completed=false;break;}
     }
     if(completed&&chosen.length<files.length&&gen===generation.current)setCompletion(current=>({...current,notice:VISIT_LIMIT}));
@@ -407,7 +409,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     if(!job.currentPacket||job.appointment?.status!=="OCCURRED"||state.ackPacketId!==job.currentPacket.id)return;
     const note=state.note.trim();
     const parsed=VendorCompletionReportCommandSchema.safeParse({clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,
-      expectedPacketRevisionId:job.currentPacket.id,expectedAppointmentId:job.appointment.id,expectedCorrectionRequestId:null,supersedesReportId:null,
+      expectedPacketRevisionId:job.currentPacket.id,expectedAppointmentId:job.appointment.id,expectedCorrectionRequestId:job.correctionRequest?.id??null,supersedesReportId:job.correctionRequest?.completionReportId??null,
       workSummary:state.summary.trim(),componentOrPartNote:note===""?null:note,completionPhotoIds:state.uploads.filter(item=>item.selected).map(item=>item.photoId),
       photoOmissionReason:state.omission});
     if(!parsed.success){setCompletion({...state,confirming:false,notice:"입력한 내용을 다시 확인해 주세요."});return;}
@@ -580,7 +582,7 @@ function CurrentTask(props:ViewProps&{job:VendorJobDto}){
           <button type="button" disabled={submitting} onClick={()=>onDecline({confirming:false})}>돌아가기</button>
         </>}
       </div>:null}
-    </>:active&&job.phase==="COMPLETION_REPORTED"?<ReportedView job={job}/>:active?<>
+    </>:active&&job.phase==="COMPLETION_REPORTED"?<><ReportedView job={job}/>{job.correctionRequest?<CompletionForm {...props} job={job}/>:null}</>:active?<>
       <h3>방문 일정 조율</h3>
       <p>{schedulingStatus(job,props.now())}</p>
       {!withdrawing?<VisitScheduling {...props} schedule={schedule} submitting={submitting}/>:null}
@@ -721,8 +723,8 @@ function ReportedView({job}:{job:VendorJobDto}){
 
 /** Initial completion report: only after the latest visit occurred, with no current blocker, no OPEN round and no report yet. */
 function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,onPickPhotos,onRetryUpload,onSubmitReport,onRetryReport}:ViewProps&{job:VendorJobDto}){
-  const completion=ownsCompletion(job,held)?held:idleCompletion;
-  if(job.phase!=="IN_PROGRESS"||job.appointment?.status!=="OCCURRED"||job.activeBlocker||job.currentRound?.status==="OPEN"||job.currentReport||!job.currentPacket)return null;
+  const completion=ownsCompletion(job,held)?held:freshCompletion(job);
+  if(!reportActionable(job)||job.appointment?.status!=="OCCURRED"||job.activeBlocker||job.currentRound?.status==="OPEN"||!job.currentPacket)return null;
   const selected=completion.uploads.filter(item=>item.selected).length;
   const busy=completion.uploadStatus==="uploading"||completion.status==="submitting";
   const acknowledged=completion.ackPacketId===job.currentPacket.id;
@@ -732,13 +734,14 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
     <button type="button" onClick={onRetryReport}>같은 요청으로 결과 확인</button>
   </div>;
   return <form className={styles.form} aria-labelledby="vendor-completion" onSubmit={event=>{event.preventDefault();onCompletion({confirming:true});}}>
-    <h3 id="vendor-completion">작업 보고</h3>
+    <h3 id="vendor-completion">{job.correctionRequest?"작업 보고 수정":"작업 보고"}</h3>
+    {job.correctionRequest?<p>관리자 수정 요청: {job.correctionRequest.reason}</p>:null}
     <p>작업 보고는 맡은 작업을 마쳤다는 업체의 보고입니다. 관리자가 내용을 확인합니다.</p>
     {completion.notice?<p role="alert">{completion.notice}</p>:null}
     <fieldset disabled={busy}>
       <legend>작업 사진 (선택, 최대 5장 포함)</legend>
       <label>사진 올리기 (JPEG 또는 PNG)
-        <input type="file" accept="image/jpeg,image/png" multiple disabled={completion.uploads.length>=VISIT_PHOTO_LIMIT||completion.uploadStatus!=="idle"}
+        <input type="file" accept="image/jpeg,image/png" multiple disabled={completion.uploads.filter(item=>!item.reused).length>=VISIT_PHOTO_LIMIT||completion.uploadStatus!=="idle"}
           onChange={event=>{const files=Array.from(event.target.files??[]);event.target.value="";if(files.length)onPickPhotos(files);}}/>
       </label>
       {completion.uploadStatus==="uncertain"?<div role="group" aria-label="사진 업로드 결과 확인">

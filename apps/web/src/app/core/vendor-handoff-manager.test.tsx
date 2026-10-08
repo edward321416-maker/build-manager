@@ -103,3 +103,18 @@ it("shows an approved omission reason instead of photos (Task8)",()=>{
   expect(html).toContain("보고 사진 없음 · 안전·사생활 보호");
   expect(html.includes("업체 보고 사진 1")).toBe(false);
 });
+
+it("Task9 presents three distinct Manager dispositions without Vendor-summary completion prefill",()=>{
+  const html=view({handoff:reported()});
+  for(const label of ["처리 완료 기록","보고 수정 요청","추가 작업 요청"])expect(html).toContain(label);
+  expect(html.includes('value="합성 배관 교체"')).toBe(false);
+});
+it("Task9 unresolved correction shows Vendor turn and removes closeout/more-work actions",()=>{
+  const html=view({handoff:{...reported(),waitingOn:"VENDOR",correctionRequest:{id:"correction",completionReportId:"report",reason:"사진 설명 수정"}} as ManagerVendorHandoffDto});
+  expect(html).toContain("사진 설명 수정");expect(html.includes(">추가 작업 요청</button>")).toBe(false);expect(html.includes(">처리 완료 기록</button>")).toBe(false);
+});
+
+it("Task9 MORE_WORK restores normal packet preparation after its report disposition",()=>{
+  const h={...reported(),phase:"SCHEDULING",waitingOn:"TENANT",packetSource:source} as ManagerVendorHandoffDto;
+  expect(view({handoff:h})).toContain("<h3>업체 전달 내용</h3>");
+});

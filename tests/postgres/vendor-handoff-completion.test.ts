@@ -3,6 +3,8 @@ import { createHash,randomBytes,randomUUID } from "node:crypto";
 import type { SanitizedVendorPhoto } from "@build-manager/application";
 import { createVendorHandoffTenantPort } from "@build-manager/persistence-postgres/vendor-handoff";
 import { createVendorHandoffFixture } from "./helpers/vendor-handoff-fixture";
+import { createCoreFlowPort } from "@build-manager/persistence-postgres/core-flow";
+import { performCoreAction } from "@build-manager/application";
 
 // Task8: bounded initial completion reports, staged sanitized photos and Manager review projection
 // (AC32-AC37, AC46-AC51 Task8 portions). Correction/disposition behavior is Task9.
@@ -29,7 +31,7 @@ async function accepted(tenant="tenant"){
   const session=hash("session"),csrf=hash("csrf"),vendor=f.externalWith(csrf);
   await f.external.redeem(sha(link.link!.split("#")[1]),randomUUID(),session,csrf);
   await vendor.accept(session,{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:packetId});
-  return {assignmentId,packetId,session,vendor,ticketId:p.t.ticket.id,tenantDigest:f.data.accounts[tenant].digest};
+  return {assignmentId,packetId,session,csrf,vendor,ticketId:p.t.ticket.id,tenantDigest:f.data.accounts[tenant].digest};
 }
 type Ctx=Awaited<ReturnType<typeof accepted>>;
 const job=(c:Ctx)=>c.vendor.readJob(c.session);
@@ -319,9 +321,242 @@ describe("Task8 review remediation",()=>{
 async function waitForTicketWait(){
   for(let attempt=0;attempt<200;attempt++){
     await f.p.admin.query("SELECT pg_stat_clear_snapshot()");
-    const {rows}=await f.p.admin.query("SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND wait_event_type='Lock' AND query LIKE '%vendor_handoff%'");
+    const {rows}=await f.p.admin.query("SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND wait_event_type='Lock' AND (query LIKE '%vendor_handoff%' OR query LIKE '%core_flow%')");
     if(rows[0].n>0)return;
     await new Promise(resolve=>setTimeout(resolve,10));
   }
   throw new Error("Expected real source-ticket lock wait was not observed");
 }
+
+// Task9 RED matrix: real adapter/SQL behavior; failures never print session or CSRF material.
+const managerDigest=()=>f.data.accounts.manager.digest;
+const handoff=(c:Ctx)=>f.manager.readHandoff(managerDigest(),c.ticketId);
+async function dispositionInput(c:Ctx){const h=await handoff(c);return {clientRequestId:randomUUID(),expectedAssignmentVersion:h.assignment!.version,expectedCompletionReportId:h.currentReport!.id};}
+async function reportedVisit(){const c=await visited();const p=await upload(c);const r=await report(c,{completionPhotoIds:[p.photoId]});return {...c,initialPhoto:p,initialReport:r};}
+async function correction(c:Ctx){return f.manager.requestCorrection(managerDigest(),c.assignmentId,{...await dispositionInput(c),reason:"사진과 설명을 수정해 주세요"});}
+async function correctionRow(c:Ctx){return (await f.p.admin.query("SELECT id,completion_report_id,consumed_by_report_id FROM vendor_handoff.manager_disposition WHERE assignment_id=$1 AND kind='REQUEST_CORRECTION' ORDER BY created_at DESC",[c.assignmentId])).rows[0];}
+async function closeoutInput(c:Ctx){return {...await dispositionInput(c),expectedCommunicationVersion:0,message:"관리자가 현장을 확인했습니다"};}
+async function directComplete(ticketId:string){return createCoreFlowPort(f.managerDatabase).run(managerDigest(),s=>performCoreAction(s,{type:"HANDLING",ticketId,status:"COMPLETED",message:"관리자가 확인한 처리 내용",expectedCommunicationVersion:0},{now:()=>new Date().toISOString()},{next:()=>randomUUID()}));}
+async function endInput(c:Ctx){return {clientRequestId:randomUUID(),expectedAssignmentVersion:(await handoff(c)).assignment!.version};}
+async function lockTicket(c:Ctx){await f.p.admin.query("BEGIN");await f.p.admin.query("SELECT id FROM core_flow.ticket WHERE id=$1 FOR UPDATE",[c.ticketId]);}
+async function lockedManagerEnd(c:Ctx,kind:"revoke"|"reassign",input:{clientRequestId:string;expectedAssignmentVersion:number}){
+  await f.p.admin.query("SET LOCAL ROLE bm_b1_web");await f.p.admin.query("SELECT core_flow.session($1)",[Buffer.from(managerDigest(),"hex")]);
+  const args=[Buffer.from(managerDigest(),"hex"),c.assignmentId,input.clientRequestId,input.expectedAssignmentVersion];
+  await f.p.admin.query(kind==="revoke"?"SELECT vendor_handoff.manager_revoke($1,$2,$3,$4)":"SELECT vendor_handoff.manager_reassign($1,$2,$3,$4,'합성 새 업체')",args);
+  await f.p.admin.query("RESET ROLE");
+}
+async function assertEnded(c:Ctx,reason:string){
+  expect((await f.p.admin.query("SELECT status,end_reason FROM vendor_handoff.vendor_assignment WHERE id=$1",[c.assignmentId])).rows).toEqual([{status:"ENDED",end_reason:reason}]);
+  expect(await count("SELECT count(*)::int n FROM vendor_handoff.scheduling_round WHERE assignment_id=$1 AND status='OPEN'",[c.assignmentId])).toBe(0);
+  expect(await count("SELECT count(*)::int n FROM vendor_handoff.appointment WHERE assignment_id=$1 AND status='SCHEDULED'",[c.assignmentId])).toBe(0);
+  expect(await code(job(c))).toBe("UNAUTHENTICATED");
+}
+
+describe("Task9 correction identity and one-way consumption",()=>{
+  it("T9-C01 concurrent requests leave exactly one durable unresolved correction and exact/changed replays reconcile",async()=>{
+    const c=await reportedVisit(),input={...await dispositionInput(c),reason:"설명을 수정해 주세요"};
+    const competing={...input,clientRequestId:randomUUID()};
+    const results=await Promise.all([code(f.manager.requestCorrection(managerDigest(),c.assignmentId,input)),code(f.manager.requestCorrection(managerDigest(),c.assignmentId,competing))]);
+    const winner=results[0]==="success"?input:competing;
+    expect([...results].sort()).toEqual(["STATE_CONFLICT","success"]);
+    const first=await correctionRow(c);expect(first.completion_report_id).toBe(c.initialReport.id);expect(first.consumed_by_report_id).toBeNull();
+    await f.manager.requestCorrection(managerDigest(),c.assignmentId,winner);expect((await correctionRow(c)).id).toBe(first.id);
+    expect(await code(f.manager.requestCorrection(managerDigest(),c.assignmentId,{...winner,reason:"다른 의도"}))).toBe("STATE_CONFLICT");
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.manager_disposition WHERE assignment_id=$1 AND consumed_by_report_id IS NULL",[c.assignmentId])).toBe(1);
+    expect(await handoff(c)).toMatchObject({phase:"COMPLETION_REPORTED",waitingOn:"VENDOR",currentReport:{id:c.initialReport.id}});
+  });
+  it("T9-C02 stale report IDs and blank/control/overlong reasons leave no disposition",async()=>{
+    const c=await reportedVisit(),input=await dispositionInput(c);
+    expect(await code(f.manager.requestCorrection(managerDigest(),c.assignmentId,{...input,expectedCompletionReportId:randomUUID(),reason:"합성 수정"}))).toBe("STATE_CONFLICT");
+    for(const reason of [" ","x".repeat(501),"합성\u0001사유"]){expect(await code(f.manager.requestCorrection(managerDigest(),c.assignmentId,{...input,clientRequestId:randomUUID(),reason}))).toBe("INVALID_INPUT");}
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.manager_disposition WHERE assignment_id=$1",[c.assignmentId])).toBe(0);
+  });
+  it("T9-C03 unresolved correction blocks closeout/MORE_WORK and preserves report/read-only unrelated commands",async()=>{
+    const c=await reportedVisit();await correction(c);
+    expect(await code(f.manager.closeout(managerDigest(),c.assignmentId,await closeoutInput(c)))).toBe("STATE_CONFLICT");
+    expect(await code(f.manager.requireFollowUp(managerDigest(),c.assignmentId,await dispositionInput(c)))).toBe("STATE_CONFLICT");
+    expect(await code(f.manager.revoke(managerDigest(),c.assignmentId,await endInput(c)))).toBe("STATE_CONFLICT");
+    expect(await code(f.manager.reassign(managerDigest(),c.assignmentId,{...await endInput(c),vendorLabel:"다른 업체"}))).toBe("STATE_CONFLICT");
+    expect(await ticketStatus(c.ticketId)).toBe("IN_PROGRESS");expect((await handoff(c)).currentReport!.id).toBe(c.initialReport.id);
+  });
+  it("T9-C04 exact correction reuses ATTACHED plus current PENDING, preserves old report and consumes once",async()=>{
+    const c=await reportedVisit();await correction(c);const d=await correctionRow(c),image=photo(),input=await uploadInput(c,{expectedCorrectionRequestId:d.id});
+    const fresh=await c.vendor.uploadCompletionPhoto(c.session,input,image);
+    const corrected=await report(c,{expectedCorrectionRequestId:d.id,supersedesReportId:c.initialReport.id,completionPhotoIds:[c.initialPhoto.photoId,fresh.photoId],workSummary:"수정한 작업 설명"});
+    expect(corrected).toMatchObject({revision:2,supersedesReportId:c.initialReport.id});expect((await correctionRow(c)).consumed_by_report_id).toBe(corrected.id);
+    expect((await handoff(c)).reportHistory.map(r=>r.id)).toEqual([c.initialReport.id,corrected.id]);
+    expect((await c.vendor.uploadCompletionPhoto(c.session,input,image)).photoId).toBe(fresh.photoId);
+    expect(await code(upload(c,photo(),{expectedCorrectionRequestId:d.id}))).toBe("STATE_CONFLICT");
+    expect(await code(report(c,{expectedCorrectionRequestId:d.id,supersedesReportId:corrected.id,completionPhotoIds:[fresh.photoId]}))).toBe("STATE_CONFLICT");
+    await expect(f.p.admin.query("UPDATE vendor_handoff.manager_disposition SET consumed_by_report_id=NULL WHERE id=$1",[d.id])).rejects.toMatchObject({code:"P0001"});
+    for(const id of [c.initialPhoto.photoId,fresh.photoId])expect((await f.manager.completionPhoto(managerDigest(),c.ticketId,id)).photo.photoId).toBe(id);
+  });
+  it("T9-C05 null/wrong/cross-assignment upload contexts never create a photo; correction cap is ten",async()=>{
+    const c=await reportedVisit(),other=await reportedVisit();await correction(c);await correction(other);const d=await correctionRow(c),foreign=await correctionRow(other);
+    for(const expectedCorrectionRequestId of [null,randomUUID(),foreign.id])expect(await code(upload(c,photo(),{expectedCorrectionRequestId}))).toBe("STATE_CONFLICT");
+    expect((await photos(c.assignmentId)).length).toBe(1);
+    for(let i=0;i<10;i++)await upload(c,photo(),{expectedCorrectionRequestId:d.id});
+    expect(await code(upload(c,photo(),{expectedCorrectionRequestId:d.id}))).toBe("STATE_CONFLICT");
+  });
+  it("T9-C06 correction A unused photos cannot satisfy B and Manager cannot read staged or retained evidence",async()=>{
+    const c=await reportedVisit();await correction(c);const a=await correctionRow(c),unused=await upload(c,photo(),{expectedCorrectionRequestId:a.id});
+    expect(await code(f.manager.completionPhoto(managerDigest(),c.ticketId,unused.photoId))).toBe("NOT_FOUND");
+    const r=await report(c,{expectedCorrectionRequestId:a.id,supersedesReportId:c.initialReport.id,completionPhotoIds:[c.initialPhoto.photoId]});
+    await correction(c);const b=await correctionRow(c);
+    expect(await code(report(c,{expectedCorrectionRequestId:b.id,supersedesReportId:r.id,completionPhotoIds:[unused.photoId]}))).toBe("STATE_CONFLICT");
+    expect(await code(upload(c,photo(),{expectedCorrectionRequestId:a.id}))).toBe("STATE_CONFLICT");
+    expect(await code(f.manager.completionPhoto(managerDigest(),c.ticketId,unused.photoId))).toBe("NOT_FOUND");
+    expect(await code(f.manager.completionPhoto(c.tenantDigest,c.ticketId,c.initialPhoto.photoId))).toBe("NOT_FOUND");
+  });
+  it("T9-C07 same-org/same-assignment constraints reject foreign reports/photos and consumption cannot name an unrelated report",async()=>{
+    const c=await reportedVisit(),other=await reportedVisit();await correction(c);const d=await correctionRow(c);
+    await expect(f.p.admin.query("INSERT INTO vendor_handoff.manager_disposition(org_id,assignment_id,completion_report_id,kind,reason) SELECT org_id,id,$2,'REQUEST_CORRECTION','합성 사유' FROM vendor_handoff.vendor_assignment WHERE id=$1",[other.assignmentId,c.initialReport.id])).rejects.toMatchObject({code:"23503"});
+    await expect(f.p.admin.query("UPDATE vendor_handoff.manager_disposition SET consumed_by_report_id=$2 WHERE id=$1",[d.id,other.initialReport.id])).rejects.toMatchObject({code:"P0001"});
+    expect((await correctionRow(c)).consumed_by_report_id).toBeNull();
+    await expect(f.p.admin.query("INSERT INTO vendor_handoff.manager_disposition(org_id,assignment_id,completion_report_id,kind,reason) VALUES($1,$2,$3,'REQUEST_CORRECTION','합성 사유')",[f.data.orgB,c.assignmentId,c.initialReport.id])).rejects.toMatchObject({code:"23503"});
+    await correction(other);const foreign=await correctionRow(other);
+    await expect(f.p.admin.query("INSERT INTO vendor_handoff.completion_photo(org_id,assignment_id,appointment_id,packet_revision_id,correction_request_id,mime,byte_size,width,height,sha256,bytes) SELECT org_id,assignment_id,appointment_id,packet_revision_id,$2,mime,byte_size,width,height,sha256,bytes FROM vendor_handoff.completion_photo WHERE id=$1",[c.initialPhoto.photoId,foreign.id])).rejects.toMatchObject({code:"23503"});
+  });
+  it("T9-C08 MORE_WORK preserves the report/visit and requires a new FOLLOW_UP visit before next revision",async()=>{
+    const c=await reportedVisit();const h=await f.manager.requireFollowUp(managerDigest(),c.assignmentId,await dispositionInput(c));
+    expect(h.currentRound).toMatchObject({purpose:"FOLLOW_UP",status:"OPEN"});
+    expect((await f.p.admin.query("SELECT source_completion_report_id FROM vendor_handoff.scheduling_round WHERE id=$1",[h.currentRound!.id])).rows[0].source_completion_report_id).toBe(c.initialReport.id);
+    expect(h.appointment).toMatchObject({id:c.appointmentId,status:"OCCURRED"});expect(h.currentReport!.id).toBe(c.initialReport.id);
+    expect(await code(report(c,{photoOmissionReason:"NOT_APPLICABLE"}))).toBe("STATE_CONFLICT");
+    const next=await confirmed(c),j=await job(c);await c.vendor.startVisit(c.session,next.id,{clientRequestId:randomUUID(),expectedAssignmentVersion:j.assignmentVersion,expectedRoundVersion:j.currentRound!.version,expectedPacketRevisionId:c.packetId});
+    const r=await report({...c,appointmentId:next.id},{photoOmissionReason:"NOT_APPLICABLE"});
+    expect(r).toMatchObject({revision:2,appointmentId:next.id,supersedesReportId:null});expect((await handoff(c)).reportHistory).toHaveLength(2);
+  });
+});
+
+describe("Task9 closeout and ordinary Core completion",()=>{
+  it("T9-K01 closeout atomically completes the ticket, closes/revokes assignment and replays without a second HANDLING event",async()=>{
+    const c=await reportedVisit(),input=await closeoutInput(c);const result=await f.manager.closeout(managerDigest(),c.assignmentId,input);
+    expect(result.assignment).toMatchObject({status:"ENDED",endReason:"CLOSED"});expect(await ticketStatus(c.ticketId)).toBe("COMPLETED");await assertEnded(c,"CLOSED");
+    expect((await f.manager.closeout(managerDigest(),c.assignmentId,input)).assignment).toEqual(result.assignment);
+    expect(await code(f.manager.closeout(managerDigest(),c.assignmentId,{...input,message:"변경한 의도"}))).toBe("STATE_CONFLICT");
+    expect(await count("SELECT count(*)::int n FROM core_flow.ticket_event WHERE ticket_id=$1 AND message=$2",[c.ticketId,input.message])).toBe(1);
+  });
+  it.each(["communication-first","closeout-first"])("T9-K02 %s uses the source lock and has no partial public message or closeout",async order=>{
+    const c=await reportedVisit(),input=await closeoutInput(c);await lockTicket(c);let pending:Promise<string|undefined>|undefined;
+    try{
+      if(order==="communication-first"){
+        pending=code(f.manager.closeout(managerDigest(),c.assignmentId,input));await waitForTicketWait();
+        await f.p.admin.query("SET LOCAL ROLE bm_b1_web");await f.p.admin.query("SELECT core_flow.session($1)",[Buffer.from(managerDigest(),"hex")]);await f.p.admin.query("SELECT core_flow.send_communication($1,$2,$3,0,'TENANT_MESSAGE','합성 추가 설명')",[Buffer.from(c.tenantDigest,"hex"),c.ticketId,randomUUID()]);
+      }else{
+        pending=code(createCoreFlowPort(f.managerDatabase).run(c.tenantDigest,s=>s.communication.send(c.ticketId,{clientRequestId:randomUUID(),expectedVersion:0,intent:"TENANT_MESSAGE",body:"합성 추가 설명"})));
+        await waitForTicketWait();await f.p.admin.query("SET LOCAL ROLE bm_b1_web");await f.p.admin.query("SELECT core_flow.session($1)",[Buffer.from(managerDigest(),"hex")]);await f.p.admin.query("SELECT vendor_handoff.closeout($1,$2,$3,$4,$5,$6,$7)",[Buffer.from(managerDigest(),"hex"),c.assignmentId,input.clientRequestId,input.expectedAssignmentVersion,input.expectedCompletionReportId,0,input.message]);
+      }
+      await f.p.admin.query("COMMIT");expect(await pending).toBe("STATE_CONFLICT");
+      expect(await ticketStatus(c.ticketId)).toBe(order==="closeout-first"?"COMPLETED":"IN_PROGRESS");
+      expect(await count("SELECT count(*)::int n FROM core_flow.ticket_public_message WHERE ticket_id=$1",[c.ticketId])).toBe(order==="closeout-first"?0:1);
+    }finally{await f.p.admin.query("ROLLBACK");await pending;}
+  });
+  it("T9-K03 Manager membership revoked while waiting prevents closeout",async()=>{
+    const c=await reportedVisit(),input=await closeoutInput(c);await lockTicket(c);let pending:Promise<string|undefined>|undefined;let membership:string|undefined;
+    try{pending=code(f.manager.closeout(managerDigest(),c.assignmentId,input));await waitForTicketWait();
+      membership=f.data.accounts.manager.membershipId;
+      expect(membership).toBeDefined();await f.p.admin.query("UPDATE app.organization_membership SET status='ENDED',ended_at=clock_timestamp() WHERE id=$1",[membership]);await f.p.admin.query("COMMIT");
+      expect(await pending).not.toBe("success");expect(await ticketStatus(c.ticketId)).toBe("IN_PROGRESS");
+    }finally{await f.p.admin.query("ROLLBACK");await pending;if(membership)await f.p.admin.query("UPDATE app.organization_membership SET status='ACTIVE',ended_at=NULL WHERE id=$1",[membership]);}
+  });
+  it("T9-K04 a changed current report while closeout waits refuses the stale report without partial completion",async()=>{
+    const c=await reportedVisit();await correction(c);const d=await correctionRow(c),input=await closeoutInput(c),r=await reportInput(c,{expectedCorrectionRequestId:d.id,supersedesReportId:c.initialReport.id,completionPhotoIds:[c.initialPhoto.photoId]});await lockTicket(c);let pending:Promise<string|undefined>|undefined;
+    try{pending=code(f.manager.closeout(managerDigest(),c.assignmentId,input));await waitForTicketWait();await f.p.admin.query("SET LOCAL ROLE bm_vendor_web");
+      await f.p.admin.query("SELECT vendor_handoff.submit_completion_report($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",[Buffer.from(c.session,"hex"),Buffer.from(c.csrf,"hex"),r.clientRequestId,r.expectedAssignmentVersion,c.packetId,c.appointmentId,d.id,c.initialReport.id,r.workSummary,null,r.completionPhotoIds,null]);
+      await f.p.admin.query("COMMIT");expect(await pending).toBe("STATE_CONFLICT");expect(await ticketStatus(c.ticketId)).toBe("IN_PROGRESS");expect((await handoff(c)).currentReport!.revision).toBe(2);
+    }finally{await f.p.admin.query("ROLLBACK");await pending;}
+  });
+  it("T9-D01 active assignment blocks the actual application completion path without a partial ticket event",async()=>{
+    const c=await accepted();const before=await count("SELECT count(*)::int n FROM core_flow.ticket_event WHERE ticket_id=$1",[c.ticketId]);
+    expect(await code(directComplete(c.ticketId))).toBe("STATE_CONFLICT");expect(await ticketStatus(c.ticketId)).toBe("IN_PROGRESS");expect(await count("SELECT count(*)::int n FROM core_flow.ticket_event WHERE ticket_id=$1",[c.ticketId])).toBe(before);
+  });
+  it.each(["none","ended"])("T9-D02 %s assignment preserves existing direct Manager completion",async kind=>{
+    const c=await accepted();await f.manager.revoke(managerDigest(),c.assignmentId,await endInput(c));
+    const ticketId=kind==="ended"?c.ticketId:(await f.ticket()).ticket.id;
+    if(kind==="none")await createCoreFlowPort(f.managerDatabase).run(managerDigest(),s=>performCoreAction(s,{type:"HANDLING",ticketId,status:"IN_PROGRESS",message:"합성 시작"},{now:()=>new Date().toISOString()},{next:()=>randomUUID()}));
+    expect((await directComplete(ticketId)).workStatus).toBe("COMPLETED");
+  });
+  it.each(["direct-first","assignment-first"])("T9-D03 %s lock race leaves exactly one action and no partial state",async order=>{
+    const t=await f.ticket(),ticketId=t.ticket.id;await createCoreFlowPort(f.managerDatabase).run(managerDigest(),s=>performCoreAction(s,{type:"HANDLING",ticketId,status:"IN_PROGRESS",message:"합성 시작"},{now:()=>new Date().toISOString()},{next:()=>randomUUID()}));
+    const version=(await f.p.admin.query("SELECT version FROM core_flow.ticket WHERE id=$1",[ticketId])).rows[0].version;await f.p.admin.query("BEGIN");await f.p.admin.query("SELECT id FROM core_flow.ticket WHERE id=$1 FOR UPDATE",[ticketId]);let pending:Promise<string|undefined>|undefined;
+    try{pending=order==="direct-first"?code(f.manager.createAssignment(managerDigest(),ticketId,{clientRequestId:randomUUID(),expectedTicketVersion:Number(version),vendorLabel:"합성 업체"})):code(directComplete(ticketId));await waitForTicketWait();await f.p.admin.query("SET LOCAL ROLE bm_b1_web");await f.p.admin.query("SELECT core_flow.session($1)",[Buffer.from(managerDigest(),"hex")]);
+      if(order==="direct-first"){
+        await f.p.admin.query("SELECT core_flow.guard_communication_completion($1,$2,0)",[Buffer.from(managerDigest(),"hex"),ticketId]);await f.p.admin.query("SELECT vendor_handoff.guard_direct_completion($1,$2)",[Buffer.from(managerDigest(),"hex"),ticketId]);
+        await f.p.admin.query("SELECT core_flow.store_ticket($1,$2,'HANDLING','합성 완료','COMPLETED')",[Buffer.from(managerDigest(),"hex"),JSON.stringify(t.ticket)]);
+      }else await f.p.admin.query("SELECT vendor_handoff.manager_create_assignment($1,$2,$3,$4,'합성 업체')",[Buffer.from(managerDigest(),"hex"),ticketId,randomUUID(),version]);
+      await f.p.admin.query("COMMIT");expect(await pending).toBe("STATE_CONFLICT");expect(await ticketStatus(ticketId)).toBe(order==="direct-first"?"COMPLETED":"IN_PROGRESS");expect(await count("SELECT count(*)::int n FROM vendor_handoff.vendor_assignment WHERE ticket_id=$1",[ticketId])).toBe(order==="direct-first"?0:1);
+    }finally{await f.p.admin.query("ROLLBACK");await pending;}
+  });
+});
+
+describe("Task9 Manager end commands and source-ticket races",()=>{
+  it.each(["revoke","reassign"] as const)("T9-E01 %s ends access and actionable scheduling, exact replay creates no duplicate replacement",async kind=>{
+    const c=await accepted();const appt=await confirmed(c),input={...await endInput(c),vendorLabel:"합성 새 업체"};
+    const first=kind==="revoke"?await f.manager.revoke(managerDigest(),c.assignmentId,input):await f.manager.reassign(managerDigest(),c.assignmentId,input);
+    await assertEnded(c,kind==="revoke"?"REVOKED":"SUPERSEDED");
+    expect((await f.p.admin.query("SELECT status FROM vendor_handoff.appointment WHERE id=$1",[appt.id])).rows[0].status).toBe(kind==="revoke"?"CANCELLED":"SUPERSEDED");
+    const replay=kind==="revoke"?await f.manager.revoke(managerDigest(),c.assignmentId,input):await f.manager.reassign(managerDigest(),c.assignmentId,input);expect(replay.assignment?.id).toBe(first.assignment?.id);
+    if(kind==="reassign")expect(first.assignment).toMatchObject({status:"PREPARING",vendorLabel:"합성 새 업체"});
+  });
+  it("T9-E02 Reassign preserves OCCURRED/work/report history after MORE_WORK, superseding only OPEN scheduling",async()=>{
+    const c=await reportedVisit();await f.manager.requireFollowUp(managerDigest(),c.assignmentId,await dispositionInput(c));const next=await f.manager.reassign(managerDigest(),c.assignmentId,{...await endInput(c),vendorLabel:"합성 새 업체"});
+    expect(next.assignment?.status).toBe("PREPARING");await assertEnded(c,"SUPERSEDED");
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.completion_report WHERE assignment_id=$1",[c.assignmentId])).toBe(1);
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.appointment WHERE assignment_id=$1 AND status='OCCURRED'",[c.assignmentId])).toBe(1);
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.work_event WHERE assignment_id=$1",[c.assignmentId])).toBe(1);
+  });
+  it.each(["revoke","reassign"] as const)("T9-R01 %s wins ticket wait against proposal; no subordinate mutation/receipt",async kind=>{
+    const c=await accepted();await tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await tenantGuards(c),windows:[{startAt:at(24),endAt:at(28)}]});
+    const input={clientRequestId:randomUUID(),...await tenantGuards(c),slots:[{startAt:at(25),endAt:at(26)}]},end=await endInput(c);await lockTicket(c);let pending:Promise<string|undefined>|undefined;
+    try{pending=code(c.vendor.proposeSlots(c.session,input));await waitForTicketWait();await lockedManagerEnd(c,kind,end);await f.p.admin.query("COMMIT");expect(await pending).toBe("UNAUTHENTICATED");await assertEnded(c,kind==="revoke"?"REVOKED":"SUPERSEDED");
+      expect(await count("SELECT count(*)::int n FROM vendor_handoff.vendor_slot_proposal WHERE assignment_id=$1",[c.assignmentId])).toBe(0);expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[input.clientRequestId])).toBe(0);
+    }finally{await f.p.admin.query("ROLLBACK");await pending;}
+  });
+  it.each(["revoke","reassign"] as const)("T9-R02 %s wins real ticket wait against upload, leaving no new photo or receipt",async kind=>{
+    const c=await visited(),input=await uploadInput(c),end=await endInput(c);await lockTicket(c);let pending:Promise<string|undefined>|undefined;
+    try{pending=code(c.vendor.uploadCompletionPhoto(c.session,input,photo()));await waitForTicketWait();await lockedManagerEnd(c,kind,end);await f.p.admin.query("COMMIT");expect(await pending).toBe("UNAUTHENTICATED");expect(await photos(c.assignmentId)).toEqual([]);expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[input.clientRequestId])).toBe(0);
+    }finally{await f.p.admin.query("ROLLBACK");await pending;}
+  });
+  it.each(["revoke","reassign"] as const)("T9-R03 upload-first retains only committed history before %s revokes access",async kind=>{
+    const c=await visited(),p=await upload(c),input={...await endInput(c),vendorLabel:"합성 새 업체"};
+    if(kind==="revoke")await f.manager.revoke(managerDigest(),c.assignmentId,input);else await f.manager.reassign(managerDigest(),c.assignmentId,input);
+    expect(await photos(c.assignmentId)).toHaveLength(1);expect(await code(c.vendor.readCompletionPhoto(c.session,p.photoId))).toBe("UNAUTHENTICATED");
+  });
+  it("T9-R04 Tenant confirm waits behind Reassign and cannot add an old actionable Appointment",async()=>{
+    const c=await accepted();await tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await tenantGuards(c),windows:[{startAt:at(24),endAt:at(28)}]});
+    const proposed=await c.vendor.proposeSlots(c.session,{clientRequestId:randomUUID(),...await tenantGuards(c),slots:[{startAt:at(25),endAt:at(26)}]});
+    const input={clientRequestId:randomUUID(),...await tenantGuards(c),proposalId:proposed.proposal!.id,selectedSlotId:proposed.proposal!.slots[0].id},end=await endInput(c);await lockTicket(c);let pending:Promise<string|undefined>|undefined;
+    try{pending=code(tenantPort.confirmSlot(c.tenantDigest,c.ticketId,input));await waitForTicketWait();await lockedManagerEnd(c,"reassign",end);await f.p.admin.query("COMMIT");expect(await pending).toBe("NOT_FOUND");await assertEnded(c,"SUPERSEDED");expect(await count("SELECT count(*)::int n FROM vendor_handoff.appointment WHERE assignment_id=$1",[c.assignmentId])).toBe(0);
+    }finally{await f.p.admin.query("ROLLBACK");await pending;}
+  });
+  it("T9-R05 preauthorized selection waits behind Reassign and cannot add an old Appointment",async()=>{
+    const p=await f.published("manager","tenant",{accessPolicy:"TENANT_PREAUTHORIZATION_ALLOWED"}),assignmentId=p.handoff.assignment!.id,packetId=p.handoff.currentPacket!.id;
+    const link=await f.manager.issueLink(managerDigest(),assignmentId,{clientRequestId:randomUUID(),expectedAssignmentVersion:2,expectedPacketRevisionId:packetId});const session=hash("s"),csrf=hash("c"),vendor=f.externalWith(csrf);await f.external.redeem(sha(link.link!.split("#")[1]),randomUUID(),session,csrf);await vendor.accept(session,{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:packetId});
+    const c={assignmentId,packetId,session,csrf,vendor,ticketId:p.t.ticket.id,tenantDigest:f.data.accounts.tenant.digest};
+    const s=await tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await tenantGuards(c),windows:[{startAt:at(24),endAt:at(28)}]});
+    await tenantPort.authorizeEntry(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await tenantGuards(c),availabilitySubmissionId:s.availability!.id,selectedWindowIds:[s.availability!.windows[0].id]});
+    const input={clientRequestId:randomUUID(),...await tenantGuards(c),availabilitySubmissionId:s.availability!.id,selectedWindowId:s.availability!.windows[0].id,startAt:at(25),endAt:at(26)},end=await endInput(c);await lockTicket(c);let pending:Promise<string|undefined>|undefined;
+    try{pending=code(c.vendor.selectPreauthorizedSlot(c.session,input));await waitForTicketWait();await lockedManagerEnd(c,"reassign",end);await f.p.admin.query("COMMIT");expect(await pending).toBe("UNAUTHENTICATED");expect(await count("SELECT count(*)::int n FROM vendor_handoff.appointment WHERE assignment_id=$1",[c.assignmentId])).toBe(0);
+    }finally{await f.p.admin.query("ROLLBACK");await pending;}
+  });
+  it("T9-R06 VISIT_STARTED waits behind Revoke and cannot create OCCURRED history",async()=>{
+    const c=await accepted(),a=await confirmed(c),j=await job(c),end=await endInput(c);await lockTicket(c);let pending:Promise<string|undefined>|undefined;
+    try{pending=code(c.vendor.startVisit(c.session,a.id,{clientRequestId:randomUUID(),expectedAssignmentVersion:j.assignmentVersion,expectedRoundVersion:j.currentRound!.version,expectedPacketRevisionId:c.packetId}));await waitForTicketWait();await lockedManagerEnd(c,"revoke",end);await f.p.admin.query("COMMIT");expect(await pending).toBe("UNAUTHENTICATED");expect(await count("SELECT count(*)::int n FROM vendor_handoff.work_event WHERE assignment_id=$1",[c.assignmentId])).toBe(0);
+    }finally{await f.p.admin.query("ROLLBACK");await pending;}
+  });
+  it.each(["reassign","closeout"] as const)("T9-R07 report vs %s cannot become current after assignment end",async kind=>{
+    const c=await visited();if(kind==="closeout")await report(c,{photoOmissionReason:"NOT_APPLICABLE"});const input=await reportInput(c,{photoOmissionReason:"NOT_APPLICABLE"}),end=await endInput(c),close=kind==="closeout"?await closeoutInput(c):null;await lockTicket(c);let pending:Promise<string|undefined>|undefined;
+    try{pending=code(c.vendor.submitCompletionReport(c.session,input as never));await waitForTicketWait();if(kind==="reassign")await lockedManagerEnd(c,"reassign",end);else{await f.p.admin.query("SET LOCAL ROLE bm_b1_web");await f.p.admin.query("SELECT core_flow.session($1)",[Buffer.from(managerDigest(),"hex")]);await f.p.admin.query("SELECT vendor_handoff.closeout($1,$2,$3,$4,$5,0,$6)",[Buffer.from(managerDigest(),"hex"),c.assignmentId,close!.clientRequestId,close!.expectedAssignmentVersion,close!.expectedCompletionReportId,close!.message]);}
+      await f.p.admin.query("COMMIT");expect(await pending).toBe("UNAUTHENTICATED");expect(await count("SELECT count(*)::int n FROM vendor_handoff.completion_report WHERE assignment_id=$1",[c.assignmentId])).toBe(kind==="closeout"?1:0);
+    }finally{await f.p.admin.query("ROLLBACK");await pending;}
+  });
+  it.each(["availability","proposal","reschedule"] as const)("T9-R08 Withdraw wins source-ticket wait against %s with no actionable scheduling",async operation=>{
+    const c=await accepted();if(operation==="reschedule")await confirmed(c);else if(operation==="proposal")await tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await tenantGuards(c),windows:[{startAt:at(24),endAt:at(28)}]});
+    const guards=await tenantGuards(c),j=await job(c);await lockTicket(c);let pending:Promise<string|undefined>|undefined;
+    try{pending=code(operation==="availability"?tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...guards,windows:[{startAt:at(24),endAt:at(28)}]}):operation==="proposal"?c.vendor.proposeSlots(c.session,{clientRequestId:randomUUID(),...guards,slots:[{startAt:at(25),endAt:at(26)}]}):f.manager.reschedule(managerDigest(),c.assignmentId,{clientRequestId:randomUUID(),...guards,expectedAppointmentId:j.appointment!.id}));await waitForTicketWait();
+      await f.p.admin.query("SET LOCAL ROLE bm_vendor_web");await f.p.admin.query("SELECT vendor_handoff.withdraw($1,$2,$3,$4,$5,'합성 철회 사유')",[Buffer.from(c.session,"hex"),Buffer.from(c.csrf,"hex"),randomUUID(),j.assignmentVersion,c.packetId]);await f.p.admin.query("COMMIT");expect(await pending).not.toBe("success");await assertEnded(c,"WITHDRAWN");
+      const h=await handoff(c);expect(JSON.stringify(h)).toContain("합성 철회 사유");
+    }finally{await f.p.admin.query("ROLLBACK");await pending;}
+  });
+});

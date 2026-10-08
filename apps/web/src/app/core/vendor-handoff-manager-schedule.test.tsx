@@ -88,3 +88,32 @@ it("loads only the report's selected photos through the Manager completion-photo
   expect(host.querySelector('img[alt="업체 보고 사진 1"]')?.getAttribute("src")).toBe("blob:synthetic-report");
   }finally{URL.createObjectURL=original.create;URL.revokeObjectURL=original.revoke;}
 });
+
+it("Task9 closeout keeps authored text empty, sends current report/communication guards and shows only authoritative paired completion",async()=>{
+  const reportId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const reported=scheduled({phase:"COMPLETION_REPORTED",waitingOn:"MANAGER",appointment:{...appointment,status:"OCCURRED"},currentReport:{id:reportId,revision:1,workSummary:"업체의 합성 설명",submittedAt:"2026-10-06T02:00:00Z",completionPhotoIds:[],photoOmissionReason:"NOT_APPLICABLE"}});
+  const closed={...reported,ticketWorkStatus:"COMPLETED",phase:"ENDED",waitingOn:"NONE",assignment:{...reported.assignment!,status:"ENDED",endReason:"CLOSED"}} as ManagerVendorHandoffDto;
+  let release:(value:ManagerVendorHandoffDto)=>void=()=>{};const waiting=new Promise<ManagerVendorHandoffDto>(resolve=>{release=resolve;});
+  const readHandoff=vi.fn(async()=>reported),closeout=vi.fn<(id:string,input:unknown)=>Promise<ManagerVendorHandoffDto>>(async()=>waiting);
+  const client={vendorHandoff:{readHandoff,closeout},photos:async()=>[]} as unknown as CoreFlowClient;
+  host=document.createElement("div");document.body.append(host);root=createRoot(host);
+  await act(async()=>root!.render(<VendorHandoffManager client={client} ticket={ticket} communicationVersion={9} revision={0} onHandoff={()=>{}} onChanged={()=>{}} now={now}/>));
+  await click("처리 완료 기록");const textarea=host.querySelector<HTMLTextAreaElement>('form[aria-label="업체 요청 검토"] textarea')!;
+  expect(textarea.value).toBe("");expect(button("확인한 내용 저장")?.disabled).toBe(true);
+  await act(async()=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!.call(textarea,"관리자가 확인한 합성 결과");textarea.dispatchEvent(new Event("input",{bubbles:true}));});
+  await click("확인한 내용 저장");
+  expect(closeout.mock.calls[0][1]).toMatchObject({expectedAssignmentVersion:4,expectedCompletionReportId:reportId,expectedCommunicationVersion:9,message:"관리자가 확인한 합성 결과"});
+  expect(page().includes("COMPLETED / ENDED/CLOSED")).toBe(false);
+  readHandoff.mockResolvedValue(closed);await act(async()=>release(closed));
+  expect(page()).toContain("COMPLETED / ENDED/CLOSED");
+});
+
+it("Task9 unknown closeout cannot claim completion if authoritative readback is still ACTIVE",async()=>{
+  const reported=scheduled({phase:"COMPLETION_REPORTED",waitingOn:"MANAGER",currentReport:{id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",revision:1,workSummary:"합성 업체 설명",submittedAt:"2026-10-06T02:00:00Z",completionPhotoIds:[],photoOmissionReason:"NOT_APPLICABLE"}});
+  const client={vendorHandoff:{readHandoff:async()=>reported,closeout:async()=>{throw new Error("synthetic response loss");}},photos:async()=>[]} as unknown as CoreFlowClient;
+  host=document.createElement("div");document.body.append(host);root=createRoot(host);
+  await act(async()=>root!.render(<VendorHandoffManager client={client} ticket={ticket} communicationVersion={0} revision={0} onHandoff={()=>{}} onChanged={()=>{}} now={now}/>));
+  await click("처리 완료 기록");const area=host.querySelector<HTMLTextAreaElement>('form[aria-label="업체 요청 검토"] textarea')!;
+  await act(async()=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!.call(area,"합성 관리자 설명");area.dispatchEvent(new Event("input",{bubbles:true}));});
+  await click("확인한 내용 저장");expect(page()).toContain("저장 결과를 확정하지 못했습니다");expect(page().includes("COMPLETED / ENDED/CLOSED")).toBe(false);
+});

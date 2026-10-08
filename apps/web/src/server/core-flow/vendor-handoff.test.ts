@@ -162,3 +162,15 @@ it("serves a Manager completion photo through the request-scoped digest with saf
   expect((await tenant.call(`tickets/${ticketId}/vendor-completion-photos/${photoId}`)).status).toBe(404);
   expect(tenant.calls).toEqual([]);
 });
+
+it.each([
+  ["reassign","reassign",{vendorLabel:"합성 새 업체"}],
+  ["completion-correction","requestCorrection",{expectedCompletionReportId:randomUUID(),reason:"사진 설명 수정"}],
+  ["follow-up","requireFollowUp",{expectedCompletionReportId:randomUUID()}],
+  ["closeout","closeout",{expectedCompletionReportId:randomUUID(),expectedCommunicationVersion:0,message:"관리자 확인 내용"}],
+])("Task9 dispatches %s with current digest and strict guards",async(route,method,extra)=>{
+  const s=setup(),body={clientRequestId:randomUUID(),expectedAssignmentVersion:7,...extra};
+  const response=await s.call(`manager/vendor-assignments/${assignmentId}/${route}`,"POST",body);
+  expect(response.status).toBe(200);expect(s.calls.at(-1)?.method).toBe(method);expect(s.calls.at(-1)?.input).toEqual(body);
+  expect((await setup("TENANT").call(`manager/vendor-assignments/${assignmentId}/${route}`,"POST",body)).status).toBe(403);
+});

@@ -238,7 +238,10 @@ export const VendorManagerPacketSourceSchema=z.object({
   jobReference:plainSingle(80),buildingName:plainSingle(200),serviceAddress:plainMulti(500).nullable(),unitLabel:plainSingle(80).nullable(),issueType:z.enum(["HEATING","LEAK"]),
   sharedDetails:z.array(VendorSharedDetailSchema),sourcePhotoIds:z.array(uuid),safetyNotice:z.array(plainMulti(500)),
 }).strict();
+export const VendorCorrectionRequestDtoSchema=z.object({id:uuid,completionReportId:uuid,reason:shortNote}).strict();
 export const ManagerVendorHandoffDtoSchema=z.object({
+  ticketWorkStatus:z.enum(["OPEN","IN_PROGRESS","COMPLETED"]).optional(),correctionRequest:VendorCorrectionRequestDtoSchema.nullable().optional(),
+  assignmentHistory:z.array(z.object({id:uuid,vendorLabel,endReason:VendorAssignmentEndReasonSchema.nullable(),declineReason:VendorDeclineReasonSchema.nullable(),operationalNote:shortNote.nullable()}).strict()).optional(),
   ticketId:uuid,assignment:ManagerAssignmentDtoSchema.nullable(),currentPacket:VendorWorkPacketRevisionDtoSchema.nullable(),
   currentRound:VendorSchedulingRoundDtoSchema.nullable(),appointment:VendorAppointmentDtoSchema.nullable(),activeBlocker:VendorBlockerDtoSchema.nullable(),
   currentReport:VendorCompletionReportDtoSchema.nullable(),reportHistory:z.array(VendorCompletionReportDtoSchema),
@@ -252,6 +255,7 @@ export const VendorTenantSchedulingDtoSchema=z.object({
   accessPolicy:VendorAccessPolicySchema,availability:VendorAvailabilityDtoSchema.nullable(),proposal:VendorProposalDtoSchema.nullable(),
 }).strict();
 export const VendorJobDtoSchema=z.object({
+  correctionRequest:VendorCorrectionRequestDtoSchema.nullable().optional(),
   // assignmentVersion is the safe stale-state guard every consequential Vendor command presents.
   assignmentId:uuid,assignmentVersion:version,status:VendorAssignmentStatusSchema,endReason:VendorAssignmentEndReasonSchema.nullable(),
   phase:VendorPhaseSchema,waitingOn:VendorWaitingOnSchema,currentPacket:VendorWorkPacketRevisionDtoSchema.nullable(),
