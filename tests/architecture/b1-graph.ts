@@ -16,16 +16,27 @@ export function moduleEdges(source:string):{specifier:string;dynamic:boolean}[]{
  }
  visit(file);return edges;
 }
-export async function resolveLocal(root:string,file:string,specifier:string):Promise<string|null>{
+function localResolver(root:string){
+ // Workspace discovery belongs to one scan, never to a module/global cache.
+ // Load lazily so external-only roots need no workspace manifests at all.
+ async function workspaceMetadata(){
+  const rows=[];
+  for(const folder of ['packages','apps']){
+   let dirs:string[];try{dirs=await readdir(join(root,folder));}catch{continue;}
+   for(const dir of dirs){try{
+    rows.push({folder,dir,metadata:JSON.parse(await readFile(join(root,folder,dir,'package.json'),'utf8'))});
+   }catch{ /* no usable workspace manifest */ }}
+  }
+  return rows;
+ }
+ let workspace:ReturnType<typeof workspaceMetadata>|undefined;
+ return async function resolveEdge(file:string,specifier:string):Promise<string|null>{
  let target:string;
  if(specifier.startsWith('.'))target=resolve(root,dirname(file),specifier);
  else if(specifier.startsWith('@/'))target=resolve(root,'apps/web/src',specifier.slice(2));
  else if(specifier.startsWith('@build-manager/')){
   let found:string|undefined;
-  for(const folder of ['packages','apps']){
-   let dirs:string[];try{dirs=await readdir(join(root,folder));}catch{continue;}
-   for(const dir of dirs){try{
-    const metadata=JSON.parse(await readFile(join(root,folder,dir,'package.json'),'utf8'));
+  for(const {folder,dir,metadata} of await (workspace??=workspaceMetadata())){try{
     if(specifier!==metadata.name && !specifier.startsWith(metadata.name+'/'))continue;
     const subpath=specifier===metadata.name?'.':'.'+specifier.slice(metadata.name.length);
     let exp=metadata.exports;
@@ -33,21 +44,26 @@ export async function resolveLocal(root:string,file:string,specifier:string):Pro
     if(typeof exp==='object' && exp!==null)exp=exp.import??exp.default??exp.types;
     if(typeof exp==='string')found=resolve(root,folder,dir,exp);
    }catch{ /* no usable workspace export */ }}
-  }
   if(!found)return '<unresolved-workspace>';target=found;
  }else return null;
  for(const candidate of [target,...['.ts','.tsx','.js','.mjs','.cjs','/index.ts','/index.tsx'].map(ext=>target+ext)]){
   try{if((await stat(candidate)).isFile())return relative(root,candidate).split(sep).join('/');}catch{ /* unresolved target is denied by caller */ }
  }
  return '<unresolved-local>';
+ };
+}
+export async function resolveLocal(root:string,file:string,specifier:string):Promise<string|null>{
+ // Standalone callers always see current manifest/source existence state.
+ return localResolver(root)(file,specifier);
 }
 export async function scanProxyTransport(root:string){
+ const resolveEdge=localResolver(root);
  const findings:{file:string;specifier:string;rule:'proxy-transport'}[]=[],seen=new Set<string>();
  async function walk(file:string){
   if(seen.has(file))return;seen.add(file);
   let source:string;try{source=await readFile(join(root,file),'utf8');}catch{return;}
   for(const edge of moduleEdges(source)){
-   const local=await resolveLocal(root,file,edge.specifier);
+   const local=await resolveEdge(file,edge.specifier);
    if(edge.dynamic || local && !transport.has(local) || !local && !transportModules.has(edge.specifier))findings.push({file,specifier:edge.specifier,rule:'proxy-transport'});
    else if(local)await walk(local);
   }
@@ -55,6 +71,7 @@ export async function scanProxyTransport(root:string){
  await walk('apps/web/src/proxy.ts');return findings;
 }
 export async function scanB1ProductionGraph(root:string,entries?:string[]){
+ const resolveEdge=localResolver(root);
  const findings:{file:string;specifier:string}[]=[],seen=new Set<string>();
  let bootstrapAllowed=false,fixtureOnly=false;
  const forbidden=(file:string)=>file.startsWith('../')||file.startsWith('scripts/')||/(^|\/)(tests|testing|__tests__|fixtures)(\/|$)|\.test\.[cm]?[jt]sx?$/.test(file)||file.includes('/server/persistence/')||file.includes('/server/container.');
@@ -63,7 +80,7 @@ export async function scanB1ProductionGraph(root:string,entries?:string[]){
   if(!fixtureOnly && !bootstrapAllowed && file==='apps/web/src/server/b1/complete-session.ts'){findings.push({file,specifier:'<login-capability-outside-completion>'});return;}
   let source:string;try{source=await readFile(join(root,file),'utf8');}catch{findings.push({file,specifier:'<unresolved-source>'});return;}
   for(const edge of moduleEdges(source)){
-   const local=await resolveLocal(root,file,edge.specifier);
+   const local=await resolveEdge(file,edge.specifier);
    const testOnly=local&&(local.startsWith('scripts/')||/(^|\/)(tests|testing|__tests__)(\/|$)|\.test\.[cm]?[jt]sx?$/.test(local));
    if(edge.dynamic || edge.specifier==='@auth0/nextjs-auth0/testing'||(!fixtureOnly&&edge.specifier==='node:sqlite')||local&&(local.startsWith('<')||local.startsWith('../')||testOnly||!fixtureOnly&&forbidden(local))){findings.push({file,specifier:edge.specifier});continue;}
    if(local)await walk(local);
