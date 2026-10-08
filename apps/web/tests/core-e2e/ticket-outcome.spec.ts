@@ -110,8 +110,10 @@ for(const kind of ["UNRESOLVED","RECURRENCE_CLAIM"] as const)test(kind+" fresh f
 
 test("committed RESOLVED response loss recovers its receipt after reload without a second write",async({page,request})=>{
  const s=await setup(request);await login(page,s.codes.tenant,s.id);let key="",writes=0;
- await page.route("**/"+s.path+"/outcome/resolved",async route=>{writes++;key=route.request().postDataJSON().clientRequestId;const r=await route.fetch();expect(r.status()).toBe(201);await route.abort("failed");},{times:1});
- await card(page).getByRole("button",{name:"해결됐어요",exact:true}).click();await expect(page.getByRole("button",{name:"저장 여부 확인 · 해결 응답",exact:true})).toBeVisible();expect(await metadata(page)).toEqual([{sourceTicketId:s.id,clientRequestId:key,claimKind:"RESOLVED"}]);
+ let confirmLoss!:()=>void;const lossComplete=new Promise<void>(resolve=>{confirmLoss=resolve;});
+ // Await the committed abort before reloading; keep later traffic forwarded.
+ await page.route("**/"+s.path+"/outcome/resolved",async route=>{if(route.request().method()!=="POST"){await route.continue();return;}writes++;if(writes!==1){await route.continue();return;}key=route.request().postDataJSON().clientRequestId;const r=await route.fetch();expect(r.status()).toBe(201);await route.abort("failed");confirmLoss();});
+ await card(page).getByRole("button",{name:"해결됐어요",exact:true}).click();await lossComplete;await expect(page.getByRole("button",{name:"저장 여부 확인 · 해결 응답",exact:true})).toBeVisible();expect(writes).toBe(1);expect(await metadata(page)).toEqual([{sourceTicketId:s.id,clientRequestId:key,claimKind:"RESOLVED"}]);
  await page.reload();await page.getByRole("button",{name:"저장 여부 확인 · 해결 응답",exact:true}).click();await expect(card(page).getByText("해결됐다고 알려주셨어요.",{exact:true})).toBeVisible();expect(await metadata(page)).toEqual([]);expect(writes).toBe(1);
  await writeFile(join(evidence,"resolved.private.json"),JSON.stringify({source:s.id,key}),{flag:"w"});
 });
