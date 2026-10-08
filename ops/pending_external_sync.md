@@ -416,3 +416,11 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-TASK11-RED-CLASSIFICATION-CORRECTION-20261008: sync_status=pending; Task11 RED interpretation corrected append-only:4 behavioral failures plus1 invalid packet-change fixture, not5 valid behavioral failures. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event VENDOR-TASK11-RECOVERY-RESTART-CLOSED-20261008: sync_status=pending; Task11 recovery/restart/security closed after independent mandatory role-denial test repair; Task12 browser and final candidate gates remain. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK12-BROWSER-GENERATION06-20261008: sync_status=pending; Task12 browser implementation in progress; initial and subsequent fixture failures retained, with no completed-candidate claim. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK12-PHOTO-DIALOG-RED-20261008: sync_status=pending; Task12 actual photo-dialog keyboard boundary failed; minimal shared-dialog focus-cycle repair and independent review pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK12-SOURCE-INDEPENDENT-REVIEW-20261008: sync_status=pending; Task12 source implemented with current scoped browser evidence; independent task review and final complete candidate verification pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK12-BROWSER-INDEPENDENT-CLOSED-20261008: sync_status=pending; Tasks9–12 locally closed after independent reviews; receipt-inclusive fixed candidate must complete all local/hosted/whole-candidate gates. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
