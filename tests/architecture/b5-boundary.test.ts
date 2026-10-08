@@ -3,6 +3,33 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { expect,it } from "vitest";
 import { moduleEdges,scanB1ProductionGraph } from "./b1-graph";
+const task12RootScripts = {
+  "test:e2e:core": "node --experimental-transform-types scripts/core-browser-run.mjs core",
+  "test:e2e:sdk": "node --experimental-transform-types scripts/core-browser-run.mjs sdk",
+  "test:e2e:vendor": "npm --workspace @build-manager/web run test:e2e:vendor --",
+};
+function projectTask12Scripts(manifest: { scripts: Record<string,string> }, scripts: Record<string,string>) {
+  for(const [name,command] of Object.entries(scripts)) {
+    expect(manifest.scripts[name],name).toBe(command);
+    delete manifest.scripts[name];
+  }
+}
+function projectTask12Workflow(source: string) {
+  const build=(name:string)=>`      - name: ${name}\n        shell: bash\n        run: npm run build:web\n`;
+  const step=(name:string,command:string,log?:string)=>`      - name: ${name}\n        env:\n          BUILD_MANAGER_E2E_PREBUILT: "1"\n        shell: bash\n        run: |\n${log ? '          set -o pipefail\n' : ''}          npm run ${command}${log ? ` 2>&1 | tee "$RUNNER_TEMP/${log}"` : ''}\n`;
+  const web="Run Web E2E with existing synthetic-state configuration", b1="Run B1 Web with PostgreSQL and synthetic SDK sessions";
+  const check="          node apps/web/tests/b1-e2e/check-results.mjs\n";
+  const successor=build("Build Web once for Core SDK Web B1 and Vendor browser suites")
+    +step("Run Core browser regressions with synthetic access","test:e2e:core","core-browser.log")
+    +step("Run SDK browser regressions with B1 authority","test:e2e:sdk","sdk-browser.log")
+    +step(web,"test:e2e:web","web-browser.log")+step(b1,"test:e2e:b1","b1-browser.log")+check
+    +step("Run standalone Vendor browser acceptance with separate runtime authority","test:e2e:vendor","vendor-browser.log");
+  const predecessor=build("Build Web once for both browser suites")+step(web,"test:e2e:web")+step(b1,"test:e2e:b1")+check;
+  // Require the exact accepted commands, order, environment and raw log capture,
+  // then reverse only that contiguous additive delta. Every other byte is hashed.
+  expect(source.split(successor),"exact Task12 browser workflow successor").toHaveLength(2);
+  return source.replace(successor,predecessor);
+}
 const frozen: Record<string,string> = {
   ".github/workflows/app-check.yml": "ab681452c8acb317fc2d00bd43d07b23b3f4c048c9799341be70812e701dd6f3",
   ".github/workflows/repository-check.yml": "392407bd74e65887dfb68ebea5a0fa0d3cba1bbdd631905a4d28dc1f91f8bf8c",
@@ -61,11 +88,18 @@ const frozen: Record<string,string> = {
 it("AC17 frozen foundation, dependency and workflow inventory retains canonical bytes",async()=>{
   for(const [path,expected] of Object.entries(frozen)) {
     let canonical=(await readFile(path,"utf8")).replaceAll("\r\n","\n");
+    if(path===".github/workflows/app-check.yml")canonical=projectTask12Workflow(canonical);
+    if(path==="package.json"){
+      const manifest=JSON.parse(canonical);projectTask12Scripts(manifest,task12RootScripts);
+      canonical=JSON.stringify(manifest,null,2)+"\n";
+    }
     // The operator's RC1 photo directive explicitly permits only this existing
     // codec as a pinned direct dependency. Reverse that exact additive delta,
     // then retain every original B5 hash and all other dependency bytes.
     if(path==="apps/web/package.json"){
-      const manifest=JSON.parse(canonical);expect(manifest.dependencies.sharp).toBe("0.35.4");delete manifest.dependencies.sharp;
+      const manifest=JSON.parse(canonical);
+      projectTask12Scripts(manifest,{"test:e2e:vendor":"playwright test --config playwright.vendor.config.ts"});
+      expect(manifest.dependencies.sharp).toBe("0.35.4");delete manifest.dependencies.sharp;
       canonical=JSON.stringify(manifest,null,2)+"\n";
     }
     if(path==="package-lock.json"){
@@ -91,6 +125,44 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
   expect(manifest.exports["./vendor-handoff"]).toBe("./src/vendor-handoff/index.ts");
   delete manifest.exports["./vendor-handoff"];
   expect(manifest).toEqual({"name": "@build-manager/persistence-postgres", "version": "0.0.0", "private": true, "type": "module", "exports": {".": "./src/index.ts", "./testing": "./src/testing/index.ts", "./b1": "./src/b1/index.ts", "./b3": "./src/b3/index.ts", "./b4": "./src/b4/index.ts"}, "dependencies": {"pg": "8.23.0", "@build-manager/application": "0.0.0"}, "devDependencies": {"@testcontainers/postgresql": "12.1.0", "@types/pg": "8.23.1", "node-pg-migrate": "9.0.0"}});
+});
+it("AC17 Task12 projection rejects changed commands, order, log capture and unrelated workflow gates",async()=>{
+  const source=(await readFile(".github/workflows/app-check.yml","utf8")).replaceAll("\r\n","\n");
+  const inventory=(candidate:string)=>expect(createHash("sha256").update(projectTask12Workflow(candidate)).digest("hex")).toBe(frozen[".github/workflows/app-check.yml"]);
+  inventory(source);
+  for(const [before,after] of [
+    ["npm run test:e2e:core 2>&1","npm run test:e2e:core -- --retries=1 2>&1"],
+    ["npm run test:e2e:sdk 2>&1","npm run test:e2e:vendor 2>&1"],
+    ['tee "$RUNNER_TEMP/vendor-browser.log"','tee "$RUNNER_TEMP/other.log"'],
+    ["          set -o pipefail\n          npm run test:e2e:vendor","          npm run test:e2e:vendor"],
+    ["timeout-minutes: 30","timeout-minutes: 31"],
+    ["          npm run lint\n","          npm run lint -- --quiet\n"],
+    ["          node apps/web/tests/b1-e2e/check-results.mjs\n",""],
+  ]) {
+    expect(source.includes(before),"negative fixture targets a real gate").toBe(true);
+    expect(()=>inventory(source.replace(before,after))).toThrow();
+  }
+  const coreStart=source.indexOf("      - name: Run Core browser regressions"), sdkStart=source.indexOf("      - name: Run SDK browser regressions"), webStart=source.indexOf("      - name: Run Web E2E");
+  expect(coreStart<sdkStart&&sdkStart<webStart).toBe(true);
+  expect(()=>inventory(source.slice(0,coreStart)+source.slice(sdkStart,webStart)+source.slice(coreStart,sdkStart)+source.slice(webStart))).toThrow();
+  const manifest=JSON.parse(await readFile("package.json","utf8"));
+  const manifestInventory=(candidate:typeof manifest)=>{
+    projectTask12Scripts(candidate,task12RootScripts);
+    expect(createHash("sha256").update(JSON.stringify(candidate,null,2)+"\n").digest("hex")).toBe(frozen["package.json"]);
+  };
+  manifestInventory(structuredClone(manifest));
+  for(const [name,command] of [
+    ["test:e2e:vendor","npm --workspace @build-manager/web run test:e2e:vendor"],
+    ["test:e2e:core","node --experimental-transform-types scripts/core-browser-run.mjs sdk"],
+    ["test:e2e:b1","echo skipped"],
+    ["unexpected-successor","echo extra script"],
+  ]) {
+    const changed=structuredClone(manifest);changed.scripts[name]=command;
+    expect(()=>manifestInventory(changed)).toThrow();
+  }
+  const webManifest=JSON.parse(await readFile("apps/web/package.json","utf8"));
+  webManifest.scripts["test:e2e:vendor"]="playwright test --config playwright.b1.config.ts";
+  expect(()=>projectTask12Scripts(webManifest,{"test:e2e:vendor":"playwright test --config playwright.vendor.config.ts"})).toThrow();
 });
 it("AC01 B5 server graph excludes raw driver/demo/testing and exposes only the exact individual route",async()=>{
   const entries=(await readdir("apps/web/src/server/b5")).filter(p=>p.endsWith(".ts")&&!p.endsWith(".test.ts")).map(p=>join("apps/web/src/server/b5",p));
