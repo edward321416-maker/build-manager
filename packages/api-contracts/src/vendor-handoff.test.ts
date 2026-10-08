@@ -1,5 +1,6 @@
 import { describe,expect,it } from "vitest";
 import {
+  ManagerVendorHandoffDtoSchema,
   VendorAccessPolicySchema,
   VendorAppointmentConfirmationModeSchema,
   VendorAppointmentStatusSchema,
@@ -157,7 +158,7 @@ describe("command matrix and role projections",()=>{
       accessPolicy:"TENANT_PREAUTHORIZATION_ALLOWED",availability:null,proposal:null,
     };
     expect(VendorTenantSchedulingDtoSchema.safeParse(tenant).success).toBe(true);
-    for(const field of ["vendorLabel","completionPhotoIds","managerNotes","rawUserText","tenantEmail"])
+    for(const field of ["packetHistory","reportHistory","assignmentHistory","vendorLabel","completionPhotoIds","managerNotes","rawUserText","tenantEmail"])
       expect(VendorTenantSchedulingDtoSchema.safeParse({...tenant,[field]:"private"}).success).toBe(false);
 
     const vendor={
@@ -166,7 +167,7 @@ describe("command matrix and role projections",()=>{
       effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",availability:null,proposal:null,
     };
     expect(VendorJobDtoSchema.safeParse(vendor).success).toBe(true);
-    for(const field of ["tenantId","tenantName","tenantPhone","tenantEmail","rawUserText","managerNotes","priority","assigneeLabel","dueAt","orgId"])
+    for(const field of ["packetHistory","reportHistory","assignmentHistory","tenantId","tenantName","tenantPhone","tenantEmail","rawUserText","managerNotes","priority","assigneeLabel","dueAt","orgId"])
       expect(VendorJobDtoSchema.safeParse({...vendor,[field]:"private"}).success).toBe(false);
     const {assignmentVersion:_version,...unversioned}=vendor;
     expect(VendorJobDtoSchema.safeParse(unversioned).success).toBe(false);
@@ -204,4 +205,11 @@ describe("command matrix and role projections",()=>{
     expect(VendorLogoutResultDtoSchema.safeParse({revoked:true}).success).toBe(true);
     expect(VendorLogoutResultDtoSchema.safeParse({revoked:false}).success).toBe(false);
   });
+});
+
+it("WC-M03 Manager history is a required strict projection, not a silent optional fixture escape",()=>{
+  const current={ticketId:id,assignment:null,currentPacket:null,currentRound:null,appointment:null,activeBlocker:null,currentReport:null,packetHistory:[],reportHistory:[],phase:"ENDED",waitingOn:"NONE"};
+  expect(ManagerVendorHandoffDtoSchema.safeParse(current).success).toBe(true);
+  const {packetHistory:_history,...missing}=current;expect(ManagerVendorHandoffDtoSchema.safeParse(missing).success).toBe(false);
+  expect(ManagerVendorHandoffDtoSchema.safeParse({...current,packetHistory:[{workSummary:"incomplete"}]}).success).toBe(false);
 });

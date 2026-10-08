@@ -9,7 +9,7 @@ import styles from "./vendor-handoff.module.css";
 type Props={client:CoreFlowClient;ticketId:string;revision:number;now?:()=>Date};
 type Kind="AVAILABILITY"|"AUTHORIZE"|"CONFIRM"|"RESCHEDULE";
 /** A sent command keeps its exact input so an unknown outcome is reconciled with the same clientRequestId. */
-type Pending={kind:Kind;run:()=>Promise<TenantVendorSchedulingDto>};
+type Pending={kind:Kind;context:string;run:()=>Promise<TenantVendorSchedulingDto>};
 const SUCCESS:Record<Kind,string>={
   AVAILABILITY:"가능한 시간을 저장했습니다. 업체가 이 시간을 참고해 방문 시간을 제안합니다.",
   AUTHORIZE:"선택한 시간에 대한 출입 동의를 저장했습니다.",
@@ -27,21 +27,33 @@ function LoadedVendorHandoffTenant({client,ticketId,now=systemNow}:Props){
   const [slotId,setSlotId]=useState<string|null>(null),[rescheduleFor,setRescheduleFor]=useState<string|null>(null);
   const generation=useRef(0),sending=useRef(false);
   const load=useCallback(async(current:number)=>{
-    try{const value=await client.vendorHandoff.readScheduling(ticketId);if(current===generation.current){setScheduling(value);setAbsent(false);setLoadError("");}}
+    try{const value=await client.vendorHandoff.readScheduling(ticketId);if(current===generation.current){setScheduling(value);setPending(held=>held&&held.context!==JSON.stringify(value)?null:held);setAbsent(false);setLoadError("");}}
     catch(cause){
       if(current!==generation.current)return;
       const status=cause instanceof ApiClientError?cause.status:undefined;
       if(status===404||status===403){setScheduling(null);setAbsent(true);}else setLoadError("방문 일정을 확인하지 못했습니다. 다시 불러오세요.");
     }
   },[client,ticketId]);
-  const refresh=useCallback(()=>{setPending(null);setError("");setNotice("");void load(++generation.current);},[load]);
+  const refresh=useCallback(()=>{setError("");setNotice("");void load(++generation.current);},[load]);
   const invalidate=useCallback(()=>{generation.current++;},[]);
   useEffect(()=>{let live=true;void Promise.resolve().then(()=>{if(live)void load(++generation.current);});return()=>{live=false;invalidate();};},[load,invalidate]);
 
-  const execute=async(request:Pending)=>{
+  const execute=async(request:Pending,replay=false)=>{
     if(sending.current)return;sending.current=true;const current=++generation.current;setBusy(true);setError("");setNotice("");
     try{
-      const value=await request.run();
+      if(replay){
+        const fresh=await client.vendorHandoff.readScheduling(ticketId);
+        if(current!==generation.current)return;
+        setScheduling(fresh);
+        if(JSON.stringify(fresh)!==request.context){
+          setPending(null);setConsentIds([]);setConsentReview(false);setSlotId(null);setRescheduleFor(null);
+          setNotice("방문 일정이 바뀌었습니다. 최신 일정을 확인해 주세요. 이전 요청의 성공 여부는 확정하지 않습니다.");return;
+        }
+      }
+      const receipt=await request.run();
+      if(current!==generation.current)return;
+      // A receipt proves the original request; only readback represents current state after replay.
+      const value=replay?await client.vendorHandoff.readScheduling(ticketId):receipt;
       if(current!==generation.current)return;
       setScheduling(value);setPending(null);setNotice(SUCCESS[request.kind]);
       if(request.kind==="AVAILABILITY"){setDrafts([emptyIntervalDraft()]);setEditingAvailability(false);}
@@ -88,24 +100,24 @@ function LoadedVendorHandoffTenant({client,ticketId,now=systemNow}:Props){
     if(!result.ok){setError(result.message);setNotice("");return;}
     const parsed=VendorAvailabilityCommandSchema.safeParse({clientRequestId:crypto.randomUUID(),...guards,windows:result.intervals});
     if(!parsed.success){setError("입력한 시간을 다시 확인해 주세요.");setNotice("");return;}
-    void execute({kind:"AVAILABILITY",run:()=>client.vendorHandoff.submitAvailability(ticketId,parsed.data)});
+    void execute({context:JSON.stringify(scheduling),kind:"AVAILABILITY",run:()=>client.vendorHandoff.submitAvailability(ticketId,parsed.data)});
   };
   const authorize=()=>{
     if(!guards||!availability||selectedConsent.length===0)return;
     const input={clientRequestId:crypto.randomUUID(),...guards,availabilitySubmissionId:availability.id,selectedWindowIds:selectedConsent.map(window=>window.id)};
-    void execute({kind:"AUTHORIZE",run:()=>client.vendorHandoff.authorizeEntry(ticketId,input)});
+    void execute({context:JSON.stringify(scheduling),kind:"AUTHORIZE",run:()=>client.vendorHandoff.authorizeEntry(ticketId,input)});
   };
   const confirm=()=>{
     if(!guards||!proposal||!selectedSlot)return;
     const slot=selectedSlot;
     if(!future(slot.startAt)){setError("지난 시간은 선택할 수 없습니다.");return;}
     const input={clientRequestId:crypto.randomUUID(),...guards,proposalId:proposal.id,selectedSlotId:slot.id};
-    void execute({kind:"CONFIRM",run:()=>client.vendorHandoff.confirmSlot(ticketId,input)});
+    void execute({context:JSON.stringify(scheduling),kind:"CONFIRM",run:()=>client.vendorHandoff.confirmSlot(ticketId,input)});
   };
   const reschedule=()=>{
     if(!round||!appointment)return;
     const input={clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:scheduling.assignmentVersion,expectedRoundVersion:round.version,expectedAppointmentId:appointment.id,expectedPacketRevisionId:scheduling.packetRevisionId};
-    void execute({kind:"RESCHEDULE",run:()=>client.vendorHandoff.tenantReschedule(ticketId,input)});
+    void execute({context:JSON.stringify(scheduling),kind:"RESCHEDULE",run:()=>client.vendorHandoff.tenantReschedule(ticketId,input)});
   };
 
   const hasTask=showAvailabilityForm||offerConsent||liveSlots.length>0;
@@ -124,7 +136,7 @@ function LoadedVendorHandoffTenant({client,ticketId,now=systemNow}:Props){
     {notice?<p role="status">{notice}</p>:null}
     {error?<p role="alert">{error}</p>:null}
     {pending?<div role="group" aria-label="요청 결과 확인">
-      <button type="button" disabled={busy} onClick={()=>void execute(pending)}>같은 요청으로 결과 확인</button>
+      <button type="button" disabled={busy} onClick={()=>void execute(pending,true)}>같은 요청으로 결과 확인</button>
       <button type="button" disabled={busy} onClick={refresh}>최신 일정 다시 불러오기</button>
     </div>:null}
     {hasTask?<section data-task-zone aria-label="방문 일정 조율">

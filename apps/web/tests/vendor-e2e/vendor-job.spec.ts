@@ -7,6 +7,7 @@ test('T12-B01 mounted Manager issue survives own refresh; browser redeem is not 
   const t = await ticket(fixture), m = await actor(browser, fixture, 'manager', 1440);
   try {
     const link = await issueThroughUI(m.page, t.ticketId);
+    await expect(m.page.getByLabel('출입 안내',{exact:true})).toHaveAccessibleDescription(/개인 연락처.*반복 사용 가능한 출입 비밀번호/);
     const current = await core(fixture, 'manager', `tickets/${t.ticketId}`); expect(current.workStatus).toBe('IN_PROGRESS');
     const v = await vendorContext(browser, fixture, link);
     try {
@@ -169,7 +170,14 @@ test('T12-B02 resident UI schedules immutable visits, blocker FOLLOW_UP, photo-l
     const storedBytes = (await admin.query('SELECT bytes FROM vendor_handoff.completion_photo WHERE id=$1', [photoId])).rows[0].bytes;
     const durableMetadata = await sharp(storedBytes).metadata(); expect(Boolean(durableMetadata.exif || durableMetadata.xmp || durableMetadata.iptc)).toBe(false);
     expect(createHash('sha256').update(storedBytes).digest('hex') === createHash('sha256').update(servedBytes).digest('hex'), 'stored and served sanitized image match').toBe(true); expect((await sharp(servedBytes).raw().toBuffer()).length).toBe(16 * 12 * 3);
-    await v.page.getByRole('checkbox', { name: '작업 사진 1 보고에 포함', exact: true }).check(); await v.page.getByLabel('작업 내용 요약', { exact: true }).fill('Task12 synthetic report'); await v.page.getByRole('checkbox', { name: /현재 작업 요청 내용/ }).check(); await keyboardClick(v.page, '작업 보고 제출'); await keyboardClick(v.page, '작업 보고 제출하기');
+    let reportPosts=0;const reportRecoveryOrder:string[]=[];
+    v.page.on('request', request=>{if(request.url().endsWith('/api/v2/vendor/job')&&request.method()==='GET')reportRecoveryOrder.push('GET');});
+    await v.page.route('**/api/v2/vendor/completion-reports',async route=>{reportPosts++;reportRecoveryOrder.push('POST');const response=await route.fetch();expect(response.status()).toBe(200);await route.abort('failed');},{times:1});
+    await v.page.getByRole('checkbox', { name: '작업 사진 1 보고에 포함', exact: true }).check(); await v.page.getByLabel('작업 내용 요약', { exact: true }).fill('Task12 synthetic report'); await v.page.getByRole('checkbox', { name: /현재 작업 요청 내용/ }).check(); await keyboardClick(v.page, '작업 보고 제출');
+    // This request deliberately loses its response; the ordinary helper waits for a successful response event.
+    await v.page.getByRole('button',{name:'작업 보고 제출하기',exact:true}).focus();await v.page.keyboard.press('Enter');
+    await expect(v.page.getByRole('group',{name:'작업 보고 결과 확인',exact:true})).toBeVisible();reportRecoveryOrder.length=0;
+    await keyboardClick(v.page,'같은 요청으로 결과 확인');expect(reportRecoveryOrder).toEqual(['GET']);expect(reportPosts).toBe(1);
     await expect(v.page.getByRole('heading', { name: '작업 보고를 제출했습니다', exact: true })).toBeVisible();
     expect(await v.page.getByRole('group', { name: '작업 보고를 제출했습니다', exact: true }).evaluate(e => /success|green/i.test(e.className)), 'report uses neutral/primary treatment').toBe(false); await forbiddenCopy(v.page);
     for (const name of ['방문 시작', '막힘 기록', '작업 철회', '방문 시간 제안하기']) await expect(v.page.getByRole('button', { name, exact: true })).toHaveCount(0);
@@ -177,8 +185,18 @@ test('T12-B02 resident UI schedules immutable visits, blocker FOLLOW_UP, photo-l
     await openTicket(manager.page, c.ticketId, true); await click(manager.page, '보고 수정 요청'); await manager.page.getByLabel('수정 요청 사유', { exact: true }).fill('Task12 synthetic correction'); await click(manager.page, '확인한 내용 저장');
     await v.page.reload(); await v.page.getByRole('checkbox', { name: '작업 사진 1 보고에 포함', exact: true }).check(); await v.page.getByLabel('작업 내용 요약', { exact: true }).fill('Task12 synthetic revised report'); await v.page.getByRole('checkbox', { name: /현재 작업 요청 내용/ }).check(); await click(v.page, '작업 보고 제출'); await click(v.page, '작업 보고 제출하기');
     const revised = await job(v.context); expect(revised.currentReport.revision).toBe(2); expect(revised.currentReport.supersedesReportId).toBe(initial.currentReport.id);
-    await openTicket(manager.page, c.ticketId, true); await click(manager.page, '처리 완료 기록'); expect(await manager.page.getByLabel('관리자가 확인한 처리 내용', { exact: true }).inputValue()).toBe('');
+    await openTicket(manager.page,c.ticketId,true);
+    await manager.page.getByText('전달 내용과 작업 보고 이력 · 읽기 전용',{exact:true}).click();
+    await manager.page.getByLabel('이전 작업 보고',{exact:true}).selectOption(initial.currentReport.id);
+    const historical=manager.page.getByRole('region',{name:'이전 작업 보고 내용',exact:true});
+    await expect(historical.getByText('Task12 synthetic report',{exact:true})).toBeVisible();
+    await expect(historical.getByRole('img',{name:'이전 업체 보고 사진 1',exact:true})).toBeVisible();
+    await expect(manager.page.getByRole('region',{name:'업체 작업 보고',exact:true}).getByText('Task12 synthetic revised report',{exact:true})).toBeVisible();
+    await responsive(manager.page,390);await responsive(manager.page,390,true);
+    const closing=manager.page.waitForRequest(request=>request.url().endsWith('/closeout')&&request.method()==='POST');
+    await click(manager.page,'처리 완료 기록');expect(await manager.page.getByLabel('관리자가 확인한 처리 내용',{exact:true}).inputValue()).toBe('');
     await manager.page.getByLabel('관리자가 확인한 처리 내용', { exact: true }).fill('Task12 independently verified Manager disposition'); await keyboardClick(manager.page, '확인한 내용 저장');
+    expect((await closing).postDataJSON().expectedCompletionReportId).toBe(revised.currentReport.id);
     await expect(manager.page.getByTestId('work-status')).toHaveText('✓ 처리 완료');
     const closed = await core(fixture, 'manager', `manager/tickets/${c.ticketId}/vendor-handoff`); expect([closed.assignment.status, closed.assignment.endReason]).toEqual(['ENDED', 'CLOSED']); expect((await v.context.request.get('/api/v2/vendor/job')).status()).toBe(401);
     const result = manager.page.getByRole('status').filter({ hasText: 'COMPLETED / ENDED/CLOSED' }); expect(await result.evaluate(e => /success|green/i.test(e.className)), 'closeout result uses existing neutral treatment').toBe(false);

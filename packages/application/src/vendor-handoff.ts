@@ -83,6 +83,7 @@ export type ManagerVendorHandoffDto={
   assignmentHistory?:{id:string;vendorLabel:string;endReason:VendorAssignmentEndReason|null;declineReason:VendorDeclineReason|null;operationalNote:string|null}[];
   ticketId:string;assignment:{id:string;status:VendorAssignmentStatus;endReason:VendorAssignmentEndReason|null;vendorLabel:string;version:number}|null;
   currentPacket:VendorWorkPacketRevisionDto|null;currentRound:VendorSchedulingRoundDto|null;appointment:VendorAppointmentDto|null;
+  packetHistory:VendorWorkPacketRevisionDto[];
   activeBlocker:VendorBlockerDto|null;currentReport:VendorCompletionReportDto|null;reportHistory:VendorCompletionReportDto[];phase:VendorPhase;waitingOn:VendorWaitingOn;
   packetSource?:VendorManagerPacketSource;
 };

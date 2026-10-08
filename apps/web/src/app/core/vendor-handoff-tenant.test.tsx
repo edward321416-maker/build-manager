@@ -310,3 +310,34 @@ describe("Task6 rereview remediation (Tenant)",()=>{
     expect(page().includes("업체가 동의한 시간")).toBe(false);
   });
 });
+
+describe("WC-M02 Tenant uncertainty",()=>{
+  const cases=["availability","consent","confirm","reschedule"] as const;
+  for(const family of cases)for(const outcome of ["same","failed","changed"] as const)it(`${family} reads authority before uncertain replay: ${outcome}`,async()=>{
+    const initial=family==="reschedule"?scheduled:family==="consent"?dto({availability,accessPolicy:"TENANT_PREAUTHORIZATION_ALLOWED"}):family==="confirm"?dto({proposal:{id:propId,slots:[{id:s1,startAt:"2026-10-07T05:00:00Z",endAt:"2026-10-07T06:00:00Z"}],createdAt:"2026-10-06T02:00:00Z"}}):dto();
+    const method=family==="availability"?"submitAvailability":family==="consent"?"authorizeEntry":family==="confirm"?"confirmSlot":"tenantReschedule";
+    const order:string[]=[];let attempts=0,reads=0;
+    const f=fake(initial,{readScheduling:async()=>{order.push("GET");reads++;if(reads>1&&outcome==="failed")throw network();return reads>1&&outcome==="changed"?{...initial,packetRevisionId:w2}:initial;},[method]:async()=>{order.push("POST");if(++attempts===1)throw network();return dto({availability});}});
+    await mount(f.client);
+    if(family==="availability"){await type('input[type="date"]',"2026-10-10");await type('input[type="time"]',"10:00",0);await type('input[type="time"]',"12:00",1);await click("가능한 시간 보내기");}
+    if(family==="consent"){await check("10월 7일(수) 오후 2:00–4:00");await click("선택한 시간 동의 확인");await click("동의하기");}
+    if(family==="confirm"){await check("10월 7일(수) 오후 2:00–3:00");await click("이 시간으로 확정");}
+    if(family==="reschedule"){await click("방문 일정 변경");await click("일정 변경하기");}
+    expect(page()).toContain("결과를 확인하지 못했습니다");order.length=0;
+    await click("같은 요청으로 결과 확인");
+    expect(order[0]).toBe("GET");
+    if(outcome==="same"){
+      expect(order).toEqual(["GET","POST","GET"]);
+      expect(f.vendorHandoff[method].mock.calls[1][1]).toEqual(f.vendorHandoff[method].mock.calls[0][1]);
+      // The historical receipt has availability, but authoritative current state does not.
+      if(family==="availability")expect(page()).toContain("방문 가능한 시간");
+    }else{expect(order).toEqual(["GET"]);expect(attempts).toBe(1);expect(page()).not.toContain("가능한 시간을 저장했습니다");}
+  });
+});
+
+it("WC-M02 manual refresh failure retains the uncertain Tenant request and blocks a new command",async()=>{
+  let reads=0;const f=fake(dto(),{readScheduling:async()=>{if(++reads>1)throw network();return dto();},submitAvailability:async()=>{throw network();}});
+  await mount(f.client);await type('input[type="date"]',"2026-10-10");await type('input[type="time"]',"10:00",0);await type('input[type="time"]',"12:00",1);await click("가능한 시간 보내기");
+  await click("최신 일정 다시 불러오기");expect(button("같은 요청으로 결과 확인")).toBeDefined();expect(button("가능한 시간 보내기")?.disabled).toBe(true);
+  await click("같은 요청으로 결과 확인");expect(f.vendorHandoff.submitAvailability).toHaveBeenCalledTimes(1);
+});

@@ -267,7 +267,7 @@ describe("Task5 accept and withdraw",()=>{
   });
   it("reconciles an unknown accept outcome with the same request identity",async()=>{
     let fail=true;
-    const client=fakeClient({accept:vi.fn(async()=>{if(fail)throw network();return active(assignmentB,"B");})});
+    const client=fakeClient({job:vi.fn(async()=>client.accept.mock.calls.length<2?job(assignmentB,"B"):active(assignmentB,"B")),accept:vi.fn(async()=>{if(fail)throw network();return active(assignmentB,"B");})});
     await mount(client,`#${tokenB}`);
     await click("작업 수락");
     expect(page()).toContain("수락 결과를 확인하지 못했습니다");
@@ -364,7 +364,7 @@ describe("decline and logout",()=>{
   });
   it("reconciles an unknown decline outcome with the same request identity",async()=>{
     let fail=true;
-    const client=fakeClient({decline:vi.fn(async()=>{if(fail)throw network();return {...job(assignmentB,"B"),status:"ENDED" as const,endReason:"DECLINED" as const,phase:"ENDED" as const,assignmentVersion:4};})});
+    const client=fakeClient({job:vi.fn(async()=>{if(client.decline.mock.calls.length>=2)throw http(401,"UNAUTHENTICATED");return job(assignmentB,"B");}),decline:vi.fn(async()=>{if(fail)throw network();return {...job(assignmentB,"B"),status:"ENDED" as const,endReason:"DECLINED" as const,phase:"ENDED" as const,assignmentVersion:4};})});
     await mount(client,`#${tokenB}`);
     await chooseDecline();
     await click("거절하기");
@@ -373,7 +373,7 @@ describe("decline and logout",()=>{
     await click("같은 요청으로 결과 확인");
     const ids=client.decline.mock.calls.map(c=>c[1].clientRequestId);
     expect(ids[0]).toBe(ids[1]);
-    expect(page()).toContain("작업 요청을 거절했습니다");
+    expect(page()).toContain("작업 화면을 열 수 없습니다");
   });
   it("reloads authoritative state after a stale decline conflict",async()=>{
     const client=fakeClient({decline:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
@@ -454,7 +454,7 @@ describe("Task5 review remediation (screen)",()=>{
   });
   it("reconciles an unknown Withdraw outcome with the same request identity",async()=>{
     let fail=true;
-    const client=fakeClient({redeem:vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:active(assignmentB,"B")})),
+    const client=fakeClient({job:vi.fn(async()=>{if(client.withdraw.mock.calls.length>=2)throw http(401,"UNAUTHENTICATED");return active(assignmentB,"B");}),redeem:vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:active(assignmentB,"B")})),
       withdraw:vi.fn(async()=>{if(fail)throw network();return {...active(assignmentB,"B"),status:"ENDED",endReason:"WITHDRAWN",phase:"ENDED",assignmentVersion:5,currentRound:null};})});
     await mount(client,`#${tokenB}`);
     await click("작업 철회");
@@ -466,7 +466,7 @@ describe("Task5 review remediation (screen)",()=>{
     const ids=client.withdraw.mock.calls.map(c=>c[1].clientRequestId);
     expect(ids).toHaveLength(2);
     expect(ids[0]).toBe(ids[1]);
-    expect(page()).toContain("작업을 철회했습니다");
+    expect(page()).toContain("작업 화면을 열 수 없습니다");
   });
 });
 
@@ -553,7 +553,7 @@ describe("Task6 Vendor visit scheduling",()=>{
   });
   it("reconciles an unknown proposal outcome with the same request identity",async()=>{
     let fail=true;
-    const client=fakeClient({redeem:opened(vendorTurn()),proposeSlots:vi.fn(async()=>{if(fail)throw network();return proposed([{id:slotNew,startAt:"2026-10-10T01:00:00.000Z",endAt:"2026-10-10T02:00:00.000Z"}]);})});
+    const client=fakeClient({job:vi.fn(async()=>client.proposeSlots.mock.calls.length<2?vendorTurn():vendorTurn()),redeem:opened(vendorTurn()),proposeSlots:vi.fn(async()=>{if(fail)throw network();return proposed([{id:slotNew,startAt:"2026-10-10T01:00:00.000Z",endAt:"2026-10-10T02:00:00.000Z"}]);})});
     await mount(client,`#${tokenB}`,now);
     await enter("2026-10-10","10:00","11:00");
     await click("방문 시간 제안하기");
@@ -713,7 +713,7 @@ describe("Task7 Vendor visit and blocker evidence",()=>{
   });
   it("reconciles an unknown blocker outcome with the same request identity",async()=>{
     let fail=true;
-    const client=fakeClient({redeem:opened(scheduledJob()),recordBlocker:vi.fn(async()=>{if(fail)throw network();return scheduledJob({activeBlocker:blocker("PARTS_REQUIRED")});})});
+    const client=fakeClient({job:vi.fn(async()=>client.recordBlocker.mock.calls.length<2?scheduledJob():scheduledJob()),redeem:opened(scheduledJob()),recordBlocker:vi.fn(async()=>{if(fail)throw network();return scheduledJob({activeBlocker:blocker("PARTS_REQUIRED")});})});
     await mount(client,`#${tokenB}`,now);
     await click("막힘 기록");
     await choose("부품 필요");
@@ -1018,7 +1018,7 @@ describe("Task8 review remediation (Vendor screen)",()=>{
     let fail=true;
     const report={id:"22222222-3333-4444-8555-666666666666",assignmentId:assignmentB,appointmentId:apptB,packetRevisionId:packetB,revision:1,supersedesReportId:null,
       workSummary:"합성 배관 교체",componentOrPartNote:null,completionPhotoIds:[] as string[],photoOmissionReason:"NOT_APPLICABLE" as const,submittedAt:"2026-10-06T04:00:00.000Z"};
-    const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>visited({phase:"COMPLETION_REPORTED",waitingOn:"MANAGER",assignmentVersion:6,currentReport:report})),
+    const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>client.submitCompletionReport.mock.calls.length<2?visited():visited({phase:"COMPLETION_REPORTED",waitingOn:"MANAGER",assignmentVersion:6,currentReport:report})),
       submitCompletionReport:vi.fn(async()=>{if(fail)throw network();return report;})});
     await mount(client,`#${tokenB}`,now);
     await toggle("사진이 필요 없는 작업");
@@ -1038,5 +1038,45 @@ describe("Task8 review remediation (Vendor screen)",()=>{
     await mount(client,`#${tokenB}`,now);
     expect(host.querySelector('input[type="file"]')).toBeNull();
     expect(button("작업 보고 제출")).toBeUndefined();
+  });
+});
+
+describe("WC-M02 all non-upload Vendor command families",()=>{
+  const now=()=>new Date("2026-10-06T03:00:00Z");
+  const windowId="13131313-1313-4313-8313-131313131313",submissionId="12121212-1212-4212-8212-121212121212",appointmentId="18181818-1818-4818-8818-181818181818";
+  const available={id:submissionId,windows:[{id:windowId,startAt:"2026-10-07T05:00:00Z",endAt:"2026-10-07T07:00:00Z"}],authorizedWindowIds:[] as string[],createdAt:"2026-10-06T02:00:00Z"};
+  const appointment={id:appointmentId,schedulingRoundId:roundB,packetRevisionId:packetB,proposalId:null,availabilitySubmissionId:submissionId,selectedWindowId:windowId,startAt:"2026-10-07T05:00:00Z",endAt:"2026-10-07T06:00:00Z",confirmationMode:"TENANT_CONFIRMED" as const,status:"SCHEDULED" as const,createdAt:"2026-10-06T02:00:00Z"};
+  async function choose(value:string){const el=Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"],input[type="checkbox"]')).find(x=>x.value===value||x.closest("label")?.textContent?.includes(value))!;expect(Boolean(el),value).toBe(true);await act(async()=>el.click());}
+  async function input(selector:string,value:string,index=0){const el=host.querySelectorAll<HTMLInputElement|HTMLTextAreaElement>(selector)[index]!;const proto=el.tagName==="TEXTAREA"?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;await act(async()=>{Object.getOwnPropertyDescriptor(proto,"value")!.set!.call(el,value);el.dispatchEvent(new Event("input",{bubbles:true}));});}
+  const families=["accept","decline","withdraw","proposeSlots","selectPreauthorizedSlot","reschedule","startVisit","recordBlocker","clearBlocker","submitCompletionReport"] as const;
+  for(const family of families)for(const outcome of ["same","failed","changed"] as const)it(`${family} reads current authority before replay: ${outcome}`,async()=>{
+    let initial=family==="accept"||family==="decline"?job(assignmentB,"B"):active(assignmentB,"B");
+    if(family==="proposeSlots"||family==="selectPreauthorizedSlot")initial={...initial,waitingOn:"VENDOR",availability:family==="selectPreauthorizedSlot"?{...available,authorizedWindowIds:[windowId]}:available,effectiveMode:family==="selectPreauthorizedSlot"?"PREAUTHORIZED_ENTRY_WINDOW":"RESIDENT_CONFIRMATION_REQUIRED"};
+    if(["reschedule","startVisit","clearBlocker","submitCompletionReport"].includes(family))initial={...initial,phase:"SCHEDULED",currentRound:{...initial.currentRound!,status:"CONFIRMED",version:3},appointment};
+    if(family==="submitCompletionReport"||family==="clearBlocker")initial={...initial,phase:"IN_PROGRESS",appointment:{...appointment,status:"OCCURRED"}};
+    if(family==="clearBlocker")initial={...initial,waitingOn:"PARTS",activeBlocker:{id:photoB,code:"PARTS_REQUIRED",note:null,active:true,createdAt:"2026-10-06T02:30:00Z",clearedAt:null}};
+    const order:string[]=[];let posts=0,reads=0;
+    const latest={...initial,assignmentVersion:initial.assignmentVersion+2,currentPacket:{...initial.currentPacket!,id:photoB,revision:2,workSummary:"권한 확인 후 최신 설명"}};
+    const client=fakeClient({redeem:async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:initial}),job:async()=>{order.push("GET");reads++;if(outcome==="failed")throw network();return outcome==="changed"?{...latest,assignmentVersion:initial.assignmentVersion+1}:reads>1?latest:initial;},[family]:async()=>{order.push("POST");if(++posts===1)throw network();return initial;}});
+    await mount(client,`#${tokenB}`,now);
+    if(family==="accept")await click("작업 수락");
+    if(family==="decline"){await click("작업 거절");await choose("OTHER");await click("거절 내용 확인");await click("거절하기");}
+    if(family==="withdraw"){await click("작업 철회");await click("철회 내용 확인");await click("철회하기");}
+    if(family==="proposeSlots"||family==="selectPreauthorizedSlot"){
+      if(family==="selectPreauthorizedSlot")await choose("10월 7일(수) 오후 2:00–4:00");
+      await input('input[type="date"]',"2026-10-07");await input('input[type="time"]',"14:00",0);await input('input[type="time"]',"15:00",1);
+      await click(family==="proposeSlots"?"방문 시간 제안하기":"동의된 시간 안에서 방문 확정");
+    }
+    if(family==="reschedule"){await click("방문 일정 변경");await click("일정 변경하기");}
+    if(family==="startVisit"){await click("방문 시작");await click("방문 시작 기록");}
+    if(family==="recordBlocker"){await click("막힘 기록");await choose("PARTS_REQUIRED");await click("막힘 기록하기");}
+    if(family==="clearBlocker"){await click("막힘 해제");await click("막힘 해제 기록");}
+    if(family==="submitCompletionReport"){await choose("사진이 필요 없는 작업");await input('textarea[aria-label="작업 내용 요약"]',"합성 점검");await choose("1번째 게시본");await click("작업 보고 제출");await click("작업 보고 제출하기");}
+    expect(posts).toBe(1);order.length=0;
+    await click(family==="accept"?"같은 요청으로 수락 결과 확인":"같은 요청으로 결과 확인");
+    expect(order[0]).toBe("GET");
+    if(outcome==="same"){
+      expect(order).toEqual(["GET","POST","GET"]);expect(client[family].mock.calls[1]).toEqual(client[family].mock.calls[0]);expect(page()).toContain("권한 확인 후 최신 설명");
+    }else{expect(order).toEqual(["GET"]);expect(posts).toBe(1);if(outcome==="changed")expect(page()).toContain("권한 확인 후 최신 설명");}
   });
 });

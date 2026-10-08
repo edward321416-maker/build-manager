@@ -14,7 +14,7 @@ const appointment={id:"appointment",schedulingRoundId:"round",packetRevisionId:"
   startAt:"2026-10-07T05:00:00Z",endAt:"2026-10-07T06:00:00Z",confirmationMode:"TENANT_CONFIRMED",status:"SCHEDULED",createdAt:"2026-10-06T02:00:00Z"};
 function scheduled(changes:Record<string,unknown>={}):ManagerVendorHandoffDto{
   return {ticketId:"ticket",assignment:{id:"assignment",status:"ACTIVE",endReason:null,vendorLabel:"합성 업체",version:4},currentPacket:{id:"packet",revision:1,workSummary:"합성 작업",accessPolicy:"TENANT_PRESENT_REQUIRED",allowedPhotoIds:[],sharedDetails:[]},
-    currentRound:round,appointment,activeBlocker:null,currentReport:null,reportHistory:[],phase:"SCHEDULED",waitingOn:"VENDOR",...changes} as unknown as ManagerVendorHandoffDto;
+    currentRound:round,appointment,activeBlocker:null,currentReport:null,packetHistory:[],reportHistory:[],phase:"SCHEDULED",waitingOn:"VENDOR",...changes} as unknown as ManagerVendorHandoffDto;
 }
 let root:Root|undefined,host:HTMLDivElement;
 afterEach(async()=>{if(root)await act(async()=>root?.unmount());root=undefined;host?.remove();});

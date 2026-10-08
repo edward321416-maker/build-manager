@@ -402,13 +402,27 @@ BEGIN
       'sourcePhotoIds',coalesce((SELECT jsonb_agg(x->'photoId') FROM jsonb_array_elements(s->'photos') x),'[]'::jsonb),'safetyNotice','[]'::jsonb));
 END $$;
 
+-- Match plainSingle/plainMulti: ECMAScript trim first, then the Unicode Cc/Cf boundary.
+-- PostgreSQL text cannot contain U+0000. Supplementary ranges are intentional;
+-- POSIX cntrl alone does not implement the API's Unicode property escapes.
+CREATE FUNCTION vendor_handoff.trim_plain_text(p_value text) RETURNS text
+LANGUAGE sql IMMUTABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+  SELECT btrim(p_value,U&'\0009\000A\000B\000C\000D\0020\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000\FEFF')
+$$;
+CREATE FUNCTION vendor_handoff.plain_text(p_value text,p_max integer) RETURNS boolean
+LANGUAGE sql IMMUTABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+  SELECT p_value IS NOT NULL AND (char_length(value)+(SELECT count(*) FROM regexp_split_to_table(value,'') ch WHERE ascii(ch)>65535)) BETWEEN 1 AND p_max
+    AND translate(value,E'\r\n','') !~ U&'[\0001-\001F\007F-\009F\00AD\0600-\0605\061C\06DD\070F\0890-\0891\08E2\180E\200B-\200F\202A-\202E\2060-\2064\2066-\206F\FEFF\FFF9-\FFFB\+0110BD\+0110CD\+013430-\+01343F\+01BCA0-\+01BCA3\+01D173-\+01D17A\+0E0001\+0E0020-\+0E007F]'
+  FROM (SELECT vendor_handoff.trim_plain_text(p_value) AS value) normalized
+$$;
 CREATE FUNCTION vendor_handoff.manager_create_assignment(
   p_digest bytea,p_ticket text,p_request uuid,p_expected_ticket_version bigint,p_vendor_label text
 ) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE s jsonb;a vendor_handoff.vendor_assignment;fp bytea;prior jsonb;result jsonb;
 BEGIN
-  IF p_request IS NULL OR p_expected_ticket_version IS NULL OR p_expected_ticket_version<1 OR p_vendor_label IS NULL OR char_length(btrim(p_vendor_label)) NOT BETWEEN 1 AND 80
+  p_vendor_label:=vendor_handoff.trim_plain_text(p_vendor_label);
+  IF p_request IS NULL OR p_expected_ticket_version IS NULL OR p_expected_ticket_version<1 OR NOT vendor_handoff.plain_text(p_vendor_label,80) OR p_vendor_label ~ E'[\r\n]'
   THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
   s:=core_flow.vendor_handoff_source(p_digest,p_ticket,'{}'::uuid[],true);
   PERFORM set_config('app.org_id',s->>'orgId',true);
@@ -441,7 +455,11 @@ LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE a vendor_handoff.vendor_assignment;s jsonb;current_id uuid;rev integer;b jsonb;details jsonb:='[]'::jsonb;
   fp bytea;prior jsonb;result jsonb;key text;answer jsonb;detail jsonb;label text;value text;
 BEGIN
+  p_work_summary:=vendor_handoff.trim_plain_text(p_work_summary);
+  p_access_instruction:=vendor_handoff.trim_plain_text(p_access_instruction);
   IF p_request IS NULL OR p_expected_assignment IS NULL OR p_expected_assignment<1 OR p_access_policy IS NULL
+    OR NOT vendor_handoff.plain_text(p_work_summary,1000)
+    OR (p_access_instruction IS NOT NULL AND NOT vendor_handoff.plain_text(p_access_instruction,500))
   THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
   SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=p_assignment;
   IF a.id IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='NOT_FOUND'; END IF;
@@ -458,9 +476,7 @@ BEGIN
   IF prior IS NOT NULL THEN RETURN prior; END IF;
   SELECT id INTO current_id FROM vendor_handoff.work_packet_revision WHERE org_id=a.org_id AND assignment_id=a.id ORDER BY revision DESC LIMIT 1;
   IF a.id IS NULL OR a.version<>p_expected_assignment OR current_id IS DISTINCT FROM p_expected_packet
-    OR p_work_summary IS NULL OR char_length(btrim(p_work_summary)) NOT BETWEEN 1 AND 1000
     OR p_access_policy NOT IN ('TENANT_PRESENT_REQUIRED','TENANT_PREAUTHORIZATION_ALLOWED')
-    OR (p_access_instruction IS NOT NULL AND char_length(btrim(p_access_instruction)) NOT BETWEEN 1 AND 500)
   THEN RAISE EXCEPTION USING ERRCODE='P0001',MESSAGE='STATE_CONFLICT'; END IF;
   IF coalesce(btrim(s->'building'->>'serviceAddress'),'')='' OR coalesce(btrim(s->>'unitLabel'),'')=''
   THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='ADDRESS_REQUIRED'; END IF;
@@ -710,10 +726,10 @@ DECLARE s vendor_handoff.vendor_session;a vendor_handoff.vendor_assignment;p ven
 BEGIN
   IF p_session_digest IS NULL OR octet_length(p_session_digest)<>32 OR p_csrf_digest IS NULL OR octet_length(p_csrf_digest)<>32
   THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='UNAUTHENTICATED'; END IF;
-  note:=CASE WHEN p_note IS NULL THEN NULL ELSE btrim(p_note) END;
+  note:=vendor_handoff.trim_plain_text(p_note);
   IF p_request IS NULL OR p_expected_assignment IS NULL OR p_expected_assignment<1 OR p_expected_packet IS NULL
     OR p_reason IS NULL OR p_reason NOT IN ('NO_CAPACITY','OUT_OF_SERVICE_AREA','SKILL_MISMATCH','CANNOT_MEET_TIMING','OTHER')
-    OR (note IS NOT NULL AND char_length(note) NOT BETWEEN 1 AND 500)
+    OR (note IS NOT NULL AND NOT vendor_handoff.plain_text(note,500))
   THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
   PERFORM set_config('app.vendor_session_digest',encode(p_session_digest,'hex'),true);
   SELECT * INTO s FROM vendor_handoff.vendor_session WHERE digest=p_session_digest;

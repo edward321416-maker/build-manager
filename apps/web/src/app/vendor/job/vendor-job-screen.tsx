@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useCallback,useEffect,useRef,useState } from "react";
 import { ApiClientError,createVendorJobClient,type VendorJobClient } from "@build-manager/api-client";
-import { VendorBlockerCommandSchema,VendorCompletionReportCommandSchema,VendorDeclineCommandSchema,type VendorBlockerCode,type VendorBlockerCommand,type VendorClearBlockerCommand,type VendorCompletionPhotoUploadCommand,type VendorCompletionReportCommand,type VendorDeclineReason,type VendorJobDto,type VendorPhotoOmissionReason,type VendorPreauthorizedAppointmentCommand,type VendorProposalCommand,type VendorRescheduleCommand,type VendorSharedDetailSourceType,type VendorVisitStartCommand } from "@build-manager/api-contracts";
+import { VendorBlockerCommandSchema,VendorCompletionReportCommandSchema,VendorDeclineCommandSchema,type VendorBlockerCode,type VendorBlockerCommand,type VendorClearBlockerCommand,type VendorCompletionPhotoUploadCommand,type VendorCompletionReportCommand,type VendorDeclineCommand,type VendorWithdrawCommand,type VendorDeclineReason,type VendorJobDto,type VendorPhotoOmissionReason,type VendorPreauthorizedAppointmentCommand,type VendorProposalCommand,type VendorRescheduleCommand,type VendorSharedDetailSourceType,type VendorVisitStartCommand } from "@build-manager/api-contracts";
 import { IntervalFields,draftsToIntervals,emptyIntervalDraft,type IntervalDraft } from "../../../components/vendor-interval-fields";
 import { formatVendorInterval,intervalWithin } from "../../../lib/vendor-time";
 import { BLOCKER_LABELS,OMISSION_LABELS } from "../../../lib/vendor-blocker";
@@ -32,10 +32,10 @@ type Phase=
   |{kind:"withdrawn";job:VendorJobDto}
   |{kind:"loggedOut"};
 /** A decline draft/request belongs to exactly the assignment it was opened for and is never sent for another. */
-type Decline={assignmentId:string|null;open:boolean;reason:VendorDeclineReason|null;note:string;confirming:boolean;requestId:string|null;status:"idle"|"submitting"|"uncertain";notice:string};
+type Decline={context?:string;sent?:VendorDeclineCommand;assignmentId:string|null;open:boolean;reason:VendorDeclineReason|null;note:string;confirming:boolean;requestId:string|null;status:"idle"|"submitting"|"uncertain";notice:string};
 const closedDecline:Decline={assignmentId:null,open:false,reason:null,note:"",confirming:false,requestId:null,status:"idle",notice:""};
 /** Accept/Withdraw intent, owned by one assignment; the same request identity is reused only for that assignment. */
-type Lifecycle={kind:"accept"|"withdraw"|null;assignmentId:string|null;open:boolean;note:string;confirming:boolean;requestId:string|null;status:"idle"|"submitting"|"uncertain"};
+type Lifecycle={context?:string;sent?:VendorWithdrawCommand;kind:"accept"|"withdraw"|null;assignmentId:string|null;open:boolean;note:string;confirming:boolean;requestId:string|null;status:"idle"|"submitting"|"uncertain"};
 const idleLifecycle:Lifecycle={kind:null,assignmentId:null,open:false,note:"",confirming:false,requestId:null,status:"idle"};
 const STALE_NOTICE="작업 요청 내용이 바뀌었습니다. 최신 내용을 확인해 주세요.";
 type ScheduleSend=
@@ -49,7 +49,7 @@ type ScheduleSend=
  * Visit-scheduling and work-evidence drafts plus the one sent command, owned by one assignment;
  * an unknown outcome resends the identical command.
  */
-type Schedule={assignmentId:string|null;drafts:IntervalDraft[];windowId:string|null;slot:IntervalDraft;rescheduling:boolean;
+type Schedule={context?:string;assignmentId:string|null;drafts:IntervalDraft[];windowId:string|null;slot:IntervalDraft;rescheduling:boolean;
   work:"visit"|"record"|"clear"|null;blockerCode:VendorBlockerCode|null;followUpAck:boolean;note:string;sent:ScheduleSend|null;status:"idle"|"submitting"|"uncertain";notice:string};
 const idleSchedule:Schedule={assignmentId:null,drafts:[emptyIntervalDraft()],windowId:null,slot:emptyIntervalDraft(),rescheduling:false,
   work:null,blockerCode:null,followUpAck:false,note:"",sent:null,status:"idle",notice:""};
@@ -63,7 +63,7 @@ const UNCERTAIN_SCHEDULE:Record<ScheduleSend["kind"],string>={
 };
 const NOTE_INVALID="메모에 사용할 수 없는 문자가 있습니다. 내용을 고친 뒤 다시 확인해 주세요.";
 /** Initial completion report draft, photo staging and the one sent command, owned by one assignment. */
-type Completion={assignmentId:string|null;appointmentId:string|null;correctionRequestId:string|null;uploads:{photoId:string;selected:boolean;reused?:boolean}[];pending:{file:Blob;input:VendorCompletionPhotoUploadCommand}|null;
+type Completion={context?:string;assignmentId:string|null;appointmentId:string|null;correctionRequestId:string|null;uploads:{photoId:string;selected:boolean;reused?:boolean}[];pending:{file:Blob;input:VendorCompletionPhotoUploadCommand}|null;
   uploadStatus:"idle"|"uploading"|"uncertain";omission:VendorPhotoOmissionReason|null;summary:string;note:string;
   /** The exact packet revision the Vendor acknowledged; a republished packet needs a fresh acknowledgment (review M3). */
   ackPacketId:string|null;confirming:boolean;sent:VendorCompletionReportCommand|null;status:"idle"|"submitting"|"uncertain";notice:string};
@@ -194,6 +194,15 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     try{const job=await client.job();if(gen!==generation.current)return null;setPhase({kind:"ready",job});return job;}
     catch(error){if(gen===generation.current)setPhase({kind:definitive(error)?"unavailable":"loadFailed"});return null;}
   };
+  const reconcileReplay=async(gen:number,context:string|undefined):Promise<boolean>=>{
+    const fresh=await client.job();
+    if(gen!==generation.current)return false;
+    setPhase({kind:"ready",job:fresh});
+    if(JSON.stringify(fresh)===context)return true;
+    // Changed state is observation, not proof that this particular request committed.
+    setDecline(closedDecline);setLifecycle(idleLifecycle);setSchedule(idleSchedule);setCompletion(freshCompletion(fresh));
+    setTaskNotice(`${STALE_NOTICE} 이전 요청의 성공 여부는 확정하지 않습니다.`);return false;
+  };
   // Local input problems stay editable; they are never reported as an unknown server outcome.
   const confirmDecline=()=>{
     if(!decline.reason)return;
@@ -208,13 +217,14 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     const job=phase.job,gen=generation.current;
     if(state.assignmentId!==job.assignmentId){setDecline(closedDecline);return;}
     const id=state.requestId??crypto.randomUUID(),note=state.note.trim();
+    const input=state.sent??{clientRequestId:id,expectedAssignmentVersion:job.assignmentVersion,expectedPacketRevisionId:job.currentPacket?.id??"",reason:state.reason,operationalNote:note===""?null:note};
+    state={...state,sent:input,context:state.context??JSON.stringify(job)};
     setDecline({...state,requestId:id,status:"submitting",notice:""});
     try{
-      const reason=state.reason;
-      const result=await withFreshCsrf(gen,value=>client.decline(value,{clientRequestId:id,expectedAssignmentVersion:job.assignmentVersion,
-        expectedPacketRevisionId:job.currentPacket?.id??"",reason,operationalNote:note===""?null:note}));
+      if(state.status==="uncertain"&&!await reconcileReplay(gen,state.context))return;
+      const result=await withFreshCsrf(gen,value=>client.decline(value,input));
       if(gen!==generation.current)return;
-      setDecline(closedDecline);setPhase({kind:"declined",job:result});
+      setDecline(closedDecline);if(state.status==="uncertain")await refresh(gen);else setPhase({kind:"declined",job:result});
     }catch(error){
       if(gen!==generation.current)return;
       if(statusOf(error)===409){setDecline({...closedDecline,notice:STALE_NOTICE});await refresh(gen);}
@@ -229,17 +239,20 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     const job=phase.job,gen=generation.current;
     if(state.kind!==kind||state.assignmentId!==job.assignmentId){setLifecycle(idleLifecycle);return;}
     const id=state.requestId??crypto.randomUUID(),note=state.note.trim();
+    const input=state.sent??{clientRequestId:id,expectedAssignmentVersion:job.assignmentVersion,expectedPacketRevisionId:job.currentPacket?.id??"",operationalNote:note===""?null:note};
+    state={...state,sent:input,context:state.context??JSON.stringify(job)};
     setLifecycle({...state,requestId:id,status:"submitting"});setTaskNotice("");
     try{
-      const guards={clientRequestId:id,expectedAssignmentVersion:job.assignmentVersion,expectedPacketRevisionId:job.currentPacket?.id??""};
-      const result=await withFreshCsrf(gen,value=>kind==="accept"?client.accept(value,guards):client.withdraw(value,{...guards,operationalNote:note===""?null:note}));
+      if(state.status==="uncertain"&&!await reconcileReplay(gen,state.context))return;
+      const {operationalNote,...guards}=input;
+      const result=await withFreshCsrf(gen,value=>kind==="accept"?client.accept(value,guards):client.withdraw(value,{...guards,operationalNote}));
       if(gen!==generation.current)return;
       setLifecycle(idleLifecycle);
-      setPhase(kind==="withdraw"?{kind:"withdrawn",job:result}:{kind:"ready",job:result});
+      if(state.status==="uncertain")await refresh(gen);else setPhase(kind==="withdraw"?{kind:"withdrawn",job:result}:{kind:"ready",job:result});
     }catch(error){
       if(gen!==generation.current)return;
       // A rejected (not committed) Withdraw keeps its safe local draft; the next attempt is a new request.
-      if(statusOf(error)===409){setLifecycle(kind==="withdraw"?{...state,requestId:null,status:"idle",confirming:false}:idleLifecycle);setTaskNotice(STALE_NOTICE);await refresh(gen);}
+      if(statusOf(error)===409){setLifecycle(kind==="withdraw"?{...state,requestId:null,sent:undefined,context:undefined,status:"idle",confirming:false}:idleLifecycle);setTaskNotice(STALE_NOTICE);await refresh(gen);}
       else if(statusOf(error)===403){setLifecycle(idleLifecycle);setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
       else if(definitive(error)){setLifecycle(idleLifecycle);setPhase({kind:"unavailable"});}
       else setLifecycle({...state,requestId:id,status:"uncertain"});
@@ -250,8 +263,10 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     if(phase.kind!=="ready"||!csrf.current)return;
     const job=phase.job,gen=generation.current;
     if(state.assignmentId!==job.assignmentId){setSchedule(idleSchedule);return;}
+    state={...state,context:state.context??JSON.stringify(job)};
     setSchedule({...state,sent:send,status:"submitting",notice:""});setTaskNotice("");
     try{
+      if(state.status==="uncertain"&&!await reconcileReplay(gen,state.context))return;
       const result=await withFreshCsrf(gen,value=>{
         switch(send.kind){
           case "propose":return client.proposeSlots(value,send.input);
@@ -263,10 +278,10 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
         }
       });
       if(gen!==generation.current)return;
-      setSchedule({...idleSchedule,assignmentId:job.assignmentId});setPhase({kind:"ready",job:result});
+      setSchedule({...idleSchedule,assignmentId:job.assignmentId});if(state.status==="uncertain")await refresh(gen);else setPhase({kind:"ready",job:result});
     }catch(error){
       if(gen!==generation.current)return;
-      const idle={...state,sent:null,status:"idle" as const};
+      const idle={...state,context:undefined,sent:null,status:"idle" as const};
       // A stale blocker draft stays editable; visit/clear confirmations close because their target may have changed.
       if(statusOf(error)===409){
         setSchedule({...idle,rescheduling:false,work:send.kind==="record"?"record":null});
@@ -407,15 +422,17 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     if(phase.kind!=="ready"||!csrf.current)return;
     const job=phase.job,gen=generation.current;
     if(state.assignmentId!==job.assignmentId){setCompletion(idleCompletion);return;}
+    state={...state,context:state.context??JSON.stringify(job)};
     setCompletion({...state,sent:input,status:"submitting",notice:""});setTaskNotice("");
     try{
+      if(state.status==="uncertain"&&!await reconcileReplay(gen,state.context))return;
       await withFreshCsrf(gen,value=>client.submitCompletionReport(value,input));
       if(gen!==generation.current)return;
       setCompletion({...idleCompletion,assignmentId:job.assignmentId});
       await refresh(gen);
     }catch(error){
       if(gen!==generation.current)return;
-      const idle={...state,sent:null,status:"idle" as const,confirming:false};
+      const idle={...state,context:undefined,sent:null,status:"idle" as const,confirming:false};
       if(statusOf(error)===409){setCompletion({...idle,ackPacketId:null});setTaskNotice(STALE_NOTICE);await refresh(gen);}
       else if(statusOf(error)===403){setCompletion(idle);setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
       else if(statusOf(error)===400)setCompletion({...idle,notice:"입력한 내용을 다시 확인해 주세요."});

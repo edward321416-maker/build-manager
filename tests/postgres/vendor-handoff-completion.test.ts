@@ -646,3 +646,113 @@ describe("Task9 Manager end commands and source-ticket races",()=>{
     }finally{await f.p.admin.query("ROLLBACK");await pending;}
   });
 });
+
+describe("WC-M04 granted text writers",()=>{
+  const invalid=["bad\u202etext","bad\u0001text","bad\u{e0020}text","\u00a0\u3000","😀".repeat(501)];
+  it.each(invalid)("rejects invalid initial assignment and packet text %# without a row or receipt",async bad=>{
+    const t=await f.ticket(),input={clientRequestId:randomUUID(),expectedTicketVersion:t.version,vendorLabel:bad};
+    expect(await code(f.manager.createAssignment(managerDigest(),t.ticket.id,input))).toBe("INVALID_INPUT");
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.vendor_assignment WHERE ticket_id=$1",[t.ticket.id])).toBe(0);
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[input.clientRequestId])).toBe(0);
+    const p=await f.prepared();
+    for(const field of ["workSummary","accessInstruction"]){
+      const command={clientRequestId:randomUUID(),expectedAssignmentVersion:1,expectedPacketRevisionId:null,workSummary:"합성 점검",sharedDetailKeys:[],allowedPhotoIds:[],accessPolicy:"TENANT_PRESENT_REQUIRED" as const,accessInstruction:null,...{[field]:bad}};
+      expect(await code(f.manager.publishPacket(managerDigest(),p.handoff.assignment!.id,command))).toBe("INVALID_INPUT");
+      expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[command.clientRequestId])).toBe(0);
+    }
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.work_packet_revision WHERE assignment_id=$1",[p.handoff.assignment!.id])).toBe(0);
+    expect(ManagerVendorHandoffDtoSchema.safeParse(await f.manager.readHandoff(managerDigest(),p.t.ticket.id)).success).toBe(true);
+  });
+  it("counts UTF16 code units rather than code points in the shared SQL validator",async()=>{
+    const rows=(await f.p.admin.query("SELECT vendor_handoff.plain_text($1,80) accepted",["😀".repeat(41)])).rows;
+    expect(rows[0].accepted).toBe(false);
+  });
+});
+
+it("WC-M03 Manager reads immutable packet and corrected report history across reassignment",async()=>{
+  const c=await reportedVisit();const before=await handoff(c);await correction(c);const d=await correctionRow(c);
+  const corrected=await report(c,{expectedCorrectionRequestId:d.id,supersedesReportId:c.initialReport.id,completionPhotoIds:[c.initialPhoto.photoId],workSummary:"수정 보고 역사"});
+  await f.manager.requireFollowUp(managerDigest(),c.assignmentId,await dispositionInput(c));
+  const packet=await f.manager.publishPacket(managerDigest(),c.assignmentId,{clientRequestId:randomUUID(),expectedAssignmentVersion:(await handoff(c)).assignment!.version,expectedPacketRevisionId:c.packetId,workSummary:"다음 방문 전달",sharedDetailKeys:[],allowedPhotoIds:[],accessPolicy:"TENANT_PRESENT_REQUIRED",accessInstruction:null});
+  const publicJob=await job(c),tenantView=await tenantPort.readScheduling(c.tenantDigest,c.ticketId);
+  for(const projection of [publicJob,tenantView]){
+    expect(Object.hasOwn(projection,"packetHistory")).toBe(false);expect(Object.hasOwn(projection,"reportHistory")).toBe(false);expect(Object.hasOwn(projection,"assignmentHistory")).toBe(false);
+  }
+  const next=await f.manager.reassign(managerDigest(),c.assignmentId,{...await endInput(c),vendorLabel:"합성 다음 업체"});
+  expect(next.currentPacket).toBeNull();expect(next.currentReport).toBeNull();
+  expect(next.packetHistory).toEqual([before.currentPacket,packet.currentPacket]);
+  expect(next.reportHistory.map(r=>r.id)).toEqual([c.initialReport.id,corrected.id]);
+  expect(next.assignmentHistory).toContainEqual(expect.objectContaining({id:c.assignmentId,endReason:"SUPERSEDED"}));
+  expect(ManagerVendorHandoffDtoSchema.safeParse(next).success).toBe(true);
+  expect((await f.manager.completionPhoto(managerDigest(),c.ticketId,c.initialPhoto.photoId)).bytes.byteLength).toBeGreaterThan(0);
+  for(const who of ["tenant","otherManager"])expect(await code(f.manager.readHandoff(f.data.accounts[who].digest,c.ticketId))).not.toBe("success");
+  const foreign=await f.ticket("otherTenant");expect(await code(f.manager.readHandoff(managerDigest(),foreign.ticket.id))).toBe("NOT_FOUND");
+  expect(await code(f.manager.completionPhoto(managerDigest(),foreign.ticket.id,c.initialPhoto.photoId))).toBe("NOT_FOUND");
+  await f.p.admin.query("UPDATE app.property_assignment SET status='ENDED',ended_at=clock_timestamp() WHERE membership_id=$1",[f.data.accounts.staff.membershipId]);
+  try{expect(await code(f.manager.readHandoff(f.data.accounts.staff.digest,c.ticketId))).toBe("NOT_FOUND");expect(await code(f.manager.completionPhoto(f.data.accounts.staff.digest,c.ticketId,c.initialPhoto.photoId))).toBe("NOT_FOUND");}
+  finally{await f.p.admin.query("UPDATE app.property_assignment SET status='ACTIVE',ended_at=NULL WHERE membership_id=$1",[f.data.accounts.staff.membershipId]);}
+});
+
+describe("WC-M04 all exposed text command boundaries",()=>{
+  const badNotes=["a\u202eb","a\u0001b","a\u{e0020}b","\u00a0\u3000","😀".repeat(501),""];
+  async function offeredText(){
+    const p=await f.published(),assignmentId=p.handoff.assignment!.id,packetId=p.handoff.currentPacket!.id;
+    const link=await f.manager.issueLink(managerDigest(),assignmentId,{clientRequestId:randomUUID(),expectedAssignmentVersion:2,expectedPacketRevisionId:packetId});
+    const session=hash("text-session"),csrf=hash("text-csrf"),vendor=f.externalWith(csrf);
+    await f.external.redeem(sha(link.link!.split("#")[1]),randomUUID(),session,csrf);
+    return {assignmentId,packetId,session,csrf,vendor,ticketId:p.t.ticket.id,tenantDigest:f.data.accounts.tenant.digest};
+  }
+  for(const family of ["decline","withdraw","record","clear","reportSummary","reportNote"] as const)it(`${family} rejects invalid text without durable changes and accepts normalized Unicode replay`,async()=>{
+    const c=family==="decline"?await offeredText():family.startsWith("report")?await visited():await accepted();
+    if(family==="clear")await c.vendor.recordBlocker(c.session,{clientRequestId:randomUUID(),expectedAssignmentVersion:(await job(c)).assignmentVersion,expectedPacketRevisionId:c.packetId,blockerCode:"PARTS_REQUIRED",operationalNote:null});
+    const j=await job(c),before=await handoff(c);
+    const guards={expectedAssignmentVersion:j.assignmentVersion,expectedPacketRevisionId:c.packetId};
+    const invoke=(value:string,id:string)=>{
+      const input={clientRequestId:id,...guards,operationalNote:value};
+      if(family==="decline")return c.vendor.decline(c.session,{...input,reason:"OTHER"});
+      if(family==="withdraw")return c.vendor.withdraw(c.session,input);
+      if(family==="record")return c.vendor.recordBlocker(c.session,{...input,blockerCode:"PARTS_REQUIRED"});
+      if(family==="clear")return c.vendor.clearBlocker(c.session,j.activeBlocker!.id,input);
+      return c.vendor.submitCompletionReport(c.session,{clientRequestId:id,...guards,expectedAppointmentId:j.appointment!.id,expectedCorrectionRequestId:null,supersedesReportId:null,completionPhotoIds:[],photoOmissionReason:"NOT_APPLICABLE",workSummary:family==="reportSummary"?value:"합성 점검",componentOrPartNote:family==="reportNote"?value:null});
+    };
+    for(const bad of [...badNotes,...(family==="reportSummary"?[null as unknown as string]:["😀".repeat(251)])]){
+      const id=randomUUID();expect(await code(invoke(bad,id))).toBe("INVALID_INPUT");
+      expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[id])).toBe(0);
+      expect(await handoff(c)).toEqual(before);
+      expect(ManagerVendorHandoffDtoSchema.safeParse(await handoff(c)).success).toBe(true);
+    }
+    const id=randomUUID(),value="\u00a0한국어 😀\r\n다음 줄\ufeff",normalized=value.trim();
+    const result=await invoke(value,id);
+    expect(await invoke(normalized,id)).toEqual(result);
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[id])).toBe(1);
+    const after=await handoff(c);expect(ManagerVendorHandoffDtoSchema.safeParse(after).success).toBe(true);
+    if(family.startsWith("report"))expect(after.currentReport?.[family==="reportSummary"?"workSummary":"componentOrPartNote"]).toBe(normalized);
+    else if(family==="record")expect(after.activeBlocker?.note).toBe(normalized);
+    else if(family==="decline"||family==="withdraw")expect(after.assignmentHistory?.find(a=>a.id===c.assignmentId)?.operationalNote).toBe(normalized);
+    else expect((await f.p.admin.query("SELECT note FROM vendor_handoff.work_event WHERE assignment_id=$1 AND kind='BLOCKER_CLEARED'",[c.assignmentId])).rows[0].note).toBe(normalized);
+  });
+  it("initial label and packet normalize edge whitespace, preserve valid astral UTF16 boundaries and exact fingerprints",async()=>{
+    const t=await f.ticket(),input={clientRequestId:randomUUID(),expectedTicketVersion:t.version,vendorLabel:"\u00a0"+"😀".repeat(40)+"\ufeff"};
+    const created=await f.manager.createAssignment(managerDigest(),t.ticket.id,input);
+    expect(created.assignment!.vendorLabel).toBe(input.vendorLabel.trim());expect(await f.manager.createAssignment(managerDigest(),t.ticket.id,{...input,vendorLabel:input.vendorLabel.trim()})).toEqual(created);
+    const command={clientRequestId:randomUUID(),expectedAssignmentVersion:1,expectedPacketRevisionId:null,workSummary:"\u00a0"+"😀".repeat(500)+"\ufeff",sharedDetailKeys:[],allowedPhotoIds:[],accessPolicy:"TENANT_PRESENT_REQUIRED" as const,accessInstruction:"\n한국어\r\n안내\u3000"};
+    const published=await f.manager.publishPacket(managerDigest(),created.assignment!.id,command);
+    expect(published.currentPacket!.workSummary).toBe(command.workSummary.trim());expect(published.currentPacket!.accessInstruction).toBe("한국어\r\n안내");
+    expect(await f.manager.publishPacket(managerDigest(),created.assignment!.id,{...command,workSummary:command.workSummary.trim(),accessInstruction:command.accessInstruction.trim()})).toEqual(published);
+    expect(ManagerVendorHandoffDtoSchema.safeParse(published).success).toBe(true);
+    const t2=await f.ticket();for(const label of ["one\ntwo","one\rtwo",null])expect(await code(f.manager.createAssignment(managerDigest(),t2.ticket.id,{clientRequestId:randomUUID(),expectedTicketVersion:t2.version,vendorLabel:label as string}))).toBe("INVALID_INPUT");
+  });
+});
+
+it("WC-M04 closeout normalizes Unicode text and rejects unsupported/over-UTF16 input before disposition or receipt",async()=>{
+  const c=await reportedVisit(),input=await closeoutInput(c),before=await handoff(c);
+  for(const message of ["a\u202eb","a\u{e0020}b","😀".repeat(1001),"\u00a0\u3000",null]){
+    const command={...input,clientRequestId:randomUUID(),message:message as string};
+    expect(await code(f.manager.closeout(managerDigest(),c.assignmentId,command))).toBe("INVALID_INPUT");
+    expect(await handoff(c)).toEqual(before);expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[command.clientRequestId])).toBe(0);
+  }
+  const command={...input,message:"\u00a0관리자 확인 😀\r\n현장 확인\ufeff"};
+  const result=await f.manager.closeout(managerDigest(),c.assignmentId,command);
+  expect(await f.manager.closeout(managerDigest(),c.assignmentId,{...command,message:command.message.trim()})).toEqual(result);
+  expect(ManagerVendorHandoffDtoSchema.safeParse(result).success).toBe(true);
+});

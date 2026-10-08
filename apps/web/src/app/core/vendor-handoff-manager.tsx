@@ -9,7 +9,7 @@ import { BLOCKER_LABELS,OMISSION_LABELS,WAITING_LABELS } from "../../lib/vendor-
 export type VendorPacketDraft={vendorLabel:string;workSummary:string;sharedDetailKeys:string[];allowedPhotoIds:string[];accessPolicy:VendorAccessPolicy;accessInstruction:string};
 type PendingLinkRequest={kind:"ISSUE"|"REISSUE";assignmentId:string;input:Parameters<CoreVendorHandoffClient["issueLink"]>[1]};
 type ManagerAction="CLOSEOUT"|"CORRECTION"|"MORE_WORK"|"REASSIGN";
-export type VendorHandoffViewProps={action?:ManagerAction|null;actionText?:string;onAction?:(action:ManagerAction|null)=>void;onActionText?:(text:string)=>void;onSubmitAction?:()=>void;communicationVersion?:number;ticket:CoreTicketDto;handoff:ManagerVendorHandoffDto|null;loading:boolean;busy:boolean;error:string;validationError?:string;notice:string;uncertain:boolean;pendingLink?:PendingLinkRequest|null;linkUnavailable:boolean;immediateLink:string|null;preview:boolean;draft:VendorPacketDraft;photoPreviews:{photoId:string;url:string}[];onDraft:(draft:VendorPacketDraft)=>void;onPreview:()=>void;onCreate:()=>void;onPublish:()=>void;onIssue:()=>void;onReissue:()=>void;onReconcileLink?:()=>void;onRevoke:()=>void;onRefresh:()=>void;onReview:()=>void;now?:Date;rescheduleReview?:boolean;onRescheduleReview?:(open:boolean)=>void;onReschedule?:()=>void;reportPhotos?:{photoId:string;url:string}[]};
+export type VendorHandoffViewProps={action?:ManagerAction|null;actionText?:string;onAction?:(action:ManagerAction|null)=>void;onActionText?:(text:string)=>void;onSubmitAction?:()=>void;communicationVersion?:number;ticket:CoreTicketDto;handoff:ManagerVendorHandoffDto|null;loading:boolean;busy:boolean;error:string;validationError?:string;notice:string;uncertain:boolean;pendingLink?:PendingLinkRequest|null;linkUnavailable:boolean;immediateLink:string|null;preview:boolean;draft:VendorPacketDraft;photoPreviews:{photoId:string;url:string}[];onDraft:(draft:VendorPacketDraft)=>void;onPreview:()=>void;onCreate:()=>void;onPublish:()=>void;onIssue:()=>void;onReissue:()=>void;onReconcileLink?:()=>void;onRevoke:()=>void;onRefresh:()=>void;onReview:()=>void;now?:Date;rescheduleReview?:boolean;onRescheduleReview?:(open:boolean)=>void;onReschedule?:()=>void;reportPhotos?:{photoId:string;url:string}[];historyReportId?:string|null;onHistoryReport?:(id:string|null)=>void};
 const provenance={TENANT_REPORTED:"세입자 설명",BUILDING_VERIFIED:"확인된 건물 정보",MANAGER_REVIEWED:"관리자 검토"};
 const policyLabels={TENANT_PRESENT_REQUIRED:"세입자 재실 필요",TENANT_PREAUTHORIZATION_ALLOWED:"세입자 별도 사전 동의 허용"};
 export function vendorHandoffEligible(ticket:CoreTicketDto):boolean{
@@ -46,6 +46,7 @@ export async function reconcileManagerHandoff<T>(client:CoreVendorHandoffClient,
   catch{return {kind:isCurrent()?"uncertain":"obsolete",handoff:null};}
 }
 export function VendorHandoffManagerView(p:VendorHandoffViewProps){
+  const historyReport=p.handoff?.reportHistory.find(report=>report.id===p.historyReportId&&report.id!==p.handoff?.currentReport?.id);
   const assignment=p.handoff?.assignment,active=Boolean(assignment&&assignment.status!=="ENDED"),eligible=vendorHandoffEligible(p.ticket);
   const source=p.handoff?.packetSource,packet=p.handoff?.currentPacket;
   const canPrepare=eligible&&(!assignment||assignment.status==="ENDED");
@@ -117,7 +118,8 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
         <fieldset><legend>공유할 원본 사진 선택</legend><p>사진은 선택한 것만 업체에 공개됩니다.</p>{source?.sourcePhotoIds.map((id,index)=><label key={id}><input type="checkbox" checked={p.draft.allowedPhotoIds.includes(id)} onChange={e=>p.onDraft({...p.draft,allowedPhotoIds:choose(p.draft.allowedPhotoIds,id,e.target.checked)})}/>원본 사진 {index+1}</label>)}</fieldset>
         <label>출입 정책<select aria-label="출입 정책" value={p.draft.accessPolicy} onChange={e=>p.onDraft({...p.draft,accessPolicy:e.target.value as VendorAccessPolicy})}><option value="TENANT_PRESENT_REQUIRED">세입자 재실 필요</option><option value="TENANT_PREAUTHORIZATION_ALLOWED">세입자 별도 사전 동의 허용</option></select></label>
         <p>출입 정책은 세입자 동의가 아닙니다. 세입자가 별도로 선택한 시간에 동의해야 합니다.</p>
-        <label>출입 안내<textarea aria-label="출입 안내" maxLength={500} value={p.draft.accessInstruction} onChange={e=>p.onDraft({...p.draft,accessInstruction:e.target.value})}/></label>
+        <label>출입 안내<textarea aria-label="출입 안내" aria-describedby="vendor-access-warning" maxLength={500} value={p.draft.accessInstruction} onChange={e=>p.onDraft({...p.draft,accessInstruction:e.target.value})}/></label>
+        <p id="vendor-access-warning">개인 연락처나 반복 사용 가능한 출입 비밀번호를 입력하지 마세요. 이 안내는 업체에 공개됩니다.</p>
         <button type="button" disabled={!source} onClick={p.onPreview}>업체 전달 내용 미리보기</button>
       </fieldset>
       {p.preview?<section className={styles.preview} aria-label="업체 전달 내용 미리보기"><h3>게시 전 업체 화면 확인</h3>
@@ -136,6 +138,27 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     {p.immediateLink?<div className={styles.link}><label>직접 전달할 보안 링크<input aria-label="직접 전달할 보안 링크" readOnly value={p.immediateLink}/></label><p>이 화면의 링크를 복사해 업체에 직접 전달하세요. 새로고침하거나 다른 접수로 이동하면 다시 표시할 수 없습니다.</p></div>:null}
     {active&&p.handoff?.phase!=="COMPLETION_REPORTED"?<button type="button" disabled={blocked} onClick={()=>p.onAction?.("REASSIGN")}>업체 재배정</button>:null}
     {active&&p.handoff?.phase!=="COMPLETION_REPORTED"?<button type="button" disabled={blocked} onClick={p.onRevoke}>업체 접근 철회</button>:null}
+    {p.handoff&&(p.handoff.packetHistory.length>0||p.handoff.reportHistory.length>0)?<details className={styles.preview}>
+      <summary>전달 내용과 작업 보고 이력 · 읽기 전용</summary>
+      <p>이력 조회는 현재 업체나 보고에 대한 처리 대상을 바꾸지 않습니다.</p>
+      {p.handoff.packetHistory.map(revision=><details key={revision.id}>
+        <summary>{revision.vendorLabel} · 전달 내용 {revision.revision}차 · {formatVendorInstant(revision.publishedAt,at)}</summary>
+        <dl><dt>접수번호</dt><dd>{revision.jobReference}</dd><dt>건물</dt><dd>{revision.buildingName}</dd><dt>주소</dt><dd>{revision.serviceAddress}</dd><dt>호실</dt><dd>{revision.unitLabel}</dd><dt>작업 설명</dt><dd>{revision.workSummary}</dd></dl>
+        {revision.sharedDetails.map(detail=><p key={detail.key}>{detail.label}: {detail.value} · {provenance[detail.sourceType]}</p>)}
+        {revision.safetyNotice.map((notice,index)=><p key={index}>{notice}</p>)}
+        <p>출입 정책: {policyLabels[revision.accessPolicy]}</p>{revision.accessInstruction?<p>출입 안내: {revision.accessInstruction}</p>:null}
+        <p>공유한 원본 사진 {revision.allowedPhotoIds.length}장</p>
+      </details>)}
+      <label>이전 작업 보고<select aria-label="이전 작업 보고" value={historyReport?.id??""} onChange={e=>p.onHistoryReport?.(e.target.value||null)}>
+        <option value="">조회할 보고 선택</option>{p.handoff.reportHistory.filter(report=>report.id!==p.handoff?.currentReport?.id).map(report=><option key={report.id} value={report.id}>
+          {p.handoff?.packetHistory.find(packet=>packet.assignmentId===report.assignmentId)?.vendorLabel??"업체"} · 보고 {report.revision}차 · {formatVendorInstant(report.submittedAt,at)}
+        </option>)}
+      </select></label>
+      {historyReport?<section aria-label="이전 작업 보고 내용"><h3>이전 작업 보고 · {historyReport.revision}차</h3><p>{historyReport.workSummary}</p>
+        {historyReport.componentOrPartNote?<p>사용한 부품·자재: {historyReport.componentOrPartNote}</p>:null}
+        {historyReport.photoOmissionReason?<p>보고 사진 없음 · {OMISSION_LABELS[historyReport.photoOmissionReason]}</p>:historyReport.completionPhotoIds.map((id,index)=>{const photo=p.reportPhotos?.find(item=>item.photoId===id);return <figure key={id}>{photo?<Image unoptimized src={photo.url} width={640} height={480} style={{width:"100%",height:"auto"}} alt={`이전 업체 보고 사진 ${index+1}`}/>:<p>사진 불러오는 중 또는 연결 확인 필요</p>}</figure>;})}
+      </section>:null}
+    </details>:null}
   </section>;
 }
 
@@ -155,6 +178,7 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
   const [draft,setDraft]=useState(blankDraft),[preview,setPreview]=useState(false),[uncertain,setUncertain]=useState(false),[linkUnavailable,setLinkUnavailable]=useState(false),[immediateLink,setImmediateLink]=useState<string|null>(null);
   const [validationError,setValidationError]=useState(""),[pendingLink,setPendingLink]=useState<PendingLinkRequest|null>(null);
   const [photoPreviews,setPhotoPreviews]=useState<{photoId:string;url:string}[]>([]),[rescheduleReview,setRescheduleReview]=useState(false);
+  const [historyReportId,setHistoryReportId]=useState<string|null>(null);
   const [reportPhotos,setReportPhotos]=useState<{photoId:string;url:string}[]>([]);
   const [intent,setIntent]=useState<ManagerActionIntent|null>(null),[actionText,setActionText]=useState("");
   const action=currentActionIntent(intent,handoff,communicationVersion)?intent!.kind:null;
@@ -186,8 +210,9 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
       if(live)setPhotoPreviews(loaded);
     }catch{if(live)setPhotoPreviews([]);}})();return()=>{live=false;urls.forEach(url=>URL.revokeObjectURL(url));};
   },[client,ticket.ticketId,photoKey]);
-  // Only the current report's selected photos, through the Manager route that serves ATTACHED report photos alone.
-  const reportKey=handoff?.currentReport?.completionPhotoIds.join(",")??"";
+  // Current and explicitly selected historical report photos share the existing ATTACHED-only Manager authorization.
+  const historicalReport=handoff?.reportHistory.find(report=>report.id===historyReportId);
+  const reportKey=[...new Set([...(handoff?.currentReport?.completionPhotoIds??[]),...(historicalReport?.completionPhotoIds??[])])].join(",");
   useEffect(()=>{
     let live=true;const urls:string[]=[];
     void (async()=>{const loaded:{photoId:string;url:string}[]=[];try{
@@ -271,5 +296,5 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
     void mutate(action,()=>client.vendorHandoff.closeout(id,parsed.data));
   };
   return <VendorHandoffManagerView action={action} actionText={actionText} onAction={value=>{setIntent(value&&handoff?.assignment?{kind:value,assignmentId:handoff.assignment.id,assignmentVersion:handoff.assignment.version,reportId:handoff.currentReport?.id??null,communicationVersion,clientRequestId:crypto.randomUUID()}:null);setActionText("");setValidationError("");}} onActionText={setActionText} onSubmitAction={submitAction} communicationVersion={communicationVersion} ticket={ticket} handoff={handoff} loading={loading} busy={busy} error={error} validationError={validationError} notice={notice} uncertain={uncertain} pendingLink={pendingLink} linkUnavailable={linkUnavailable} immediateLink={immediateLink} preview={preview} draft={draft} photoPreviews={photoPreviews} onDraft={value=>{setDraft(value);setPreview(false);setValidationError("");}} onPreview={()=>setPreview(true)} onCreate={create} onPublish={publish} onIssue={()=>link(false)} onReissue={()=>link(true)} onReconcileLink={()=>{if(pendingLink)recoverLink(pendingLink);}} onRevoke={revoke} onRefresh={()=>void refresh()} onReview={()=>{setUncertain(false);setNotice("");}}
-    now={now()} rescheduleReview={rescheduleReview} onRescheduleReview={setRescheduleReview} onReschedule={reschedule} reportPhotos={reportPhotos}/>;
+    now={now()} rescheduleReview={rescheduleReview} onRescheduleReview={setRescheduleReview} onReschedule={reschedule} reportPhotos={reportPhotos} historyReportId={historyReportId} onHistoryReport={setHistoryReportId}/>;
 }

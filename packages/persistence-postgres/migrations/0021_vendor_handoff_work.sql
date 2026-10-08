@@ -210,10 +210,10 @@ CREATE FUNCTION vendor_handoff.record_blocker(p_session_digest bytea,p_csrf_dige
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE ctx jsonb;a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;note text;fp bytea;prior jsonb;result jsonb;
 BEGIN
-  note:=CASE WHEN p_note IS NULL THEN NULL ELSE btrim(p_note) END;
+  note:=vendor_handoff.trim_plain_text(p_note);
   IF p_request IS NULL OR p_expected_assignment IS NULL OR p_expected_assignment<1 OR p_expected_packet IS NULL
     OR p_code IS NULL OR p_code NOT IN ('PARTS_REQUIRED','ACCESS_BLOCKED','SCOPE_REVIEW_REQUIRED','FOLLOW_UP_VISIT_REQUIRED','OTHER')
-    OR (note IS NOT NULL AND char_length(note) NOT BETWEEN 1 AND 500)
+    OR (note IS NOT NULL AND NOT vendor_handoff.plain_text(note,500))
   THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
   ctx:=vendor_handoff.vendor_command(p_session_digest,p_csrf_digest);
   SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=(ctx->>'assignmentId')::uuid;
@@ -245,9 +245,9 @@ CREATE FUNCTION vendor_handoff.clear_blocker(p_session_digest bytea,p_csrf_diges
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE ctx jsonb;a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;b vendor_handoff.work_event;note text;fp bytea;prior jsonb;result jsonb;
 BEGIN
-  note:=CASE WHEN p_note IS NULL THEN NULL ELSE btrim(p_note) END;
+  note:=vendor_handoff.trim_plain_text(p_note);
   IF p_request IS NULL OR p_blocker IS NULL OR p_expected_assignment IS NULL OR p_expected_assignment<1 OR p_expected_packet IS NULL
-    OR (note IS NOT NULL AND char_length(note) NOT BETWEEN 1 AND 500)
+    OR (note IS NOT NULL AND NOT vendor_handoff.plain_text(note,500))
   THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
   ctx:=vendor_handoff.vendor_command(p_session_digest,p_csrf_digest);
   SELECT * INTO a FROM vendor_handoff.vendor_assignment WHERE id=(ctx->>'assignmentId')::uuid;

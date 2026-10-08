@@ -40,19 +40,6 @@ ALTER TABLE vendor_handoff.completion_report
   ADD CONSTRAINT report_exact_supersedes FOREIGN KEY(org_id,assignment_id,supersedes_report_id) REFERENCES vendor_handoff.completion_report(org_id,assignment_id,id),
   ADD CONSTRAINT report_correction_pair CHECK((correction_request_id IS NULL)=(supersedes_report_id IS NULL));
 
--- Match plainSingle/plainMulti: ECMAScript trim first, then the Unicode Cc/Cf boundary.
--- PostgreSQL text cannot contain U+0000. Supplementary ranges are intentional;
--- POSIX cntrl alone does not implement the API's Unicode property escapes.
-CREATE FUNCTION vendor_handoff.trim_plain_text(p_value text) RETURNS text
-LANGUAGE sql IMMUTABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
-  SELECT btrim(p_value,U&'\0009\000A\000B\000C\000D\0020\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000\FEFF')
-$$;
-CREATE FUNCTION vendor_handoff.plain_text(p_value text,p_max integer) RETURNS boolean
-LANGUAGE sql IMMUTABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
-  SELECT p_value IS NOT NULL AND char_length(value) BETWEEN 1 AND p_max
-    AND translate(value,E'\r\n','') !~ U&'[\0001-\001F\007F-\009F\00AD\0600-\0605\061C\06DD\070F\0890-\0891\08E2\180E\200B-\200F\202A-\202E\2060-\2064\2066-\206F\FEFF\FFF9-\FFFB\+0110BD\+0110CD\+013430-\+01343F\+01BCA0-\+01BCA3\+01D173-\+01D17A\+0E0001\+0E0020-\+0E007F]'
-  FROM (SELECT vendor_handoff.trim_plain_text(p_value) AS value) normalized
-$$;
 ALTER TABLE vendor_handoff.manager_disposition ADD CONSTRAINT correction_plain_reason
   CHECK(kind<>'REQUEST_CORRECTION' OR (reason=vendor_handoff.trim_plain_text(reason) AND vendor_handoff.plain_text(reason,500)));
 
@@ -103,6 +90,7 @@ LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE c jsonb;a vendor_handoff.vendor_assignment;r vendor_handoff.completion_report;fp bytea;prior jsonb;result jsonb;p uuid;
 BEGIN
   p_reason:=vendor_handoff.trim_plain_text(p_reason);
+  p_message:=vendor_handoff.trim_plain_text(p_message);
   IF p_request IS NULL OR p_expected IS NULL OR p_expected<1 OR p_report IS NULL OR p_kind IS NULL OR p_kind NOT IN ('REQUEST_CORRECTION','MORE_WORK','CLOSEOUT')
     OR (p_kind='REQUEST_CORRECTION' AND NOT vendor_handoff.plain_text(p_reason,500))
     OR (p_kind='CLOSEOUT' AND (p_communication IS NULL OR p_communication<0 OR NOT vendor_handoff.plain_text(p_message,2000)))
@@ -250,7 +238,12 @@ BEGIN
     'assignmentHistory',coalesce((SELECT jsonb_agg(jsonb_build_object('id',h.id,'vendorLabel',h.vendor_label,'endReason',h.end_reason,'declineReason',h.decline_reason,'operationalNote',h.end_note) ORDER BY h.created_at DESC,h.id DESC) FROM vendor_handoff.vendor_assignment h WHERE h.org_id=(c->>'orgId')::uuid AND h.ticket_id=p_ticket AND h.status='ENDED'),'[]'::jsonb),'assignment',CASE WHEN a.id IS NULL THEN NULL ELSE jsonb_build_object(
     'id',a.id,'status',a.status,'endReason',a.end_reason,'vendorLabel',a.vendor_label,'version',a.version) END,
     'currentPacket',CASE WHEN p.id IS NULL THEN NULL ELSE p.body END,'currentRound',sched->'currentRound','appointment',sched->'appointment','activeBlocker',vendor_handoff.blocker_projection(a.id),
-    'currentReport',vendor_handoff.current_report_dto(a.id),'reportHistory',vendor_handoff.report_history(a.id),'phase',coalesce(sched->>'phase',phase),'waitingOn',coalesce(sched->>'waitingOn','NONE'),
+    'currentReport',vendor_handoff.current_report_dto(a.id),'packetHistory',coalesce((SELECT jsonb_agg(past.body ORDER BY h.created_at,h.id,past.revision)
+      FROM vendor_handoff.vendor_assignment h JOIN vendor_handoff.work_packet_revision past ON past.org_id=h.org_id AND past.assignment_id=h.id
+      WHERE h.org_id=(c->>'orgId')::uuid AND h.ticket_id=p_ticket),'[]'::jsonb),
+    'reportHistory',coalesce((SELECT jsonb_agg(vendor_handoff.report_dto(r) ORDER BY h.created_at,h.id,r.revision)
+      FROM vendor_handoff.vendor_assignment h JOIN vendor_handoff.completion_report r ON r.org_id=h.org_id AND r.assignment_id=h.id
+      WHERE h.org_id=(c->>'orgId')::uuid AND h.ticket_id=p_ticket),'[]'::jsonb),'phase',coalesce(sched->>'phase',phase),'waitingOn',coalesce(sched->>'waitingOn','NONE'),
     'packetSource',jsonb_build_object('jobReference',p_ticket,'buildingName',s->'building'->>'displayName',
       'serviceAddress',nullif(btrim(s->'building'->>'serviceAddress'),''),'unitLabel',nullif(btrim(s->>'unitLabel'),''),
       'issueType',s->'ticket'->>'issueType','sharedDetails',vendor_handoff.packet_detail_candidates(s),
@@ -301,10 +294,10 @@ LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE ctx jsonb;a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;appt vendor_handoff.appointment;
   previous vendor_handoff.completion_report;r vendor_handoff.completion_report;summary text;note text;fp bytea;prior jsonb;result jsonb;
 BEGIN
-  summary:=CASE WHEN p_summary IS NULL THEN NULL ELSE btrim(p_summary) END;
-  note:=CASE WHEN p_note IS NULL THEN NULL ELSE btrim(p_note) END;
+  summary:=vendor_handoff.trim_plain_text(p_summary);
+  note:=vendor_handoff.trim_plain_text(p_note);
   IF p_request IS NULL OR p_expected_assignment IS NULL OR p_expected_assignment<1 OR p_expected_packet IS NULL OR p_appointment IS NULL
-    OR summary IS NULL OR char_length(summary) NOT BETWEEN 1 AND 1000 OR (note IS NOT NULL AND char_length(note) NOT BETWEEN 1 AND 500)
+    OR NOT vendor_handoff.plain_text(summary,1000) OR (note IS NOT NULL AND NOT vendor_handoff.plain_text(note,500))
     OR p_photo_ids IS NULL OR cardinality(p_photo_ids)>5 OR array_position(p_photo_ids,NULL) IS NOT NULL
     OR cardinality(p_photo_ids)<>(SELECT count(DISTINCT x) FROM unnest(p_photo_ids) x)
     OR (p_omission IS NOT NULL AND p_omission NOT IN ('NOT_APPLICABLE','SAFETY_OR_PRIVACY','TECHNICAL_FAILURE'))

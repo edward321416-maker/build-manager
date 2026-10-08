@@ -8,7 +8,7 @@ import { VendorHandoffManager } from "./vendor-handoff-manager";
 
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 const ticket={ticketId:"ticket",workStatus:"IN_PROGRESS",version:1,detail:{status:"OVERRIDDEN",decision:{type:"OVERRIDE",routeCode:"GENERAL_VENDOR"},repairPacket:{safetyEscalated:false}}} as unknown as CoreTicketDto;
-const preparing={ticketId:"ticket",assignment:{id:"assignment",status:"PREPARING",endReason:null,vendorLabel:"합성 업체",version:1},currentPacket:{id:"packet"},currentRound:null,appointment:null,activeBlocker:null,currentReport:null,reportHistory:[],phase:"IN_PROGRESS",waitingOn:"NONE",packetSource:{jobReference:"ticket",buildingName:"합성 건물",serviceAddress:"합성 주소",unitLabel:"합성 호실",issueType:"LEAK",sharedDetails:[],sourcePhotoIds:[],safetyNotice:[]}} as unknown as ManagerVendorHandoffDto;
+const preparing={ticketId:"ticket",assignment:{id:"assignment",status:"PREPARING",endReason:null,vendorLabel:"합성 업체",version:1},currentPacket:{id:"packet"},currentRound:null,appointment:null,activeBlocker:null,currentReport:null,packetHistory:[],reportHistory:[],phase:"IN_PROGRESS",waitingOn:"NONE",packetSource:{jobReference:"ticket",buildingName:"합성 건물",serviceAddress:"합성 주소",unitLabel:"합성 호실",issueType:"LEAK",sharedDetails:[],sourcePhotoIds:[],safetyNotice:[]}} as unknown as ManagerVendorHandoffDto;
 let root:Root|undefined,host:HTMLDivElement;
 afterEach(async()=>{if(root)await act(async()=>root?.unmount());root=undefined;host?.remove();});
 async function mount(issue:()=>Promise<unknown>,initial:ManagerVendorHandoffDto=preparing){

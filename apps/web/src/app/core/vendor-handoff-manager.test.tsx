@@ -12,7 +12,7 @@ import { ManagerMaintenanceFactEditor } from "./manager-maintenance-timeline";
 
 const ticket={ticketId:"ticket",workStatus:"IN_PROGRESS",version:1,detail:{status:"OVERRIDDEN",decision:{type:"OVERRIDE",routeCode:"GENERAL_VENDOR"},repairPacket:{safetyEscalated:false,recommendation:{routeCode:"GENERAL_VENDOR"}}}} as unknown as CoreTicketDto;
 const source={jobReference:"ticket",buildingName:"합성 건물",serviceAddress:"합성 정식 주소",unitLabel:"합성 호실",issueType:"LEAK" as const,sharedDetails:[{key:"leak.active",label:"현재 누수",value:"예",sourceType:"TENANT_REPORTED" as const},{key:"heatingType",label:"난방 방식",value:"개별",sourceType:"BUILDING_VERIFIED" as const}],sourcePhotoIds:["photo-1","photo-2"],safetyNotice:[]};
-const handoff:ManagerVendorHandoffDto={ticketId:"ticket",assignment:{id:"assignment",status:"PREPARING",endReason:null,vendorLabel:"합성 업체",version:1},currentPacket:null,currentRound:null,appointment:null,activeBlocker:null,currentReport:null,reportHistory:[],phase:"IN_PROGRESS",waitingOn:"NONE",packetSource:source};
+const handoff:ManagerVendorHandoffDto={ticketId:"ticket",assignment:{id:"assignment",status:"PREPARING",endReason:null,vendorLabel:"합성 업체",version:1},currentPacket:null,currentRound:null,appointment:null,activeBlocker:null,currentReport:null,packetHistory:[],reportHistory:[],phase:"IN_PROGRESS",waitingOn:"NONE",packetSource:source};
 const noop=()=>{};
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 let task10Root:Root|undefined,task10Host:HTMLDivElement|undefined;
@@ -144,4 +144,23 @@ it("T10-U03 mounted closed Manager handoff leaves Fact creation explicit and nev
   expect(create).toHaveBeenCalledTimes(1);expect(create.mock.calls[0]).toEqual([completed.ticketId,{clientRequestId:expect.any(String),actionKind:"INSPECTION",componentLabel:"T10_EXPLICIT_MANAGER_FACT"}]);
   expect(JSON.stringify(create.mock.calls)).not.toMatch(/T10_VENDOR_REPORT_PRIVATE|T10_VENDOR_PART_PRIVATE|T10_PRIVATE_PHOTO/);
   expect(onChanged).toHaveBeenCalledTimes(1);expect(correct).not.toHaveBeenCalled();
+});
+
+it("WC-M01 describes the access instruction disclosure warning at the mounted field",async()=>{
+  task10Host=document.createElement("div");document.body.append(task10Host);task10Root=createRoot(task10Host);
+  await act(async()=>task10Root!.render(<VendorHandoffManagerView {...base}/>));
+  const field=task10Host.querySelector('textarea[aria-label="출입 안내"]')!;
+  const description=task10Host.querySelector(`[id="${field.getAttribute("aria-describedby")}"]`);
+  expect(description?.textContent).toContain("개인 연락처");
+  expect(description?.textContent).toContain("반복 사용 가능한 출입 비밀번호");
+});
+
+it("WC-M03 exposes prior packet and report bodies as read-only history after current actions",()=>{
+  const current={...handoff,assignment:{...handoff.assignment!,status:"ACTIVE" as const},phase:"COMPLETION_REPORTED" as const,currentReport:{id:"current",assignmentId:"assignment",appointmentId:"visit",packetRevisionId:"packet",supersedesReportId:"old",componentOrPartNote:null,revision:2,workSummary:"현재 보고",submittedAt:"2026-10-06T03:00:00Z",completionPhotoIds:[],photoOmissionReason:"NOT_APPLICABLE"} as VendorCompletionReportDto};
+  const old={...current.currentReport,id:"old",revision:1,workSummary:"이전 보고 내용",componentOrPartNote:"이전 부품",completionPhotoIds:["historical-photo"],photoOmissionReason:null};
+  const historicalPacket={jobReference:"ticket",buildingName:"합성 건물",serviceAddress:"합성 주소",unitLabel:"합성 호실",issueType:"LEAK" as const,id:"old-packet",assignmentId:"prior-assignment",revision:1,publishedAt:"2026-10-06T01:00:00Z",vendorLabel:"이전 합성 업체",workSummary:"이전 전달 내용",sharedDetails:[],allowedPhotoIds:[],safetyNotice:[],accessPolicy:"TENANT_PRESENT_REQUIRED" as const,accessInstruction:"이전 안내"};
+  const html=view({handoff:{...current,packetHistory:[historicalPacket],reportHistory:[old,current.currentReport]} as ManagerVendorHandoffDto,historyReportId:"old",reportPhotos:[{photoId:"historical-photo",url:"blob:historical-evidence"}]});
+  for(const text of ["이전 전달 내용","이전 보고 내용","이전 부품","이전 안내","읽기 전용"])expect(html).toContain(text);
+  expect(html.indexOf("업체 보고 검토")).toBeLessThan(html.indexOf("읽기 전용"));
+  expect(html).toContain("blob:historical-evidence");
 });

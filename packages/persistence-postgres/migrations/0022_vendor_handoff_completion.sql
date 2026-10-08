@@ -318,10 +318,10 @@ LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE ctx jsonb;a vendor_handoff.vendor_assignment;p vendor_handoff.work_packet_revision;appt vendor_handoff.appointment;
   r vendor_handoff.completion_report;summary text;note text;fp bytea;prior jsonb;result jsonb;
 BEGIN
-  summary:=CASE WHEN p_summary IS NULL THEN NULL ELSE btrim(p_summary) END;
-  note:=CASE WHEN p_note IS NULL THEN NULL ELSE btrim(p_note) END;
+  summary:=vendor_handoff.trim_plain_text(p_summary);
+  note:=vendor_handoff.trim_plain_text(p_note);
   IF p_request IS NULL OR p_expected_assignment IS NULL OR p_expected_assignment<1 OR p_expected_packet IS NULL OR p_appointment IS NULL
-    OR summary IS NULL OR char_length(summary) NOT BETWEEN 1 AND 1000 OR (note IS NOT NULL AND char_length(note) NOT BETWEEN 1 AND 500)
+    OR NOT vendor_handoff.plain_text(summary,1000) OR (note IS NOT NULL AND NOT vendor_handoff.plain_text(note,500))
     OR p_photo_ids IS NULL OR cardinality(p_photo_ids)>5 OR array_position(p_photo_ids,NULL) IS NOT NULL
     OR cardinality(p_photo_ids)<>(SELECT count(DISTINCT x) FROM unnest(p_photo_ids) x)
     OR (p_omission IS NOT NULL AND p_omission NOT IN ('NOT_APPLICABLE','SAFETY_OR_PRIVACY','TECHNICAL_FAILURE'))

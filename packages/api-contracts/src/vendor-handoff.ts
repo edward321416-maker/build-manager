@@ -244,6 +244,7 @@ export const ManagerVendorHandoffDtoSchema=z.object({
   assignmentHistory:z.array(z.object({id:uuid,vendorLabel,endReason:VendorAssignmentEndReasonSchema.nullable(),declineReason:VendorDeclineReasonSchema.nullable(),operationalNote:shortNote.nullable()}).strict()).optional(),
   ticketId:uuid,assignment:ManagerAssignmentDtoSchema.nullable(),currentPacket:VendorWorkPacketRevisionDtoSchema.nullable(),
   currentRound:VendorSchedulingRoundDtoSchema.nullable(),appointment:VendorAppointmentDtoSchema.nullable(),activeBlocker:VendorBlockerDtoSchema.nullable(),
+  packetHistory:z.array(VendorWorkPacketRevisionDtoSchema),
   currentReport:VendorCompletionReportDtoSchema.nullable(),reportHistory:z.array(VendorCompletionReportDtoSchema),
   phase:VendorPhaseSchema,waitingOn:VendorWaitingOnSchema,
   // Optional for previously committed safe receipts. Missing preview candidates block new publication in the UI.

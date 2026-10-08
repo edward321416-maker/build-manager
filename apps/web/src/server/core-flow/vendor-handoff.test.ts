@@ -8,7 +8,7 @@ import { coreVendorHandoff } from "@build-manager/api-client";
 
 const ticketId=randomUUID(),assignmentId=randomUUID(),packetId=randomUUID(),orgId=randomUUID();
 const digest="b".repeat(64);
-const handoff={ticketId,assignment:{id:assignmentId,status:"PREPARING",endReason:null,vendorLabel:"합성 업체",version:1},currentPacket:null,currentRound:null,appointment:null,activeBlocker:null,currentReport:null,reportHistory:[],phase:"IN_PROGRESS",waitingOn:"NONE"};
+const handoff={ticketId,assignment:{id:assignmentId,status:"PREPARING",endReason:null,vendorLabel:"합성 업체",version:1},currentPacket:null,currentRound:null,appointment:null,activeBlocker:null,currentReport:null,packetHistory:[],reportHistory:[],phase:"IN_PROGRESS",waitingOn:"NONE"};
 const input={clientRequestId:randomUUID(),expectedAssignmentVersion:1,expectedPacketRevisionId:packetId};
 function setup(role="ORG_ADMIN"){
   const calls:{method:string;digest:string;id:string;input:unknown}[]=[];
