@@ -53,7 +53,7 @@ export function createCoreFlowPort(database: PostgresDatabase,orgId?:string): Co
             send:(id,input)=>call("SELECT core_flow.send_communication($1,$2,$3,$4,$5,$6) AS value",[hash,id,input.clientRequestId,input.expectedVersion,input.intent,input.body]),
             receipt:(id,key)=>call("SELECT core_flow.communication_receipt($1,$2,$3) AS value",[hash,id,key]),
             summaries:ids=>call("SELECT core_flow.communication_summaries($1,$2) AS value",[hash,ids]),
-            guardCompletion:async(id,version)=>{await client.query("SELECT core_flow.guard_communication_completion($1,$2,$3)",[hash,id,version??null]);},
+            guardCompletion:async(id,version)=>{await client.query("SELECT core_flow.guard_communication_completion($1,$2,$3)",[hash,id,version??null]);await client.query("SELECT vendor_handoff.guard_direct_completion($1,$2)",[hash,id]);},
           },
           manager:{
             list:()=>call("SELECT core_flow.list_manager_work($1) AS value",[hash]),

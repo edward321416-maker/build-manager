@@ -11,7 +11,8 @@
     "./b4": "./src/b4/index.ts",
     "./b5": "./src/b5/index.ts",
     "./core-flow": "./src/core-flow.ts",
-    "./core-onboarding": "./src/core-onboarding.ts"
+    "./core-onboarding": "./src/core-onboarding.ts",
+    "./vendor-handoff": "./src/vendor-handoff/index.ts"
   },
   "dependencies": {
     "pg": "8.23.0",

@@ -372,3 +372,85 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Events UNIT-FACT-T0 and UNIT-FACT-T1-T3 / T4-T6 / T7-20261004: native Google Sheets append/readback confirmed; existing rolling handoff updated in place and read back at3afd28e. Historical pending items above remain pending. Final publication/CI and the bounded review correction are separate later receipts. No new plugin installation, schema-cache download or private-data upload.
 
 - Events PR71-ACCEPTED-MERGE-20261004 and PR71-IMPLEMENTATION-MAIN-CI-20261004: repository closure publication is being prepared after verified merge/main CI. External rolling-handoff and Sheet sync remain to be written/read back after canonical closure publication; no private test data is included.
+
+- Event VENDOR-TASK2-FOUNDATION-VERIFIED-20261006-193656: sync_status=pending; local Task2 foundation checkpoint recorded at implementation 186c27f8. Google execution-log append/readback and schema-cache write were NOT_RUN for this local phase. Historical pending/synced events remain preserved.
+
+- Event VENDOR-TASK2-REVIEW-REMEDIATED-20261006-195242: sync_status=pending; Task2 independent-review remediation recorded at fc5d0f28. Google append/readback and schema-cache write NOT_RUN; prior bytes preserved.
+
+- Event VENDOR-TASK2-EVIDENCE-SAFETY-20261006-200013: sync_status=pending; Task2 evidence-safety correction recorded at4f214d79. Google append/readback and schema-cache write NOT_RUN; prior bytes preserved.
+
+- Event VENDOR-TASK3-MANAGER-VERIFIED-20261006-203145: sync_status=pending; local Task3 Manager checkpoint at bad90482. Google append/readback and schema-cache write NOT_RUN. Task9 revoke persistence and mounted browser/hosted final gates remain later work; prior pending/synced bytes preserved.
+
+- Event VENDOR-TASK3-REVIEW-REMEDIATED-20261006-205608: sync_status=pending; Task3 independent-review remediation recorded at acc43fa6. Google append/readback and schema-cache write NOT_RUN; prior bytes and initial rejected generation preserved. Controller rereview pending.
+
+- Event VENDOR-TASK3-UI-LOSS-SCOPE-REMEDIATED-20261006-210403: sync_status=pending; Task3 UI-only residual M1 checkpoint at b3d9c035. Google append/readback and schema-cache writes NOT_RUN. Prior evidence, source and metadata prefixes preserved; controller rereview pending.
+
+- Event VENDOR-TASK3-UI-ENDED-RECEIPT-REMEDIATED-20261006-211043: sync_status=pending; Task3 immediate-ended receipt UI checkpoint at3c7d3ad. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes/evidence preserved; controller final bounded Task3 rereview pending.
+
+- Event VENDOR-TASK3-FINAL-REVIEW-CLOSED-20261006-2130: sync_status=pending; Task3 final bounded rereview at 3c7d3ad closed B0/H0/M0/L0 and frozen audit 28/28 PASS. Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK4-VENDOR-SESSION-BOUNDARY-CLOSED-20261007-0100: sync_status=pending; Task4 Vendor session boundary closed at dc29c47 after independent review/remediation (final rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK5-SCHEDULING-CLOSED-20261007-0400: sync_status=pending; Task5 scheduling closed at bac8cda after independent review/remediation (rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK6-SCHEDULING-UI-CLOSED-20261007-1531: sync_status=pending; Task6 scheduling UI closed at afb8cb7 after independent review/remediation (final rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK7-VISIT-BLOCKER-CLOSED-20261007-2007: sync_status=pending; Task7 visit/blocker evidence closed at d80c9e4 after independent review/remediation (final rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK8-COMPLETION-CLOSED-20261007-2058: sync_status=pending; Task8 completion evidence closed at 085c090 after independent review/remediation (final rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK9-RESUME-20261008T033144Z: sync_status=pending; resumed local Task9 from Task8 closure 7bf2dcd. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and historical evidence preserved.
+
+- Event VENDOR-TASK9-RED-20261008: sync_status=pending; Task9 behavioral RED recorded. Google append/readback NOT_RUN; historical evidence preserved.
+
+- Event VENDOR-TASK9-INITIAL-REVIEW-20261008: sync_status=pending; initial Task9 candidate reviewed with findings requiring remediation. Google append/readback NOT_RUN. No Task9 closure or final readiness claim.
+
+- Event VENDOR-TASK9-MANAGER-CLOSED-20261008: sync_status=pending; Task9 Manager disposition and independent remediation closed at f8d5c01; final candidate gates remain. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK10-INITIAL-REVIEW-20261008: sync_status=pending; Task10 initial independent review requires one test-only LOW privacy assertion fix; Task10 not yet closed. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK10-OUTCOME-PRIVACY-CLOSED-20261008: sync_status=pending; Task10 outcome/privacy regressions closed after independent LOW assertion repair; Task11 and final candidate gates remain. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK11-RECOVERY-RED-20261008: sync_status=pending; Task11 recovery RED and bounded repair are in progress; separate-instance and owned-server restart acceptance are not yet closed. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK11-RED-CLASSIFICATION-CORRECTION-20261008: sync_status=pending; Task11 RED interpretation corrected append-only:4 behavioral failures plus1 invalid packet-change fixture, not5 valid behavioral failures. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK11-RECOVERY-RESTART-CLOSED-20261008: sync_status=pending; Task11 recovery/restart/security closed after independent mandatory role-denial test repair; Task12 browser and final candidate gates remain. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK12-BROWSER-GENERATION06-20261008: sync_status=pending; Task12 browser implementation in progress; initial and subsequent fixture failures retained, with no completed-candidate claim. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK12-PHOTO-DIALOG-RED-20261008: sync_status=pending; Task12 actual photo-dialog keyboard boundary failed; minimal shared-dialog focus-cycle repair and independent review pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK12-SOURCE-INDEPENDENT-REVIEW-20261008: sync_status=pending; Task12 source implemented with current scoped browser evidence; independent task review and final complete candidate verification pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK12-BROWSER-INDEPENDENT-CLOSED-20261008: sync_status=pending; Tasks9–12 locally closed after independent reviews; receipt-inclusive fixed candidate must complete all local/hosted/whole-candidate gates. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE01-FIRST-VERIFY-FAILURE-20261008: sync_status=pending; Candidate01 failed before publication; strict accepted-successor inventory reconciliation and new exact-head full validation required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE01-REMEDIATION-CLOSED-20261008: sync_status=pending; Candidate01 remediation independently closed; complete new candidate local/hosted gates and whole-candidate review remain required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE02-SHARED-TIMEOUT-20261008: sync_status=pending; Candidate02 full verification failed before later gates/publication. B3/B4 graph performance requires bounded diagnosis/remediation; final hosted/whole-candidate gates remain pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE02-REMEDIATION-CLOSED-20261008: sync_status=pending; Candidate02 graph remediation independently closed; complete new local/hosted gates and whole-candidate review remain required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE03-HOSTED-FIRST-FAILURE-20261008: sync_status=pending; Exact local candidate passed and DraftPR75 updated; first fresh hosted run FAILED. Hosted remediation/newfixedcandidate/revalidation and whole-candidate review required; no Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE03-MOBILE-FIRST-REVALIDATION-FAILURE-20261008: sync_status=pending; Core readiness source independently reviewed; mobile positiveDoctor/inventory and failedJest remain separate generations. Mobile diagnostics/remediation, scopedreview, fullnewcandidate/hosted and whole-review still required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE03-HOSTED-REMEDIATION-CLOSURE-20261008: sync_status=pending; Hosted remediation independently closed; next exact clean candidate still requires all local gates, fresh hosted execution and whole-candidate review. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE04-CORE-FIRST-FAILURE-20261008: sync_status=pending; Candidate04 FAILED Core browser after three local passes; diagnose and repair accepted regression evidence before new complete local/hosted gates and whole-candidate review. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE04-CORE-REMEDIATION-CLOSURE-20261008: sync_status=pending; Scoped Core fixture review closed; complete new candidate local/hosted gates and whole-candidate review remain pending. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE05-BROWSER-FIRST-FAILURE-20261008: sync_status=pending; Candidate05 FAILED Vendor B12 locator ambiguity after seven full local gates passed. Diagnose and minimally repair, independently review, then new exact complete local/hosted generation and whole-candidate review. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE05-BROWSER-REMEDIATION-CLOSURE-20261008: sync_status=pending; Scoped Vendor B12 review closed; new complete candidate local/hosted gates and whole-candidate review remain pending. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE06-HOSTED-FIRST-FAILURE-20261008: sync_status=pending; Candidate06 full local PASS and fresh hosted responsive failure retained distinctly; independent repair/new candidate pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE06-HOSTED-REMEDIATION-CLOSURE-20261008: sync_status=pending; Candidate06 hosted overflow repair independently closed; new complete exact-candidate gates pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE07-WHOLE-REVIEW-FINDINGS-20261008: sync_status=pending; Whole-candidate fourMedium findings require implementation, same-reviewer closure and a new complete local/hosted generation. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-WHOLE-REVIEW-REMEDIATION-SOURCES-20261009: sync_status=pending; Whole-review remediation sources and WC-L01 committed; independent closure deferred to the final whole-candidate review by operator decision; new complete local/hosted generation pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.

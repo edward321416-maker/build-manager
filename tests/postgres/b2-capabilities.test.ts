@@ -120,7 +120,11 @@ it("AC15 exactB2CapabilityCatalog", async () => {
     JOIN pg_roles granted ON granted.oid=am.roleid JOIN pg_roles member ON member.oid=am.member
     WHERE (granted.rolname LIKE 'bm_%' OR member.rolname LIKE 'bm_%')
       AND granted.rolname NOT IN ('bm_b4_assignment_owner','bm_b5_membership_owner','bm_b5_effective_admin_probe_owner','bm_core_flow_owner','bm_core_access_owner','bm_core_onboarding_owner') ORDER BY granted.rolname,member.rolname`)).rows;
-  expect(memberships).toEqual([{ granted: "bm_b1_capability_owner", member: owner.rolname,
+  // Approved 0019 successor adds exactly this isolated owner membership; retain the original B2 assertion.
+  expect(memberships.filter(r => r.granted === "bm_vendor_handoff_owner")).toEqual([
+    { granted: "bm_vendor_handoff_owner", member: "bm_pf02a_migrator", admin_option: false, inherit_option: false, set_option: true },
+  ]);
+  expect(memberships.filter(r => r.granted !== "bm_vendor_handoff_owner")).toEqual([{ granted: "bm_b1_capability_owner", member: owner.rolname,
     admin_option: false, inherit_option: false, set_option: true }]);
   // Keep this frozen regression scoped to the B1/B2 policy inventory. B3 policies
   // are asserted independently in b3-capabilities.test.ts; B4 additions in b4-capabilities.test.ts.

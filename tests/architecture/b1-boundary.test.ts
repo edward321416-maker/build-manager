@@ -10,7 +10,12 @@ afterEach(async()=>{for(const root of roots.splice(0))await rm(root,{recursive:t
 async function fixture(files:Record<string,string>){const root=await mkdtemp(join(tmpdir(),'b1-graph-'));roots.push(root);for(const [path,body] of Object.entries(files)){await mkdir(join(root,path,'..'),{recursive:true});await writeFile(join(root,path),body);}return root;}
 it('eleven actual v2 handlers have literal runtime and dynamic and all are discovered',async()=>{
  async function inventory(path:string):Promise<string[]>{let rows;try{rows=await readdir(path,{withFileTypes:true});}catch{return [];};return (await Promise.all(rows.map(async x=>x.isDirectory()?inventory(join(path,x.name)):x.name==='route.ts'?[join(path,x.name)]:[]))).flat();}
- expect((await inventory(join(process.cwd(),'apps/web/src/app/api/v2'))).length).toBe(11);
+ const discovered=await inventory(join(process.cwd(),'apps/web/src/app/api/v2'));
+ // Vendor Secure Handoff Task4 adds exactly one standalone non-B1 route; the original eleven stay pinned.
+ const vendorRoute=join(process.cwd(),'apps/web/src/app/api/v2/vendor/[...path]/route.ts');
+ expect(discovered).toContain(vendorRoute);
+ const vendorBody=await readFile(vendorRoute,'utf8');expect(vendorBody).toMatch(/export const runtime = "nodejs";/);expect(vendorBody).toMatch(/export const dynamic = "force-dynamic";/);
+ expect(discovered.filter(x=>x!==vendorRoute).length).toBe(11);
  for(const path of routes){const body=await readFile(path,'utf8');expect(body).toMatch(/export const runtime = "nodejs";/);expect(body).toMatch(/export const dynamic = "force-dynamic";/);}
  const missingRuntime=await fixture(Object.fromEntries(await Promise.all(routes.map(async p=>[p,(await readFile(p,'utf8')).replace('export const runtime = "nodejs";','')]))));
  expect((await scanRouteRuntimes(missingRuntime)).filter(x=>x.rule==='missing-node-runtime').map(x=>x.file).sort()).toEqual([...routes].sort());
@@ -34,6 +39,45 @@ it.each([
  expect((await scanB1ProductionGraph(root,['apps/web/src/server/b1/http.ts'])).length).toBeGreaterThan(0);
 });
 it('R12 actual production graph excludes test/demo/SQLite identity fallbacks',async()=>{expect(await scanB1ProductionGraph(process.cwd())).toEqual([]);});
+it('R12 successive scans observe transitive source and conditional workspace export mutations',async()=>{
+ const entry='apps/web/src/server/b1/http.ts',manifestPath='packages/graph-fresh/package.json';
+ const manifest={name:'@build-manager/graph-fresh',exports:{'./sub':{import:'./safe.ts',default:'./unsafe.ts'}}};
+ const root=await fixture({[entry]:'import "@build-manager/graph-fresh/sub";',[manifestPath]:JSON.stringify(manifest),
+  'packages/graph-fresh/safe.ts':'export * from "./nested";','packages/graph-fresh/nested.ts':'export {};',
+  'packages/graph-fresh/unsafe.ts':'export * from "../../scripts/b1-local-fixture.mjs";','scripts/b1-local-fixture.mjs':'export {};'});
+ expect(await scanB1ProductionGraph(root,[entry])).toEqual([]);
+ await writeFile(join(root,'packages/graph-fresh/nested.ts'),'export * from "../../scripts/b1-local-fixture.mjs";');
+ expect(await scanB1ProductionGraph(root,[entry])).toContainEqual({file:'packages/graph-fresh/nested.ts',specifier:'../../scripts/b1-local-fixture.mjs'});
+ await writeFile(join(root,'packages/graph-fresh/nested.ts'),'export {};');
+ await writeFile(join(root,manifestPath),JSON.stringify({...manifest,exports:{'./sub':{import:'./unsafe.ts',default:'./safe.ts'}}}));
+ expect(await resolveLocal(root,entry,'@build-manager/graph-fresh/sub')).toBe('packages/graph-fresh/unsafe.ts');
+ expect(await scanB1ProductionGraph(root,[entry])).toContainEqual({file:'packages/graph-fresh/unsafe.ts',specifier:'../../scripts/b1-local-fixture.mjs'});
+ await writeFile(join(root,manifestPath),JSON.stringify({...manifest,exports:{'./sub':'./missing.ts'}}));
+ expect(await scanB1ProductionGraph(root,[entry])).toContainEqual({file:entry,specifier:'@build-manager/graph-fresh/sub'});
+ await writeFile(join(root,manifestPath),JSON.stringify(manifest));
+ expect(await resolveLocal(root,entry,'@build-manager/graph-fresh/sub')).toBe('packages/graph-fresh/safe.ts');
+ expect(await scanB1ProductionGraph(root,[entry])).toEqual([]);
+});
+it('R12 scans preserve last usable duplicate workspace export and isolate different roots',async()=>{
+ const entry='apps/web/src/server/b1/http.ts',name='@build-manager/graph-duplicate';
+ const root=await fixture({[entry]:`import "${name}";`,
+  'packages/duplicate/package.json':JSON.stringify({name,exports:'./unsafe.ts'}),
+  'packages/duplicate/unsafe.ts':'export * from "../../scripts/b1-local-fixture.mjs";',
+  'apps/duplicate/package.json':JSON.stringify({name,exports:{'.':{import:'./safe.ts',default:'./missing.ts'}}}),
+  'apps/duplicate/safe.ts':'export {};','scripts/b1-local-fixture.mjs':'export {};'});
+ expect(await scanB1ProductionGraph(root,[entry])).toEqual([]);
+ await writeFile(join(root,'apps/duplicate/package.json'),JSON.stringify({name,exports:{'./other':'./safe.ts'}}));
+ expect(await scanB1ProductionGraph(root,[entry])).toContainEqual({file:'packages/duplicate/unsafe.ts',specifier:'../../scripts/b1-local-fixture.mjs'});
+ const other=await fixture({[entry]:`import "${name}";`,'packages/duplicate/package.json':JSON.stringify({name,exports:'./safe.ts'}),'packages/duplicate/safe.ts':'export {};'});
+ expect(await scanB1ProductionGraph(other,[entry])).toEqual([]);
+ expect(await scanB1ProductionGraph(root,[entry])).toContainEqual({file:'packages/duplicate/unsafe.ts',specifier:'../../scripts/b1-local-fixture.mjs'});
+});
+it('R12 roots without workspace manifests retain external handling and deny missing workspace packages',async()=>{
+ const entry='apps/web/src/server/b1/http.ts',root=await fixture({[entry]:'import "node:crypto";'});
+ expect(await scanB1ProductionGraph(root,[entry])).toEqual([]);
+ await writeFile(join(root,entry),'import "@build-manager/missing";');
+ expect(await scanB1ProductionGraph(root,[entry])).toContainEqual({file:entry,specifier:'@build-manager/missing'});
+});
 it.each(['tests/postgres/helpers/b2-fixture.ts','apps/web/tests/b1-e2e/b2-fixture.ts'])('B2 fixtures cannot enter production graph: %s',async target=>{
  const fromSrc=target.startsWith('tests/')?'../../../'+target:'../tests/b1-e2e/b2-fixture.ts';
  const fromPackage=target.startsWith('tests/')?'../../'+target:'../../apps/web/tests/b1-e2e/b2-fixture.ts';

@@ -1,4 +1,9 @@
 import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
+import { Stack } from "expo-router";
+
+// Resolve the real root layout's lazy Stack during collection without rendering
+// a route. Navigation and its assertions retain the original 5s test deadline.
+void Stack;
 
 /**
  * Navigation is asserted against the real route tree under src/app, so a route
