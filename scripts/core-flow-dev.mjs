@@ -34,7 +34,7 @@ async function prepare(){
   if(state.version!==1||state.admin.host!=="127.0.0.1"||state.admin.database!==database||inspected.Config.Labels["build-manager.synthetic"]!=="core-flow-rc1")throw new Error("PRIVATE_STATE_MISMATCH");
   if(!inspected.State.Running)docker("start",container);
   let ready=false;
-  for(let i=0;i<40;i++){try{docker("exec",container,"pg_isready","-U","postgres","-d",database);ready=true;break;}catch{await delay(250);}}
+  for(let i=0;i<40;i++){try{docker("exec",container,"pg_isready","-h","127.0.0.1","-U","postgres","-d",database);ready=true;break;}catch{await delay(250);}}
   if(!ready)throw new Error("LOCAL_POSTGRES_NOT_READY");
   const admin=new Client(state.admin);await admin.connect();
   let login;
