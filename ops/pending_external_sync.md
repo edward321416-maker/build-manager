@@ -428,3 +428,7 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-CANDIDATE01-FIRST-VERIFY-FAILURE-20261008: sync_status=pending; Candidate01 failed before publication; strict accepted-successor inventory reconciliation and new exact-head full validation required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event VENDOR-CANDIDATE01-REMEDIATION-CLOSED-20261008: sync_status=pending; Candidate01 remediation independently closed; complete new candidate local/hosted gates and whole-candidate review remain required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE02-SHARED-TIMEOUT-20261008: sync_status=pending; Candidate02 full verification failed before later gates/publication. B3/B4 graph performance requires bounded diagnosis/remediation; final hosted/whole-candidate gates remain pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE02-REMEDIATION-CLOSED-20261008: sync_status=pending; Candidate02 graph remediation independently closed; complete new local/hosted gates and whole-candidate review remain required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
