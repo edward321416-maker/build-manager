@@ -406,3 +406,7 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-TASK9-INITIAL-REVIEW-20261008: sync_status=pending; initial Task9 candidate reviewed with findings requiring remediation. Google append/readback NOT_RUN. No Task9 closure or final readiness claim.
 
 - Event VENDOR-TASK9-MANAGER-CLOSED-20261008: sync_status=pending; Task9 Manager disposition and independent remediation closed at f8d5c01; final candidate gates remain. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK10-INITIAL-REVIEW-20261008: sync_status=pending; Task10 initial independent review requires one test-only LOW privacy assertion fix; Task10 not yet closed. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK10-OUTCOME-PRIVACY-CLOSED-20261008: sync_status=pending; Task10 outcome/privacy regressions closed after independent LOW assertion repair; Task11 and final candidate gates remain. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
