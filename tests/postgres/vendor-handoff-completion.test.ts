@@ -1,5 +1,6 @@
 import { afterAll,beforeAll,describe,expect,it } from "vitest";
 import { createHash,randomBytes,randomUUID } from "node:crypto";
+import { ManagerVendorHandoffDtoSchema, VendorReassignCommandSchema, VendorRequestCorrectionCommandSchema } from "@build-manager/api-contracts";
 import type { SanitizedVendorPhoto } from "@build-manager/application";
 import { createVendorHandoffTenantPort } from "@build-manager/persistence-postgres/vendor-handoff";
 import { createVendorHandoffFixture } from "./helpers/vendor-handoff-fixture";
@@ -352,6 +353,49 @@ async function assertEnded(c:Ctx,reason:string){
   expect(await code(job(c))).toBe("UNAUTHENTICATED");
 }
 
+describe("Task9 review text contract",()=>{
+  it("T9-M01 matches the API trim/control boundary across every Cc/Cf code point and ECMAScript whitespace",async()=>{
+    const values=new Set<string>(["valid", "one\r\ntwo", "x".repeat(501)]);
+    for(let cp=1;cp<=0x10ffff;cp++){
+      const ch=String.fromCodePoint(cp);
+      if(/[\p{Cc}\p{Cf}]/u.test(ch)){values.add(`a${ch}b`);values.add(ch);}
+      if(ch.trim()===""){values.add(ch);values.add(`${ch}valid${ch}`);}
+    }
+    const samples=[...values];
+    const rows=(await f.p.admin.query("SELECT value,vendor_handoff.plain_text(value,500) AS accepted FROM unnest($1::text[]) value",[samples])).rows;
+    const input={clientRequestId:randomUUID(),expectedAssignmentVersion:1,expectedCompletionReportId:randomUUID()};
+    expect(rows.filter(row=>row.accepted!==VendorRequestCorrectionCommandSchema.safeParse({...input,reason:row.value}).success).map(row=>[...row.value].map(ch=>ch.codePointAt(0)!.toString(16)).join("-"))).toEqual([]);
+  });
+  it.each(["\u{110bd}","\u{e0001}","\u{e0020}","\u00a0","\n\r","\u2028\u2029"])("T9-M01 invalid label/reason %# leaves no assignment, disposition or receipt and parseable DTOs",async bad=>{
+    const c=await accepted(),input={...await endInput(c),vendorLabel:bad};
+    expect(VendorReassignCommandSchema.safeParse(input).success).toBe(false);
+    const before=await handoff(c);
+    expect(await code(f.manager.reassign(managerDigest(),c.assignmentId,input))).toBe("INVALID_INPUT");
+    expect(await handoff(c)).toEqual(before);
+    expect(ManagerVendorHandoffDtoSchema.safeParse(await handoff(c)).success).toBe(true);
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.vendor_assignment WHERE ticket_id=$1",[c.ticketId])).toBe(1);
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[input.clientRequestId])).toBe(0);
+    const reported=await reportedVisit(),reason={...await dispositionInput(reported),reason:bad};
+    expect(await code(f.manager.requestCorrection(managerDigest(),reported.assignmentId,reason))).toBe("INVALID_INPUT");
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.manager_disposition WHERE assignment_id=$1",[reported.assignmentId])).toBe(0);
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[reason.clientRequestId])).toBe(0);
+    expect((await handoff(reported)).assignment!.version).toBe(reason.expectedAssignmentVersion);
+    expect(ManagerVendorHandoffDtoSchema.safeParse(await handoff(reported)).success).toBe(true);
+  });
+  it("T9-M01 normalizes Unicode edge whitespace, retains legitimate multiline reason and safely replays normalized intent",async()=>{
+    const c=await accepted(),input={...await endInput(c),vendorLabel:"\u00a0\n새 업체\ufeff"};
+    const result=await f.manager.reassign(managerDigest(),c.assignmentId,input);
+    expect(result.assignment!.vendorLabel).toBe("새 업체");
+    expect(await f.manager.reassign(managerDigest(),c.assignmentId,{...input,vendorLabel:"새 업체"})).toEqual(result);
+    expect(ManagerVendorHandoffDtoSchema.safeParse(result).success).toBe(true);
+    const r=await reportedVisit(),reason={...await dispositionInput(r),reason:"\u00a0\n첫 줄\r\n둘째 줄\u3000"};
+    const first=await f.manager.requestCorrection(managerDigest(),r.assignmentId,reason);
+    expect(first.correctionRequest!.reason).toBe("첫 줄\r\n둘째 줄");
+    expect(await f.manager.requestCorrection(managerDigest(),r.assignmentId,{...reason,reason:"첫 줄\r\n둘째 줄"})).toEqual(first);
+    expect(ManagerVendorHandoffDtoSchema.safeParse(first).success).toBe(true);
+  });
+});
+
 describe("Task9 correction identity and one-way consumption",()=>{
   it("T9-C01 concurrent requests leave exactly one durable unresolved correction and exact/changed replays reconcile",async()=>{
     const c=await reportedVisit(),input={...await dispositionInput(c),reason:"설명을 수정해 주세요"};
@@ -453,18 +497,29 @@ describe("Task9 closeout and ordinary Core completion",()=>{
     }finally{await f.p.admin.query("ROLLBACK");await pending;}
   });
   it("T9-K03 Manager membership revoked while waiting prevents closeout",async()=>{
-    const c=await reportedVisit(),input=await closeoutInput(c);await lockTicket(c);let pending:Promise<string|undefined>|undefined;let membership:string|undefined;
+    const c=await reportedVisit(),input=await closeoutInput(c),events=await count("SELECT count(*)::int n FROM core_flow.ticket_event WHERE ticket_id=$1",[c.ticketId]);await lockTicket(c);let pending:Promise<string|undefined>|undefined;let membership:string|undefined;
     try{pending=code(f.manager.closeout(managerDigest(),c.assignmentId,input));await waitForTicketWait();
       membership=f.data.accounts.manager.membershipId;
       expect(membership).toBeDefined();await f.p.admin.query("UPDATE app.organization_membership SET status='ENDED',ended_at=clock_timestamp() WHERE id=$1",[membership]);await f.p.admin.query("COMMIT");
-      expect(await pending).not.toBe("success");expect(await ticketStatus(c.ticketId)).toBe("IN_PROGRESS");
+      expect(await pending).toBe("FORBIDDEN");expect(await ticketStatus(c.ticketId)).toBe("IN_PROGRESS");
+      expect(await count("SELECT count(*)::int n FROM vendor_handoff.manager_disposition WHERE assignment_id=$1",[c.assignmentId])).toBe(0);
+      expect(await count("SELECT count(*)::int n FROM core_flow.ticket_event WHERE ticket_id=$1",[c.ticketId])).toBe(events);
+      expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[input.clientRequestId])).toBe(0);
     }finally{await f.p.admin.query("ROLLBACK");await pending;if(membership)await f.p.admin.query("UPDATE app.organization_membership SET status='ACTIVE',ended_at=NULL WHERE id=$1",[membership]);}
   });
   it("T9-K04 a changed current report while closeout waits refuses the stale report without partial completion",async()=>{
-    const c=await reportedVisit();await correction(c);const d=await correctionRow(c),input=await closeoutInput(c),r=await reportInput(c,{expectedCorrectionRequestId:d.id,supersedesReportId:c.initialReport.id,completionPhotoIds:[c.initialPhoto.photoId]});await lockTicket(c);let pending:Promise<string|undefined>|undefined;
-    try{pending=code(f.manager.closeout(managerDigest(),c.assignmentId,input));await waitForTicketWait();await f.p.admin.query("SET LOCAL ROLE bm_vendor_web");
-      await f.p.admin.query("SELECT vendor_handoff.submit_completion_report($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",[Buffer.from(c.session,"hex"),Buffer.from(c.csrf,"hex"),r.clientRequestId,r.expectedAssignmentVersion,c.packetId,c.appointmentId,d.id,c.initialReport.id,r.workSummary,null,r.completionPhotoIds,null]);
+    const c=await reportedVisit(),input=await closeoutInput(c),correctionInput={...await dispositionInput(c),reason:"합성 수정"};
+    expect((await handoff(c)).correctionRequest).toBeNull();await lockTicket(c);let pending:Promise<string|undefined>|undefined;
+    try{pending=code(f.manager.closeout(managerDigest(),c.assignmentId,input));await waitForTicketWait();
+      await f.p.admin.query("SET LOCAL ROLE bm_b1_web");await f.p.admin.query("SELECT core_flow.session($1)",[Buffer.from(managerDigest(),"hex")]);
+      await f.p.admin.query("SELECT vendor_handoff.manager_request_correction($1,$2,$3,$4,$5,$6)",[Buffer.from(managerDigest(),"hex"),c.assignmentId,correctionInput.clientRequestId,correctionInput.expectedAssignmentVersion,c.initialReport.id,correctionInput.reason]);
+      await f.p.admin.query("RESET ROLE");const d=await correctionRow(c);
+      await f.p.admin.query("SET LOCAL ROLE bm_vendor_web");
+      await f.p.admin.query("SELECT vendor_handoff.submit_completion_report($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",[Buffer.from(c.session,"hex"),Buffer.from(c.csrf,"hex"),randomUUID(),input.expectedAssignmentVersion+1,c.packetId,c.appointmentId,d.id,c.initialReport.id,"수정한 합성 설명",null,[c.initialPhoto.photoId],null]);
       await f.p.admin.query("COMMIT");expect(await pending).toBe("STATE_CONFLICT");expect(await ticketStatus(c.ticketId)).toBe("IN_PROGRESS");expect((await handoff(c)).currentReport!.revision).toBe(2);
+      expect(await count("SELECT count(*)::int n FROM vendor_handoff.manager_disposition WHERE assignment_id=$1 AND kind='CLOSEOUT'",[c.assignmentId])).toBe(0);
+      expect(await count("SELECT count(*)::int n FROM core_flow.ticket_event WHERE ticket_id=$1 AND message=$2",[c.ticketId,input.message])).toBe(0);
+      expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[input.clientRequestId])).toBe(0);
     }finally{await f.p.admin.query("ROLLBACK");await pending;}
   });
   it("T9-D01 active assignment blocks the actual application completion path without a partial ticket event",async()=>{
@@ -475,6 +530,22 @@ describe("Task9 closeout and ordinary Core completion",()=>{
     const c=await accepted();await f.manager.revoke(managerDigest(),c.assignmentId,await endInput(c));
     const ticketId=kind==="ended"?c.ticketId:(await f.ticket()).ticket.id;
     if(kind==="none")await createCoreFlowPort(f.managerDatabase).run(managerDigest(),s=>performCoreAction(s,{type:"HANDLING",ticketId,status:"IN_PROGRESS",message:"합성 시작"},{now:()=>new Date().toISOString()},{next:()=>randomUUID()}));
+    expect((await directComplete(ticketId)).workStatus).toBe("COMPLETED");
+  });
+  it.each(["DECLINED","SUPERSEDED"] as const)("T9-D02 %s history without a current assignment permits direct Manager completion",async reason=>{
+    let ticketId:string;
+    if(reason==="DECLINED"){
+      const p=await f.published(),assignmentId=p.handoff.assignment!.id,packetId=p.handoff.currentPacket!.id;
+      const link=await f.manager.issueLink(managerDigest(),assignmentId,{clientRequestId:randomUUID(),expectedAssignmentVersion:2,expectedPacketRevisionId:packetId});
+      const session=hash("session"),csrf=hash("csrf");await f.external.redeem(sha(link.link!.split("#")[1]),randomUUID(),session,csrf);
+      await f.externalWith(csrf).decline(session,{clientRequestId:randomUUID(),expectedAssignmentVersion:3,expectedPacketRevisionId:packetId,reason:"NO_CAPACITY",operationalNote:null});ticketId=p.t.ticket.id;
+    }else{
+      const c=await accepted();ticketId=c.ticketId;
+      const next=await f.manager.reassign(managerDigest(),c.assignmentId,{...await endInput(c),vendorLabel:"합성 대체 업체"});
+      await f.manager.revoke(managerDigest(),next.assignment!.id,{clientRequestId:randomUUID(),expectedAssignmentVersion:next.assignment!.version});
+    }
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.vendor_assignment WHERE ticket_id=$1 AND end_reason=$2",[ticketId,reason])).toBe(1);
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.vendor_assignment WHERE ticket_id=$1 AND status<>'ENDED'",[ticketId])).toBe(0);
     expect((await directComplete(ticketId)).workStatus).toBe("COMPLETED");
   });
   it.each(["direct-first","assignment-first"])("T9-D03 %s lock race leaves exactly one action and no partial state",async order=>{
@@ -498,6 +569,17 @@ describe("Task9 Manager end commands and source-ticket races",()=>{
     expect((await f.p.admin.query("SELECT status FROM vendor_handoff.appointment WHERE id=$1",[appt.id])).rows[0].status).toBe(kind==="revoke"?"CANCELLED":"SUPERSEDED");
     const replay=kind==="revoke"?await f.manager.revoke(managerDigest(),c.assignmentId,input):await f.manager.reassign(managerDigest(),c.assignmentId,input);expect(replay.assignment?.id).toBe(first.assignment?.id);
     if(kind==="reassign")expect(first.assignment).toMatchObject({status:"PREPARING",vendorLabel:"합성 새 업체"});
+  });
+  it("T9-E01 concurrent Reassign commits one current replacement and no losing receipt (AC04)",async()=>{
+    const c=await accepted(),input={...await endInput(c),vendorLabel:"합성 새 업체"},other={...input,clientRequestId:randomUUID()};
+    const results=await Promise.all([code(f.manager.reassign(managerDigest(),c.assignmentId,input)),code(f.manager.reassign(managerDigest(),c.assignmentId,other))]);
+    expect([...results].sort()).toEqual(["STATE_CONFLICT","success"]);
+    const winner=results[0]==="success"?input:other,loser=results[0]==="success"?other:input;
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.vendor_assignment WHERE ticket_id=$1 AND status<>'ENDED'",[c.ticketId])).toBe(1);
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.vendor_assignment WHERE ticket_id=$1",[c.ticketId])).toBe(2);
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[winner.clientRequestId])).toBe(1);
+    expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[loser.clientRequestId])).toBe(0);
+    expect((await handoff(c)).assignment!.status).toBe("PREPARING");
   });
   it("T9-E02 Reassign preserves OCCURRED/work/report history after MORE_WORK, superseding only OPEN scheduling",async()=>{
     const c=await reportedVisit();await f.manager.requireFollowUp(managerDigest(),c.assignmentId,await dispositionInput(c));const next=await f.manager.reassign(managerDigest(),c.assignmentId,{...await endInput(c),vendorLabel:"합성 새 업체"});
@@ -545,7 +627,7 @@ describe("Task9 Manager end commands and source-ticket races",()=>{
     try{pending=code(c.vendor.startVisit(c.session,a.id,{clientRequestId:randomUUID(),expectedAssignmentVersion:j.assignmentVersion,expectedRoundVersion:j.currentRound!.version,expectedPacketRevisionId:c.packetId}));await waitForTicketWait();await lockedManagerEnd(c,"revoke",end);await f.p.admin.query("COMMIT");expect(await pending).toBe("UNAUTHENTICATED");expect(await count("SELECT count(*)::int n FROM vendor_handoff.work_event WHERE assignment_id=$1",[c.assignmentId])).toBe(0);
     }finally{await f.p.admin.query("ROLLBACK");await pending;}
   });
-  it.each(["reassign","closeout"] as const)("T9-R07 report vs %s cannot become current after assignment end",async kind=>{
+  it.each(["reassign","closeout"] as const)("T9-R07 %s ends session authority before a waiting report command resumes",async kind=>{
     const c=await visited();if(kind==="closeout")await report(c,{photoOmissionReason:"NOT_APPLICABLE"});const input=await reportInput(c,{photoOmissionReason:"NOT_APPLICABLE"}),end=await endInput(c),close=kind==="closeout"?await closeoutInput(c):null;await lockTicket(c);let pending:Promise<string|undefined>|undefined;
     try{pending=code(c.vendor.submitCompletionReport(c.session,input as never));await waitForTicketWait();if(kind==="reassign")await lockedManagerEnd(c,"reassign",end);else{await f.p.admin.query("SET LOCAL ROLE bm_b1_web");await f.p.admin.query("SELECT core_flow.session($1)",[Buffer.from(managerDigest(),"hex")]);await f.p.admin.query("SELECT vendor_handoff.closeout($1,$2,$3,$4,$5,0,$6)",[Buffer.from(managerDigest(),"hex"),c.assignmentId,close!.clientRequestId,close!.expectedAssignmentVersion,close!.expectedCompletionReportId,close!.message]);}
       await f.p.admin.query("COMMIT");expect(await pending).toBe("UNAUTHENTICATED");expect(await count("SELECT count(*)::int n FROM vendor_handoff.completion_report WHERE assignment_id=$1",[c.assignmentId])).toBe(kind==="closeout"?1:0);
@@ -553,9 +635,13 @@ describe("Task9 Manager end commands and source-ticket races",()=>{
   });
   it.each(["availability","proposal","reschedule"] as const)("T9-R08 Withdraw wins source-ticket wait against %s with no actionable scheduling",async operation=>{
     const c=await accepted();if(operation==="reschedule")await confirmed(c);else if(operation==="proposal")await tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...await tenantGuards(c),windows:[{startAt:at(24),endAt:at(28)}]});
-    const guards=await tenantGuards(c),j=await job(c);await lockTicket(c);let pending:Promise<string|undefined>|undefined;
-    try{pending=code(operation==="availability"?tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:randomUUID(),...guards,windows:[{startAt:at(24),endAt:at(28)}]}):operation==="proposal"?c.vendor.proposeSlots(c.session,{clientRequestId:randomUUID(),...guards,slots:[{startAt:at(25),endAt:at(26)}]}):f.manager.reschedule(managerDigest(),c.assignmentId,{clientRequestId:randomUUID(),...guards,expectedAppointmentId:j.appointment!.id}));await waitForTicketWait();
-      await f.p.admin.query("SET LOCAL ROLE bm_vendor_web");await f.p.admin.query("SELECT vendor_handoff.withdraw($1,$2,$3,$4,$5,'합성 철회 사유')",[Buffer.from(c.session,"hex"),Buffer.from(c.csrf,"hex"),randomUUID(),j.assignmentVersion,c.packetId]);await f.p.admin.query("COMMIT");expect(await pending).not.toBe("success");await assertEnded(c,"WITHDRAWN");
+    const guards=await tenantGuards(c),j=await job(c),requestId=randomUUID();
+    const tables=["tenant_availability_submission","vendor_slot_proposal","scheduling_round","appointment"];
+    const rowIds=async()=>{const rows=[];for(const table of tables)rows.push((await f.p.admin.query(`SELECT id FROM vendor_handoff.${table} WHERE assignment_id=$1 ORDER BY id`,[c.assignmentId])).rows);return rows;};
+    const before=await rowIds();await lockTicket(c);let pending:Promise<string|undefined>|undefined;
+    try{pending=code(operation==="availability"?tenantPort.submitAvailability(c.tenantDigest,c.ticketId,{clientRequestId:requestId,...guards,windows:[{startAt:at(24),endAt:at(28)}]}):operation==="proposal"?c.vendor.proposeSlots(c.session,{clientRequestId:requestId,...guards,slots:[{startAt:at(25),endAt:at(26)}]}):f.manager.reschedule(managerDigest(),c.assignmentId,{clientRequestId:requestId,...guards,expectedAppointmentId:j.appointment!.id}));await waitForTicketWait();
+      await f.p.admin.query("SET LOCAL ROLE bm_vendor_web");await f.p.admin.query("SELECT vendor_handoff.withdraw($1,$2,$3,$4,$5,'합성 철회 사유')",[Buffer.from(c.session,"hex"),Buffer.from(c.csrf,"hex"),randomUUID(),j.assignmentVersion,c.packetId]);await f.p.admin.query("COMMIT");expect(await pending).toBe(operation==="proposal"?"UNAUTHENTICATED":"NOT_FOUND");
+      expect(await rowIds()).toEqual(before);expect(await count("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1",[requestId])).toBe(0);await assertEnded(c,"WITHDRAWN");
       const h=await handoff(c);expect(JSON.stringify(h)).toContain("합성 철회 사유");
     }finally{await f.p.admin.query("ROLLBACK");await pending;}
   });

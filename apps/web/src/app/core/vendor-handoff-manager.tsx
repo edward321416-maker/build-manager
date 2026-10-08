@@ -139,6 +139,13 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
   </section>;
 }
 
+type ManagerActionIntent={kind:ManagerAction;assignmentId:string;assignmentVersion:number;reportId:string|null;communicationVersion?:number;clientRequestId:string};
+function currentActionIntent(intent:ManagerActionIntent|null,handoff:ManagerVendorHandoffDto|null,communicationVersion?:number):boolean{
+  if(!intent||!handoff?.assignment||handoff.assignment.status==="ENDED"||handoff.assignment.id!==intent.assignmentId||handoff.assignment.version!==intent.assignmentVersion)return false;
+  if(intent.kind==="REASSIGN")return handoff.phase!=="COMPLETION_REPORTED";
+  return handoff.phase==="COMPLETION_REPORTED"&&!handoff.correctionRequest&&handoff.currentReport?.id===intent.reportId
+    &&(intent.kind!=="CLOSEOUT"||intent.communicationVersion===communicationVersion);
+}
 const blankDraft:VendorPacketDraft={vendorLabel:"",workSummary:"",sharedDetailKeys:[],allowedPhotoIds:[],accessPolicy:"TENANT_PRESENT_REQUIRED",accessInstruction:""};
 type ManagerProps={communicationVersion?:number;client:CoreFlowClient;ticket:CoreTicketDto;revision:number;onHandoff:(handoff:ManagerVendorHandoffDto|null)=>void;onChanged:()=>void;now?:()=>Date};
 const systemNow=()=>new Date();
@@ -149,7 +156,8 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
   const [validationError,setValidationError]=useState(""),[pendingLink,setPendingLink]=useState<PendingLinkRequest|null>(null);
   const [photoPreviews,setPhotoPreviews]=useState<{photoId:string;url:string}[]>([]),[rescheduleReview,setRescheduleReview]=useState(false);
   const [reportPhotos,setReportPhotos]=useState<{photoId:string;url:string}[]>([]);
-  const [action,setAction]=useState<ManagerAction|null>(null),[actionText,setActionText]=useState("");
+  const [intent,setIntent]=useState<ManagerActionIntent|null>(null),[actionText,setActionText]=useState("");
+  const action=currentActionIntent(intent,handoff,communicationVersion)?intent!.kind:null;
   const generation=useRef(0),sending=useRef(false);
   const pendingLinkRef=useRef<PendingLinkRequest|null>(null);
   const linkAssignmentRef=useRef<string|null>(null);
@@ -160,6 +168,7 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
     if(value&&linkAssignment&&(value.assignment?.id!==linkAssignment||value.assignment.status==="ENDED")){
       linkAssignmentRef.current=null;rememberLink(null);setUncertain(false);setLinkUnavailable(false);setImmediateLink(null);setNotice("");
     }
+    setIntent(previous=>currentActionIntent(previous,value,previous?.communicationVersion)?previous:null);
     setHandoff(value);onHandoff(value);
   },[onHandoff,rememberLink]);
   const refresh=useCallback(async()=>{
@@ -191,6 +200,8 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
     try{
       const result=await reconcileManagerHandoff(client.vendorHandoff,ticket.ticketId,operation,()=>current===generation.current);
       if(current!==generation.current)return;apply(result.handoff);
+      // Every completed attempt needs a new explicit review; an uncertain result never reuses old text.
+      setIntent(null);setActionText("");
       if(result.kind!=="success"){
         const rejected=result.kind==="rejected";
         setUncertain(!rejected&&((kind!=="ISSUE"&&kind!=="REISSUE")||pendingLinkRef.current!==null));setPreview(false);
@@ -202,7 +213,7 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
         else if(result.kind==="rejected")setNotice("입력 또는 최신 상태를 확인한 뒤 명시적으로 다시 검토하세요.");
         return;
       }
-      setUncertain(false);setPreview(false);setAction(null);setActionText("");
+      setUncertain(false);setPreview(false);
       if(kind==="ISSUE"||kind==="REISSUE"){
         rememberLink(null);
         const value=result.value as VendorLinkIssueDto,currentAssignment=result.handoff?.assignment;
@@ -240,25 +251,25 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
   };
   const revoke=()=>{if(handoff?.assignment)void mutate("REVOKE",()=>client.vendorHandoff.revoke(handoff.assignment!.id,{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:handoff.assignment!.version}));};
   const submitAction=()=>{
-    if(!action||!handoff?.assignment)return;
-    const id=handoff.assignment.id,base={clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:handoff.assignment.version};
+    if(!action||!intent||!handoff?.assignment)return;
+    const id=intent.assignmentId,base={clientRequestId:intent.clientRequestId,expectedAssignmentVersion:intent.assignmentVersion};
     if(action==="REASSIGN"){
       const parsed=VendorReassignCommandSchema.safeParse({...base,vendorLabel:actionText});
       if(!parsed.success){setValidationError("새 업체 표시 이름을 확인하세요.");return;}
       void mutate(action,()=>client.vendorHandoff.reassign(id,parsed.data));return;
     }
     if(!handoff.currentReport||handoff.correctionRequest)return;
-    const report={...base,expectedCompletionReportId:handoff.currentReport.id};
+    const report={...base,expectedCompletionReportId:intent.reportId!};
     if(action==="MORE_WORK"){void mutate(action,()=>client.vendorHandoff.requireFollowUp(id,report));return;}
     if(action==="CORRECTION"){
       const parsed=VendorRequestCorrectionCommandSchema.safeParse({...report,reason:actionText});
       if(!parsed.success){setValidationError("수정 요청 사유를 확인하세요.");return;}
       void mutate(action,()=>client.vendorHandoff.requestCorrection(id,parsed.data));return;
     }
-    const parsed=VendorCloseoutCommandSchema.safeParse({...report,expectedCommunicationVersion:communicationVersion,message:actionText});
+    const parsed=VendorCloseoutCommandSchema.safeParse({...report,expectedCommunicationVersion:intent.communicationVersion,message:actionText});
     if(!parsed.success){setValidationError("처리 내용과 최신 공개 문답을 확인하세요.");return;}
     void mutate(action,()=>client.vendorHandoff.closeout(id,parsed.data));
   };
-  return <VendorHandoffManagerView action={action} actionText={actionText} onAction={value=>{setAction(value);setActionText("");setValidationError("");}} onActionText={setActionText} onSubmitAction={submitAction} communicationVersion={communicationVersion} ticket={ticket} handoff={handoff} loading={loading} busy={busy} error={error} validationError={validationError} notice={notice} uncertain={uncertain} pendingLink={pendingLink} linkUnavailable={linkUnavailable} immediateLink={immediateLink} preview={preview} draft={draft} photoPreviews={photoPreviews} onDraft={value=>{setDraft(value);setPreview(false);setValidationError("");}} onPreview={()=>setPreview(true)} onCreate={create} onPublish={publish} onIssue={()=>link(false)} onReissue={()=>link(true)} onReconcileLink={()=>{if(pendingLink)recoverLink(pendingLink);}} onRevoke={revoke} onRefresh={()=>void refresh()} onReview={()=>{setUncertain(false);setNotice("");}}
+  return <VendorHandoffManagerView action={action} actionText={actionText} onAction={value=>{setIntent(value&&handoff?.assignment?{kind:value,assignmentId:handoff.assignment.id,assignmentVersion:handoff.assignment.version,reportId:handoff.currentReport?.id??null,communicationVersion,clientRequestId:crypto.randomUUID()}:null);setActionText("");setValidationError("");}} onActionText={setActionText} onSubmitAction={submitAction} communicationVersion={communicationVersion} ticket={ticket} handoff={handoff} loading={loading} busy={busy} error={error} validationError={validationError} notice={notice} uncertain={uncertain} pendingLink={pendingLink} linkUnavailable={linkUnavailable} immediateLink={immediateLink} preview={preview} draft={draft} photoPreviews={photoPreviews} onDraft={value=>{setDraft(value);setPreview(false);setValidationError("");}} onPreview={()=>setPreview(true)} onCreate={create} onPublish={publish} onIssue={()=>link(false)} onReissue={()=>link(true)} onReconcileLink={()=>{if(pendingLink)recoverLink(pendingLink);}} onRevoke={revoke} onRefresh={()=>void refresh()} onReview={()=>{setUncertain(false);setNotice("");}}
     now={now()} rescheduleReview={rescheduleReview} onRescheduleReview={setRescheduleReview} onReschedule={reschedule} reportPhotos={reportPhotos}/>;
 }

@@ -117,3 +117,47 @@ it("Task9 unknown closeout cannot claim completion if authoritative readback is 
   await act(async()=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!.call(area,"합성 관리자 설명");area.dispatchEvent(new Event("input",{bubbles:true}));});
   await click("확인한 내용 저장");expect(page()).toContain("저장 결과를 확정하지 못했습니다");expect(page().includes("COMPLETED / ENDED/CLOSED")).toBe(false);
 });
+
+
+const reviewedReport=(id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")=>scheduled({phase:"COMPLETION_REPORTED",waitingOn:"MANAGER",currentReport:{id,revision:1,workSummary:"합성 설명",submittedAt:"2026-10-06T02:00:00Z",completionPhotoIds:[],photoOmissionReason:"NOT_APPLICABLE"}});
+async function actionHarness(initial:ManagerVendorHandoffDto){
+  const readHandoff=vi.fn(async()=>initial),reassign=vi.fn(async()=>initial),requestCorrection=vi.fn(async()=>initial),closeout=vi.fn(async()=>initial);
+  const client={vendorHandoff:{readHandoff,reassign,requestCorrection,closeout},photos:async()=>[]} as unknown as CoreFlowClient;
+  const onHandoff=()=>{},onChanged=()=>{};
+  host=document.createElement("div");document.body.append(host);root=createRoot(host);
+  const render=async(version:number)=>act(async()=>root!.render(<VendorHandoffManager client={client} ticket={ticket} communicationVersion={version} revision={0} now={now} onHandoff={onHandoff} onChanged={onChanged}/>));
+  await render(9);
+  return {readHandoff,reassign,requestCorrection,closeout,render};
+}
+async function actionText(text:string){
+  const area=host.querySelector<HTMLTextAreaElement>('form[aria-label="업체 요청 검토"] textarea')!;
+  await act(async()=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!.call(area,text);area.dispatchEvent(new Event("input",{bubbles:true}));});
+}
+const actionForm=()=>host.querySelector('form[aria-label="업체 요청 검토"]');
+it("T9-M02 refresh to replacement abandons the old assignment action and text",async()=>{
+  const s=await actionHarness(scheduled());await click("업체 재배정");await actionText("A에서 검토한 업체");
+  s.readHandoff.mockResolvedValue(scheduled({assignment:{id:"replacement",status:"ACTIVE",version:8,vendorLabel:"다른 관리자 업체",endReason:null}}));
+  await click("업체 연결 상태 다시 확인");expect(actionForm()).toBeNull();expect(s.reassign).not.toHaveBeenCalled();
+  await click("업체 재배정");expect(host.querySelector<HTMLTextAreaElement>("textarea")!.value).toBe("");
+  await actionText("새로 검토한 업체");await click("확인한 내용 저장");
+  expect(s.reassign.mock.calls[0]).toMatchObject(["replacement",{expectedAssignmentVersion:8,vendorLabel:"새로 검토한 업체"}]);
+});
+it("T9-M02 committed-response-lost reassign cannot target the replacement after uncertainty review",async()=>{
+  const s=await actionHarness(scheduled());await click("업체 재배정");await actionText("원래 의도");
+  s.reassign.mockRejectedValue(new Error("synthetic response loss"));
+  s.readHandoff.mockResolvedValue(scheduled({assignment:{id:"replacement",status:"ACTIVE",version:8,vendorLabel:"새 업체",endReason:null}}));
+  await click("확인한 내용 저장");expect(s.reassign).toHaveBeenCalledTimes(1);
+  await click("최신 상태와 입력을 검토했습니다");expect(actionForm()).toBeNull();expect(s.reassign).toHaveBeenCalledTimes(1);
+});
+it("T9-M02 refreshed current report requires a new explicit disposition review",async()=>{
+  const s=await actionHarness(reviewedReport());await click("보고 수정 요청");await actionText("이전 보고 수정 사유");
+  s.readHandoff.mockResolvedValue(reviewedReport("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));
+  await click("업체 연결 상태 다시 확인");expect(actionForm()).toBeNull();expect(s.requestCorrection).not.toHaveBeenCalled();
+});
+it("T9-M02 a changed communication version invalidates closeout text without attaching a fresh guard",async()=>{
+  const s=await actionHarness(reviewedReport());await click("처리 완료 기록");await actionText("이전 문답을 검토한 내용");
+  await s.render(10);expect(actionForm()).toBeNull();expect(s.closeout).not.toHaveBeenCalled();
+  await click("처리 완료 기록");expect(host.querySelector<HTMLTextAreaElement>("textarea")!.value).toBe("");
+  await actionText("새 문답까지 확인한 내용");await click("확인한 내용 저장");
+  expect(s.closeout.mock.calls[0]).toMatchObject(["assignment",{expectedCommunicationVersion:10,message:"새 문답까지 확인한 내용"}]);
+});

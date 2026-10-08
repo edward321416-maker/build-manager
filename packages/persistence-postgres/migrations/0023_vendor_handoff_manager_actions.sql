@@ -40,14 +40,21 @@ ALTER TABLE vendor_handoff.completion_report
   ADD CONSTRAINT report_exact_supersedes FOREIGN KEY(org_id,assignment_id,supersedes_report_id) REFERENCES vendor_handoff.completion_report(org_id,assignment_id,id),
   ADD CONSTRAINT report_correction_pair CHECK((correction_request_id IS NULL)=(supersedes_report_id IS NULL));
 
+-- Match plainSingle/plainMulti: ECMAScript trim first, then the Unicode Cc/Cf boundary.
+-- PostgreSQL text cannot contain U+0000. Supplementary ranges are intentional;
+-- POSIX cntrl alone does not implement the API's Unicode property escapes.
+CREATE FUNCTION vendor_handoff.trim_plain_text(p_value text) RETURNS text
+LANGUAGE sql IMMUTABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+  SELECT btrim(p_value,U&'\0009\000A\000B\000C\000D\0020\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000\FEFF')
+$$;
 CREATE FUNCTION vendor_handoff.plain_text(p_value text,p_max integer) RETURNS boolean
 LANGUAGE sql IMMUTABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
-  SELECT p_value IS NOT NULL AND char_length(btrim(p_value)) BETWEEN 1 AND p_max
-    AND translate(p_value,E'\r\n','') !~ '[[:cntrl:]]'
-    AND p_value !~ U&'[\00AD\0600-\0605\061C\06DD\070F\0890-\0891\08E2\180E\200B-\200F\202A-\202E\2060-\2064\2066-\206F\FEFF\FFF9-\FFFB]'
+  SELECT p_value IS NOT NULL AND char_length(value) BETWEEN 1 AND p_max
+    AND translate(value,E'\r\n','') !~ U&'[\0001-\001F\007F-\009F\00AD\0600-\0605\061C\06DD\070F\0890-\0891\08E2\180E\200B-\200F\202A-\202E\2060-\2064\2066-\206F\FEFF\FFF9-\FFFB\+0110BD\+0110CD\+013430-\+01343F\+01BCA0-\+01BCA3\+01D173-\+01D17A\+0E0001\+0E0020-\+0E007F]'
+  FROM (SELECT vendor_handoff.trim_plain_text(p_value) AS value) normalized
 $$;
 ALTER TABLE vendor_handoff.manager_disposition ADD CONSTRAINT correction_plain_reason
-  CHECK(kind<>'REQUEST_CORRECTION' OR (reason=btrim(reason) AND vendor_handoff.plain_text(reason,500)));
+  CHECK(kind<>'REQUEST_CORRECTION' OR (reason=vendor_handoff.trim_plain_text(reason) AND vendor_handoff.plain_text(reason,500)));
 
 CREATE OR REPLACE FUNCTION vendor_handoff.manager_disposition_transition() RETURNS trigger
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
@@ -95,6 +102,7 @@ CREATE FUNCTION vendor_handoff.manager_dispose(p_digest bytea,p_assignment uuid,
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE c jsonb;a vendor_handoff.vendor_assignment;r vendor_handoff.completion_report;fp bytea;prior jsonb;result jsonb;p uuid;
 BEGIN
+  p_reason:=vendor_handoff.trim_plain_text(p_reason);
   IF p_request IS NULL OR p_expected IS NULL OR p_expected<1 OR p_report IS NULL OR p_kind IS NULL OR p_kind NOT IN ('REQUEST_CORRECTION','MORE_WORK','CLOSEOUT')
     OR (p_kind='REQUEST_CORRECTION' AND NOT vendor_handoff.plain_text(p_reason,500))
     OR (p_kind='CLOSEOUT' AND (p_communication IS NULL OR p_communication<0 OR NOT vendor_handoff.plain_text(p_message,2000)))
@@ -142,6 +150,7 @@ CREATE FUNCTION vendor_handoff.manager_end(p_digest bytea,p_assignment uuid,p_re
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE c jsonb;a vendor_handoff.vendor_assignment;fp bytea;prior jsonb;result jsonb;
 BEGIN
+  p_label:=vendor_handoff.trim_plain_text(p_label);
   IF p_request IS NULL OR p_expected IS NULL OR p_expected<1 OR p_kind IS NULL OR p_kind NOT IN ('REVOKED','SUPERSEDED')
     OR (p_kind='SUPERSEDED' AND (NOT vendor_handoff.plain_text(p_label,80) OR p_label ~ E'[\r\n]'))
   THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
