@@ -398,3 +398,11 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-TASK7-VISIT-BLOCKER-CLOSED-20261007-2007: sync_status=pending; Task7 visit/blocker evidence closed at d80c9e4 after independent review/remediation (final rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
 
 - Event VENDOR-TASK8-COMPLETION-CLOSED-20261007-2058: sync_status=pending; Task8 completion evidence closed at 085c090 after independent review/remediation (final rereview B0/H0/M0/L0). Google append/readback and schema-cache writes NOT_RUN; prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK9-RESUME-20261008T033144Z: sync_status=pending; resumed local Task9 from Task8 closure 7bf2dcd. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and historical evidence preserved.
+
+- Event VENDOR-TASK9-RED-20261008: sync_status=pending; Task9 behavioral RED recorded. Google append/readback NOT_RUN; historical evidence preserved.
+
+- Event VENDOR-TASK9-INITIAL-REVIEW-20261008: sync_status=pending; initial Task9 candidate reviewed with findings requiring remediation. Google append/readback NOT_RUN. No Task9 closure or final readiness claim.
+
+- Event VENDOR-TASK9-MANAGER-CLOSED-20261008: sync_status=pending; Task9 Manager disposition and independent remediation closed at f8d5c01; final candidate gates remain. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
