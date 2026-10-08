@@ -283,10 +283,15 @@ test('T12-B12 synthetic photo dialog traps keyboard focus and returns it; Vendor
   try {
     const image = await sharp({ create: { width: 10, height: 8, channels: 3, background: '#547e93' } }).png().toBuffer();
     const response = await fetch(fixture.origin + `/api/v2/core/tickets/${t.ticketId}/photos`, { method: 'POST', headers: { Cookie: '__session=' + a.cookie, Origin: fixture.origin, 'X-B1-CSRF': a.csrf, 'X-Core-Organization': a.orgId, 'Content-Type': 'image/png', 'X-Upload-Id': randomUUID() }, body: image }); expect(response.status).toBe(201);
-    await openTicket(viewer.page, t.ticketId); await keyboardClick(viewer.page, '저장된 사진 1 확대');
-    const dialog = viewer.page.getByRole('dialog', { name: '첨부 사진 확대', exact: true }); await expect(dialog).toBeVisible();
+    await openTicket(viewer.page, t.ticketId);
+    const selected = viewer.page.getByRole('region', { name: '선택한 접수', exact: true }); await expect(selected).toHaveCount(1);
+    await expect(selected.getByText(`접수번호 ${t.ticketId}`, { exact: true })).toBeAttached();
+    const gallery = selected.getByRole('region', { name: '사진', exact: true }); await expect(gallery).toHaveCount(1);
+    const photo = gallery.getByRole('button', { name: '저장된 사진 1 확대', exact: true }); await expect(photo).toHaveCount(1);
+    await expect(photo).toBeEnabled(); await photo.focus(); await expect(photo).toBeFocused(); await viewer.page.keyboard.press('Enter');
+    const dialog = gallery.getByRole('dialog', { name: '첨부 사진 확대', exact: true }); await expect(dialog).toBeVisible();
     for (const key of ['Tab', 'Tab', 'Shift+Tab']) { await viewer.page.keyboard.press(key); expect(await dialog.evaluate(e => e.contains(document.activeElement)), 'native modal keyboard focus containment').toBe(true); }
-    await viewer.page.keyboard.press('Escape'); await expect(dialog).not.toBeVisible(); await expect(viewer.page.getByRole('button', { name: '저장된 사진 1 확대', exact: true })).toBeFocused();
+    await viewer.page.keyboard.press('Escape'); await expect(dialog).not.toBeVisible(); await expect(photo).toBeFocused();
     const forbidden = /--(?:vendor|core)-(?:success|green)\b|\.(?:vendor-)?(?:success|green)\b|#(?:34c759|22c55e|16a34a)\b/i;
     for (const file of ['src/app/vendor/job/vendor-job.module.css', 'src/app/core/vendor-handoff.module.css']) expect(forbidden.test(await readFile(file, 'utf8')), 'Vendor-specific success token/class prohibited').toBe(false);
   } finally { await viewer.close(); }
