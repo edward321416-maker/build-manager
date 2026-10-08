@@ -7,7 +7,8 @@ export function invitationOrigin(env:Record<string,string|undefined>=process.env
  const raw=env.CORE_INVITE_APP_ORIGIN??env.B1_APP_BASE_URL;
  if(!raw)throw new Error("INVITATION_ORIGIN_REQUIRED");
  const url=new URL(raw);
- if(url.protocol!=="http:"||!["localhost","127.0.0.1","[::1]"].includes(url.hostname)||url.origin!==raw||url.username||url.password)throw new Error("INVITATION_ORIGIN_INVALID");
+ const local=url.protocol==="http:"&&["localhost","127.0.0.1","[::1]"].includes(url.hostname);
+ if(!(local||url.protocol==="https:")||url.origin!==raw||url.username||url.password)throw new Error("INVITATION_ORIGIN_INVALID");
  // An override must be an explicitly configured approved origin, never inferred from request headers.
  return url.origin;
 }

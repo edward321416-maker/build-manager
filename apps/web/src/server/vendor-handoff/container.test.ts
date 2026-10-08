@@ -15,6 +15,7 @@ it.each([
   ["missing",undefined],
   ["malformed","{"],
   ["non-loopback host",JSON.stringify({host:"db.internal",user:"bm_vendor_web",database:"x"})],
+  ["non-loopback host without verified TLS",JSON.stringify({host:"db.internal",user:"bm_vendor_web",database:"x",ssl:{rejectUnauthorized:false}})],
   ["B1 runtime role",JSON.stringify({host:"127.0.0.1",user:"bm_b1_web",database:"x"})],
   ["Vendor owner role",JSON.stringify({host:"127.0.0.1",user:"bm_vendor_handoff_owner",database:"x"})],
 ])("fails closed for %s Vendor database configuration",async(_label,config)=>{
@@ -29,6 +30,9 @@ it.each([
   ["non-http scheme","ftp://127.0.0.1"],
 ])("fails closed for a %s Vendor app origin",async(_label,origin)=>{
   expect(await load(database,origin)).toBe("DEPENDENCY_UNAVAILABLE");
+});
+it("accepts a hosted database only over verified TLS",async()=>{
+  expect(await load(JSON.stringify({host:"db.example.invalid",port:5432,user:"bm_vendor_web",database:"x",ssl:true}),"https://build-manager-demo.vercel.app")).toBe("https://build-manager-demo.vercel.app");
 });
 it.each(["http://127.0.0.1:3140","http://localhost:3140","https://127.0.0.1:3443"])("accepts the explicitly configured origin %s with the separate Vendor runtime role",async origin=>{
   expect(await load(database,origin)).toBe(origin);

@@ -2,6 +2,7 @@ import { VendorHandoffError } from "@build-manager/application";
 import { createPostgresDatabase } from "@build-manager/persistence-postgres";
 import { createVendorHandoffExternalPort } from "@build-manager/persistence-postgres/vendor-handoff";
 import type { VendorHTTPDependencies } from "./http";
+import { databaseHostAllowed } from "../database-host";
 
 const LOOPBACK=["127.0.0.1","localhost","::1","[::1]"];
 const unavailable=():never=>{throw new VendorHandoffError("DEPENDENCY_UNAVAILABLE");};
@@ -25,8 +26,8 @@ export function getVendorHandoffContainer():VendorHTTPDependencies{
     let config:unknown;
     try{config=JSON.parse(process.env.VENDOR_HANDOFF_DATABASE_CONFIG??"null");}catch{return unavailable();}
     if(!config||typeof config!=="object"||!("host" in config)||!("user" in config))return unavailable();
-    // Synthetic-local only: production credentials/IAM are outside this slice.
-    if(!LOOPBACK.includes(String(config.host)))return unavailable();
+    // Loopback synthetic database, or a hosted demo database only over verified TLS.
+    if(!databaseHostAllowed(config))return unavailable();
     const user=String(config.user);
     if(user!=="bm_vendor_web")return unavailable();
     const database=createPostgresDatabase({...config,host:String(config.host),user,max:5,connectionTimeoutMillis:5000});
