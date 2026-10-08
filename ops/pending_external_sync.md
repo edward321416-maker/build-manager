@@ -410,3 +410,9 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-TASK10-INITIAL-REVIEW-20261008: sync_status=pending; Task10 initial independent review requires one test-only LOW privacy assertion fix; Task10 not yet closed. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event VENDOR-TASK10-OUTCOME-PRIVACY-CLOSED-20261008: sync_status=pending; Task10 outcome/privacy regressions closed after independent LOW assertion repair; Task11 and final candidate gates remain. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK11-RECOVERY-RED-20261008: sync_status=pending; Task11 recovery RED and bounded repair are in progress; separate-instance and owned-server restart acceptance are not yet closed. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK11-RED-CLASSIFICATION-CORRECTION-20261008: sync_status=pending; Task11 RED interpretation corrected append-only:4 behavioral failures plus1 invalid packet-change fixture, not5 valid behavioral failures. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-TASK11-RECOVERY-RESTART-CLOSED-20261008: sync_status=pending; Task11 recovery/restart/security closed after independent mandatory role-denial test repair; Task12 browser and final candidate gates remain. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
