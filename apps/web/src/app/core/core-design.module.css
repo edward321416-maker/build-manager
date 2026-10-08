@@ -148,6 +148,8 @@
 .root :global(.core-account nav a[aria-current="page"]) { color: var(--color-primary); background: var(--color-fill-selected); text-decoration: underline; }
 .root :global(.core-account p),.root :global(.core-account [role="alert"]),.root :global(.core-account a.primary-button) { grid-column: 1 / -1; }
 .root :global(.core-account form) { display: none; }
+/* Login-free demo entry forms stay visible; the hidden logout transport form above does not. */
+.root :global(.core-account form.core-demo-entry) { display: block; grid-column: 1 / -1; }
 .root :global(.core-environment) { padding: .625rem 1.25rem; }
 .root :global(.core-environment details summary) { min-height: 2.5rem; }
 .managerWorkspace { background: var(--color-page); }

@@ -70,6 +70,10 @@ export async function scanProxyTransport(root:string){
  }
  await walk('apps/web/src/proxy.ts');return findings;
 }
+// Operator decision 2026-10-09 (hosted demo without login): exactly one module may seal an SDK session with the
+// public testing helper, and only it and its route may hold the login capability besides callback completion.
+const DEMO_ENTRY='apps/web/src/server/b1/demo-entry.ts',DEMO_ROUTE='apps/web/src/app/api/v2/session/demo/route.ts';
+const loginCapabilityEntry=(entry:string)=>entry==='apps/web/src/server/b1/complete-session.ts'||entry==='apps/web/src/app/api/v2/session/complete/route.ts'||entry===DEMO_ENTRY||entry===DEMO_ROUTE;
 export async function scanB1ProductionGraph(root:string,entries?:string[]){
  const resolveEdge=localResolver(root);
  const findings:{file:string;specifier:string}[]=[],seen=new Set<string>();
@@ -82,14 +86,14 @@ export async function scanB1ProductionGraph(root:string,entries?:string[]){
   for(const edge of moduleEdges(source)){
    const local=await resolveEdge(file,edge.specifier);
    const testOnly=local&&(local.startsWith('scripts/')||/(^|\/)(tests|testing|__tests__)(\/|$)|\.test\.[cm]?[jt]sx?$/.test(local));
-   if(edge.dynamic || edge.specifier==='@auth0/nextjs-auth0/testing'||(!fixtureOnly&&edge.specifier==='node:sqlite')||local&&(local.startsWith('<')||local.startsWith('../')||testOnly||!fixtureOnly&&forbidden(local))){findings.push({file,specifier:edge.specifier});continue;}
+   if(edge.dynamic || edge.specifier==='@auth0/nextjs-auth0/testing'&&file!==DEMO_ENTRY||(!fixtureOnly&&edge.specifier==='node:sqlite')||local&&(local.startsWith('<')||local.startsWith('../')||testOnly||!fixtureOnly&&forbidden(local))){findings.push({file,specifier:edge.specifier});continue;}
    if(local)await walk(local);
   }
  }
  const defaults=['apps/web/src/proxy.ts','apps/web/src/server/b1/http.ts','apps/web/src/server/b1/complete-session.ts','apps/web/src/server/b1/logout.ts'];
  async function routeEntries(dir:string){let rows;try{rows=await readdir(join(root,dir),{withFileTypes:true});}catch{return;}for(const row of rows){const file=dir+'/'+row.name;if(row.isDirectory())await routeEntries(file);else if(row.name==='route.ts')defaults.push(file);}}
  if(!entries)await routeEntries('apps/web/src/app/api/v2');
- for(const entry of entries??defaults){bootstrapAllowed=entry==='apps/web/src/server/b1/complete-session.ts'||entry==='apps/web/src/app/api/v2/session/complete/route.ts';await walk(entry);}
+ for(const entry of entries??defaults){bootstrapAllowed=loginCapabilityEntry(entry);await walk(entry);}
  if(!entries){
   const sources:string[]=[];
   async function inventory(dir:string){let rows;try{rows=await readdir(join(root,dir),{withFileTypes:true});}catch{return;}
@@ -98,7 +102,7 @@ export async function scanB1ProductionGraph(root:string,entries?:string[]){
   await inventory('apps/web/src');
   for(const entry of sources){
    fixtureOnly=!entry.startsWith('apps/web/src/app/workspace/')&&!entry.startsWith('apps/web/src/server/b1/');
-   bootstrapAllowed=entry==='apps/web/src/server/b1/complete-session.ts'||entry==='apps/web/src/app/api/v2/session/complete/route.ts';
+   bootstrapAllowed=loginCapabilityEntry(entry);
    await walk(entry);
   }
  }
