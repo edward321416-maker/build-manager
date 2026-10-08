@@ -200,7 +200,10 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     setPhase({kind:"ready",job:fresh});
     if(JSON.stringify(fresh)===context)return true;
     // Changed state is observation, not proof that this particular request committed.
-    setDecline(closedDecline);setLifecycle(idleLifecycle);setSchedule(idleSchedule);setCompletion(freshCompletion(fresh));
+    // An owned completion draft survives (ownership already discards one that no longer applies); only an
+    // in-flight report send is released, mirroring the stale-conflict path.
+    setDecline(closedDecline);setLifecycle(idleLifecycle);setSchedule(idleSchedule);
+    setCompletion(current=>current.status==="submitting"?{...current,context:undefined,sent:null,status:"idle",confirming:false,ackPacketId:null}:current);
     setTaskNotice(`${STALE_NOTICE} 이전 요청의 성공 여부는 확정하지 않습니다.`);return false;
   };
   // Local input problems stay editable; they are never reported as an unknown server outcome.
@@ -224,7 +227,8 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
       if(state.status==="uncertain"&&!await reconcileReplay(gen,state.context))return;
       const result=await withFreshCsrf(gen,value=>client.decline(value,input));
       if(gen!==generation.current)return;
-      setDecline(closedDecline);if(state.status==="uncertain")await refresh(gen);else setPhase({kind:"declined",job:result});
+      // The exact replay's own ENDED/DECLINED receipt proves this request; anything else reads current state.
+      setDecline(closedDecline);if(state.status==="uncertain"&&!(result.status==="ENDED"&&result.endReason==="DECLINED"))await refresh(gen);else setPhase({kind:"declined",job:result});
     }catch(error){
       if(gen!==generation.current)return;
       if(statusOf(error)===409){setDecline({...closedDecline,notice:STALE_NOTICE});await refresh(gen);}
@@ -248,7 +252,8 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
       const result=await withFreshCsrf(gen,value=>kind==="accept"?client.accept(value,guards):client.withdraw(value,{...guards,operationalNote}));
       if(gen!==generation.current)return;
       setLifecycle(idleLifecycle);
-      if(state.status==="uncertain")await refresh(gen);else setPhase(kind==="withdraw"?{kind:"withdrawn",job:result}:{kind:"ready",job:result});
+      if(state.status==="uncertain"&&!(kind==="withdraw"&&result.status==="ENDED"&&result.endReason==="WITHDRAWN"))await refresh(gen);
+      else setPhase(kind==="withdraw"?{kind:"withdrawn",job:result}:{kind:"ready",job:result});
     }catch(error){
       if(gen!==generation.current)return;
       // A rejected (not committed) Withdraw keeps its safe local draft; the next attempt is a new request.
