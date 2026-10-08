@@ -135,7 +135,7 @@
 .toolbarLeading > button { flex: 0 0 auto; }
 .root .heading h1 { font-size: 1.25rem; line-height: 1.875rem; }
 .heading > div { min-width: 0; }
-.heading :global(.core-actions) { flex: 0 0 auto; }
+.heading :global(.core-actions) { flex: 0 1 auto; min-width: 0; max-width: 100%; }
 .heading button { padding: .625rem; min-height: 3.125rem; background: transparent; border-color: transparent; }
 .root :global(.core-b1-shell .core-account) { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: .3125rem .625rem; padding: .625rem 1.25rem; }
 .root :global(.core-account) > * + * { margin-top: 0; }

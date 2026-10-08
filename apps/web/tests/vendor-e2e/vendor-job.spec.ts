@@ -35,6 +35,16 @@ test('T12-B01 mounted Manager issue survives own refresh; browser redeem is not 
       await responsive(m.page, width); await forbiddenCopy(m.page);
     }
     await responsive(m.page, 390, true);
+    const navigation = m.page.getByRole('navigation', { name: '접속 및 새로고침', exact: true }); await expect(navigation).toHaveCount(1);
+    const originalFont = await navigation.evaluate(nav => { const style = (nav as HTMLElement).style, original = style.fontFamily; style.fontFamily = 'serif'; return original; });
+    try {
+      await responsive(m.page, 390, true);
+      for (const name of ['업무 정보', '새로고침']) {
+        const button = navigation.getByRole('button', { name, exact: true }); await expect(button).toBeVisible(); await expect(button).toBeEnabled();
+        expect(await button.evaluate(e => e.getBoundingClientRect().height >= 49.5), 'header action minimum touch target height').toBe(true);
+      }
+      expect(await navigation.evaluate(nav => { const parent = nav.parentElement!, padding = getComputedStyle(parent), outer = parent.getBoundingClientRect(), inner = nav.getBoundingClientRect(); return parent.tagName === 'HEADER' && inner.left >= outer.left + parseFloat(padding.paddingLeft) && inner.right <= outer.right - parseFloat(padding.paddingRight); }), 'header navigation stays within padded owner under alternate font metrics').toBe(true);
+    } finally { await navigation.evaluate((nav, font) => { (nav as HTMLElement).style.fontFamily = font; }, originalFont); }
   } finally { await m.close(); }
 });
 
