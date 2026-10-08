@@ -432,3 +432,9 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-CANDIDATE02-SHARED-TIMEOUT-20261008: sync_status=pending; Candidate02 full verification failed before later gates/publication. B3/B4 graph performance requires bounded diagnosis/remediation; final hosted/whole-candidate gates remain pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event VENDOR-CANDIDATE02-REMEDIATION-CLOSED-20261008: sync_status=pending; Candidate02 graph remediation independently closed; complete new local/hosted gates and whole-candidate review remain required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE03-HOSTED-FIRST-FAILURE-20261008: sync_status=pending; Exact local candidate passed and DraftPR75 updated; first fresh hosted run FAILED. Hosted remediation/newfixedcandidate/revalidation and whole-candidate review required; no Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE03-MOBILE-FIRST-REVALIDATION-FAILURE-20261008: sync_status=pending; Core readiness source independently reviewed; mobile positiveDoctor/inventory and failedJest remain separate generations. Mobile diagnostics/remediation, scopedreview, fullnewcandidate/hosted and whole-review still required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE03-HOSTED-REMEDIATION-CLOSURE-20261008: sync_status=pending; Hosted remediation independently closed; next exact clean candidate still requires all local gates, fresh hosted execution and whole-candidate review. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
