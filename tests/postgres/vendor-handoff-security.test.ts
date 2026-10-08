@@ -329,6 +329,9 @@ describe("hostile runtime and exact catalog proofs", () => {
     expect((await f.external.readJob(a.session)).assignmentId).toBe(a.handoff.assignment!.id);
     expect((await f.external.readJob(b.session)).assignmentId).toBe(b.handoff.assignment!.id);
     await expect(async () => f.external.readJob(b.handoff.assignment!.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+    expect((await f.web.query("SELECT current_user AS role,session_user AS login")).rows).toEqual([{ role: "bm_b1_web", login: "bm_b1_web" }]);
+    await expect(f.web.query("SET ROLE bm_vendor_web")).rejects.toMatchObject({ code: "42501" });
+    expect((await f.web.query("SELECT current_user AS role")).rows).toEqual([{ role: "bm_b1_web" }]);
     const vendor = new Client(f.vendorWebConfig); await vendor.connect();
     try {
       for (const web of [f.web, vendor]) {
