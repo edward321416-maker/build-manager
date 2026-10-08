@@ -442,3 +442,7 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-CANDIDATE04-CORE-FIRST-FAILURE-20261008: sync_status=pending; Candidate04 FAILED Core browser after three local passes; diagnose and repair accepted regression evidence before new complete local/hosted gates and whole-candidate review. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event VENDOR-CANDIDATE04-CORE-REMEDIATION-CLOSURE-20261008: sync_status=pending; Scoped Core fixture review closed; complete new candidate local/hosted gates and whole-candidate review remain pending. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE05-BROWSER-FIRST-FAILURE-20261008: sync_status=pending; Candidate05 FAILED Vendor B12 locator ambiguity after seven full local gates passed. Diagnose and minimally repair, independently review, then new exact complete local/hosted generation and whole-candidate review. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE05-BROWSER-REMEDIATION-CLOSURE-20261008: sync_status=pending; Scoped Vendor B12 review closed; new complete candidate local/hosted gates and whole-candidate review remain pending. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
