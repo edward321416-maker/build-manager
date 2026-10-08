@@ -17,8 +17,9 @@
 .page button[type="submit"], .confirm button:first-of-type { background: var(--vendor-primary); border-color: var(--vendor-primary); color: #FFFFFF; }
 .page button:disabled { opacity: .55; cursor: not-allowed; }
 .page button:focus-visible, .page input:focus-visible, .page textarea:focus-visible { outline: 3px solid var(--vendor-primary); outline-offset: 2px; }
-.form { display: grid; gap: .9375rem; }
-.form fieldset { display: grid; gap: .3125rem; margin: 0; padding: .625rem .9375rem; border: 1px solid var(--vendor-line); border-radius: .625rem; }
+.form { display: grid; gap: .9375rem; min-width: 0; }
+.form fieldset { display: grid; gap: .3125rem; min-width: 0; margin: 0; padding: .625rem .9375rem; border: 1px solid var(--vendor-line); border-radius: .625rem; }
+.form input { min-width: 0; max-width: 100%; }
 .form legend { padding: 0 .3125rem; font-weight: 600; }
 .form label { display: grid; gap: .3125rem; }
 .form textarea { width: 100%; min-height: 7.5rem; padding: .625rem .9375rem; border: 1px solid var(--vendor-line); border-radius: .625rem; font: inherit; resize: vertical; }

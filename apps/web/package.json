@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "playwright test",
-    "test:e2e:b1": "playwright test --config playwright.b1.config.ts"
+    "test:e2e:b1": "playwright test --config playwright.b1.config.ts",
+    "test:e2e:vendor": "playwright test --config playwright.vendor.config.ts"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "4.30.0",

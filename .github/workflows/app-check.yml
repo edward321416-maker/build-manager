@@ -265,22 +265,45 @@ jobs:
         shell: bash
         run: |
           npm exec --workspace @build-manager/web -- playwright install --with-deps chromium
-      - name: Build Web once for both browser suites
+      - name: Build Web once for Core SDK Web B1 and Vendor browser suites
         shell: bash
         run: npm run build:web
+      - name: Run Core browser regressions with synthetic access
+        env:
+          BUILD_MANAGER_E2E_PREBUILT: "1"
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:e2e:core 2>&1 | tee "$RUNNER_TEMP/core-browser.log"
+      - name: Run SDK browser regressions with B1 authority
+        env:
+          BUILD_MANAGER_E2E_PREBUILT: "1"
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:e2e:sdk 2>&1 | tee "$RUNNER_TEMP/sdk-browser.log"
       - name: Run Web E2E with existing synthetic-state configuration
         env:
           BUILD_MANAGER_E2E_PREBUILT: "1"
         shell: bash
         run: |
-          npm run test:e2e:web
+          set -o pipefail
+          npm run test:e2e:web 2>&1 | tee "$RUNNER_TEMP/web-browser.log"
       - name: Run B1 Web with PostgreSQL and synthetic SDK sessions
         env:
           BUILD_MANAGER_E2E_PREBUILT: "1"
         shell: bash
         run: |
-          npm run test:e2e:b1
+          set -o pipefail
+          npm run test:e2e:b1 2>&1 | tee "$RUNNER_TEMP/b1-browser.log"
           node apps/web/tests/b1-e2e/check-results.mjs
+      - name: Run standalone Vendor browser acceptance with separate runtime authority
+        env:
+          BUILD_MANAGER_E2E_PREBUILT: "1"
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:e2e:vendor 2>&1 | tee "$RUNNER_TEMP/vendor-browser.log"
 
   mobile-health:
     runs-on: ubuntu-24.04

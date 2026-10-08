@@ -15,7 +15,7 @@ const container="build-manager-core-flow-rc1",database="core_flow_synthetic";
 const docker=(...args)=>execFileSync("docker",args,{encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim();
 const save=async(state)=>{await writeFile(statePath,JSON.stringify(state,null,2),{mode:0o600});await writeFile(codesPath,JSON.stringify(Object.fromEntries(Object.entries(state.fixture.accounts).map(([name,a])=>[name,a.handle])),null,2),{mode:0o600});};
 async function prepare(){
-  const { provisionTestRoles,provisionCoreAccessTestRole,provisionCoreOnboardingTestRole,grantRuntimeAccess,runPostgresMigrations,seedCoreFlowFixture }=await import("@build-manager/persistence-postgres/testing");
+  const { provisionTestRoles,provisionCoreAccessTestRole,provisionCoreOnboardingTestRole,provisionVendorHandoffTestRoles,grantRuntimeAccess,runPostgresMigrations,seedCoreFlowFixture }=await import("@build-manager/persistence-postgres/testing");
   await mkdir(directory,{recursive:true,mode:0o700});
   let state;
   if(existsSync(statePath))state=JSON.parse(await readFile(statePath,"utf8"));
@@ -39,6 +39,10 @@ async function prepare(){
   const admin=new Client(state.admin);await admin.connect();
   let login;
   try{
+    if(state.fixture){
+      const marker=(await admin.query("SELECT shobj_description(oid,'pg_database') AS marker FROM pg_database WHERE datname=current_database()")).rows[0].marker;
+      if(marker!=="CORE_FLOW_SYNTHETIC_LOCAL")throw new Error("SYNTHETIC_MARKER_REQUIRED");
+    }
     if(!state.roles){
       const existing=await admin.query("SELECT 1 FROM pg_roles WHERE rolname='bm_pf02a_migrator'");
       if(existing.rowCount)throw new Error("INTERRUPTED_SETUP_REQUIRES_INSPECTION");
@@ -47,6 +51,25 @@ async function prepare(){
     }
     await provisionCoreAccessTestRole(admin);
     await provisionCoreOnboardingTestRole(admin);
+    // Older owned RC1 fixtures predate Vendor roles. Add only the exact missing pair;
+    // Validate reused definitions even when the frozen migration is already applied.
+    if(state.fixture){
+      const vendorRoles=await admin.query(`SELECT rolname,
+        NOT rolsuper AND NOT rolcreatedb AND NOT rolcreaterole AND NOT rolreplication
+        AND NOT rolbypassrls AND NOT rolinherit AND rolcanlogin=(rolname='bm_vendor_web') AS valid
+        FROM pg_roles WHERE rolname IN ('bm_vendor_handoff_owner','bm_vendor_web')`);
+      if(vendorRoles.rowCount===0)await provisionVendorHandoffTestRoles(admin,state.admin,"bm_pf02a_migrator");
+      else if(vendorRoles.rowCount!==2||vendorRoles.rows.some(role=>!role.valid))throw new Error("VENDOR_TEST_ROLE_CONTRACT_INVALID");
+      const membership=(await admin.query(`SELECT EXISTS(
+        SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid=m.roleid JOIN pg_roles u ON u.oid=m.member
+        WHERE r.rolname='bm_vendor_handoff_owner' AND u.rolname='bm_pf02a_migrator'
+        AND NOT m.inherit_option AND m.set_option AND NOT m.admin_option
+      ) AND NOT EXISTS(
+        SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid=m.roleid JOIN pg_roles u ON u.oid=m.member
+        WHERE r.rolname='bm_vendor_handoff_owner' AND u.rolname IN ('bm_vendor_web','bm_b1_web')
+      ) AS valid`)).rows[0];
+      if(!membership.valid)throw new Error("VENDOR_TEST_ROLE_MEMBERSHIP_INVALID");
+    }
     const migration=new Client(state.roles.migrationConfig);await migration.connect();
     try{await runPostgresMigrations(migration);await grantRuntimeAccess(migration);}finally{await migration.end();}
     login=new Client(state.roles.b1.loginConfig);await login.connect();
