@@ -438,3 +438,7 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-CANDIDATE03-MOBILE-FIRST-REVALIDATION-FAILURE-20261008: sync_status=pending; Core readiness source independently reviewed; mobile positiveDoctor/inventory and failedJest remain separate generations. Mobile diagnostics/remediation, scopedreview, fullnewcandidate/hosted and whole-review still required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event VENDOR-CANDIDATE03-HOSTED-REMEDIATION-CLOSURE-20261008: sync_status=pending; Hosted remediation independently closed; next exact clean candidate still requires all local gates, fresh hosted execution and whole-candidate review. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE04-CORE-FIRST-FAILURE-20261008: sync_status=pending; Candidate04 FAILED Core browser after three local passes; diagnose and repair accepted regression evidence before new complete local/hosted gates and whole-candidate review. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE04-CORE-REMEDIATION-CLOSURE-20261008: sync_status=pending; Scoped Core fixture review closed; complete new candidate local/hosted gates and whole-candidate review remain pending. No Ready/merge/deploy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
