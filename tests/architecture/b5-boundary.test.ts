@@ -3,6 +3,32 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { expect,it } from "vitest";
 import { moduleEdges,scanB1ProductionGraph } from "./b1-graph";
+type DependencyLock = { packages: Record<string, Record<string, unknown>> };
+const expoPatchFixture="tests/architecture/expo-sdk57-patch-lock.json";
+const expoPatchPaths=["@expo/cli","@expo/config","@expo/config-plugins","@expo/image-utils","@expo/metro-config","@expo/metro-file-map","@expo/prebuild-config","@expo/require-utils","@expo/router-server","@expo/ui","babel-preset-expo","expo","expo-asset","expo-constants","expo-linking","expo-modules-autolinking","expo-modules-core","expo-router"].map(name=>`node_modules/${name}`);
+function sha256(source:string) { return createHash("sha256").update(source).digest("hex"); }
+function projectExpoSdk57Patch(lock:DependencyLock,fixtureSource:string) {
+  expect(sha256(fixtureSource),"reviewed exact Expo patch fixture").toBe("527ac6476c9d7f49a65ae819d7761f86778b0632e42e0abf142521c53249554a");
+  const fixture=JSON.parse(fixtureSource) as {path:string;before:Record<string,unknown>;successorSha256:string}[];
+  expect(fixture.map(entry=>entry.path)).toEqual(expoPatchPaths);
+  for(const entry of fixture) {
+    expect(lock.packages[entry.path],entry.path).toBeDefined();
+    expect(sha256(JSON.stringify(lock.packages[entry.path])),entry.path).toBe(entry.successorSha256);
+    lock.packages[entry.path]=structuredClone(entry.before);
+  }
+}
+function projectSharpLock(lock:DependencyLock) {
+  const web=lock.packages["apps/web"].dependencies as Record<string,string>;
+  expect(web.sharp).toBe("0.35.4");delete web.sharp;
+  const codec=lock.packages["node_modules/sharp"];expect(codec.version).toBe("0.35.4");
+  expect(codec.resolved).toBe("https://registry.npmjs.org/sharp/-/sharp-0.35.4.tgz");
+  expect(codec.integrity).toBe("sha512-n++8XWcj+jCOr2IOl7h8LbKnGBDY4aPbmprMONBNFdn0ImXqpGVv5zliDs0V9HbmbCQLpbuo2ej9rAoOQTvMDA==");
+  delete codec.resolved;delete codec.integrity;
+  for(const key of ["node_modules/sharp","node_modules/@img/colour","node_modules/sharp/node_modules/semver"]){
+    expect(lock.packages[key].optional).toBeUndefined();
+    lock.packages[key]=Object.fromEntries(Object.entries(lock.packages[key]).flatMap(([k,v])=>k==="license"?[[k,v],["optional",true]]:[[k,v]]));
+  }
+}
 const task12RootScripts = {
   "test:e2e:core": "node --experimental-transform-types scripts/core-browser-run.mjs core",
   "test:e2e:sdk": "node --experimental-transform-types scripts/core-browser-run.mjs sdk",
@@ -103,15 +129,11 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
       canonical=JSON.stringify(manifest,null,2)+"\n";
     }
     if(path==="package-lock.json"){
-      const lock=JSON.parse(canonical);expect(lock.packages["apps/web"].dependencies.sharp).toBe("0.35.4");delete lock.packages["apps/web"].dependencies.sharp;
-      const codec=lock.packages["node_modules/sharp"];expect(codec.version).toBe("0.35.4");
-      expect(codec.resolved).toBe("https://registry.npmjs.org/sharp/-/sharp-0.35.4.tgz");
-      expect(codec.integrity).toBe("sha512-n++8XWcj+jCOr2IOl7h8LbKnGBDY4aPbmprMONBNFdn0ImXqpGVv5zliDs0V9HbmbCQLpbuo2ej9rAoOQTvMDA==");
-      delete codec.resolved;delete codec.integrity;
-      for(const key of ["node_modules/sharp","node_modules/@img/colour","node_modules/sharp/node_modules/semver"]){
-        expect(lock.packages[key].optional).toBeUndefined();
-        lock.packages[key]=Object.fromEntries(Object.entries(lock.packages[key]).flatMap(([k,v])=>k==="license"?[[k,v],["optional",true]]:[[k,v]]));
-      }
+      const lock=JSON.parse(canonical);
+      // Reverse only the reviewed existing SDK57 patch entries, then the original
+      // Sharp directive. Every untouched entry and original frozen hash remains.
+      projectExpoSdk57Patch(lock,(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n"));
+      projectSharpLock(lock);
       canonical=JSON.stringify(lock,null,2)+"\n";
     }
     expect(createHash("sha256").update(canonical).digest("hex"),path).toBe(expected);
@@ -125,6 +147,32 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
   expect(manifest.exports["./vendor-handoff"]).toBe("./src/vendor-handoff/index.ts");
   delete manifest.exports["./vendor-handoff"];
   expect(manifest).toEqual({"name": "@build-manager/persistence-postgres", "version": "0.0.0", "private": true, "type": "module", "exports": {".": "./src/index.ts", "./testing": "./src/testing/index.ts", "./b1": "./src/b1/index.ts", "./b3": "./src/b3/index.ts", "./b4": "./src/b4/index.ts"}, "dependencies": {"pg": "8.23.0", "@build-manager/application": "0.0.0"}, "devDependencies": {"@testcontainers/postgresql": "12.1.0", "@types/pg": "8.23.1", "node-pg-migrate": "9.0.0"}});
+});
+it("AC17 exact Expo SDK57 projection rejects package, fixture and unrelated lock drift",async()=>{
+  const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock;
+  const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
+  const inventory=(candidate:DependencyLock,source=fixture)=>{
+    projectExpoSdk57Patch(candidate,source);projectSharpLock(candidate);
+    expect(sha256(JSON.stringify(candidate,null,2)+"\n")).toBe(frozen["package-lock.json"]);
+  };
+  inventory(structuredClone(lock));
+  for(const mutate of [
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/expo"].version="57.0.28";},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/ui"].integrity="sha512-unreviewed";},
+    (candidate:DependencyLock)=>{(candidate.packages["node_modules/expo"].dependencies as Record<string,string>)["expo-constants"]="*";},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/cli"].hasInstallScript=true;},
+    (candidate:DependencyLock)=>{delete candidate.packages["node_modules/expo-linking"];},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/unreviewed"]={version:"1.0.0"};},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/typescript"].version="0.0.0";},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/devcert"].version="1.2.2";},
+  ]) {
+    const candidate=structuredClone(lock);mutate(candidate);
+    expect(()=>inventory(candidate)).toThrow();
+  }
+  const changedFixture=JSON.parse(fixture);changedFixture[0].before.version="57.0.26";
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(changedFixture,null,2)+"\n")).toThrow();
+  const removedFixture=JSON.parse(fixture);removedFixture.pop();
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(removedFixture,null,2)+"\n")).toThrow();
 });
 it("AC17 Task12 projection rejects changed commands, order, log capture and unrelated workflow gates",async()=>{
   const source=(await readFile(".github/workflows/app-check.yml","utf8")).replaceAll("\r\n","\n");

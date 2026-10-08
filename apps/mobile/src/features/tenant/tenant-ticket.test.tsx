@@ -7,7 +7,12 @@ import type {
   TenantTicketStatusDto,
 } from "@build-manager/api-contracts";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { ScrollView } from "react-native";
 import { TenantTicket } from "./tenant-ticket";
+
+// Resolve Screen's lazy native module during collection. Cold transforms still
+// run in this Jest invocation; ticket loading stays inside its 5s behavior test.
+void ScrollView;
 
 const TICKET_ID = "ticket-demo-1";
 
