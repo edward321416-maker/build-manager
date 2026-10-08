@@ -3,8 +3,9 @@ import { act } from "react";
 import { createRoot,type Root } from "react-dom/client";
 import { afterEach,describe,expect,it,vi } from "vitest";
 import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
-import type { TenantVendorSchedulingDto } from "@build-manager/api-contracts";
+import type { CoreTicketDto, CoreTicketOutcome, TenantVendorSchedulingDto } from "@build-manager/api-contracts";
 import { VendorHandoffTenant } from "./vendor-handoff-tenant";
+import { TicketOutcome } from "./ticket-outcome";
 
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 const ticketId="11111111-1111-4111-8111-111111111111",packetId="22222222-2222-4222-8222-222222222222",roundId="33333333-3333-4333-8333-333333333333";
@@ -54,6 +55,34 @@ async function check(label:string){
   expect(Boolean(input),label).toBe(true);await act(async()=>{input!.click();});
 }
 const forbidden=["상시 출입 허용","언제든 출입 허용","자동 출입 허용","알림을 보냈습니다","수리 완료","업체 완료"];
+
+describe("Task10 mounted Tenant outcome after Vendor closeout",()=>{
+  async function closedOutcome(initial:CoreTicketOutcome["kind"]="UNCONFIRMED",followUpTicketId:string|null=null){
+    const f=fake(http(404,"NOT_FOUND"));
+    let outcome:CoreTicketOutcome={ticketId,kind:initial,assertedAt:initial==="UNCONFIRMED"?null:"2026-10-08T00:00:00Z",followUpTicketId};
+    const confirmResolved=vi.fn<(id:string,input:{clientRequestId:string})=>Promise<CoreTicketOutcome>>(async()=>{outcome={...outcome,kind:"RESOLVED",assertedAt:"2026-10-08T01:00:00Z"};return outcome;}),onFollowUp=vi.fn(),onOpen=vi.fn();
+    const client={...f.client,outcome:{source:vi.fn(async()=>({sourceTicketId:null})),read:vi.fn(async()=>outcome),confirmResolved}} as unknown as CoreFlowClient;
+    const completed={ticketId,workStatus:"COMPLETED"} as CoreTicketDto;
+    host=document.createElement("div");document.body.append(host);root=createRoot(host);
+    await act(async()=>root!.render(<><VendorHandoffTenant client={client} ticketId={ticketId} revision={0} now={now}/><TicketOutcome client={client} ticket={completed} tenant revision={0} onFollowUp={onFollowUp} onOpen={onOpen}/></>));await flush();
+    return {confirmResolved,onFollowUp,onOpen,vendorHandoff:f.vendorHandoff};
+  }
+  it("T10-U01 closeout exposes the unchanged RESOLVED and fresh-follow-up actions; resolving never edits Vendor state",async()=>{
+    const s=await closedOutcome();
+    expect(page()).toContain("처리 결과는 어땠나요?");expect(Boolean(button("해결됐어요"))).toBe(true);expect(Boolean(button("아직 문제가 있어요"))).toBe(true);expect(Boolean(button("다시 문제가 생겼어요"))).toBe(true);
+    await click("아직 문제가 있어요");expect(s.onFollowUp).toHaveBeenLastCalledWith("UNRESOLVED");
+    await click("다시 문제가 생겼어요");expect(s.onFollowUp).toHaveBeenLastCalledWith("RECURRENCE_CLAIM");
+    await click("해결됐어요");expect(s.confirmResolved).toHaveBeenCalledTimes(1);expect(s.confirmResolved.mock.calls[0][0]).toBe(ticketId);
+    expect(Boolean(button("해결됐어요"))).toBe(false);expect(Boolean(button("아직 문제가 있어요"))).toBe(false);expect(Boolean(button("다시 문제가 생겼어요"))).toBe(true);
+    expect(host.querySelector("[data-task-zone]")).toBeNull();expect(host.innerHTML).not.toMatch(/vendorLabel|completionPhotoIds|assignmentHistory|T10_VENDOR_REPORT_PRIVATE/);
+    for(const mutation of [s.vendorHandoff.submitAvailability,s.vendorHandoff.authorizeEntry,s.vendorHandoff.confirmSlot,s.vendorHandoff.tenantReschedule])expect(mutation).not.toHaveBeenCalled();
+  });
+  it.each(["UNRESOLVED","RECURRENCE_CLAIM"] as const)("T10-U02 %s opens the new linked ticket without offering source reopening",async kind=>{
+    const target="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",s=await closedOutcome(kind,target);
+    await click("후속 접수 보기");expect(s.onOpen).toHaveBeenCalledWith(target);expect(s.confirmResolved).not.toHaveBeenCalled();expect(s.onFollowUp).not.toHaveBeenCalled();
+    expect(Boolean(button("해결됐어요"))).toBe(false);expect(Boolean(button("아직 문제가 있어요"))).toBe(false);expect(Boolean(button("다시 문제가 생겼어요"))).toBe(false);
+  });
+});
 
 describe("Tenant Vendor scheduling task zone",()=>{
   it("renders nothing when the ticket has no current Vendor scheduling",async()=>{

@@ -1,14 +1,22 @@
+// @vitest-environment jsdom
 import { renderToStaticMarkup } from "react-dom/server";
-import { expect,it } from "vitest";
+import { afterEach, expect,it,vi } from "vitest";
+import { act } from "react";
+import { createRoot,type Root } from "react-dom/client";
 import type { ComponentProps } from "react";
 import type { CoreTicketDto,ManagerVendorHandoffDto,VendorCompletionReportDto } from "@build-manager/api-contracts";
 import { VendorHandoffManagerView,ManagerDirectCompletionGate,vendorHandoffEligible,resolveDeliverableLink,reconcileManagerHandoff } from "./vendor-handoff-manager";
-import type { CoreVendorHandoffClient } from "@build-manager/api-client";
+import type { CoreFlowClient,CoreVendorHandoffClient } from "@build-manager/api-client";
+import { VendorHandoffManager } from "./vendor-handoff-manager";
+import { ManagerMaintenanceFactEditor } from "./manager-maintenance-timeline";
 
 const ticket={ticketId:"ticket",workStatus:"IN_PROGRESS",version:1,detail:{status:"OVERRIDDEN",decision:{type:"OVERRIDE",routeCode:"GENERAL_VENDOR"},repairPacket:{safetyEscalated:false,recommendation:{routeCode:"GENERAL_VENDOR"}}}} as unknown as CoreTicketDto;
 const source={jobReference:"ticket",buildingName:"합성 건물",serviceAddress:"합성 정식 주소",unitLabel:"합성 호실",issueType:"LEAK" as const,sharedDetails:[{key:"leak.active",label:"현재 누수",value:"예",sourceType:"TENANT_REPORTED" as const},{key:"heatingType",label:"난방 방식",value:"개별",sourceType:"BUILDING_VERIFIED" as const}],sourcePhotoIds:["photo-1","photo-2"],safetyNotice:[]};
 const handoff:ManagerVendorHandoffDto={ticketId:"ticket",assignment:{id:"assignment",status:"PREPARING",endReason:null,vendorLabel:"합성 업체",version:1},currentPacket:null,currentRound:null,appointment:null,activeBlocker:null,currentReport:null,reportHistory:[],phase:"IN_PROGRESS",waitingOn:"NONE",packetSource:source};
 const noop=()=>{};
+Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
+let task10Root:Root|undefined,task10Host:HTMLDivElement|undefined;
+afterEach(async()=>{if(task10Root)await act(async()=>task10Root?.unmount());task10Root=undefined;task10Host?.remove();task10Host=undefined;});
 const base:ComponentProps<typeof VendorHandoffManagerView>={ticket,handoff,loading:false,busy:false,error:"",notice:"",uncertain:false,linkUnavailable:false,immediateLink:null,preview:false,draft:{vendorLabel:"합성 업체",workSummary:"합성 누수 점검",sharedDetailKeys:[],allowedPhotoIds:[],accessPolicy:"TENANT_PRESENT_REQUIRED",accessInstruction:""},photoPreviews:[],onDraft:noop,onPreview:noop,onCreate:noop,onPublish:noop,onIssue:noop,onReissue:noop,onRevoke:noop,onRefresh:noop,onReview:noop};
 const view=(changes:Partial<typeof base>={})=>renderToStaticMarkup(<VendorHandoffManagerView {...base} {...changes}/>);
 it("offers fresh handoff only for approved safe external routes and unfinished records",()=>{
@@ -117,4 +125,23 @@ it("Task9 unresolved correction shows Vendor turn and removes closeout/more-work
 it("Task9 MORE_WORK restores normal packet preparation after its report disposition",()=>{
   const h={...reported(),phase:"SCHEDULING",waitingOn:"TENANT",packetSource:source} as ManagerVendorHandoffDto;
   expect(view({handoff:h})).toContain("<h3>업체 전달 내용</h3>");
+});
+
+it("T10-U03 mounted closed Manager handoff leaves Fact creation explicit and never prefills Vendor report/photo/text",async()=>{
+  const completed={...ticket,workStatus:"COMPLETED"} as CoreTicketDto;
+  const closed:ManagerVendorHandoffDto={...reported({workSummary:"T10_VENDOR_REPORT_PRIVATE",componentOrPartNote:"T10_VENDOR_PART_PRIVATE",completionPhotoIds:["T10_PRIVATE_PHOTO"]}),
+    assignment:{...handoff.assignment!,status:"ENDED",endReason:"CLOSED",version:8},phase:"ENDED",waitingOn:"NONE",ticketWorkStatus:"COMPLETED"};
+  const create=vi.fn<(id:string,input:unknown)=>Promise<unknown>>(async()=>({})),correct=vi.fn(),onChanged=vi.fn();
+  const client={vendorHandoff:{readHandoff:vi.fn(async()=>closed)},photos:vi.fn(async()=>[]),maintenance:{readForTicket:vi.fn(async()=>({current:null,revisions:[]})),create,correct}} as unknown as CoreFlowClient;
+  task10Host=document.createElement("div");document.body.append(task10Host);task10Root=createRoot(task10Host);
+  await act(async()=>{task10Root!.render(<><VendorHandoffManager client={client} ticket={completed} revision={0} onHandoff={noop} onChanged={onChanged}/><ManagerMaintenanceFactEditor client={client} ticket={completed} revision={0} onOpenTicket={noop} onChanged={onChanged}/></>);for(let i=0;i<12;i++)await Promise.resolve();});
+  expect(create).not.toHaveBeenCalled();expect(correct).not.toHaveBeenCalled();
+  const field=task10Host.querySelector<HTMLInputElement>('[aria-label="정비 부품·위치 명칭"]')!,select=task10Host.querySelector<HTMLSelectElement>('[aria-label="정비 작업 종류"]')!;
+  expect(field.value).toBe("");expect(select.value).toBe("INSPECTION");
+  const form=field.closest("form")!;expect(form.innerHTML).not.toMatch(/T10_VENDOR_REPORT_PRIVATE|T10_VENDOR_PART_PRIVATE|T10_PRIVATE_PHOTO/);
+  await act(async()=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(field,"T10_EXPLICIT_MANAGER_FACT");field.dispatchEvent(new Event("input",{bubbles:true}));});
+  await act(async()=>{form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));});
+  expect(create).toHaveBeenCalledTimes(1);expect(create.mock.calls[0]).toEqual([completed.ticketId,{clientRequestId:expect.any(String),actionKind:"INSPECTION",componentLabel:"T10_EXPLICIT_MANAGER_FACT"}]);
+  expect(JSON.stringify(create.mock.calls)).not.toMatch(/T10_VENDOR_REPORT_PRIVATE|T10_VENDOR_PART_PRIVATE|T10_PRIVATE_PHOTO/);
+  expect(onChanged).toHaveBeenCalledTimes(1);expect(correct).not.toHaveBeenCalled();
 });

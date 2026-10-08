@@ -3,7 +3,7 @@ import { expect, it } from "vitest";
 import { CoreFlowError, VendorHandoffError, type CoreFlowPort, type CoreScope, type VendorHandoffManagerPort } from "@build-manager/application";
 import { handleCoreFlow } from "./http";
 import type { CoreHTTPDependencies } from "./container";
-import { VendorLinkIssueDtoSchema } from "@build-manager/api-contracts";
+import { ManagerVendorHandoffDtoSchema, VendorLinkIssueDtoSchema, VendorTenantSchedulingDtoSchema } from "@build-manager/api-contracts";
 import { coreVendorHandoff } from "@build-manager/api-client";
 
 const ticketId=randomUUID(),assignmentId=randomUUID(),packetId=randomUUID(),orgId=randomUUID();
@@ -90,6 +90,20 @@ const appointmentId=randomUUID(),submissionId=randomUUID(),windowId=randomUUID()
 const tenantDto={ticketId,assignmentVersion:4,packetRevisionId:packetId,effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",phase:"SCHEDULING",waitingOn:"TENANT",
   currentRound:null,appointment:null,accessPolicy:"TENANT_PRESENT_REQUIRED",availability:null,proposal:null};
 const roundGuards={expectedAssignmentVersion:4,expectedRoundVersion:2,expectedPacketRevisionId:packetId};
+
+it("T10-H01 parses actual dispatcher role responses and excludes private fields from serialized Tenant output",async()=>{
+  const managerResponse=await setup().call(`manager/tickets/${ticketId}/vendor-handoff`);
+  expect(managerResponse.status).toBe(200);
+  const managerBytes=await managerResponse.text(),manager=ManagerVendorHandoffDtoSchema.parse(JSON.parse(managerBytes));
+  expect(manager.assignment?.vendorLabel).toBe("합성 업체");expect(managerBytes).toContain('"vendorLabel":');
+  const tenantResponse=await setupTenant().call(`tickets/${ticketId}/vendor-scheduling`);
+  expect(tenantResponse.status).toBe(200);
+  const tenantBytes=await tenantResponse.text();expect(VendorTenantSchedulingDtoSchema.parse(JSON.parse(tenantBytes))).toEqual(tenantDto);
+  for(const field of ["vendorLabel","rawUserText","currentReport","completionPhotoIds","componentOrPartNote","internalNotes","assigneeLabel","priority","dueAt","assignmentHistory","reportHistory"]){
+    expect(tenantBytes).not.toContain(`"${field}":`);
+  }
+  expect((await setupTenant().call(`manager/tickets/${ticketId}/vendor-handoff`)).status).toBe(403);
+});
 function setupTenant(role="TENANT"){
   const calls:{method:string;digest:string;id:string;input:unknown;org:string}[]=[];
   const tenantFor=(org:string)=>new Proxy({},{get:(_t,method:string)=>async(hash:string,id:string,body:unknown)=>{calls.push({method,digest:hash,id,input:body,org});return tenantDto;}});

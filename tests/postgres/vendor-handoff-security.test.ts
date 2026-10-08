@@ -2,6 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createVendorHandoffFixture } from "./helpers/vendor-handoff-fixture";
 import { createHash, randomUUID } from "node:crypto";
 import { Client } from "pg";
+import { createCoreAccessPort, createCoreFlowPort } from "@build-manager/persistence-postgres/core-flow";
+import { createVendorHandoffManagerPort, createVendorHandoffTenantPort } from "@build-manager/persistence-postgres/vendor-handoff";
+import { CoreFollowUpResultSchema, CoreMaintenanceFactDetailSchema, CoreTicketOutcomeSchema, CoreTicketSchema, CoreUnitMaintenanceFactSchema, ManagerVendorHandoffDtoSchema, VendorJobDtoSchema, VendorTenantSchedulingDtoSchema } from "@build-manager/api-contracts";
+import { handleCoreFlow } from "../../apps/web/src/server/core-flow/http";
+import type { CoreHTTPDependencies } from "../../apps/web/src/server/core-flow/container";
+import sharp from "sharp";
 
 let f: Awaited<ReturnType<typeof createVendorHandoffFixture>>;
 
@@ -21,6 +27,153 @@ const externalFunctions = ["accept", "clear_blocker", "decline", "logout", "prop
 const bridges = ["vendor_handoff_complete", "vendor_handoff_lock_ticket", "vendor_handoff_manager_context", "vendor_handoff_mark_offered", "vendor_handoff_recheck_occupancy", "vendor_handoff_source", "vendor_handoff_source_photo", "vendor_handoff_tenant_context"].sort();
 const hash = (label: string) => createHash("sha256").update(label + randomUUID()).digest("hex");
 const proof = (value: string) => Buffer.from(value, "hex");
+const task10Origin = "http://127.0.0.1:3130";
+function task10Request(who: string, path: string, body?: unknown) {
+  const database = f.managerDatabase;
+  const dependencies: CoreHTTPDependencies = {
+    port: createCoreFlowPort(database), revoke: async () => {}, origins: [task10Origin],
+    vendorHandoff: { inOrganization: org => createVendorHandoffManagerPort(database, org), tenantInOrganization: org => createVendorHandoffTenantPort(database, org) },
+    b1: { current: async () => ({ actor: { userId: f.data.accounts[who].userId }, digest: f.data.accounts[who].digest, csrf: "synthetic-proof" }), access: createCoreAccessPort(database) },
+  };
+  return handleCoreFlow(new Request(`${task10Origin}/api/v2/core/${path}`, {
+    method: body === undefined ? "GET" : "POST",
+    headers: { Origin: task10Origin, "X-Core-Organization": f.data.orgA, "X-B1-CSRF": "synthetic-proof", "Content-Type": "application/json" },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  }), path.split("/"), () => dependencies);
+}
+async function task10Json(who: string, path: string, body?: unknown, status = 200) {
+  const response = await task10Request(who, path, body);
+  expect(response.status, path).toBe(status);
+  return response.json();
+}
+async function task10Reported() {
+  const c = await issued(), ticketId = c.t.ticket.id, assignmentId = c.handoff.assignment!.id, packetId = c.handoff.currentPacket!.id;
+  const vendor = f.externalWith(c.csrf), tenant = createVendorHandoffTenantPort(f.managerDatabase);
+  await vendor.accept(c.session, { clientRequestId: randomUUID(), expectedAssignmentVersion: 3, expectedPacketRevisionId: packetId });
+  const guards = async () => {
+    const dto = await tenant.readScheduling(f.data.accounts.tenant.digest, ticketId);
+    return { expectedAssignmentVersion: dto.assignmentVersion, expectedRoundVersion: dto.currentRound!.version, expectedPacketRevisionId: packetId };
+  };
+  const at = (hour: number) => new Date(Date.now() + hour * 3_600_000).toISOString();
+  await tenant.submitAvailability(f.data.accounts.tenant.digest, ticketId, { clientRequestId: randomUUID(), ...await guards(), windows: [{ startAt: at(24), endAt: at(28) }] });
+  const proposal = await vendor.proposeSlots(c.session, { clientRequestId: randomUUID(), ...await guards(), slots: [{ startAt: at(25), endAt: at(26) }] });
+  const confirmed = await tenant.confirmSlot(f.data.accounts.tenant.digest, ticketId, { clientRequestId: randomUUID(), ...await guards(), proposalId: proposal.proposal!.id, selectedSlotId: proposal.proposal!.slots[0].id });
+  await vendor.startVisit(c.session, confirmed.appointment!.id, { clientRequestId: randomUUID(), ...await guards() });
+  const current = await vendor.readJob(c.session);
+  const bytes = await sharp({ create: { width: 8, height: 6, channels: 3, background: "#265b82" } }).png().toBuffer();
+  await createCoreFlowPort(f.managerDatabase).run(f.data.accounts.tenant.digest, s => s.savePhoto(ticketId, { uploadId: randomUUID(), mime: "image/png", width: 8, height: 6, bytes }));
+  const photo = await vendor.uploadCompletionPhoto(c.session, { clientRequestId: randomUUID(), expectedAssignmentVersion: current.assignmentVersion, expectedPacketRevisionId: packetId,
+    expectedAppointmentId: confirmed.appointment!.id, expectedCorrectionRequestId: null }, { bytes, mime: "image/png", byteSize: bytes.length, width: 8, height: 6, sha256: createHash("sha256").update(bytes).digest("hex") });
+  await vendor.submitCompletionReport(c.session, { clientRequestId: randomUUID(), expectedAssignmentVersion: current.assignmentVersion, expectedPacketRevisionId: packetId,
+    expectedAppointmentId: confirmed.appointment!.id, expectedCorrectionRequestId: null, supersedesReportId: null, workSummary: "T10_VENDOR_REPORT_PRIVATE", componentOrPartNote: "T10_VENDOR_PART_PRIVATE", completionPhotoIds: [photo.photoId], photoOmissionReason: null });
+  return { ...c, vendor, ticketId, assignmentId, photoId: photo.photoId };
+}
+async function task10Close(c: Awaited<ReturnType<typeof task10Reported>>) {
+  const handoff = ManagerVendorHandoffDtoSchema.parse(await task10Json("manager", `manager/tickets/${c.ticketId}/vendor-handoff`));
+  const communication = await createCoreFlowPort(f.managerDatabase).run(f.data.accounts.manager.digest, s => s.communication.read(c.ticketId));
+  return ManagerVendorHandoffDtoSchema.parse(await task10Json("manager", `manager/vendor-assignments/${c.assignmentId}/closeout`, {
+    clientRequestId: randomUUID(), expectedAssignmentVersion: handoff.assignment!.version, expectedCompletionReportId: handoff.currentReport!.id, expectedCommunicationVersion: communication.version, message: "T10_MANAGER_PUBLIC_CLOSEOUT",
+  }));
+}
+async function task10SourceSnapshot(ticketId: string, assignmentId: string) {
+  const rows = await f.p.admin.query("SELECT body,work_status,version,updated_at FROM core_flow.ticket WHERE id=$1", [ticketId]);
+  const assignment = await f.p.admin.query("SELECT status,end_reason,version FROM vendor_handoff.vendor_assignment WHERE id=$1", [assignmentId]);
+  expect(rows.rows).toHaveLength(1); expect(rows.rows[0].work_status).toBe("COMPLETED");
+  expect(assignment.rows).toHaveLength(1); expect(assignment.rows[0]).toMatchObject({ status: "ENDED", end_reason: "CLOSED" });
+  const events = await f.p.admin.query("SELECT id FROM core_flow.ticket_event WHERE ticket_id=$1 ORDER BY id", [ticketId]);
+  return { ticket: rows.rows, assignment: assignment.rows, events: events.rows };
+}
+function task10Absent(value: unknown, names: string[], markers: string[] = []) {
+  const serialized = JSON.stringify(value);
+  for (const name of names) expect(serialized).not.toContain(`"${name}":`);
+  for (const marker of markers) expect(serialized).not.toContain(marker);
+}
+
+describe("Task10 actual Vendor closeout preserves Core outcome and role privacy", () => {
+  it("T10-P01 RESOLVED is a separate Tenant assertion with exact replay and unchanged closed source/assignment", async () => {
+    const c = await task10Reported();
+    expect(await task10Json("manager", `manager/tickets/${c.ticketId}/maintenance-fact`)).toEqual({ current: null, revisions: [] });
+    const closed = await task10Close(c);
+    expect(closed.assignment).toMatchObject({ status: "ENDED", endReason: "CLOSED" });
+    expect(CoreTicketOutcomeSchema.parse(await task10Json("tenant", `tickets/${c.ticketId}/outcome`)).kind).toBe("UNCONFIRMED");
+    const before = await task10SourceSnapshot(c.ticketId, c.assignmentId), input = { clientRequestId: randomUUID() };
+    const result = CoreTicketOutcomeSchema.parse(await task10Json("tenant", `tickets/${c.ticketId}/outcome/resolved`, input, 201));
+    expect(result).toMatchObject({ kind: "RESOLVED", followUpTicketId: null });
+    expect(await task10Json("tenant", `tickets/${c.ticketId}/outcome/resolved`, input)).toEqual(result);
+    expect(await task10SourceSnapshot(c.ticketId, c.assignmentId)).toEqual(before);
+    expect(await task10Json("manager", `manager/tickets/${c.ticketId}/maintenance-fact`)).toEqual({ current: null, revisions: [] });
+    expect((await task10Request("manager", `tickets/${c.ticketId}/outcome/resolved`, { clientRequestId: randomUUID() })).status).toBe(403);
+  });
+  it.each(["UNRESOLVED", "RECURRENCE_CLAIM"] as const)("T10-P02 %s creates a fresh linked ticket after Vendor closeout without reopening or copying the source", async claimKind => {
+    const c = await task10Reported();
+    await createCoreFlowPort(f.managerDatabase).run(f.data.accounts.manager.digest, async s => {
+      await s.manager.appendNote(c.ticketId, "T10_MANAGER_NOTE_PRIVATE");
+      await s.manager.update(c.ticketId, { priority: "URGENT", assigneeLabel: "T10_MANAGER_ASSIGNEE_PRIVATE", dueAt: null, expectedVersion: 1 });
+      await s.communication.send(c.ticketId, { clientRequestId: randomUUID(), expectedVersion: 0, intent: "MANAGER_UPDATE", body: "T10_FULL_QA_PRIVATE" });
+      expect((await s.photos(c.ticketId)).length).toBe(1);
+    });
+    await task10Close(c);
+    if (claimKind === "RECURRENCE_CLAIM") await task10Json("tenant", `tickets/${c.ticketId}/outcome/resolved`, { clientRequestId: randomUUID() }, 201);
+    const before = await task10SourceSnapshot(c.ticketId, c.assignmentId);
+    const input = { clientRequestId: randomUUID(), claimKind, issueType: "HEATING", rawUserText: "T10_FRESH_TENANT_INPUT" };
+    const result = CoreFollowUpResultSchema.parse(await task10Json("tenant", `tickets/${c.ticketId}/follow-up`, input, 201));
+    const target = result.ticket.ticketId;
+    expect(target).not.toBe(c.ticketId); expect(result.ticket.workStatus).toBe("OPEN");
+    expect(result.sourceOutcome).toMatchObject({ kind: claimKind, followUpTicketId: target });
+    expect(await task10Json("tenant", `tickets/${target}/follow-up`)).toEqual({ sourceTicketId: c.ticketId });
+    expect(await task10Json("tenant", `tickets/${c.ticketId}/follow-up`, input)).toEqual(result);
+    const fresh = await createCoreFlowPort(f.managerDatabase).run(f.data.accounts.manager.digest, async s => ({ record: await s.read(target), photos: await s.photos(target), communication: await s.communication.read(target), notes: await s.manager.notes(target), work: await s.manager.read(target), fact: await s.maintenance.readForTicket(target) }));
+    expect(fresh.record.ticket).toMatchObject({ issueType: "HEATING", rawUserText: input.rawUserText, answers: [], evidence: [], repairPacket: null, routeDecision: null });
+    expect(fresh.record.events.map(event => event.kind)).toEqual(["CREATED"]);
+    expect(fresh.photos).toEqual([]); expect(fresh.communication).toMatchObject({ version: 0, messages: [] }); expect(fresh.notes).toEqual([]);
+    expect(fresh.work).toMatchObject({ priority: "NORMAL", assigneeLabel: null, dueAt: null }); expect(fresh.fact).toEqual({ current: null, revisions: [] });
+    task10Absent(fresh, [], ["T10_VENDOR_REPORT_PRIVATE", "T10_VENDOR_PART_PRIVATE", "T10_MANAGER_NOTE_PRIVATE", "T10_MANAGER_ASSIGNEE_PRIVATE", "T10_FULL_QA_PRIVATE", "T10_MANAGER_PUBLIC_CLOSEOUT"]);
+    expect(await task10SourceSnapshot(c.ticketId, c.assignmentId)).toEqual(before);
+    expect((await task10Request("tenant", `tickets/${c.ticketId}/outcome/resolved`, { clientRequestId: randomUUID() })).status).toBe(409);
+    expect((await task10Request("tenant", `tickets/${c.ticketId}/follow-up`, { ...input, clientRequestId: randomUUID() })).status).toBe(409);
+  });
+  it("T10-P03 actual role DTO serialization excludes private fields and Tenant raw completion-photo access is denied", async () => {
+    const history = await task10Reported(); await task10Close(history);
+    await task10Json("manager", `manager/tickets/${history.ticketId}/maintenance-fact`, { clientRequestId: randomUUID(), actionKind: "REPAIR", componentLabel: "T10_UNRELATED_FACT_PRIVATE" }, 201);
+    const c = await task10Reported(), digest = f.data.accounts.manager.digest;
+    await createCoreFlowPort(f.managerDatabase).run(digest, async s => {
+      await s.manager.appendNote(c.ticketId, "T10_MANAGER_NOTE_PRIVATE");
+      await s.manager.update(c.ticketId, { priority: "URGENT", assigneeLabel: "T10_MANAGER_ASSIGNEE_PRIVATE", dueAt: null, expectedVersion: 1 });
+      await s.communication.send(c.ticketId, { clientRequestId: randomUUID(), expectedVersion: 0, intent: "MANAGER_UPDATE", body: "T10_FULL_QA_PRIVATE" });
+    });
+    const vendor = VendorJobDtoSchema.parse(await c.vendor.readJob(c.session));
+    task10Absent(vendor, ["rawUserText", "tenantName", "tenantContact", "contact", "internalNotes", "assigneeLabel", "priority", "dueAt", "messages", "assignmentHistory", "reportHistory", "maintenanceFacts", "costs"], ["합성 비공개 접수 내용", "T10_MANAGER_NOTE_PRIVATE", "T10_MANAGER_ASSIGNEE_PRIVATE", "T10_FULL_QA_PRIVATE", "T10_UNRELATED_FACT_PRIVATE", history.ticketId, history.photoId]);
+    expect(vendor.currentReport?.workSummary).toBe("T10_VENDOR_REPORT_PRIVATE");
+    const manager = ManagerVendorHandoffDtoSchema.parse(await task10Json("manager", `manager/tickets/${c.ticketId}/vendor-handoff`));
+    expect(manager.assignment?.vendorLabel).toBe("합성 업체"); expect(manager.currentReport?.completionPhotoIds).toEqual([c.photoId]);
+    const scheduling = VendorTenantSchedulingDtoSchema.parse(await task10Json("tenant", `tickets/${c.ticketId}/vendor-scheduling`));
+    const tenant = CoreTicketSchema.parse(await task10Json("tenant", `tickets/${c.ticketId}`));
+    task10Absent({ scheduling, tenant }, ["vendorLabel", "currentReport", "completionPhotoIds", "componentOrPartNote", "reportHistory", "assignmentHistory", "internalNotes", "assigneeLabel", "priority", "dueAt"], ["T10_VENDOR_REPORT_PRIVATE", "T10_VENDOR_PART_PRIVATE", "T10_MANAGER_NOTE_PRIVATE", "T10_MANAGER_ASSIGNEE_PRIVATE", c.photoId, "T10_UNRELATED_FACT_PRIVATE"]);
+    const allowed = await task10Request("manager", `manager/tickets/${c.ticketId}/vendor-completion-photos/${c.photoId}`);
+    expect(allowed.status).toBe(200); expect((await allowed.arrayBuffer()).byteLength).toBeGreaterThan(0);
+    expect((await task10Request("tenant", `manager/tickets/${c.ticketId}/vendor-completion-photos/${c.photoId}`)).status).toBe(403);
+    expect((await task10Request("tenant", `tickets/${c.ticketId}/vendor-completion-photos/${c.photoId}`)).status).toBe(404);
+    await task10Close(c);
+    const closedTenant = CoreTicketSchema.parse(await task10Json("tenant", `tickets/${c.ticketId}`));
+    expect(closedTenant.workStatus).toBe("COMPLETED");
+    task10Absent(closedTenant, ["vendorLabel", "completionPhotoIds", "componentOrPartNote", "assignmentHistory", "internalNotes", "assigneeLabel", "priority", "dueAt"], ["T10_VENDOR_REPORT_PRIVATE", "T10_VENDOR_PART_PRIVATE", "T10_MANAGER_NOTE_PRIVATE", "T10_MANAGER_ASSIGNEE_PRIVATE", c.photoId]);
+    expect((await task10Request("tenant", `manager/tickets/${c.ticketId}/vendor-completion-photos/${c.photoId}`)).status).toBe(403);
+    expect((await task10Request("tenant", `tickets/${c.ticketId}/vendor-completion-photos/${c.photoId}`)).status).toBe(404);
+  });
+  it("T10-P04 Vendor report and closeout create no Fact; explicit Manager Fact uses only separately entered fields", async () => {
+    const c = await task10Reported();
+    expect(CoreMaintenanceFactDetailSchema.parse(await task10Json("manager", `manager/tickets/${c.ticketId}/maintenance-fact`))).toEqual({ current: null, revisions: [] });
+    await task10Close(c);
+    expect(await task10Json("manager", `manager/tickets/${c.ticketId}/maintenance-fact`)).toEqual({ current: null, revisions: [] });
+    const before = await task10SourceSnapshot(c.ticketId, c.assignmentId), input = { clientRequestId: randomUUID(), actionKind: "INSPECTION", componentLabel: "T10_EXPLICIT_MANAGER_FACT" };
+    const fact = CoreUnitMaintenanceFactSchema.parse(await task10Json("manager", `manager/tickets/${c.ticketId}/maintenance-fact`, input, 201));
+    expect(fact).toMatchObject({ actionKind: "INSPECTION", componentLabel: input.componentLabel, tenantOutcome: "UNCONFIRMED", sourceTicketId: c.ticketId });
+    task10Absent(fact, ["workSummary", "completionPhotos", "componentOrPartNote", "vendorLabel"], ["T10_VENDOR_REPORT_PRIVATE", "T10_VENDOR_PART_PRIVATE", c.photoId]);
+    expect(await task10Json("manager", `manager/tickets/${c.ticketId}/maintenance-fact`, input)).toEqual(fact);
+    expect((await task10Request("tenant", `manager/tickets/${c.ticketId}/maintenance-fact`)).status).toBe(403);
+    expect(await task10SourceSnapshot(c.ticketId, c.assignmentId)).toEqual(before);
+  });
+});
 async function owner<T>(op: (client: Client) => Promise<T>) {
   const client = new Client(f.p.adminConfig); await client.connect();
   try { await client.query("BEGIN"); await client.query("SET LOCAL ROLE bm_vendor_handoff_owner"); return await op(client); }
