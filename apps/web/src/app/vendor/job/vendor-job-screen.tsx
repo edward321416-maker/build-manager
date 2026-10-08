@@ -338,7 +338,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     void sendSchedule({kind:"clear",blockerId:job.activeBlocker.id,input:{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,
       expectedPacketRevisionId:job.currentPacket.id,operationalNote:note}},state);
   };
-  /** Completion evidence: one upload at a time; an unknown outcome resends the identical file and command. */
+  /** Completion evidence: one upload at a time; unknown outcomes require current-context reconciliation first. */
   const ownedCompletion=(job:VendorJobDto,state:Completion=completion)=>ownsCompletion(job,state)?state:freshCompletion(job);
   const uploadOne=async(file:Blob,input:VendorCompletionPhotoUploadCommand,gen:number):Promise<boolean>=>{
     setCompletion(current=>({...current,uploadStatus:"uploading",notice:""}));setTaskNotice("");
@@ -382,7 +382,27 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     }
     if(completed&&chosen.length<files.length&&gen===generation.current)setCompletion(current=>({...current,notice:VISIT_LIMIT}));
   };
-  const retryUpload=()=>{if(completion.pending)void uploadOne(completion.pending.file,completion.pending.input,generation.current);};
+  const retryUpload=async()=>{
+    if(!completion.pending||completion.uploadStatus!=="uncertain")return;
+    const {file,input}=completion.pending,assignmentId=completion.assignmentId,gen=generation.current;
+    setCompletion(current=>({...current,uploadStatus:"uploading"}));
+    try{
+      const fresh=await client.job();
+      if(gen!==generation.current)return;
+      setPhase({kind:"ready",job:fresh});
+      if(fresh.assignmentId!==assignmentId||fresh.assignmentVersion!==input.expectedAssignmentVersion
+        ||fresh.currentPacket?.id!==input.expectedPacketRevisionId||fresh.appointment?.id!==input.expectedAppointmentId
+        ||fresh.appointment.status!=="OCCURRED"||(fresh.correctionRequest?.id??null)!==input.expectedCorrectionRequestId){
+        setCompletion(current=>({...current,pending:null,uploadStatus:"idle"}));setTaskNotice(STALE_NOTICE);return;
+      }
+      // GET establishes current authority/context; the identical POST resolves the existing durable receipt.
+      await uploadOne(file,input,gen);
+    }catch(error){
+      if(gen!==generation.current)return;
+      if(statusOf(error)===401){setCompletion(idleCompletion);setPhase({kind:"unavailable"});}
+      else setCompletion(current=>({...current,uploadStatus:"uncertain"}));
+    }
+  };
   const sendReport=async(input:VendorCompletionReportCommand,state:Completion)=>{
     if(phase.kind!=="ready"||!csrf.current)return;
     const job=phase.job,gen=generation.current;

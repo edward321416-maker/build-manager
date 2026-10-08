@@ -891,7 +891,7 @@ describe("Task8 Vendor completion report",()=>{
   });
   it("reconciles an unknown upload outcome with the same request identity and the same file",async()=>{
     let fail=true;
-    const client=fakeClient({redeem:opened(visited()),uploadCompletionPhoto:vi.fn(async()=>{if(fail)throw network();return {photoId:photo1,mime:"image/png",byteSize:3,width:1,height:1,createdAt:"2026-10-06T03:00:00.000Z"};})});
+    const client=fakeClient({redeem:opened(visited()),job:async()=>visited(),uploadCompletionPhoto:vi.fn(async()=>{if(fail)throw network();return {photoId:photo1,mime:"image/png",byteSize:3,width:1,height:1,createdAt:"2026-10-06T03:00:00.000Z"};})});
     await mount(client,`#${tokenB}`,now);
     const picked=file("a.png");
     await pick([picked]);
@@ -900,9 +900,24 @@ describe("Task8 Vendor completion report",()=>{
     await click("같은 요청으로 사진 업로드 다시 확인");
     const calls=client.uploadCompletionPhoto.mock.calls;
     expect(calls).toHaveLength(2);
+    expect(client.job).toHaveBeenCalledTimes(1);
+    expect(client.job.mock.invocationCallOrder[0]).toBeLessThan(client.uploadCompletionPhoto.mock.invocationCallOrder[1]);
     expect(calls[1][1].clientRequestId).toBe(calls[0][1].clientRequestId);
+    expect(calls[1][1]).toEqual(calls[0][1]);
     expect(calls[1][2]).toBe(picked);
     expect(host.querySelectorAll('img[alt^="업로드한 작업 사진"]')).toHaveLength(1);
+  });
+  it("T11-U01 keeps an uncertain upload without retry when authoritative job read fails",async()=>{
+    const client=fakeClient({redeem:opened(visited()),job:async()=>{throw network();},uploadCompletionPhoto:async()=>{throw network();}});
+    await mount(client,`#${tokenB}`,now);await pick([file("a.png")]);
+    await click("같은 요청으로 사진 업로드 다시 확인");
+    expect(client.job).toHaveBeenCalledTimes(1);expect(client.uploadCompletionPhoto).toHaveBeenCalledTimes(1);
+    expect(page()).toContain("사진 업로드 결과를 확인하지 못했습니다");
+  });
+  it.each([{assignmentId:assignmentA},{assignmentVersion:6},{currentPacket:{...visited().currentPacket!,id:assignmentA}},{appointment:{...occurred,id:apptB.replace("1","2")}},{correctionRequest:{id:assignmentA,completionReportId:reportB,reason:"합성 정정"}}])("T11-U02 does not resend a retained upload after its authoritative context changed %s",async changes=>{
+    const client=fakeClient({redeem:opened(visited()),job:async()=>visited(changes),uploadCompletionPhoto:async()=>{throw network();}});
+    await mount(client,`#${tokenB}`,now);await pick([file("a.png")]);await click("같은 요청으로 사진 업로드 다시 확인");
+    expect(client.uploadCompletionPhoto).toHaveBeenCalledTimes(1);expect(page()).toContain("최신 내용을 확인해 주세요");
   });
   it("shows COMPLETION_REPORTED read-only without scheduling, visit, blocker or withdraw actions",async()=>{
     const client=fakeClient({redeem:opened(reported())});
