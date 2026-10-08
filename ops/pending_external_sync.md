@@ -424,3 +424,7 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-TASK12-SOURCE-INDEPENDENT-REVIEW-20261008: sync_status=pending; Task12 source implemented with current scoped browser evidence; independent task review and final complete candidate verification pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event VENDOR-TASK12-BROWSER-INDEPENDENT-CLOSED-20261008: sync_status=pending; Tasks9–12 locally closed after independent reviews; receipt-inclusive fixed candidate must complete all local/hosted/whole-candidate gates. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE01-FIRST-VERIFY-FAILURE-20261008: sync_status=pending; Candidate01 failed before publication; strict accepted-successor inventory reconciliation and new exact-head full validation required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event VENDOR-CANDIDATE01-REMEDIATION-CLOSED-20261008: sync_status=pending; Candidate01 remediation independently closed; complete new candidate local/hosted gates and whole-candidate review remain required. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.

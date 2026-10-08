@@ -344,3 +344,11 @@ e15a54e45641fc47238de26de38b68f355f8d948 test(vendor): deny B1 runtime role swit
 a5f57caa7a25e00729440f95f3dc91d5c3151eac docs(ops): close vendor recovery and restart task
 006d256b6ee81131cb7cc421e26c56496b8f90e7 test: enforce vendor browser acceptance and recovery
 ```
+
+## Candidate01 validation failure and reviewed inventory remediation
+
+The first complete gate generation at receipt commit `2a67f31e1efc454cbf254597d331d38599bb1942` stopped during `npm run verify`: three shared tests failed and485 passed, exit1. The B5 inventory rejected approved Task12 workflow additions; B3/B4 graph tests exceeded unchanged5000ms deadlines. Their cause remains UNPROVEN; an overlapping controller Git audit was a possible contributor only. No later gate or hosted run belongs to that failed generation.
+
+Remediation source `4c70f6051fc342fbe90987a956db883935b14333` changes only [the B5 inventory test](../tests/architecture/b5-boundary.test.ts). An exact inverse projection recognizes the approved Task12 Core/SDK/Web/B1/Vendor workflow block and exact root/Web scripts before applying all original frozen hashes. It retains unrelated gates, timeout/retry settings and original expected hashes. Negative mutation tests reject command, order, log, timeout, unrelated gate and manifest-script drift. B3/B4 source and deadlines remain unchanged.
+
+Final focused remediation generation: threefiles/12tests passed, exit0; B3/B4 graph checks3447ms/3454ms. Test typecheck and diff checks passed. Independent scoped spec/quality rereview at4c70f60: B0/H0/M0/L0. These close the inventory mismatch only; the original full verify remains FAILED and the next clean candidate requires every complete gate anew. All task evidence and retained D7/D8 limitations above remain separate. This receipt adds the reviewed remediation to the historical source inventory; the final PR receipt will identify the full exact candidate commit/path inventory.
