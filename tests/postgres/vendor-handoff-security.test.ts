@@ -8,6 +8,67 @@ import { CoreFollowUpResultSchema, CoreMaintenanceFactDetailSchema, CoreTicketOu
 import { handleCoreFlow } from "../../apps/web/src/server/core-flow/http";
 import type { CoreHTTPDependencies } from "../../apps/web/src/server/core-flow/container";
 import sharp from "sharp";
+import { createPostgresDatabase } from "@build-manager/persistence-postgres";
+import { createVendorHandoffExternalPort } from "@build-manager/persistence-postgres/vendor-handoff";
+import { handleVendorHandoff } from "../../apps/web/src/server/vendor-handoff/http";
+import { createVendorSecret, vendorSecretDigest } from "../../apps/web/src/server/vendor-handoff/token";
+import type { VendorCompletionPhotoUploadCommand } from "@build-manager/application";
+
+describe("Task11 actual HTTP upload recovery across independent services", () => {
+  it("T11-P01 reconciles a discarded response before exact sharp replay; changed bytes and every retained guard conflict", async () => {
+    const p = await f.published(), assignmentId = p.handoff.assignment!.id, packetId = p.handoff.currentPacket!.id;
+    const link = await f.manager.issueLink(f.data.accounts.manager.digest, assignmentId, { clientRequestId: randomUUID(), expectedAssignmentVersion: 2, expectedPacketRevisionId: packetId });
+    const raw = createVendorSecret(), csrf = createVendorSecret();
+    await f.external.redeem(vendorSecretDigest(link.link!.split("#")[1]), randomUUID(), raw.digest, csrf.digest);
+    const sessionStorage = (await f.p.admin.query("SELECT encode(digest,'hex') session,encode(csrf_digest,'hex') csrf FROM vendor_handoff.vendor_session WHERE assignment_id=$1", [assignmentId])).rows[0];
+    expect([sessionStorage.session === raw.digest, sessionStorage.csrf === csrf.digest]).toEqual([true, true]);
+    const durableAuthority = JSON.stringify((await f.p.admin.query("SELECT row_to_json(t) value FROM vendor_handoff.vendor_session t WHERE assignment_id=$1 UNION ALL SELECT row_to_json(t) FROM vendor_handoff.vendor_capability t WHERE assignment_id=$1 UNION ALL SELECT row_to_json(t) FROM vendor_handoff.command_receipt t WHERE assignment_id=$1", [assignmentId])).rows);
+    for (const secret of [raw.raw, csrf.raw, link.link!.split("#")[1]]) expect(durableAuthority.includes(secret)).toBe(false);
+    const v = f.externalWith(csrf.digest), t = createVendorHandoffTenantPort(f.managerDatabase);
+    await v.accept(raw.digest, { clientRequestId: randomUUID(), expectedAssignmentVersion: 3, expectedPacketRevisionId: packetId });
+    const guards = async () => { const j = await v.readJob(raw.digest); return { expectedAssignmentVersion: j.assignmentVersion, expectedRoundVersion: j.currentRound!.version, expectedPacketRevisionId: packetId }; };
+    const at = (h: number) => new Date(Date.now() + h * 3600000).toISOString();
+    await t.submitAvailability(f.data.accounts.tenant.digest, p.t.ticket.id, { clientRequestId: randomUUID(), ...await guards(), windows: [{ startAt: at(24), endAt: at(28) }] });
+    const proposed = await v.proposeSlots(raw.digest, { clientRequestId: randomUUID(), ...await guards(), slots: [{ startAt: at(25), endAt: at(26) }] });
+    const confirmed = await t.confirmSlot(f.data.accounts.tenant.digest, p.t.ticket.id, { clientRequestId: randomUUID(), ...await guards(), proposalId: proposed.proposal!.id, selectedSlotId: proposed.proposal!.slots[0].id });
+    await v.startVisit(raw.digest, confirmed.appointment!.id, { clientRequestId: randomUUID(), ...await guards() });
+    const j = await v.readJob(raw.digest), input: VendorCompletionPhotoUploadCommand = { clientRequestId: randomUUID(), expectedAssignmentVersion: j.assignmentVersion, expectedPacketRevisionId: packetId, expectedAppointmentId: confirmed.appointment!.id, expectedCorrectionRequestId: null };
+    const image = await sharp({ create: { width: 12, height: 9, channels: 3, background: "#286ca0" } }).withExif({ IFD0: { Artist: "SYNTHETIC_TASK11" } }).jpeg().toBuffer();
+    const databases = [createPostgresDatabase(f.vendorWebConfig), createPostgresDatabase(f.vendorWebConfig)];
+    const request = (index: number, command = input, bytes = image) => handleVendorHandoff(new Request(task10Origin + "/api/v2/vendor/job/completion-photos", { method: "POST", headers: { Origin: task10Origin, Cookie: `vendor_session=${raw.raw}`, "x-vendor-csrf": csrf.raw, "x-upload-id": command.clientRequestId, "x-vendor-upload-command": JSON.stringify(command), "Content-Type": "image/jpeg" }, body: new Uint8Array(bytes) }), ["job", "completion-photos"], () => ({ origin: task10Origin, external: digest => createVendorHandoffExternalPort(databases[index], digest) }));
+    try {
+      // Transport discards the committed response. Reconciliation is a READ, before any replay.
+      const lost = await request(0); expect(lost.status).toBe(200);
+      const authoritative = await createVendorHandoffExternalPort(databases[1]).readJob(raw.digest);
+      expect(authoritative.assignmentId).toBe(assignmentId);
+      expect(authoritative.currentPacket!.id).toBe(input.expectedPacketRevisionId);
+      expect(authoritative.appointment!.id).toBe(input.expectedAppointmentId);
+      const replay = await request(1); expect(replay.status).toBe(200); const receipt = await replay.json();
+      const durable = (await f.p.admin.query("SELECT result FROM vendor_handoff.command_receipt WHERE request_key=$1", [input.clientRequestId])).rows;
+      expect(durable).toEqual([{ result: receipt }]);
+      const stored = await createVendorHandoffExternalPort(databases[1]).readCompletionPhoto(raw.digest, receipt.photoId);
+      expect((await sharp(stored.bytes).metadata()).exif === undefined).toBe(true);
+      const changed = await sharp({ create: { width: 12, height: 9, channels: 3, background: "#dfab32" } }).jpeg().toBuffer();
+      for (const [command, bytes] of [[input, changed], [{ ...input, expectedAssignmentVersion: input.expectedAssignmentVersion - 1 }, image], [{ ...input, expectedPacketRevisionId: randomUUID() }, image], [{ ...input, expectedAppointmentId: randomUUID() }, image], [{ ...input, expectedCorrectionRequestId: randomUUID() }, image]] as const) {
+        const r = await request(1, command, bytes); expect(r.status).toBe(409); expect((await r.json()).error.code).toBe("STATE_CONFLICT");
+      }
+      expect((await f.p.admin.query("SELECT count(*)::int n FROM vendor_handoff.completion_photo WHERE assignment_id=$1", [assignmentId])).rows[0].n).toBe(1);
+      expect((await f.p.admin.query("SELECT count(*)::int n FROM vendor_handoff.command_receipt WHERE request_key=$1", [input.clientRequestId])).rows[0].n).toBe(1);
+    } finally { await Promise.all(databases.map(d => d.close())); }
+  });
+  it("T11-P02 a known peer-assignment completion photo and an unshared source photo are hidden from the real Vendor runtime", async () => {
+    const a = await task10Reported(), b = await task10Reported();
+    await expect(a.vendor.readCompletionPhoto(a.session, b.photoId)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    const sourceId = (await f.p.admin.query("SELECT id FROM core_flow.ticket_photo WHERE ticket_id=$1", [a.ticketId])).rows[0].id;
+    await expect(a.vendor.readSourcePhoto(a.session, sourceId)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(b.vendor.readSourcePhoto(b.session, sourceId)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect((await a.vendor.readJob(a.session)).currentPacket!.allowedPhotoIds).toEqual([]);
+    const own = await a.vendor.readCompletionPhoto(a.session, a.photoId); expect(own.photo.photoId).toBe(a.photoId);
+    const runtime = new Client(f.vendorWebConfig); await runtime.connect();
+    try { expect((await runtime.query("SELECT current_user AS role")).rows[0].role).toBe("bm_vendor_web"); }
+    finally { await runtime.end(); }
+  });
+});
 
 let f: Awaited<ReturnType<typeof createVendorHandoffFixture>>;
 

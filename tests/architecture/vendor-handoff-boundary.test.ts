@@ -8,7 +8,7 @@ const entries=[
   "apps/web/src/app/api/v2/vendor/[...path]/route.ts",
   "apps/web/src/app/vendor/job/page.tsx",
 ];
-const forbiddenModules=[/^@auth0\//,/^jose$/,/^@build-manager\/persistence-postgres\/(b1|core-flow|core-onboarding|testing)$/,/^@build-manager\/fixtures/,/^node:sqlite$/];
+const forbiddenModules=[/^@auth0\//,/^jose$/,/^@build-manager\/persistence-postgres\/(b1|core-flow|core-onboarding|testing)$/,/^@build-manager\/fixtures/,/^node:sqlite$/,/analytics|tracking|telemetry|sentry|posthog|segment|amplitude|mixpanel|googletagmanager/i];
 const forbiddenLocal=[/^apps\/web\/src\/server\/(b1|b3|b4|b5|core-flow|http|persistence)\//,/^apps\/web\/src\/server\/container\./,/^apps\/web\/src\/proxy\./,/^apps\/web\/src\/app\/(core|workspace|demo)\//,/^packages\/persistence-postgres\/src\/(b1|core-flow|core-onboarding|testing)/];
 
 // Plan Task8 requires the Vendor upload to reuse the accepted Core photo sanitizer unchanged. Exactly that module is
@@ -72,6 +72,32 @@ describe("standalone Vendor Web boundary",()=>{
       expect(/(?:https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(source),file).toBe(false);
       expect(/next\/script|googletagmanager|gtag\(|analytics|sentry|@vercel\/analytics/i.test(source),file).toBe(false);
     }
+  });
+  it("T11-A01 the complete external server graph imports no analytics or third-party tracking module",async()=>{
+    const {seen,bare,violations}=await graph(entries[0]);expect(violations).toEqual([]);
+    for(const module of [...seen,...bare])expect(/analytics|tracking|telemetry|sentry|posthog|segment|amplitude|mixpanel|googletagmanager/i.test(module),module).toBe(false);
+  });
+  it("T11-A02 only the standalone Vendor API owns external dispatch, and Tenant paths cannot expose raw Vendor photos",async()=>{
+    const routes=(await files("apps/web/src/app/api")).filter(path=>path.endsWith("/route.ts"));
+    const external=[];
+    for(const path of routes){const source=await readFile(join(root,path),"utf8");if(source.includes("handleVendorHandoff"))external.push(path);}
+    expect(external).toEqual([entries[0]]);
+    const source=await readFile(join(root,entries[0]),"utf8");expect(source).not.toMatch(/handleCoreFlow|requireCoreB1Session|getB1Container/);
+    const {isManagerVendorHandoffRoute,isTenantVendorSchedulingRoute}=await import("../../apps/web/src/server/core-flow/vendor-handoff");
+    for(const path of [["tickets","id","vendor-completion-photos","photo"],["tenant","tickets","id","vendor-completion-photos","photo"]]){
+      expect(isManagerVendorHandoffRoute(path)).toBe(false);expect(isTenantVendorSchedulingRoute(path)).toBe(false);
+    }
+    const manager=await readFile(join(root,"apps/web/src/server/core-flow/http.ts"),"utf8");
+    expect(manager).toContain('scope.session.role!=="ORG_ADMIN"&&scope.session.role!=="PROPERTY_STAFF"');
+  });
+  it("T11-A03 Vendor migrations grant runtime EXECUTE and schema USAGE only; runtime role escalation is never granted",async()=>{
+    const migrations=(await files("packages/persistence-postgres/migrations")).filter(path=>/00(?:19|2[0-3])_vendor_handoff_/.test(path));
+    expect(migrations).toHaveLength(5);
+    for(const path of migrations){
+      const source=(await readFile(join(root,path),"utf8")).replace(/--[^\n]*/g,"");
+      for(const grant of source.match(/\bGRANT\b[^;]*;/gis)??[])if(/\bTO\s+[^;]*\bbm_(?:vendor|b1)_web\b/i.test(grant))expect(grant,path).toMatch(/^GRANT\s+(?:EXECUTE ON FUNCTION|USAGE ON SCHEMA)\b/i);
+    }
+    // Actual catalog and denied SET ROLE/DML probes are executed separately in the PostgreSQL security suite.
   });
   it("adds Vendor page headers without changing the existing Core join headers",async()=>{
     const config=(await import("../../apps/web/next.config")).default;
