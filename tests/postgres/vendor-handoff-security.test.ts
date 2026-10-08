@@ -148,7 +148,7 @@ describe("Task10 actual Vendor closeout preserves Core outcome and role privacy"
     expect(manager.assignment?.vendorLabel).toBe("합성 업체"); expect(manager.currentReport?.completionPhotoIds).toEqual([c.photoId]);
     const scheduling = VendorTenantSchedulingDtoSchema.parse(await task10Json("tenant", `tickets/${c.ticketId}/vendor-scheduling`));
     const tenant = CoreTicketSchema.parse(await task10Json("tenant", `tickets/${c.ticketId}`));
-    task10Absent({ scheduling, tenant }, ["vendorLabel", "currentReport", "completionPhotoIds", "componentOrPartNote", "reportHistory", "assignmentHistory", "internalNotes", "assigneeLabel", "priority", "dueAt"], ["T10_VENDOR_REPORT_PRIVATE", "T10_VENDOR_PART_PRIVATE", "T10_MANAGER_NOTE_PRIVATE", "T10_MANAGER_ASSIGNEE_PRIVATE", c.photoId, "T10_UNRELATED_FACT_PRIVATE"]);
+    task10Absent({ scheduling, tenant }, ["vendorLabel", "currentReport", "completionPhotoIds", "componentOrPartNote", "reportHistory", "assignmentHistory", "internalNotes", "assigneeLabel", "priority", "dueAt"], [manager.assignment!.vendorLabel, "T10_VENDOR_REPORT_PRIVATE", "T10_VENDOR_PART_PRIVATE", "T10_MANAGER_NOTE_PRIVATE", "T10_MANAGER_ASSIGNEE_PRIVATE", c.photoId, "T10_UNRELATED_FACT_PRIVATE"]);
     const allowed = await task10Request("manager", `manager/tickets/${c.ticketId}/vendor-completion-photos/${c.photoId}`);
     expect(allowed.status).toBe(200); expect((await allowed.arrayBuffer()).byteLength).toBeGreaterThan(0);
     expect((await task10Request("tenant", `manager/tickets/${c.ticketId}/vendor-completion-photos/${c.photoId}`)).status).toBe(403);
@@ -156,7 +156,7 @@ describe("Task10 actual Vendor closeout preserves Core outcome and role privacy"
     await task10Close(c);
     const closedTenant = CoreTicketSchema.parse(await task10Json("tenant", `tickets/${c.ticketId}`));
     expect(closedTenant.workStatus).toBe("COMPLETED");
-    task10Absent(closedTenant, ["vendorLabel", "completionPhotoIds", "componentOrPartNote", "assignmentHistory", "internalNotes", "assigneeLabel", "priority", "dueAt"], ["T10_VENDOR_REPORT_PRIVATE", "T10_VENDOR_PART_PRIVATE", "T10_MANAGER_NOTE_PRIVATE", "T10_MANAGER_ASSIGNEE_PRIVATE", c.photoId]);
+    task10Absent(closedTenant, ["vendorLabel", "completionPhotoIds", "componentOrPartNote", "assignmentHistory", "internalNotes", "assigneeLabel", "priority", "dueAt"], [manager.assignment!.vendorLabel, "T10_VENDOR_REPORT_PRIVATE", "T10_VENDOR_PART_PRIVATE", "T10_MANAGER_NOTE_PRIVATE", "T10_MANAGER_ASSIGNEE_PRIVATE", c.photoId]);
     expect((await task10Request("tenant", `manager/tickets/${c.ticketId}/vendor-completion-photos/${c.photoId}`)).status).toBe(403);
     expect((await task10Request("tenant", `tickets/${c.ticketId}/vendor-completion-photos/${c.photoId}`)).status).toBe(404);
   });
