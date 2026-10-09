@@ -454,3 +454,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event VENDOR-CANDIDATE07-WHOLE-REVIEW-FINDINGS-20261008: sync_status=pending; Whole-candidate fourMedium findings require implementation, same-reviewer closure and a new complete local/hosted generation. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event VENDOR-WHOLE-REVIEW-REMEDIATION-SOURCES-20261009: sync_status=pending; Whole-review remediation sources and WC-L01 committed; independent closure deferred to the final whole-candidate review by operator decision; new complete local/hosted generation pending. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event WORK-RULES-V1-DESIGN-BENCHMARK-20261010: sync_status=pending; work rules v1 design and comparative audit drafted on feat/work-rules-v1 and awaiting operator spec review. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
