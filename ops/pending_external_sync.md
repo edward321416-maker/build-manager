@@ -460,3 +460,7 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event WORK-RULES-V1-PLAN-20261010: sync_status=pending; final check passed with nine fixes, design committed, rulebook plan written and delivery split into three PRs. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event WORK-RULES-V1-RULEBOOKS-20261010: sync_status=pending; development, research and reference rulebooks written and linked on docs/work-rules-v1-rulebooks; gate and entry-point pointers wait for PR-2. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event IA-RESEARCH-V1-ASIS-20261010: sync_status=pending; as-is IA inventory of main 3bb409b and the hosted demo recorded for the pre-audit research. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event IA-RESEARCH-V1-REFERENCES-20261010: sync_status=pending; navigation guidelines and domestic/international benchmarks collected and registered as SRC-083..SRC-125 and CLM-042..CLM-076. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
