@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/design-rules-gate.mjs\" record",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/rules-gate.mjs\" record",
             "timeout": 10
           }
         ]
@@ -14,11 +14,11 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|WebSearch|WebFetch|Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/design-rules-gate.mjs\" check",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/rules-gate.mjs\" check",
             "timeout": 10
           }
         ]
