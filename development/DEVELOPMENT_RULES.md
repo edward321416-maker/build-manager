@@ -6,15 +6,16 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 - **읽는 시점**: 개발 작업을 시작하기 전에 이 문서 전체를 읽는다. 읽기 전 차단 게이트가 설치된 환경에서는 읽지 않으면 위 편집과 패키지 추가가 막힌다.
 - **우선순위**: 호스트 안전 규칙과 실제 권한 → 운영자의 현재 지시 → [AGENTS.md](../AGENTS.md)·[프로젝트 정책](../governance/project_policy.md)·[AI 작성·전달 사전 규칙](../governance/ai_delivery_rules.md) → 이 문서 → 스펙·계획
 - **다른 규칙과의 관계**
+  - 다른 규칙집과 겹치면 [소유 표](../governance/project_policy.md)의 주인 문서를 따른다.
   - 작업 절차(사전 읽기, 결정 인터뷰, R05 자체 점검, 전달 상태)는 AI 작성·전달 사전 규칙이 정한다.
-  - 화면 작업은 디자인 규칙(`design/DESIGN_RULES.md`)을 함께 따른다.
+  - 화면 작업은 [디자인 규칙](../design/DESIGN_RULES.md)을 함께 따른다.
   - 외부 코드·라이브러리는 [레퍼런스 규칙](../references/REFERENCE_RULES.md)을 함께 따른다.
   - 연구 자료와 개인정보 원본은 [연구 규칙](../research/RESEARCH_RULES.md)을 함께 따른다.
 - **근거**: [설계](../docs/superpowers/specs/2026-10-10-work-rules-v1-design.md), [외부 기준 비교](../docs/superpowers/specs/2026-10-10-work-rules-v1-benchmark.md)
 
 ## DEV-01 위험도 분류
 
-- 작업을 시작할 때 등급을 정하고 PR 본문 첫 줄(`Risk tier`)에 적는다.
+- 작업을 시작할 때 등급을 정하고 PR 본문 첫 줄(`Risk tier`)에 적는다. PR 없이 직접 커밋하면 커밋 메시지 본문에 적는다.
 - 애매하면 고위험으로 본다. 작업 중 고위험 대상에 닿으면 다시 분류한다.
 
 | 등급 | 대상 |
@@ -33,7 +34,8 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 
 - PR 하나에는 목적 하나만 담는다. 리팩터링은 기능 추가·버그 수정과 따로 낸다. 관련 테스트는 같은 PR에 넣는다.
 - 변경 규모는 100줄 안팎이 적당하다. 1000줄이 넘으면 나눈다. 생성 파일과 lockfile은 세지 않는다.
-- 브랜치는 2일 안에 병합하는 것을 목표로 한다. 모든 커밋에서 검사가 깨지지 않게 한다.
+- 브랜치는 2일 안에 병합하는 것을 목표로 한다.
+- 모든 커밋에서 빌드(타입 검사와 빌드)가 깨지지 않게 한다. 실패하는 테스트를 먼저 커밋하는 TDD 단계는 허용한다.
 
 ## DEV-03 일반 등급 흐름
 
@@ -47,6 +49,9 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
    - 이 리뷰는 작업 규칙이며 GitHub 승인 요건은 아니다.
 6. 병합한다. 사용자에게 보이는 상태가 바뀌었으면 [STATUS.md](../STATUS.md)를 갱신한다.
 
+- [AGENTS.md](../AGENTS.md)는 PR 없이 main에 직접 커밋하는 것도 허용한다.
+  - 직접 커밋할 때도 커밋 메시지 본문에 등급과 실행한 검사·결과를 적는다.
+  - 검사·끝 리뷰·기록 단계는 PR이 있을 때와 똑같이 지킨다.
 - 단계별 영수증 파일(`ops/*_checkpoint.md` 등)은 만들지 않는다.
 - R05 자체 점검(AI 작성·전달 사전 규칙)은 모든 등급에 적용한다. 결과 요약은 PR 본문에 쓴다.
 
@@ -88,7 +93,7 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 | DB·persistence | `npm run test:postgres` |
 | 화면 흐름 | 해당하는 `npm run test:e2e:web`·`test:e2e:core`·`test:e2e:sdk`·`test:e2e:vendor`·`test:e2e:b1` |
 | 모바일 | `npm run test:mobile` |
-| 저장소 검사기 | `python tests/test_verify_repository.py`, `python scripts/tests/test_verify_repository.py` |
+| 저장소 검사기 | `PYTHONPATH="$PWD" python tests/test_verify_repository.py`, `PYTHONPATH="$PWD" python scripts/tests/test_verify_repository.py` (CI와 같이 `PYTHONPATH`가 필요하다) |
 
 - 검사를 생략하거나 기준을 낮추지 않는다.
 - `npm ci` 뒤에 `package.json`·`package-lock.json`·`apps/mobile/package.json`·`apps/mobile/app.json`이 바뀌면 안 된다.
@@ -110,7 +115,7 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 
 - **의존 방향과 금지 import**: 기준은 [`tests/architecture/import-boundaries.ts`](../tests/architecture/import-boundaries.ts)다. 이 테스트가 검사하는 것:
   - 클라이언트 코드는 서버 코어(`application`·`domain`·`fixtures`)를 import하지 않는다.
-  - 패키지별 런타임 의존성은 허용 목록으로 제한된다.
+  - `packages/api-client`의 런타임 의존성은 허용 목록으로 제한된다.
   - API 라우트의 런타임 규칙: edge 금지, Node 런타임과 dynamic 선언 필요
 - TypeScript `strict`를 유지한다. 기존 패턴을 먼저 찾아 따른다.
 - 새 프레임워크나 상태 관리 라이브러리는 운영자 결정을 거쳐야 한다.
@@ -153,7 +158,7 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 ## DEV-11 개인정보·AI 기능
 
 - **개인정보**
-  - 실제 개인정보를 다루는 기능은 수집·이용 목적, 수집 항목, 보유·이용 기간, 동의 거부권과 거부 시 불이익을 고지한다(개인정보 보호법 제15조 제2항).
+  - 실제 개인정보를 동의를 받아 수집하는 기능은, 동의를 받을 때 수집·이용 목적, 수집 항목, 보유·이용 기간, 동의 거부권과 거부 시 불이익을 알린다(개인정보 보호법 제15조 제2항).
   - 보유기간이 끝나거나 목적을 이루면 지체 없이, 복구할 수 없게 파기하도록 설계한다. 다른 법령 때문에 보존해야 하는 정보는 분리해 보관한다(제21조).
 - **AI 기능**
   - AI 결과를 사용자에게 보여 주는 기능은 인공지능 기본법 제31조(2026-01-22 시행)의 사전 고지·생성물 표시 의무에 해당하는지 확인한다. [TO VERIFY] 적용 범위는 법률 확인이 필요하다.
@@ -163,7 +168,7 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 
 - 데모 배포는 [VM 배포 절차](../deploy/vm/README.md)를 따른다. 데모에는 합성 데이터만 쓴다.
 - 설정과 비밀 값은 환경변수로 넣는다. 이미지나 저장소에 넣지 않는다.
-- **롤백**: 배포 전에 직전 이미지 아카이브를 보관한다. 검증된 롤백 절차는 아직 문서에 없다. [TO VERIFY] 롤백이 필요해지기 전에 절차를 시험하고 `deploy/vm/README.md`에 적는다.
+- **롤백**: 배포 전에 직전 이미지 아카이브를 보관한다. 검증된 롤백 절차는 아직 문서에 없다. [TO VERIFY] 다음 배포 전에 롤백 절차를 시험하고 `deploy/vm/README.md`에 적는다.
 - **배포 후 확인**: 첫 화면, 로그인 없는 데모 진입, 핵심 화면 하나를 직접 열어 보고 결과를 PR이나 STATUS.md에 적는다. 자동 smoke 스크립트는 아직 없다.
 - 실서비스 전에는 모니터링과 장애 알림을 갖춘다(후속 작업).
 
@@ -186,9 +191,9 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 
 **완료 정의**
 
-- [ ] PR 본문 첫 줄에 등급이 있다.
+- [ ] PR 본문 첫 줄(직접 커밋이면 커밋 메시지 본문)에 등급이 있다.
 - [ ] 바꾼 영역의 DEV-06 검사를 통과했고 결과를 적었다.
-- [ ] 정확한 head에서 CI가 통과했다.
+- [ ] 정확한 head에서 CI가 통과했다. 직접 커밋이면 push 뒤 main의 CI가 통과했다.
 - [ ] 끝 리뷰를 마쳤다. 고위험이면 독립 리뷰를 마쳤다.
 - [ ] 비밀, 개인정보, 실데이터가 없다.
 - [ ] 필요한 STATUS.md와 실행 로그를 갱신했다.

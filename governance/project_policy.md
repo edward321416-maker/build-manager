@@ -16,7 +16,7 @@ Authority: the operator's 2026-09-13 implementation instruction and supplied age
 | Instruction and artifact preflight | [AI delivery rules](ai_delivery_rules.md) |
 | Code, data, security, dependency conditions and deployment | [Development rules](../development/DEVELOPMENT_RULES.md) |
 | External material: selection, records, borrowing limits, quotation, licenses, AI-output rights | [Reference rules](../references/REFERENCE_RULES.md) |
-| Visual design and UI copy | Design rules, `design/DESIGN_RULES.md` (PR #79) |
+| Visual design and UI copy | [Design rules](../design/DESIGN_RULES.md) |
 
 Avoid duplicate canonical documents. Link to an owner instead of copying evolving definitions. Drafts may restate approved product definitions but must not invent evidence. Read the matching work rulebook in full before that kind of work; where rulebooks overlap, this table names the owner.
 

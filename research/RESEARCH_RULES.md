@@ -4,7 +4,7 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 
 - **적용**: `research/`·`submission/`·`product/` 문서를 바꾸는 작업, 그리고 시장·경쟁·사용자·기술 조사 전부.
 - **읽는 시점**: 연구를 시작하기 전에 이 문서 전체를 읽는다. 읽기 전 차단 게이트가 설치된 환경에서는 읽지 않으면 위 경로를 편집할 수 없다.
-- **우선순위**: 호스트 안전 규칙과 실제 권한 → 운영자의 현재 지시 → [AGENTS.md](../AGENTS.md)·[프로젝트 정책](../governance/project_policy.md)·[AI 작성·전달 사전 규칙](../governance/ai_delivery_rules.md) → 이 문서 → 노트·계획
+- **우선순위**: 호스트 안전 규칙과 실제 권한 → 운영자의 현재 지시 → [AGENTS.md](../AGENTS.md)·[프로젝트 정책](../governance/project_policy.md)·[AI 작성·전달 사전 규칙](../governance/ai_delivery_rules.md) → 이 문서 → 스펙·계획·노트
   - 다른 규칙집과 겹치면 [소유 표](../governance/project_policy.md)의 주인 문서를 따른다.
   - 외부 자료를 고르고, 기록하고, 인용하는 방법은 [레퍼런스 규칙](../references/REFERENCE_RULES.md)을 따른다.
 - **근거**: [작업 규칙 v1 설계](../docs/superpowers/specs/2026-10-10-work-rules-v1-design.md), [외부 기준 비교](../docs/superpowers/specs/2026-10-10-work-rules-v1-benchmark.md)
@@ -14,7 +14,7 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 - 연구 질문, 이 연구가 도울 결정, 방법, 포함·제외 기준을 먼저 적는다.
 - [출처 레지스트리](sources/source_registry.csv), [주장 레지스트리](sources/claim_registry.csv), [경쟁 색인](competitors/README.md), 기존 노트를 먼저 확인한다. 같은 조사를 반복하지 않는다.
 - 연구 결과는 구현 권한이 아니다. 제품에 반영하려면 운영자의 결정이 필요하다(RES-09).
-- Future Product Research는 개발이 revisit gate에 도달했을 때만 다시 검토한다.
+- 미래 제품 연구(Future Product Research)도 구현 승인이 아니다. 운영자가 정한 재검토 시점에만 다시 검토한다.
 
 ## RES-02 주장 유형
 
@@ -56,7 +56,8 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 
 - **경계**
   - 국내 서비스만 직접 경쟁사로 다룬다. 해외 서비스는 UX·기능·운영 원리 벤치마크로만 쓴다.
-  - 업체 문서는 그 업체가 무엇을 제공한다고 말하는지만 증명한다. 성과, 도입률, 우월성, 점유율은 증명하지 않는다. 세부 기준은 [경쟁 색인](competitors/README.md)을 따른다.
+  - 업체 문서는 그 업체가 무엇을 제공한다고 말하는지만 증명한다. 성과, 도입률, 우월성, 점유율은 증명하지 않는다.
+  - 경쟁 근거는 [경쟁 색인](competitors/README.md)에 기록하고, 세부 기준도 그 색인을 따른다.
 - **윤리**
   - 신원을 숨기거나 고객인 척 문의하지 않는다. 인터뷰나 문의 전에 소속과 목적을 밝힌다.
   - 접근 권한이 없는 데이터는 얻거나 쓰지 않는다(부정경쟁방지법 제2조 제1호 (카)목). 로그인 뒤 화면, 유료 자료, 비공개 API를 우회해서 보지 않는다.
