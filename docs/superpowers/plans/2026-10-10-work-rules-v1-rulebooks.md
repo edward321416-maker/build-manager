@@ -146,7 +146,7 @@ git -C "worktree/build-manager-work-rules-v1" switch -c docs/work-rules-v1-ruleb
 
   내용 기준:
   - 각 RES 절은 스펙 §연구 규칙의 해당 항목과 Step 2 대응표의 원문을 명령형 bullet로 쓴다.
-  - RES-05는 경쟁 색인 [`competitors/README.md`](competitors/README.md)를 링크한다. 색인의 [DECISION] 문장은 복사하지 않는다.
+  - RES-05는 경쟁 색인 `research/competitors/README.md`를 링크한다. 색인의 [DECISION] 문장은 복사하지 않는다.
   - RES-07은 인터뷰 가이드 2개를 링크한다.
   - RES-10은 체크리스트 형식으로 쓴다:
     - 질문과 결정이 적혀 있는가
@@ -161,12 +161,16 @@ git -C "worktree/build-manager-work-rules-v1" switch -c docs/work-rules-v1-ruleb
   - `research/README.md` 전체를 다음 구성으로 바꾼다.
     - 제목 `# 연구 폴더 안내`
     - 목적 문단(원문 Purpose 번역)
-    - "연구 작업 규칙은 [연구 규칙](RESEARCH_RULES.md)에 있으며 연구 전에 전체를 읽는다" 한 줄
+    - "연구 작업 규칙은 `RESEARCH_RULES.md`(링크)에 있으며 연구 전에 전체를 읽는다" 한 줄
     - 위치 표: source_registry, claim_registry, provenance_backfill_plan, competitors/README, interviews 2개
     - `## 현재 근거 경계`: 원문 마지막 단락의 번역. 내용을 바꾸지 않는다.
-  - `research/interviews/landlord_guide.md`: `[research privacy rules](../README.md)` → `[research privacy rules](../RESEARCH_RULES.md)`
-  - `research/interviews/tenant_guide.md`: `[research rules](../README.md)` → `[research rules](../RESEARCH_RULES.md)`
-  - `product/ai_safety_boundary.md`: `[research privacy rules](../research/README.md)` → `[research privacy rules](../research/RESEARCH_RULES.md)`
+  - 링크 3곳은 대상 경로만 바꾸고 링크 문구는 그대로 둔다(파일, 현재 대상 → 새 대상).
+
+```text
+research/interviews/landlord_guide.md  ../README.md            → ../RESEARCH_RULES.md
+research/interviews/tenant_guide.md    ../README.md            → ../RESEARCH_RULES.md
+product/ai_safety_boundary.md          ../research/README.md   → ../research/RESEARCH_RULES.md
+```
 
 - [ ] **Step 5: 검사**(실패하면 고친 뒤 다시 돌린다)
 
@@ -331,17 +335,28 @@ git diff --cached --check
 **Interfaces:**
 - Consumes: Task 2–4의 세 경로
 
-- [ ] **Step 1: 소유 표**
-  - `| Evidence classification and raw handling | [Research rules](../research/README.md) |` 행을 바꾼다: `| Evidence classification, sources, research notes, interviews and raw handling | [Research rules](../research/RESEARCH_RULES.md) |`
-  - 표 끝에 3행을 추가한다:
-    - `| Code, data, security, dependency conditions and deployment | [Development rules](../development/DEVELOPMENT_RULES.md) |`
-    - `| External material: selection, records, borrowing limits, quotation, licenses, AI-output rights | [Reference rules](../references/REFERENCE_RULES.md) |`
-    - `| Visual design and UI copy | Design rules, \`design/DESIGN_RULES.md\` (PR #79) |`
-  - 표 아래 문단 끝에 한 문장을 추가한다: `Read the matching work rulebook in full before that kind of work; where rulebooks overlap, this table names the owner.`
+- [ ] **Step 1: 소유 표** — "Evidence classification and raw handling" 행을 아래 첫 행으로 바꾸고, 나머지 3행은 표 끝에 추가한다.
 
-- [ ] **Step 2: CONTRIBUTING**
-  - 3행을 바꾼다: `Read [project policy](governance/project_policy.md) and the work rulebook for your task before starting: [development](development/DEVELOPMENT_RULES.md), [research](research/RESEARCH_RULES.md), [reference](references/REFERENCE_RULES.md), and the design rules (\`design/DESIGN_RULES.md\`) for UI work. This is a public research and product-definition workspace, not a place for participant records.`
-  - 2번 항목 끝에 한 문장을 추가한다: `The development rules still ask for one short end-of-work review in a fresh context; it is a working rule, not a GitHub approval requirement.`
+```markdown
+| Evidence classification, sources, research notes, interviews and raw handling | [Research rules](../research/RESEARCH_RULES.md) |
+| Code, data, security, dependency conditions and deployment | [Development rules](../development/DEVELOPMENT_RULES.md) |
+| External material: selection, records, borrowing limits, quotation, licenses, AI-output rights | [Reference rules](../references/REFERENCE_RULES.md) |
+| Visual design and UI copy | Design rules, `design/DESIGN_RULES.md` (PR #79) |
+```
+
+  표 아래 문단 끝에 다음 문장을 추가한다.
+
+```text
+Read the matching work rulebook in full before that kind of work; where rulebooks overlap, this table names the owner.
+```
+
+- [ ] **Step 2: CONTRIBUTING** — 3행 전체를 아래 첫 문단으로 바꾸고, 2번 항목 끝에 아래 두 번째 문장을 추가한다.
+
+```markdown
+Read [project policy](governance/project_policy.md) and the work rulebook for your task before starting: [development](development/DEVELOPMENT_RULES.md), [research](research/RESEARCH_RULES.md), [reference](references/REFERENCE_RULES.md), and the design rules (`design/DESIGN_RULES.md`) for UI work. This is a public research and product-definition workspace, not a place for participant records.
+
+The development rules still ask for one short end-of-work review in a fresh context; it is a working rule, not a GitHub approval requirement.
+```
 
 - [ ] **Step 3: PR 템플릿** — 맨 앞에 추가한다:
 
