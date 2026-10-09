@@ -48,9 +48,9 @@ export function CoreLoginScreen({demoEntry=false}:{demoEntry?:boolean}={}){
    <h1>내 소속·호실</h1>
    {error?<p role="alert">{error}</p>:null}
    {phase==="loading"?<p role="status">로그인과 소속을 확인하는 중…</p>:null}
-   {phase==="login"&&demoEntry?<><p>로그인 없이 합성 데모 데이터로 체험합니다. 역할을 골라 시작하세요.</p>
+   {phase==="login"&&demoEntry?<><p>로그인 없이 체험용 가짜 데이터로 들어가요. 역할을 골라 주세요.</p>
     <form className="core-demo-entry" action="/api/v2/session/demo" method="post"><input type="hidden" name="role" value="manager"/><button className="primary-button" type="submit">관리자로 체험하기</button></form>
-    <form className="core-demo-entry" action="/api/v2/session/demo" method="post"><input type="hidden" name="role" value="tenant"/><button className="primary-button" type="submit">세입자로 체험하기</button></form></>:null}
+    <form className="core-demo-entry" action="/api/v2/session/demo" method="post"><input type="hidden" name="role" value="tenant"/><button type="submit">세입자로 체험하기</button></form></>:null}
    {phase==="login"&&!demoEntry?<><p>기존 계정으로 로그인하면 내 호실의 접수·사진·처리 이력을 이용할 수 있습니다.</p><a className="primary-button" href="/auth/login">계정으로 로그인</a></>:null}
    {phase==="unavailable"?<button onClick={()=>void load()}>연결 다시 확인</button>:null}
    {phase==="logout"?<p role="status">{demoEntry?"화면의 접수·사진을 비웠습니다. 체험을 끝내고 역할 선택 화면으로 돌아갑니다.":"화면의 접수·사진을 비웠습니다. 기존 세션 종료 후 로그인 제공자로 이동합니다. 제공자 오류가 표시되면 이 앱으로 돌아와 로그인 상태를 다시 확인해 주세요."}</p>:null}

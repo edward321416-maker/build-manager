@@ -1,0 +1,31 @@
+/* Design rules v1 tokens (design/DESIGN_RULES.md §2, §3.1, §6.3, §9). Values are copied from the rules; change the rules first. */
+:root {
+  --color-page: #F2F2F7;
+  --color-surface: #FFFFFF;
+  --color-text: #202632;
+  --color-text-secondary: #636771;
+  --color-text-inverse: #FFFFFF;
+  --color-border: rgba(32,38,50,.12);
+  --color-border-strong: rgba(32,38,50,.20);
+  --color-border-control: #868B95;
+  --color-fill-subtle: rgba(32,38,50,.04);
+  --color-fill-hover: rgba(32,38,50,.06);
+  --color-scrim: rgba(32,38,50,.40);
+  --color-selection: rgba(0,100,255,.18);
+  --color-primary: #0064FF;
+  --color-primary-hover: #0056D8;
+  --color-primary-soft: rgba(0,100,255,.08);
+  --color-danger: #FF3B30;
+  --color-danger-soft: rgba(255,59,48,.08);
+  --status-urgent-text: #C8231A; --status-urgent-bg: #FFF0EF;
+  --status-wait-text: #9A5B00; --status-wait-bg: #FFF3DC;
+  --status-progress-text: #0056D8; --status-progress-bg: #EEF4FF;
+  --status-done-text: #17754F; --status-done-bg: #E7F5EE;
+  --shadow-float: 0 20px 50px rgba(32,38,50,.20);
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --ease: cubic-bezier(.2,0,0,1);
+  --font-sans: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Consolas, monospace;
+}
+::selection { background: var(--color-selection); }
