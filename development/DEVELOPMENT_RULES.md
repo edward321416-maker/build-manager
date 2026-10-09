@@ -151,7 +151,8 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 - **버전**
   - 웹은 정확한 버전으로 고정한다.
   - Expo SDK 패키지는 `npx expo install`로 SDK 버전에 맞춘다.
-  - 실행 환경은 CI와 같은 Node 24.21.0, npm 11.19.0이다.
+  - CI는 Node 24.21.0과 npm 11.19.0으로 고정돼 있고, `.nvmrc`도 24.21.0이다.
+  - 로컬 버전이 다르면(예: 운영자 PC의 Node 24.14.0) 그 사실을 PR에 적는다. 버전 차이가 의심되는 결과는 CI로 확인한다.
 - 의존성을 바꾸는 PR마다 `npm audit --omit=dev`를 실행해 결과를 PR에 적는다. HIGH 이상은 이슈로 만들어 대응한다.
 - 새 워크플로는 `permissions`를 최소로 둔다. 액션은 커밋 SHA로 고정하고, `pull_request_target`은 쓰지 않는다.
 

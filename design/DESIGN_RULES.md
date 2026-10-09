@@ -97,7 +97,7 @@ build-manager의 모든 화면(웹, 앱, 소개 페이지)은 이 문서를 따�
 
 ### 3.1 글씨체
 
-- 웹: `Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif`.
+- 웹: `Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif`. `apps/web/src/app/layout.tsx`가 Pretendard 가변 글꼴의 동적 서브셋(페이지에 쓰인 글자 묶음만 받음)을 불러오고, 색 등 토큰은 `apps/web/src/app/tokens.css`에 있습니다.
 - 앱: Pretendard를 넣기 전까지 플랫폼 시스템 글꼴(iOS: Apple SD Gothic Neo, Android: 시스템 기본 한글 글꼴).
 - 숫자·영문도 같은 글꼴을 씁니다. 코드처럼 보여야 하는 값(요청 번호 등)만 `ui-monospace, "SF Mono", Consolas, monospace`를 씁니다.
 - Inter, Roboto 같은 영문 기본 글꼴을 주 글꼴로 쓰지 않습니다. 글꼴 종류는 위 한 가지(필요 시 고정폭 한 가지)만 씁니다.
@@ -398,11 +398,11 @@ build-manager의 모든 화면(웹, 앱, 소개 페이지)은 이 문서를 따�
 
 ## 16. 아직 규칙을 따르지 않는 화면
 
-다음 디자인 작업에서 이 규칙으로 옮깁니다.
+첫 화면 `/`, `/core`, `/vendor/job`은 2026-10-10에 이 규칙으로 옮겼습니다. 다음 디자인 작업에서 아래를 옮깁니다.
 
-- 첫 화면 `/`와 예전 데모 화면: `apps/web/src/app/globals.css`의 초록·베이지 색, `apps/web/src/components/tenant`, `apps/web/src/components/landlord`.
+- 예전 데모 화면 `/demo/*`: `apps/web/src/app/globals.css`의 초록·베이지 색, `apps/web/src/components/tenant`, `apps/web/src/components/landlord`.
 - 모바일 앱 기본 컴포넌트: `apps/mobile/src/features/core-ui.tsx`의 남색 헤더(`#17283B`), Tailwind 기본값과 같은 상태색(`#1D4ED8`, `#DCFCE7` 등), 자간 없음, `apps/mobile/src/components/ui.tsx`.
-- `/core`(`apps/web/src/app/core/core-design.module.css`): 반투명 보조 글자색 `rgba(32,38,50,.62)`·`.42`, 입력칸 테두리 `rgba(32,38,50,.20)`(대비 1.5:1), 자간 `normal`, 포커스 외곽선 1px·간격 5px, 배경 없는 상태 배지, `keep-all` 줄바꿈 없음, 화면 좌우 여백이 모든 폭에서 20px, `caption` 스타일 없음.
+- `/core`에 남은 것: 합쇼체("~습니다") 안내 문구, 사진 썸네일 모서리 5px, 시각·건수 같은 보조 정보에 `caption` 스타일 미적용, 업무함·소통 모듈(`manager-work.module.css`, `ticket-communication.module.css`)의 세부 값 점검.
 
 ## 17. 규칙을 바꾸는 방법
 

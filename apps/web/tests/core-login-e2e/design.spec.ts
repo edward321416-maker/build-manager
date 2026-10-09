@@ -35,8 +35,10 @@ async function captureLayout(page:Page,name:string){
     const workspace=page.getByRole("region",{name:"수리 접수 작업",exact:true});
     await expect(workspace).toHaveCSS("background-color","rgb(255, 255, 255)");
     await expect(workspace.getByRole("heading",{level:1})).toHaveCSS("font-size","20px");
-    const statusColors=await workspace.locator("span[data-work-state]").evaluateAll(items=>items.map(el=>({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color})));
-    expect(statusColors.every(s=>s.background==="rgba(0, 0, 0, 0)"&&["rgb(32, 38, 50)","rgb(0, 100, 255)"].includes(s.color))).toBe(true);
+    // Design rules v1 §2.3: every status label pairs its text with the matching soft fill.
+    const statusColors=await workspace.locator("span[data-work-state]").evaluateAll(items=>items.map(el=>({state:el.getAttribute("data-work-state"),background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color})));
+    const statusPairs:Record<string,[string,string]>={OPEN:["rgb(99, 103, 113)","rgba(32, 38, 50, 0.04)"],IN_PROGRESS:["rgb(0, 86, 216)","rgb(238, 244, 255)"],COMPLETED:["rgb(23, 117, 79)","rgb(231, 245, 238)"]};
+    expect(statusColors.every(s=>statusPairs[s.state!]?.[0]===s.color&&statusPairs[s.state!]?.[1]===s.background)).toBe(true);
     await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:join(evidence,`${name}-${viewport.width}.png`),fullPage:viewport.width<1024});
   }
