@@ -21,6 +21,13 @@ Status: **PARTIALLY VERIFIED / WORKFLOW BENCHMARKS ONLY**.
 - [DECISION] Do not position the mere existence of an “AI maintenance agent” as unique differentiation because AppFolio publicly advertises a maintenance vendor-follow-up agent.
 - [DECISION] Treat demand, WTP, adoption, switching intent, efficacy and superiority as unproven by this competitor index.
 
+## Navigation and feature-grouping benchmarks (2026-10-10)
+
+The [IA reference note](../ux/2026-10-10-ia-feature-audit-reference.md) §6 compares how services group features and screens by role. It re-opened official pages of nine domestic services (SRC-113–SRC-121) and seven international services (SRC-101–SRC-112) on 2026-10-10.
+
+- [FACT] These sources establish only what each vendor describes. Help-center categories and store descriptions do not prove the in-app menu layout, which stays UNKNOWN.
+- [FACT] 더빌딩솔루션 and 온자리 product statements used there were re-read at their official pages (SRC-113, SRC-116). Their other claims in the table below remain TO VERIFY.
+
 ## Unverified / legacy leads
 
 The following earlier leads remain **TO VERIFY** and are not used as current canonical competitor facts:
