@@ -10,8 +10,8 @@
 //     roles, applies migrations 0001-0023, seeds synthetic accounts/buildings only and binds the demo
 //     subjects; afterwards it applies outstanding migrations and re-asserts role passwords. Prints no secrets.
 //
-// Database transport: loopback (rehearsal flag only), a private provider network host (*.railway.internal),
-// or verified TLS for any other host - the same rule the application enforces.
+// Database transport: loopback (single-host deployment such as deploy/vm), a private provider network host
+// (*.railway.internal), or verified TLS for any other host - the same rule the application enforces.
 import "./core-flow-register.mjs";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -25,10 +25,8 @@ const redact = text => secrets.reduce((value, secret) => secret ? value.split(se
 const quote = value => `'${String(value).replaceAll("'", "''")}'`;
 const PRIVATE_NETWORK = /^[a-z0-9-]+\.railway\.internal$/;
 const DEMO_SUBJECTS = { manager: "auth0|synthetic-demo-manager", tenant: "auth0|synthetic-demo-tenant" };
-const transport = host => {
-  if (process.env.HOSTED_DEMO_REHEARSAL_LOOPBACK === "1" && ["127.0.0.1", "localhost"].includes(host)) return "plain";
-  return PRIVATE_NETWORK.test(host) ? "plain" : "tls";
-};
+// Same rule as the application: loopback (single-host deployment) or a private provider network needs no TLS.
+const transport = host => ["127.0.0.1", "localhost", "::1"].includes(host) || PRIVATE_NETWORK.test(host) ? "plain" : "tls";
 const option = name => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; };
 const connectionUrl = config => {
   const u = new URL("postgresql://localhost");

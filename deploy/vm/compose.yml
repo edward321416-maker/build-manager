@@ -1,0 +1,39 @@
+# Single-VM hosted synthetic demo: PostgreSQL 18 (loopback only), the Web app and Caddy (automatic HTTPS).
+# Values come from files written by deploy/vm/setup.sh outside the repository; nothing secret is committed.
+services:
+  db:
+    image: postgres:18.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: demo
+    # Published on the host loopback only; never reachable from the Internet.
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: [db-data:/var/lib/postgresql]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  web:
+    image: build-manager-demo-web
+    build: { context: ../.., dockerfile: deploy/vm/Dockerfile }
+    restart: unless-stopped
+    network_mode: host
+    env_file: [${WEB_ENV_FILE:?WEB_ENV_FILE required}]
+    depends_on: { db: { condition: service_healthy } }
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      SITE_HOST: ${SITE_HOST:?SITE_HOST required}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [web]
+volumes:
+  db-data: {}
+  caddy-data: {}
+  caddy-config: {}
