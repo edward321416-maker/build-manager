@@ -2,7 +2,7 @@
 
 Status: **[DECISION] interview design**, not conducted research. Target tenants in studios, officetels, and multifamily rental housing. Recruitment, consent language, sample size, and schedule are **[TO VERIFY]**. Do not recruit or contact participants without authorization.
 
-Explain voluntary participation and the right to skip questions. Request no exact address, unit, landlord identity, contract, private message export, or payment information. Recording and public quotation require separate consent. Keep participant mappings and source records private under [research rules](../README.md).
+Explain voluntary participation and the right to skip questions. Request no exact address, unit, landlord identity, contract, private message export, or payment information. Recording and public quotation require separate consent. Keep participant mappings and source records private under [research rules](../RESEARCH_RULES.md).
 
 ## Neutral recent-event questions
 
