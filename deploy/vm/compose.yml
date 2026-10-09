@@ -20,7 +20,8 @@ services:
     build: { context: ../.., dockerfile: deploy/vm/Dockerfile }
     restart: unless-stopped
     network_mode: host
-    env_file: [${WEB_ENV_FILE:?WEB_ENV_FILE required}]
+    env_file:
+      - ${WEB_ENV_FILE:?WEB_ENV_FILE required}
     depends_on: { db: { condition: service_healthy } }
   caddy:
     image: caddy:2
