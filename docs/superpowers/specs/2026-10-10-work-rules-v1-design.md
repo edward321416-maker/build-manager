@@ -1,6 +1,6 @@
 # 작업 규칙 v1 — 개발·연구·레퍼런스 규칙과 읽기 전 게이트
 
-날짜: 2026-10-10. 기준: main `f73e3c32d3fb39ade98d02d9fedfb27b01525c01`. 브랜치: `feat/work-rules-v1`. 선행 작업: 디자인 규칙 v1(PR #79, 브랜치 `feat/design-rules-v1`, 미병합). 비교 근거: [외부 기준 비교 점검](2026-10-10-work-rules-v1-benchmark.md). 아래에서 ★는 비교 점검 뒤 추가하거나 고친 항목이다.
+날짜: 2026-10-10. 기준: main `f73e3c32d3fb39ade98d02d9fedfb27b01525c01`. 브랜치: `docs/work-rules-v1-design`(PR-1a), `docs/work-rules-v1-rulebooks`(PR-1b). 선행 작업: 디자인 규칙 v1(PR #79, 브랜치 `feat/design-rules-v1`, 미병합). 비교 근거: [외부 기준 비교 점검](2026-10-10-work-rules-v1-benchmark.md). 아래에서 ★는 비교 점검 뒤 추가하거나 고친 항목이다.
 
 ## 결정
 
@@ -257,15 +257,17 @@
 
 ## 순서
 
-DEV-02 기준(1000줄이 넘으면 분할)에 따라 PR을 둘로 나눈다.
+DEV-02 기준(1000줄이 넘으면 분할)에 따라 PR을 셋으로 나눈다. 규칙 문서를 하나의 PR로 묶으면 약 1300줄이 되기 때문이다.
 
-1. **PR-1 규칙 문서**(브랜치 `feat/work-rules-v1`)
-   - 내용: 규칙집 3개, 연구 규칙 이전, project_policy 소유 표, CONTRIBUTING, PR 템플릿, 이 스펙과 비교 점검 문서
-   - PR #79와 겹치는 파일이 없으므로 먼저 병합할 수 있다.
-2. **PR-2 게이트·안내**(PR #79와 PR-1이 병합된 main에서 새 브랜치)
-   - 내용: 게이트 일반화와 테스트, 프로젝트 hook 등록, AGENTS.md·CLAUDE.md 작업별 규칙 표, AGENTS.md의 "evidence policy" 링크를 `research/RESEARCH_RULES.md`로 교체. PR-1과 PR-2 사이에는 `research/README.md`가 RESEARCH_RULES로 안내하므로 링크가 끊기지 않는다.
+1. **PR-1a 설계**(브랜치 `docs/work-rules-v1-design`)
+   - 내용: 이 스펙, 비교 점검 문서, [구현 계획](../plans/2026-10-10-work-rules-v1-rulebooks.md)
+2. **PR-1b 규칙집**(브랜치 `docs/work-rules-v1-rulebooks`, PR-1a 위에 쌓음)
+   - 내용: 규칙집 3개, 연구 규칙 이전과 링크, project_policy 소유 표, CONTRIBUTING, PR 템플릿
+   - PR-1a와 PR-1b 모두 PR #79와 겹치는 파일이 없으므로 먼저 병합할 수 있다.
+3. **PR-2 게이트·안내**(PR #79와 PR-1a·PR-1b가 병합된 main에서 새 브랜치)
+   - 내용: 게이트 일반화와 테스트, 프로젝트 hook 등록, AGENTS.md·CLAUDE.md 작업별 규칙 표, AGENTS.md의 "evidence policy" 링크를 `research/RESEARCH_RULES.md`로 교체. PR-1b와 PR-2 사이에는 `research/README.md`가 RESEARCH_RULES로 안내하므로 링크가 끊기지 않는다.
    - AGENTS.md·CLAUDE.md는 PR #79와 겹치므로 PR #79가 병합된 뒤에 고친다.
-3. 각 PR은 검증 → PR → CI → 병합 순으로 진행한다. PR-2가 병합되면 사용자 설정의 사본을 교체하고 새 세션에서 실측한다.
+4. 각 PR은 검증 → PR → CI → 병합 순으로 진행한다. PR-2가 병합되면 사용자 설정의 사본을 교체하고 새 세션에서 실측한다.
 - 이 작업 자체는 일반 등급이다. 문서와 개발 도구만 바꾸고, 제품 동작은 바꾸지 않는다.
 - PR #79의 브랜치와 worktree는 건드리지 않는다.
 
