@@ -137,7 +137,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
     </form>):<>
 
       {session.role==="TENANT"?<OutcomeRecoveryPanel client={client} onOpen={openOutcome}/>:null}
-      {session.role!=="TENANT"?<nav className="core-actions" aria-label="관리자 보기"><button disabled={busy} aria-pressed={managerView==="WORK_QUEUE"} onClick={()=>setManagerView("WORK_QUEUE")}>업무함</button><button disabled={busy} aria-pressed={managerView==="MAINTENANCE"} onClick={()=>setManagerView("MAINTENANCE")}>호실 정비 이력</button></nav>:null}
+      {session.role!=="TENANT"?<nav className="core-actions core-view-switch" aria-label="관리자 보기"><button disabled={busy} aria-pressed={managerView==="WORK_QUEUE"} onClick={()=>setManagerView("WORK_QUEUE")}>업무함</button><button disabled={busy} aria-pressed={managerView==="MAINTENANCE"} onClick={()=>setManagerView("MAINTENANCE")}>호실 정비 이력</button></nav>:null}
       {session.role!=="TENANT"&&managerView==="MAINTENANCE"?<ManagerMaintenanceTimeline key={maintenanceUnit} client={client} units={units} revision={revision} disabled={busy} initialUnit={maintenanceUnit} onOpenTicket={openMaintenanceTicket}/>:<div className={session.role!=="TENANT"?styles.managerWorkspace:styles.tenantWorkspace} data-detail={Boolean(selected)}>
       {session.role!=="TENANT"?<div className={styles.queuePane}><ManagerWorkQueue key={`${selected?.ticketId??"list"}-${selected?.version??0}`} client={client} units={units} revision={revision} disabled={busy} selectedId={selected?.ticketId} onOpen={id=>void run(async()=>{setSelected(await client.read(id));setMessage("");})}/></div>:null}
       {selected?<section className={styles.selectedPane} aria-label="선택한 접수">
