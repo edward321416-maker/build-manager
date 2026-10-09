@@ -41,7 +41,10 @@ export async function prepareVendorHandoff() {
       account.csrf = randomBytes(32).toString("hex");
       account.cookie = await generateSessionCookie({ user: { sub: identity.subject }, tokenSet: { accessToken: randomBytes(32).toString("hex"), expiresAt: issuedAt + 3600 }, internal: { sid: randomUUID(), createdAt: issuedAt }, b1: { handle: account.handle, csrf: account.csrf, issuedAt, expiresAt: issuedAt + 3600 } }, { secret });
     }
-    const state = { version: 1, origin: vendorOrigin, containerId: p.container.getId(), admin: p.adminConfig, roles, vendorConfig, secret, fixture };
+    // Login-free demo entry (synthetic provider only) uses the seeded Manager and Tenant identities.
+    const demoSubjects = {};
+    for (const who of ["manager", "tenant"]) demoSubjects[who] = (await p.admin.query("SELECT subject FROM authn.external_identity WHERE user_id=$1 AND status='ACTIVE'", [fixture.accounts[who].userId])).rows[0].subject;
+    const state = { version: 1, origin: vendorOrigin, containerId: p.container.getId(), admin: p.adminConfig, roles, vendorConfig, secret, fixture, demoSubjects };
     const directory = join(homedir(), ".build-manager-vendor-private", "task11-" + randomUUID());
     await mkdir(directory, { recursive: true, mode: 0o700 });
     const file = join(directory, "state.private.json");
@@ -73,7 +76,8 @@ export async function startVendorHandoffServer(state) {
     cwd: join(root, "apps/web"), windowsHide: true, stdio: "ignore",
     env: { ...process.env, BUILD_MANAGER_MODE: "B1", CORE_FLOW_MODE: "SYNTHETIC_LOCAL", CORE_FLOW_DATABASE_CONFIG: JSON.stringify(state.roles.b1.webConfig), CORE_FLOW_ORIGINS: state.origin,
       B1_AUTH0_DOMAIN: "b1.synthetic.invalid", B1_AUTH0_CLIENT_ID: "synthetic", B1_AUTH0_CLIENT_SECRET: randomBytes(32).toString("hex"), B1_AUTH0_SECRET: state.secret, B1_APP_BASE_URL: state.origin,
-      B1_LOGIN_DATABASE_URL: connection(state.roles.b1.loginConfig), B1_WEB_DATABASE_URL: connection(state.roles.b1.webConfig), VENDOR_HANDOFF_DATABASE_CONFIG: JSON.stringify(state.vendorConfig), VENDOR_HANDOFF_APP_ORIGIN: state.origin },
+      B1_LOGIN_DATABASE_URL: connection(state.roles.b1.loginConfig), B1_WEB_DATABASE_URL: connection(state.roles.b1.webConfig), VENDOR_HANDOFF_DATABASE_CONFIG: JSON.stringify(state.vendorConfig), VENDOR_HANDOFF_APP_ORIGIN: state.origin,
+      ...(state.demoSubjects ? { BUILD_MANAGER_DEMO_ENTRY: "1", BUILD_MANAGER_DEMO_SUBJECTS: JSON.stringify(state.demoSubjects) } : {}) },
   });
   let startupError = false; child.on("error", () => { startupError = true; });
   const stop = async () => { if (child.exitCode === null && !startupError) { const done = once(child, "exit"); child.kill(); await done; } };

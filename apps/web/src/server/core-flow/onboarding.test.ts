@@ -48,6 +48,6 @@ it.each([["NOT_FOUND",404],["FORBIDDEN",403],["STATE_CONFLICT",409],["RATE_LIMIT
 });
 it("bounds cursors and accepts only explicit configured loopback origins",async()=>{
  const s=setup();expect((await s.call("mine?cursor=not-a-uuid","GET")).status).toBe(400);expect((await s.call("mine?cursor="+randomUUID()+"&cursor="+randomUUID(),"GET")).status).toBe(400);
- expect(invitationOrigin({B1_APP_BASE_URL:origin})).toBe(origin);expect(invitationOrigin({B1_APP_BASE_URL:origin,CORE_INVITE_APP_ORIGIN:"http://localhost:3100"})).toBe("http://localhost:3100");
+ expect(invitationOrigin({B1_APP_BASE_URL:"https://build-manager-demo.vercel.app"})).toBe("https://build-manager-demo.vercel.app");expect(invitationOrigin({B1_APP_BASE_URL:origin})).toBe(origin);expect(invitationOrigin({B1_APP_BASE_URL:origin,CORE_INVITE_APP_ORIGIN:"http://localhost:3100"})).toBe("http://localhost:3100");
  for(const value of ["http://remote.invalid","http://localhost:3100/path","http://user@localhost:3100","http://localhost:3100/?token=x"])expect(()=>invitationOrigin({CORE_INVITE_APP_ORIGIN:value})).toThrow();
 });

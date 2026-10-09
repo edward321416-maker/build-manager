@@ -15,7 +15,11 @@ it('eleven actual v2 handlers have literal runtime and dynamic and all are disco
  const vendorRoute=join(process.cwd(),'apps/web/src/app/api/v2/vendor/[...path]/route.ts');
  expect(discovered).toContain(vendorRoute);
  const vendorBody=await readFile(vendorRoute,'utf8');expect(vendorBody).toMatch(/export const runtime = "nodejs";/);expect(vendorBody).toMatch(/export const dynamic = "force-dynamic";/);
- expect(discovered.filter(x=>x!==vendorRoute).length).toBe(11);
+ // Demo entry v1 (operator decision 2026-10-09) adds exactly one synthetic-provider-only session route.
+ const demoRoute=join(process.cwd(),'apps/web/src/app/api/v2/session/demo/route.ts');
+ expect(discovered).toContain(demoRoute);
+ const demoBody=await readFile(demoRoute,'utf8');expect(demoBody).toMatch(/export const runtime = "nodejs";/);expect(demoBody).toMatch(/export const dynamic = "force-dynamic";/);
+ expect(discovered.filter(x=>x!==vendorRoute&&x!==demoRoute).length).toBe(11);
  for(const path of routes){const body=await readFile(path,'utf8');expect(body).toMatch(/export const runtime = "nodejs";/);expect(body).toMatch(/export const dynamic = "force-dynamic";/);}
  const missingRuntime=await fixture(Object.fromEntries(await Promise.all(routes.map(async p=>[p,(await readFile(p,'utf8')).replace('export const runtime = "nodejs";','')]))));
  expect((await scanRouteRuntimes(missingRuntime)).filter(x=>x.rule==='missing-node-runtime').map(x=>x.file).sort()).toEqual([...routes].sort());
@@ -39,6 +43,15 @@ it.each([
  expect((await scanB1ProductionGraph(root,['apps/web/src/server/b1/http.ts'])).length).toBeGreaterThan(0);
 });
 it('R12 actual production graph excludes test/demo/SQLite identity fallbacks',async()=>{expect(await scanB1ProductionGraph(process.cwd())).toEqual([]);});
+it('demo entry exception is pinned to its one module and route',async()=>{
+ const demo='apps/web/src/server/b1/demo-entry.ts',route='apps/web/src/app/api/v2/session/demo/route.ts';
+ const root=await fixture({[demo]:'import "@auth0/nextjs-auth0/testing";\nimport "./complete-session";',[route]:'import "../../../../../server/b1/demo-entry";',
+  'apps/web/src/server/b1/complete-session.ts':'export {};','apps/web/src/server/b1/http.ts':'import "./demo-entry";','apps/web/src/server/b1/logout.ts':'import "@auth0/nextjs-auth0/testing";'});
+ expect(await scanB1ProductionGraph(root,[route])).toEqual([]);
+ expect(await scanB1ProductionGraph(root,[demo])).toEqual([]);
+ expect(await scanB1ProductionGraph(root,['apps/web/src/server/b1/http.ts'])).toEqual([{file:'apps/web/src/server/b1/complete-session.ts',specifier:'<login-capability-outside-completion>'}]);
+ expect(await scanB1ProductionGraph(root,['apps/web/src/server/b1/logout.ts'])).toEqual([{file:'apps/web/src/server/b1/logout.ts',specifier:'@auth0/nextjs-auth0/testing'}]);
+});
 it('R12 successive scans observe transitive source and conditional workspace export mutations',async()=>{
  const entry='apps/web/src/server/b1/http.ts',manifestPath='packages/graph-fresh/package.json';
  const manifest={name:'@build-manager/graph-fresh',exports:{'./sub':{import:'./safe.ts',default:'./unsafe.ts'}}};

@@ -1,5 +1,15 @@
 # Run the synthetic core flow
 
+## Login-free local demo (Vendor Secure Handoff included)
+
+From the repository root, with Docker running and the project-isolated Node 24.21.0/npm 11.19.0:
+
+```powershell
+node --experimental-transform-types scripts/demo-local.mjs
+```
+
+The first run builds the Web app. The launcher prepares a fresh synthetic database, serves **http://localhost:3134** and opens a **자취사무소 체험** window. Choose **관리자로 체험하기** or **세입자로 체험하기**; each opens its own isolated window, already signed in as the synthetic actor. Paste a Manager-issued Vendor secure link into **업체로 링크 열기** to act as the Vendor. Switch roles from the chooser rather than the in-app logout. Closing the chooser stops the server and removes the demo database. Port 3134 must be free. `--check` runs the same flow headless and exits; `--build` forces a rebuild. All data is synthetic; this is a local demonstration, not deployment, and the application's own login and security boundaries are unchanged ([design](superpowers/specs/2026-10-09-demo-entry-v1-design.md)).
+
 ## Unit Maintenance Fact Timeline v1
 
 Use the new isolated `feat/unit-maintenance-fact-v1` worktree based on8d5b9c6. Keep the previous RC1 worktree and running services intact. With the existing project-isolated Node24.21.0/npm11.19.0, Docker Desktop and installed dependencies, build while this worktree's server is stopped:

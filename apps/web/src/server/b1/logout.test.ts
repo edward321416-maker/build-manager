@@ -37,3 +37,12 @@ it('native same-origin logout form preserves provider redirect after server comm
  const f=fixture(),request=new NextRequest(base+'/api/v2/session/logout',{method:'POST',headers:{origin:base,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf:f.csrf})});
  const r=await executeB1Logout(request,f.session,f.registry,f.provider,base);expect(r.status).toBe(303);expect(f.registry.revoke).toHaveBeenCalledOnce();expect(f.provider).toHaveBeenCalledOnce();
 });
+it('demo entry logout revokes, clears the SDK session cookie and returns to /core without the provider',async()=>{
+ const f=fixture(),request=new NextRequest(base+'/api/v2/session/logout',{method:'POST',headers:{origin:base,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf:f.csrf})});
+ const r=await executeB1Logout(request,f.session,f.registry,f.provider,base,{demo:true});
+ expect(r.status).toBe(303);expect(new URL(r.headers.get('location')!).pathname).toBe('/core');
+ expect(f.registry.revoke).toHaveBeenCalledOnce();expect(f.provider).not.toHaveBeenCalled();
+ expect(r.headers.getSetCookie()).toEqual(expect.arrayContaining([expect.stringMatching(/^__session=;.*Max-Age=0/)]));
+ const rejected=await executeB1Logout(f.request({origin:base,'x-b1-csrf':'bad'}),f.session,f.registry,f.provider,base,{demo:true});
+ expect(rejected.status).toBe(403);expect(f.registry.revoke).toHaveBeenCalledOnce();
+});

@@ -7,7 +7,8 @@ import { privateHeaders,toB1ErrorResponse } from './errors';
 import { getB1Container } from './container';
 import { getB1Auth0 } from './auth0';
 import { readB1AuthConfig } from './config';
-export async function executeB1Logout(request:NextRequest,session:SessionData|null,registry:Omit<IdentitySessionPort,'begin'>,provider:(request:NextRequest)=>Promise<NextResponse>,baseUrl:string){
+import { demoEntryEnabled } from './demo-entry-config';
+export async function executeB1Logout(request:NextRequest,session:SessionData|null,registry:Omit<IdentitySessionPort,'begin'>,provider:(request:NextRequest)=>Promise<NextResponse>,baseUrl:string,options:{demo?:boolean}={}){
  if(request.method!=='POST')return NextResponse.json({error:'METHOD_NOT_ALLOWED'},{status:405,headers:privateHeaders});
  if(request.headers.get('origin')!==baseUrl)return NextResponse.json({error:'FORBIDDEN'},{status:403,headers:privateHeaders});
  try{
@@ -19,6 +20,12 @@ export async function executeB1Logout(request:NextRequest,session:SessionData|nu
   }
   if(!submitted || !/^[a-f0-9]{64}$/.test(submitted) || !timingSafeEqual(Buffer.from(submitted),Buffer.from(current.csrf)))return NextResponse.json({error:'FORBIDDEN'},{status:403,headers:privateHeaders});
   await registry.revoke(current.digest);
+  if(options.demo){
+   // Demo entry has no provider session to end: clear the SDK cookie and return to the role choice.
+   const result=NextResponse.redirect(new URL('/core',baseUrl),{status:303,headers:privateHeaders});
+   result.cookies.set('__session','',{httpOnly:true,sameSite:'lax',path:'/',secure:baseUrl.startsWith('https:'),maxAge:0});
+   return result;
+  }
   const internal=new NextRequest(new URL('/auth/logout',baseUrl),{headers:{cookie:request.headers.get('cookie')??''}});
   const response=await provider(internal);
   if(response.status>=400)throw new Error('PROVIDER_LOGOUT_UNAVAILABLE');
@@ -30,6 +37,6 @@ export async function executeB1Logout(request:NextRequest,session:SessionData|nu
 export async function handleB1Logout(request:NextRequest){
  try{
   const d=getB1Container();
-  return executeB1Logout(request,await d.readSession(request),d.sessions,r=>getB1Auth0().middleware(r),readB1AuthConfig().appBaseUrl);
+  return executeB1Logout(request,await d.readSession(request),d.sessions,r=>getB1Auth0().middleware(r),readB1AuthConfig().appBaseUrl,{demo:demoEntryEnabled()});
  }catch(error){return toB1ErrorResponse(error);}
 }

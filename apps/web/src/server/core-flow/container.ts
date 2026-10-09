@@ -5,6 +5,7 @@ import { createSessionRegistryPort } from "@build-manager/persistence-postgres/b
 import { createCoreOnboardingPort } from "@build-manager/persistence-postgres/core-onboarding";
 import { createVendorHandoffManagerPort,createVendorHandoffTenantPort } from "@build-manager/persistence-postgres/vendor-handoff";
 import { invitationOrigin } from "./onboarding";
+import { databaseHostAllowed } from "../database-host";
 
 import { requireCoreB1Session } from "./b1-access";
 export type CoreHTTPDependencies={port:CoreFlowPort;revoke(digest:string):Promise<void>;origins:string[];vendorHandoff?:{inOrganization(organization:string):VendorHandoffManagerPort;tenantInOrganization(organization:string):VendorHandoffTenantPort};b1?:{current:typeof requireCoreB1Session;access:CoreAccessPort;onboarding?:CoreOnboardingPort;inviteOrigin?:()=>string}};
@@ -13,7 +14,7 @@ export function getCoreFlowContainer():CoreHTTPDependencies {
   if(process.env.CORE_FLOW_MODE!=="SYNTHETIC_LOCAL")throw new CoreFlowError("DEPENDENCY_UNAVAILABLE");
   if(!instance){
     const config:unknown=JSON.parse(process.env.CORE_FLOW_DATABASE_CONFIG??"null");
-    if(!config || typeof config!=="object" || !("host" in config) || !["127.0.0.1","localhost","::1"].includes(String(config.host)))throw new CoreFlowError("DEPENDENCY_UNAVAILABLE");
+    if(!config || typeof config!=="object" || !("host" in config) || !databaseHostAllowed(config))throw new CoreFlowError("DEPENDENCY_UNAVAILABLE");
     const database=createPostgresDatabase({...config,host:String(config.host),max:5,connectionTimeoutMillis:5000});
     const registry=createSessionRegistryPort(database);
     const origins=(process.env.CORE_FLOW_ORIGINS??"").split(",").filter(Boolean);

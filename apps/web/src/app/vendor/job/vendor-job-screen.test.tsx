@@ -373,7 +373,8 @@ describe("decline and logout",()=>{
     await click("같은 요청으로 결과 확인");
     const ids=client.decline.mock.calls.map(c=>c[1].clientRequestId);
     expect(ids[0]).toBe(ids[1]);
-    expect(page()).toContain("작업 화면을 열 수 없습니다");
+    // LOW-1: the exact replay receipt proves this request ended the assignment.
+    expect(page()).toContain("작업 요청을 거절했습니다");
   });
   it("reloads authoritative state after a stale decline conflict",async()=>{
     const client=fakeClient({decline:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
@@ -466,7 +467,7 @@ describe("Task5 review remediation (screen)",()=>{
     const ids=client.withdraw.mock.calls.map(c=>c[1].clientRequestId);
     expect(ids).toHaveLength(2);
     expect(ids[0]).toBe(ids[1]);
-    expect(page()).toContain("작업 화면을 열 수 없습니다");
+    expect(page()).toContain("작업을 철회했습니다");
   });
 });
 
@@ -1078,5 +1079,19 @@ describe("WC-M02 all non-upload Vendor command families",()=>{
     if(outcome==="same"){
       expect(order).toEqual(["GET","POST","GET"]);expect(client[family].mock.calls[1]).toEqual(client[family].mock.calls[0]);expect(page()).toContain("권한 확인 후 최신 설명");
     }else{expect(order).toEqual(["GET"]);expect(posts).toBe(1);if(outcome==="changed")expect(page()).toContain("권한 확인 후 최신 설명");}
+  });
+  it("LOW-2 a changed-context blocker reconcile keeps the owned completion report draft",async()=>{
+    const base=active(assignmentB,"B");
+    const initial={...base,phase:"IN_PROGRESS" as const,currentRound:{...base.currentRound!,status:"CONFIRMED" as const,version:3},appointment:{...appointment,status:"OCCURRED" as const}};
+    // The authoritative state changes only after the uncertain blocker command was sent.
+    const client=fakeClient({redeem:async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:initial}),
+      job:async()=>client.recordBlocker.mock.calls.length>0?{...initial,assignmentVersion:initial.assignmentVersion+1}:initial,recordBlocker:async()=>{throw network();}});
+    await mount(client,`#${tokenB}`,now);
+    await input('textarea[aria-label="작업 내용 요약"]',"보존할 작업 보고 초안");
+    await click("막힘 기록");await choose("PARTS_REQUIRED");await click("막힘 기록하기");
+    await click("같은 요청으로 결과 확인");
+    expect(page()).toContain("이전 요청의 성공 여부는 확정하지 않습니다");
+    expect(host.querySelector<HTMLTextAreaElement>('textarea[aria-label="작업 내용 요약"]')?.value).toBe("보존할 작업 보고 초안");
+    expect(client.recordBlocker).toHaveBeenCalledTimes(1);
   });
 });

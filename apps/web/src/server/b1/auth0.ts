@@ -1,6 +1,6 @@
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
 import { NextResponse } from "next/server";
-import { readB1AuthConfig,type B1AuthConfig } from "./config";
+import { readB1AuthConfig,sessionCookieOptions,type B1AuthConfig } from "./config";
 import { prepareTransportSession } from "./auth-transport";
 import { createRemoteJWKSet,jwtVerify,customFetch as jwksFetch } from "jose";
 /** Transport only. No application, authorization, or database dependency. */
@@ -11,7 +11,7 @@ export function createB1Auth0(config:B1AuthConfig,customFetch?:typeof fetch):Aut
     appBaseUrl:config.appBaseUrl,customFetch,
     authorizationParameters:{scope:"openid",connection:"Username-Password-Authentication"},
     signInReturnToPath:"/api/v2/session/complete",
-    session:{rolling:false,absoluteDuration:3600,cookie:{sameSite:"lax",secure:false,path:"/"}},
+    session:{rolling:false,absoluteDuration:3600,cookie:sessionCookieOptions(config.appBaseUrl)},
     enableAccessTokenEndpoint:false,enableConnectAccountEndpoint:false,
     beforeSessionSaved:async(session,idToken)=>{
       if(idToken!==null){
