@@ -1,0 +1,57 @@
+{
+  "commands": {
+    "package-add": "(?:^|[\\s;&|(])(?:(?:npm|pnpm|yarn)\\s+(?:install|i|add)|npx\\s+expo\\s+install)(?:\\s+-\\S+)*\\s+[^-\\s;&|]"
+  },
+  "rules": [
+    {
+      "id": "design",
+      "name": "디자인 규칙",
+      "file": "design/DESIGN_RULES.md",
+      "edit": [
+        "apps/web/src/app/**/*.{tsx,css}",
+        "apps/web/src/components/**/*.{tsx,css}",
+        "apps/mobile/src/**/*.tsx"
+      ],
+      "exclude": ["**/*.test.tsx", "**/*.spec.tsx"]
+    },
+    {
+      "id": "development",
+      "name": "개발 규칙",
+      "file": "development/DEVELOPMENT_RULES.md",
+      "edit": [
+        "apps/**",
+        "packages/**",
+        "scripts/**",
+        "tests/**",
+        "deploy/**",
+        "docs/**",
+        ".github/workflows/**",
+        ".claude/**",
+        "package.json",
+        "package-lock.json",
+        "tsconfig*.json",
+        "vitest*.config.ts",
+        "railway.json",
+        ".nvmrc",
+        ".dockerignore",
+        ".gitignore",
+        ".gitattributes"
+      ],
+      "commands": ["package-add"]
+    },
+    {
+      "id": "research",
+      "name": "연구 규칙",
+      "file": "research/RESEARCH_RULES.md",
+      "edit": ["research/**", "submission/**", "product/**"]
+    },
+    {
+      "id": "reference",
+      "name": "레퍼런스 규칙",
+      "file": "references/REFERENCE_RULES.md",
+      "edit": ["references/**", "**/package.json"],
+      "tools": ["WebSearch", "WebFetch"],
+      "commands": ["package-add"]
+    }
+  ]
+}
