@@ -9,11 +9,12 @@ function markup(): string {
 describe("product root", () => {
   beforeEach(()=>vi.stubEnv('BUILD_MANAGER_MODE','DEMO'));
   afterEach(()=>vi.unstubAllEnvs());
-  it("still leads with the product hero", () => {
+  it("leads with what the service does and one example ticket", () => {
     const html = markup();
 
-    expect(html).toContain("BUILDING-AWARE REPAIR ROUTER");
-    expect(html).toContain("주소가 수리 프로토콜이 된다");
+    expect(html).toContain("세입자 수리 요청, 문자 대신 여기서 받아요");
+    expect(html).toContain("101동 1203호 · 난방");
+    expect(html).toContain("이렇게 진행돼요");
   });
 
   it("offers a visible way into the tenant demo", () => {
@@ -46,3 +47,13 @@ describe("product root", () => {
   });
 });
 it('B1 root presents authentication/workspace without demo data',()=>{vi.stubEnv('BUILD_MANAGER_MODE','B1');try{const html=markup();expect(html).toContain('href="/auth/login"');expect(html).toContain('href="/workspace"');expect(html).not.toContain('/demo/');}finally{vi.unstubAllEnvs();}});
+it("B1 demo root offers both login-free roles as same-origin forms and says which issues exist",()=>{
+  vi.stubEnv("BUILD_MANAGER_MODE","B1");vi.stubEnv("BUILD_MANAGER_DEMO_ENTRY","1");vi.stubEnv("B1_AUTH0_DOMAIN","b1.synthetic.invalid");
+  vi.stubEnv("BUILD_MANAGER_DEMO_SUBJECTS",JSON.stringify({manager:"auth0|synthetic-demo-manager",tenant:"auth0|synthetic-demo-tenant"}));
+  try{const html=markup();
+    expect(html.split('action="/api/v2/session/demo"').length-1).toBe(2);
+    expect(html).toContain('value="manager"');expect(html).toContain('value="tenant"');
+    expect(html).toContain("관리자로 체험하기");expect(html).toContain("세입자로 체험하기");
+    expect(html).toContain("난방과 누수 두 가지");expect(html).not.toContain('href="/auth/login"');
+  }finally{vi.unstubAllEnvs();}
+});

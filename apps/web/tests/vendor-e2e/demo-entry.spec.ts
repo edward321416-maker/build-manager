@@ -6,7 +6,7 @@ test('D01 login-free demo entry opens the Manager queue and Tenant intake; demo 
   try {
     const manager = await managerContext.newPage();
     await manager.goto('/');
-    await expect(manager.getByText('로그인 없이 합성 데모 데이터로 체험할 수 있습니다.', { exact: true })).toBeVisible();
+    await expect(manager.getByText('체험용 가짜 건물·세대 데이터로 들어가요. 누구나 바꿀 수 있어요.', { exact: true })).toBeVisible();
     await manager.goto('/core');
     await expect(manager.getByRole('button', { name: '관리자로 체험하기', exact: true })).toBeVisible();
     await expect(manager.locator('a[href="/auth/login"]')).toHaveCount(0);
