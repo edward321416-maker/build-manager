@@ -9,13 +9,16 @@ Authority: the operator's 2026-09-13 implementation instruction and supplied age
 | Purpose and customer segment | [Project Charter](../PROJECT_CHARTER.md) |
 | Current readiness and blockers | [Status](../STATUS.md) |
 | Product behavior | `product/` |
-| Evidence classification and raw handling | [Research rules](../research/README.md) |
+| Evidence classification, sources, research notes, interviews and raw handling | [Research rules](../research/RESEARCH_RULES.md) |
 | Claims and source provenance | `research/sources/` |
 | Submission draft / final gate | `submission/2026-modu-startup-2/` |
 | AI execution / external sync | `ops/` |
 | Instruction and artifact preflight | [AI delivery rules](ai_delivery_rules.md) |
+| Code, data, security, dependency conditions and deployment | [Development rules](../development/DEVELOPMENT_RULES.md) |
+| External material: selection, records, borrowing limits, quotation, licenses, AI-output rights | [Reference rules](../references/REFERENCE_RULES.md) |
+| Visual design and UI copy | Design rules, `design/DESIGN_RULES.md` (PR #79) |
 
-Avoid duplicate canonical documents. Link to an owner instead of copying evolving definitions. Drafts may restate approved product definitions but must not invent evidence.
+Avoid duplicate canonical documents. Link to an owner instead of copying evolving definitions. Drafts may restate approved product definitions but must not invent evidence. Read the matching work rulebook in full before that kind of work; where rulebooks overlap, this table names the owner.
 
 ## Collaboration decision
 

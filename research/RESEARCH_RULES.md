@@ -6,7 +6,7 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 - **읽는 시점**: 연구를 시작하기 전에 이 문서 전체를 읽는다. 읽기 전 차단 게이트가 설치된 환경에서는 읽지 않으면 위 경로를 편집할 수 없다.
 - **우선순위**: 호스트 안전 규칙과 실제 권한 → 운영자의 현재 지시 → [AGENTS.md](../AGENTS.md)·[프로젝트 정책](../governance/project_policy.md)·[AI 작성·전달 사전 규칙](../governance/ai_delivery_rules.md) → 이 문서 → 노트·계획
   - 다른 규칙집과 겹치면 [소유 표](../governance/project_policy.md)의 주인 문서를 따른다.
-  - 외부 자료를 고르고, 기록하고, 인용하는 방법은 레퍼런스 규칙(`references/REFERENCE_RULES.md`)을 따른다.
+  - 외부 자료를 고르고, 기록하고, 인용하는 방법은 [레퍼런스 규칙](../references/REFERENCE_RULES.md)을 따른다.
 - **근거**: [작업 규칙 v1 설계](../docs/superpowers/specs/2026-10-10-work-rules-v1-design.md), [외부 기준 비교](../docs/superpowers/specs/2026-10-10-work-rules-v1-benchmark.md)
 
 ## RES-01 시작 전

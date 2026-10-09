@@ -1,3 +1,7 @@
+## Risk tier
+
+State `일반` or `고위험` per DEV-01 in `development/DEVELOPMENT_RULES.md`. When unsure, choose `고위험`.
+
 ## Problem and resulting change
 
 Describe the concrete problem, final behavior, and linked issue. Keep scope focused.

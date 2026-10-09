@@ -8,7 +8,7 @@ Version: 1.0.0 | Effective: 2026-10-10 | Owner: 운영자
 - **다른 규칙과의 관계**
   - 작업 절차(사전 읽기, 결정 인터뷰, R05 자체 점검, 전달 상태)는 AI 작성·전달 사전 규칙이 정한다.
   - 화면 작업은 디자인 규칙(`design/DESIGN_RULES.md`)을 함께 따른다.
-  - 외부 코드·라이브러리는 레퍼런스 규칙(`references/REFERENCE_RULES.md`)을 함께 따른다.
+  - 외부 코드·라이브러리는 [레퍼런스 규칙](../references/REFERENCE_RULES.md)을 함께 따른다.
   - 연구 자료와 개인정보 원본은 [연구 규칙](../research/RESEARCH_RULES.md)을 함께 따른다.
 - **근거**: [설계](../docs/superpowers/specs/2026-10-10-work-rules-v1-design.md), [외부 기준 비교](../docs/superpowers/specs/2026-10-10-work-rules-v1-benchmark.md)
 
