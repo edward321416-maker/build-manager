@@ -123,7 +123,7 @@
   - 4행 표를 둔다(작업 종류 → 규칙집 링크).
   - 게이트 동작 2문장을 쓴다(대상, 다시 읽기, 셸 편집 미차단).
   - 디자인 규칙에 없는 값은 운영자 결정 전까지 쓰지 않는다는 기존 문장은 유지한다.
-  - `[evidence policy](research/README.md)`는 `research/RESEARCH_RULES.md`로 바꾼다.
+  - "evidence policy" 링크 대상 `research/README.md`를 `research/RESEARCH_RULES.md`로 바꾼다.
 - [ ] **Step 3: CLAUDE.md** — 디자인 규칙 문장을 같은 4행 표와 게이트 한 문장으로 바꾼다.
 - [ ] **Step 4: 디자인 규칙 7행** — 스크립트 경로만 `.claude/hooks/rules-gate.mjs`로 바꾼다. 규칙 내용은 바꾸지 않는다.
 - [ ] **Step 5: 검사**
