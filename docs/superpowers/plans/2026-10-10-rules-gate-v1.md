@@ -39,7 +39,7 @@
 | `tests/architecture/rules-gate.test.ts` | 생성 | 실제 `rules-gate.json`을 임시 저장소에 복사해 검증 |
 | `tests/architecture/design-rules-gate.test.ts` | 삭제 | 사례를 rules-gate 테스트로 옮김 |
 | `AGENTS.md`, `CLAUDE.md` | 수정 | 작업별 규칙 표. AGENTS의 evidence policy 링크를 RESEARCH_RULES로 |
-| `design/DESIGN_RULES.md:7` | 수정 | 게이트 스크립트 경로만 갱신 |
+| `design/DESIGN_RULES.md:7-8` | 수정 | 게이트 스크립트 경로와 §17이 요구하는 날짜별 결정 줄 |
 | `ops/AI_Execution_Log.csv`, `ops/pending_external_sync.md` | 수정 | 실행 기록 |
 
 ---
@@ -51,7 +51,7 @@
 
 **Interfaces:**
 - Produces:
-  - `rules-gate.json`의 형식은 `{ "commands": { [이름]: 정규식 }, "rules": [{ id, name, file, edit?: glob[], exclude?: glob[], tools?: string[], commands?: 이름[] }] }`이다.
+  - `rules-gate.json`의 형식은 `{ "rules": [{ id, name, file, edit?: glob[], exclude?: glob[], tools?: string[], commands?: 분류이름[] }] }`이다. 명령 분류(`package-add`)는 스크립트에 들어 있다.
   - 스크립트는 `node rules-gate.mjs record|check`로 실행하고, 표준 입력으로 hook JSON을 받는다.
 
 - [ ] **Step 1: 규칙 목록 작성**
@@ -59,11 +59,11 @@
   - development: `edit`는 스펙 §게이트 표와 같다. `commands`는 `package-add`다.
   - research: `research/**`, `submission/**`, `product/**`
   - reference: `edit`는 `references/**`, `**/package.json`이다. `tools`는 `WebSearch`, `WebFetch`이고, `commands`는 `package-add`다.
-  - `package-add` 정규식:
-
-```text
-(?:^|[\s;&|(])(?:(?:npm|pnpm|yarn)\s+(?:install|i|add)|npx\s+expo\s+install)(?:\s+-\S+)*\s+[^-\s;&|]
-```
+  - `package-add`는 처음에 정규식으로 만들었다. 끝 리뷰에서 옵션 순서(`npm --workspace X install pkg`, `npm install -w apps/web`)를 다루지 못한다는 점이 드러나 스크립트의 토큰 분석으로 바꿨다.
+    - 명령은 `&&`, `||`, `;`, `|`, `&`, 줄바꿈으로 나눈다.
+    - 앞선 `cd`·`Set-Location`을 따라 폴더를 바꾼다.
+    - `npm|pnpm|yarn`(`.cmd` 포함)은 값을 받는 옵션(`-w`, `--workspace`, `--prefix`, `--omit`, `--filter` 등)을 건너뛴 뒤 하위 명령을 본다. 하위 명령이 `install`·`i`·`add`이고 그 뒤에 이름 인자가 있으면 해당한다.
+    - `npx|pnpx`는 옵션 뒤에 `expo install`과 이름 인자가 있으면 해당한다.
 
 - [ ] **Step 2: 테스트 작성**
   - 각 테스트는 임시 저장소를 만들고, 그 안에 실제 `.claude/rules-gate.json`을 복사하고 4개 규칙 파일을 생성한다.
@@ -87,6 +87,14 @@
 | 13 | JSON이 아닌 입력 | 0, 경고 `rules-gate` |
 | 14 | 실제 저장소의 목록에 있는 규칙 파일들 | 모두 600줄·48,000바이트 이하 |
 
+  - 끝 리뷰를 반영하며 추가한 사례
+    - 옵션이 앞에 오는 패키지 추가 명령, `npm.cmd`·`npx -y`
+    - 이름 인자가 없는 `-w`·`--omit` 설치
+    - `cd`·`Set-Location` 추적, Git Bash 드라이브 경로(Windows), 세션 cwd 기준의 상대 경로
+    - MultiEdit
+    - 설정이 없는 checkout의 디자인 대체 규칙
+    - 깨진 규칙 하나, 깨진 설정(exit 1), 손상된 상태 파일
+    - 차단 메시지의 절대 경로
 - [ ] **Step 3: 실패 확인** — `npx vitest run tests/architecture/rules-gate.test.ts`. 기대 결과: 스크립트가 없으므로 실패한다.
 
 ### Task 2: 게이트 구현
@@ -104,7 +112,7 @@
     - Windows에서는 대소문자를 구분하지 않는다.
   - **대상 판정**
     - 편집 도구(`Edit|Write|MultiEdit|NotebookEdit`): `file_path`나 `notebook_path`의 저장소 상대 경로를 `edit`에 맞춰 보고, `exclude`에 걸리면 뺀다.
-    - `Bash|PowerShell`: `command`를 `commands` 정규식에 맞춘다.
+    - `Bash|PowerShell`: `command`를 `commands`의 명령 분류로 판정한다. `cd`를 따라간 폴더에서 저장소를 찾는다.
     - 그 밖: `tools`에 도구 이름이 있으면 해당한다.
   - **차단**: 파일이 있는 규칙 중 현재 해시가 상태와 다르면 exit 2로 막는다. 메시지는 한국어로 쓰고, 읽어야 할 규칙 이름과 경로를 모두 적는다.
 - [ ] **Step 2: 통과 확인** — `npx vitest run tests/architecture/rules-gate.test.ts` → 14개 PASS. 이어서 `npm run test:shared`, `npm run typecheck:tests`
@@ -125,7 +133,7 @@
   - 디자인 규칙에 없는 값은 운영자 결정 전까지 쓰지 않는다는 기존 문장은 유지한다.
   - "evidence policy" 링크 대상 `research/README.md`를 `research/RESEARCH_RULES.md`로 바꾼다.
 - [ ] **Step 3: CLAUDE.md** — 디자인 규칙 문장을 같은 4행 표와 게이트 한 문장으로 바꾼다.
-- [ ] **Step 4: 디자인 규칙 7행** — 스크립트 경로만 `.claude/hooks/rules-gate.mjs`로 바꾼다. 규칙 내용은 바꾸지 않는다.
+- [ ] **Step 4: 디자인 규칙 7–8행** — 스크립트 경로를 `.claude/hooks/rules-gate.mjs`로 바꾼다. §17에 따라 날짜가 붙은 `[DECISION]` 줄을 남긴다. 규칙 내용은 바꾸지 않는다.
 - [ ] **Step 5: 검사**
   - `python scripts/verify_repository.py --history` → PASS
   - `git diff --check`

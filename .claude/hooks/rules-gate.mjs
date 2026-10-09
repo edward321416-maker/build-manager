@@ -2,31 +2,51 @@
 // Claude Code hook (work rules v1, operator decisions 2026-10-09 and 2026-10-10): before design,
 // development, research or reference work, the matching rulebook must have been read in full in the
 // same session. `.claude/rules-gate.json` of the repository that contains the edited file (or the
-// session cwd) lists each rulebook with the edit globs, tools and commands it covers.
+// directory a command or lookup runs in) lists each rulebook with the edit globs, tools and command
+// classes it covers. A checkout that has design/DESIGN_RULES.md but no config gets the design rule only.
 //   record  PostToolUse, matcher Read: remember the hash of a fully read rulebook for the session.
 //   check   PreToolUse, matcher Edit|Write|MultiEdit|NotebookEdit|WebSearch|WebFetch|Bash|PowerShell:
 //           exit 2 while a required rulebook is unread or changed since it was read.
-// A rulebook file that does not exist yet is skipped. Unexpected errors fail open (exit 0 with a
-// warning) so a broken environment cannot block all work. Never place rules-gate.json in ~/.claude:
-// every path under the home folder would then count as a rules repository.
+// A missing rulebook file is skipped and a broken rule is skipped with a warning. Errors never block:
+// they exit 1 so Claude Code shows them to the user. Never place rules-gate.json in ~/.claude: every
+// path under the home folder would then count as a rules repository.
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
 const CONFIG = [".claude", "rules-gate.json"];
+const DESIGN_FILE = "design/DESIGN_RULES.md";
+const DESIGN_FALLBACK = {
+  id: "design",
+  name: "디자인 규칙",
+  file: DESIGN_FILE,
+  edit: ["apps/web/src/app/**/*.{tsx,css}", "apps/web/src/components/**/*.{tsx,css}", "apps/mobile/src/**/*.tsx"],
+  exclude: ["**/*.test.tsx", "**/*.spec.tsx"],
+};
 const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 const SHELL_TOOLS = new Set(["Bash", "PowerShell"]);
+const CHANGE_DIRECTORY = new Set(["cd", "chdir", "pushd", "set-location", "sl"]);
 // Windows paths are case-insensitive, so matching and state keys are too.
 const FOLD = process.platform === "win32";
 
+/** Git Bash `/d/x` and `~/x` spellings become native paths so they resolve on Windows too. */
+function native(path) {
+  if (path === "~" || path.startsWith("~/")) return join(homedir(), path.slice(2));
+  const drive = FOLD ? /^\/([A-Za-z])(?:\/|$)/.exec(path) : null;
+  return drive ? `${drive[1].toUpperCase()}:\\${path.slice(3).split("/").join("\\")}` : path;
+}
+const fold = (text) => (FOLD ? text.toLowerCase() : text);
+
+/** The nearest folder that has the gate config, or else the design rules (design-only fallback). */
 function findRoot(start) {
   for (let dir = resolve(start); ; dir = dirname(dir)) {
-    if (existsSync(join(dir, ...CONFIG))) return dir;
+    if (existsSync(join(dir, ...CONFIG))) return { root: dir, fallback: false };
+    if (existsSync(join(dir, ...DESIGN_FILE.split("/")))) return { root: dir, fallback: true };
     if (dirname(dir) === dir) return null;
   }
 }
-const posix = (root, path) => relative(root, resolve(path)).split(sep).join("/");
+const posix = (root, path) => relative(root, path).split(sep).join("/");
 const digest = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -50,21 +70,62 @@ function globToRegExp(glob) {
   return new RegExp(`^${source}$`, FOLD ? "i" : "");
 }
 
-function loadRules(root) {
-  const config = JSON.parse(readFileSync(join(root, ...CONFIG), "utf8"));
-  const commands = config.commands ?? {};
-  return config.rules.map((rule) => ({
-    name: rule.name,
-    file: rule.file,
-    path: join(root, ...rule.file.split("/")),
-    edit: (rule.edit ?? []).map(globToRegExp),
-    exclude: (rule.exclude ?? []).map(globToRegExp),
-    tools: rule.tools ?? [],
-    commands: (rule.commands ?? []).map((name) => {
-      if (typeof commands[name] !== "string") throw new Error(`unknown command set ${name}`);
-      return new RegExp(commands[name]);
-    }),
-  }));
+// Options that take a separate value, so the value is not mistaken for a package name.
+const VALUE_OPTIONS = new Set(["-w", "--workspace", "--prefix", "-C", "--dir", "--cwd", "--omit", "--include", "--filter", "-F", "--tag", "--registry", "--cache", "--userconfig"]);
+const PACKAGE_MANAGER = /^(?:npm|pnpm|yarn)(?:\.cmd|\.exe|\.ps1)?$/i;
+const PACKAGE_RUNNER = /^(?:npx|pnpx)(?:\.cmd|\.exe|\.ps1)?$/i;
+const ADD_SUBCOMMANDS = new Set(["install", "i", "in", "add", "isntall"]);
+
+function afterOptions(words, i) {
+  while (i < words.length && words[i].startsWith("-")) {
+    i += VALUE_OPTIONS.has(words[i]) ? 2 : 1;
+  }
+  return i;
+}
+/** True when one command adds named packages, e.g. `npm -w apps/web install zod` or `npx expo install x`. */
+function addsPackages(words) {
+  for (let k = 0; k < words.length; k++) {
+    const program = words[k].split(/[\\/]/).pop();
+    if (PACKAGE_MANAGER.test(program)) {
+      const sub = afterOptions(words, k + 1);
+      return ADD_SUBCOMMANDS.has(words[sub]) && afterOptions(words, sub + 1) < words.length;
+    }
+    if (PACKAGE_RUNNER.test(program)) {
+      const sub = afterOptions(words, k + 1);
+      return words[sub] === "expo" && words[sub + 1] === "install" && afterOptions(words, sub + 2) < words.length;
+    }
+  }
+  return false;
+}
+const COMMAND_CLASSES = { "package-add": addsPackages };
+
+/** Rules of a checkout; a broken rule is skipped and reported instead of disabling every rule. */
+function loadRules({ root, fallback }, warnings) {
+  const rules = fallback ? [DESIGN_FALLBACK] : JSON.parse(readFileSync(join(root, ...CONFIG), "utf8")).rules;
+  if (!Array.isArray(rules)) throw new Error("rules-gate.json has no rules list");
+  return rules.flatMap((rule) => {
+    try {
+      if (typeof rule.file !== "string" || typeof rule.name !== "string") throw new Error("needs file and name");
+      return [
+        {
+          name: rule.name,
+          file: rule.file,
+          path: join(root, ...rule.file.split("/")),
+          edit: (rule.edit ?? []).map(globToRegExp),
+          exclude: (rule.exclude ?? []).map(globToRegExp),
+          tools: rule.tools ?? [],
+          commands: (rule.commands ?? []).filter((name) => {
+            if (COMMAND_CLASSES[name]) return true;
+            warnings.push(`rule ${rule.id}: unknown command class ${name}`);
+            return false;
+          }),
+        },
+      ];
+    } catch (error) {
+      warnings.push(`rule ${rule?.id ?? "?"} skipped: ${error instanceof Error ? error.message : String(error)}`);
+      return [];
+    }
+  });
 }
 
 function stateFile(session) {
@@ -73,60 +134,102 @@ function stateFile(session) {
   mkdirSync(dir, { recursive: true });
   return join(dir, session.replace(/[^A-Za-z0-9_-]/g, "_") + ".json");
 }
-const stateKey = (file) => (FOLD ? file.toLowerCase() : file);
-const loadState = (file) => (existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {});
+/** A missing or corrupt state file counts as "nothing read yet" and is rewritten on the next record. */
+function loadState(file) {
+  try {
+    const state = JSON.parse(readFileSync(file, "utf8"));
+    return state && typeof state === "object" && !Array.isArray(state) ? state : {};
+  } catch {
+    return {};
+  }
+}
 
 function record(input) {
   const path = input.tool_input?.file_path;
   if (input.tool_name !== "Read" || typeof path !== "string") return 0;
   if (input.tool_input.offset != null || input.tool_input.limit != null) return 0;
-  const root = findRoot(dirname(resolve(path)));
-  if (!root) return 0;
-  const target = stateKey(posix(root, path));
-  const rule = loadRules(root).find((candidate) => stateKey(candidate.file) === target);
+  const absolute = resolve(native(input.cwd ?? "."), native(path));
+  const found = findRoot(dirname(absolute));
+  if (!found) return 0;
+  const target = fold(posix(found.root, absolute));
+  const rule = loadRules(found, []).find((candidate) => fold(candidate.file) === target);
   if (!rule || !existsSync(rule.path)) return 0;
   const file = stateFile(input.session_id);
-  writeFileSync(file, JSON.stringify({ ...loadState(file), [stateKey(rule.path)]: digest(rule.path) }));
+  const temporary = `${file}.${process.pid}.tmp`;
+  writeFileSync(temporary, JSON.stringify({ ...loadState(file), [fold(rule.path)]: digest(rule.path) }));
+  renameSync(temporary, file);
   return 0;
 }
 
-/** Where to look for the repository, and which rules the call needs once it is found. */
-function target(input) {
+const splitWords = (text) => (text.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((word) => word.replace(/^(["'])(.*)\1$/, "$2"));
+
+/** Each place the call needs rules: the folder to search from, a label, and which rules apply there. */
+function demands(input) {
   const { tool_name: tool, tool_input: args = {} } = input;
   if (EDIT_TOOLS.has(tool)) {
     const path = args.file_path ?? args.notebook_path;
-    if (typeof path !== "string") return null;
-    return {
-      start: dirname(resolve(path)),
-      label: (root) => posix(root, path),
-      needs: (rule, root) => {
-        const relativePath = posix(root, path);
-        return rule.edit.some((re) => re.test(relativePath)) && !rule.exclude.some((re) => re.test(relativePath));
+    if (typeof path !== "string") return [];
+    const absolute = resolve(native(input.cwd ?? "."), native(path));
+    return [
+      {
+        start: dirname(absolute),
+        label: (root) => posix(root, absolute),
+        needs: (rule, root) => {
+          const relativePath = posix(root, absolute);
+          return rule.edit.some((re) => re.test(relativePath)) && !rule.exclude.some((re) => re.test(relativePath));
+        },
       },
-    };
+    ];
   }
-  if (typeof input.cwd !== "string") return null;
+  if (typeof input.cwd !== "string") return [];
   if (SHELL_TOOLS.has(tool)) {
-    const command = String(args.command ?? "");
-    return { start: input.cwd, label: () => command.slice(0, 80), needs: (rule) => rule.commands.some((re) => re.test(command)) };
+    let dir = resolve(native(input.cwd));
+    const found = [];
+    for (const segment of String(args.command ?? "").split(/&&|\|\||[;|&\r\n]/)) {
+      const words = splitWords(segment);
+      if (words.length === 0) continue;
+      if (CHANGE_DIRECTORY.has(words[0].toLowerCase())) {
+        dir = resolve(dir, native(words.find((word, i) => i > 0 && !word.startsWith("-")) ?? "~"));
+        continue;
+      }
+      const classes = Object.keys(COMMAND_CLASSES).filter((name) => COMMAND_CLASSES[name](words));
+      if (classes.length > 0) {
+        found.push({
+          start: dir,
+          label: () => segment.trim().slice(0, 80),
+          needs: (rule) => rule.commands.some((name) => classes.includes(name)),
+        });
+      }
+    }
+    return found;
   }
-  return { start: input.cwd, label: () => tool, needs: (rule) => rule.tools.includes(tool) };
+  return [{ start: native(input.cwd), label: () => tool, needs: (rule) => rule.tools.includes(tool) }];
 }
 
 function check(input) {
-  const call = target(input);
-  if (!call) return 0;
-  const root = findRoot(call.start);
-  if (!root) return 0;
-  const required = loadRules(root).filter((rule) => call.needs(rule, root) && existsSync(rule.path));
-  if (required.length === 0) return 0;
-  const state = loadState(stateFile(input.session_id));
-  const unread = required.filter((rule) => state[stateKey(rule.path)] !== digest(rule.path));
-  if (unread.length === 0) return 0;
+  const warnings = [];
+  const unread = new Map();
+  let state;
+  for (const demand of demands(input)) {
+    const found = findRoot(demand.start);
+    if (!found) continue;
+    for (const rule of loadRules(found, warnings)) {
+      if (!demand.needs(rule, found.root) || !existsSync(rule.path)) continue;
+      state ??= loadState(stateFile(input.session_id));
+      if (state[fold(rule.path)] !== digest(rule.path)) unread.set(rule.path, { rule, label: demand.label(found.root) });
+    }
+  }
+  const warning = warnings.length > 0 ? `rules-gate: ${warnings.join("; ")}\n` : "";
+  if (unread.size === 0) {
+    process.stderr.write(warning);
+    return warning ? 1 : 0;
+  }
+  const items = [...unread.values()];
   process.stderr.write(
-    `작업 전에 다음 규칙을 전체 읽어야 합니다: ${unread.map((rule) => `${rule.name}(${rule.file})`).join(", ")}. ` +
+    `작업 전에 다음 규칙을 전체 읽어야 합니다: ${items.map(({ rule }) => `${rule.name}(${rule.file}: ${rule.path})`).join(", ")}. ` +
       "Read 도구로 offset·limit 없이 끝까지 읽은 뒤 다시 시도하세요. 규칙 파일이 바뀌면 다시 읽어야 합니다. " +
-      `(대상: ${call.label(root)})\n`,
+      `(대상: ${[...new Set(items.map(({ label }) => label))].join(", ")})\n` +
+      warning,
   );
   return 2;
 }
@@ -141,8 +244,9 @@ process.stdin.on("end", () => {
     if (mode !== "record" && mode !== "check") throw new Error("mode must be record or check");
     code = (mode === "record" ? record : check)(JSON.parse(raw));
   } catch (error) {
-    process.stderr.write(`rules-gate: skipped (${error instanceof Error ? error.message : String(error)})\n`);
-    code = 0;
+    // Never block on an internal error; exit 1 so the problem is visible instead of silent.
+    process.stderr.write(`rules-gate: not checked (${error instanceof Error ? error.message : String(error)})\n`);
+    code = 1;
   }
   process.exit(code);
 });

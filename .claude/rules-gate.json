@@ -1,7 +1,4 @@
 {
-  "commands": {
-    "package-add": "(?:^|[\\s;&|(])(?:(?:npm|pnpm|yarn)\\s+(?:install|i|add)|npx\\s+expo\\s+install)(?:\\s+-\\S+)*\\s+[^-\\s;&|]"
-  },
   "rules": [
     {
       "id": "design",

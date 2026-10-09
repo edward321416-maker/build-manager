@@ -4,10 +4,10 @@ Before substantive project work, read [AGENTS.md](AGENTS.md), [AI delivery rules
 
 | Work | Rulebook |
 | --- | --- |
-| Screens, styles, UI copy | [Design rules](design/DESIGN_RULES.md) |
-| Code, config, tests, scripts, deployment, `docs/`, packages | [Development rules](development/DEVELOPMENT_RULES.md) |
-| Research and evidence (`research/`, `submission/`, `product/`) | [Research rules](research/RESEARCH_RULES.md) |
-| External material (web lookups, libraries, designs, data) | [Reference rules](references/REFERENCE_RULES.md) |
+| User-facing screens, styles, layout, images or copy (Web, Mobile, landing page) | [Design rules](design/DESIGN_RULES.md) |
+| Code, configuration, tests, scripts, deployment, `docs/`, adding packages | [Development rules](development/DEVELOPMENT_RULES.md) |
+| Research and evidence in `research/`, `submission/` or `product/` | [Research rules](research/RESEARCH_RULES.md) |
+| Looking up or using external material: services, designs, code, libraries, documents, data, AI output | [Reference rules](references/REFERENCE_RULES.md) |
 
 Perform the pre-delivery self-review without asking the user to request it again. Interview only for unresolved consequential decisions; do not re-ask approved choices. Preserve FROZEN scope and use delta regression after corrections.
 
