@@ -3,8 +3,10 @@
 .title { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: .625rem; margin-bottom: 0; padding: .9375rem 1.25rem; border-bottom: 1px solid var(--color-border); min-height: 3.75rem; }
 .title > div { flex: 1 1 10rem; min-width: 0; }
 .title p,.help { color: var(--color-text-readable); font-size: .9375rem; line-height: 1.25rem; margin-top: .625rem; }
-/* Filters stack on phone-width queues so select text is never cut; three per row from a 360px queue. */
-.filters { display: grid; grid-template-columns: minmax(0,1fr); align-items: end; gap: .625rem; padding: .9375rem 1.25rem; }
+/* Filters never cut their text: the unit filter (longest values) takes a full row, status and urgency share the next;
+   three per row from a 560px queue (rules §8.2, operator feedback 2026-10-10). */
+.filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: end; gap: .625rem; padding: .9375rem 1.25rem; }
+.filters label:first-child { grid-column: 1 / -1; }
 .filters label { min-width: 0; font-size: .9375rem; line-height: 1.25rem; }
 .filters > p { grid-column: 1 / -1; color: var(--color-text-readable); font-size: .9375rem; line-height: 1.25rem; }
 .items { list-style: none; margin: 0; padding: 0; border-block: 1px solid var(--color-border); background: var(--color-surface); }
@@ -30,6 +32,8 @@
 .detail { padding: 0; border: 0; }
 .detail .title { padding: 0; border: 0; }
 .queue > .help { padding: .625rem 1.25rem; }
+/* Empty, loading and error messages keep the same inner margin as the rest of the queue card. */
+.queue > p:not(.help), .queue > [role="alert"], .queue > [role="status"] { margin: .9375rem 1.25rem; }
 .detail .title > div { flex-basis: 100%; }
 .fields { display: grid; grid-template-columns: minmax(0,1fr); gap: .9375rem; border: 0; padding: 0; margin: 0; }
 .fields label,.fields input,.fields select { min-width: 0; width: 100%; }
@@ -40,7 +44,7 @@
 .noteList time { color: var(--color-text-readable); font-size: .9375rem; line-height: 1.25rem; }
 .noteList p { white-space: pre-wrap; }
 @container (min-width: 300px) { .assignee { grid-column: 1 / 3; } .due { grid-column: 3; grid-row: 3; text-align: right; } .overdue { display: block; } }
-@container (min-width: 360px) { .filters { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@container (min-width: 560px) { .filters { grid-template-columns: repeat(3,minmax(0,1fr)); } .filters label:first-child { grid-column: auto; } }
 @container (min-width: 700px) {
   .filters { grid-template-columns: minmax(0,2fr) repeat(2,minmax(0,1fr)) auto; }
   .filters label:first-child,.filters > p { grid-column: auto; }
