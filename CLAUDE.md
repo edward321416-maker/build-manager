@@ -1,6 +1,6 @@
 # Claude entry point — build-manager
 
-Before substantive project work, read [AGENTS.md](AGENTS.md), [AI delivery rules](governance/ai_delivery_rules.md), and [project policy](governance/project_policy.md). The delivery rulebook is canonical on `main`; record its commit as `POLICY_REF` and keep the selected implementation commit as a separate `TARGET_REF`.
+Before substantive project work, read [AGENTS.md](AGENTS.md), [AI delivery rules](governance/ai_delivery_rules.md), and [project policy](governance/project_policy.md). The delivery rulebook is canonical on `main`; record its commit as `POLICY_REF` and keep the selected implementation commit as a separate `TARGET_REF`. Before any UI, style or copy work, read the whole [design rules](design/DESIGN_RULES.md); the project hook blocks UI file edits until they were read in the session.
 
 Perform the pre-delivery self-review without asking the user to request it again. Interview only for unresolved consequential decisions; do not re-ask approved choices. Preserve FROZEN scope and use delta regression after corrections.
 
