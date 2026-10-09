@@ -166,7 +166,8 @@
 .root .detailToolbar button { min-height: 2.5rem; padding: .3125rem .625rem; border-color: transparent; }
 .detailGrid { display: block; padding: 1.25rem; }
 .detailGrid > * + * { margin-top: 1.875rem; }
-.root .summary { padding: 0 0 1.25rem; }
+/* 10px under the summary: the 30px section gap still separates it, and the status labels' padding keeps the tenant's task action above the fold at 390x844. */
+.root .summary { padding: 0 0 .625rem; }
 .summary .ticketSubject { margin-bottom: .625rem; }
 .root .summary h2 { font-size: 1.5625rem; line-height: 2.1875rem; }
 .progressSummary { gap: .3125rem; }
