@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 # Hosted synthetic demo on one Ubuntu 24.04 VM (operator decision 2026-10-09; e.g. Oracle Cloud Always Free).
-#   deploy/vm/setup.sh <public-ipv4>
+#   deploy/vm/setup.sh <public-ipv4> [--image-archive <web-image.tar.gz>]
 # Installs Docker, opens TCP 80/443 in the host firewall, builds the Web image, generates the runtime values
 # once on this VM (outside the repository, never printed) and starts PostgreSQL 18, the Web app and Caddy.
 # The site is served at https://<ip-with-dashes>.sslip.io. Re-running keeps the existing values and data.
+# Small hosts (for example a 1 GB Always Free VM.Standard.E2.1.Micro) cannot build the image: build it elsewhere
+# with `docker save build-manager-demo-web | gzip`, copy it over and pass --image-archive; a swap file is added.
 set -euo pipefail
 IP="${1:-}"
 [[ "$IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || { echo "PUBLIC_IPV4_REQUIRED"; exit 1; }
+ARCHIVE=""
+if [ "$#" -gt 1 ]; then
+  [ "$#" -eq 3 ] && [ "$2" = "--image-archive" ] && [ -f "$3" ] || { echo "USAGE: setup.sh <public-ipv4> [--image-archive <file>]"; exit 1; }
+  ARCHIVE="$3"
+fi
 HOST="${IP//./-}.sslip.io"
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 SECRETS="$HOME/build-manager-demo-secrets"
@@ -22,7 +29,17 @@ for port in 80 443; do
 done
 if command -v netfilter-persistent >/dev/null 2>&1; then sudo netfilter-persistent save >/dev/null; fi
 
-sudo docker build -t "$IMAGE" -f "$REPO_DIR/deploy/vm/Dockerfile" "$REPO_DIR"
+# Below 2 GB of memory, add a 2 GB swap file once so PostgreSQL and the Web app fit.
+if [ "$(awk '/MemTotal/ {print $2}' /proc/meminfo)" -lt 2000000 ] && [ ! -f /swapfile ]; then
+  sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile >/dev/null && sudo swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
+fi
+
+if [ -n "$ARCHIVE" ]; then
+  gunzip -c "$ARCHIVE" | sudo docker load
+else
+  sudo docker build -t "$IMAGE" -f "$REPO_DIR/deploy/vm/Dockerfile" "$REPO_DIR"
+fi
 
 mkdir -p "$SECRETS" && chmod 700 "$SECRETS"
 if [ ! -f "$SECRETS/generated.json" ]; then
