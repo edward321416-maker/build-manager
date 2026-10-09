@@ -9,6 +9,8 @@ Date: 2026-10-09. Base: main `1b00df16c83bef1e6330b08187006e9e647a7829` (Vendor 
 - [DECISION] Same day, after asking for "컴퓨터가 꺼져도 실행할 수 있는 사이트": a hosted demo whose visitors enter through in-app role buttons ("로그인 없이 체험 버튼"), accepting a narrow, explicitly tested exception to the B1 production-graph rules for the synthetic provider only.
 - [DECISION] Hosting: Railway for the Web app and PostgreSQL 18 together. [FACT] A Neon owner (non-superuser with CREATEROLE) cannot satisfy the frozen B1 role contract of migrations 0004-0006: PostgreSQL 16+ automatically grants the creating role an ADMIN membership (grantor = bootstrap superuser) in every role it creates, and only a superuser may revoke it; a throwaway creator role cannot be dropped because it granted the migrator memberships. Rehearsed on PostgreSQL 18.6 with a Neon-like owner on 2026-10-09; the same provisioning passed with a true superuser.
 
+- [DECISION] Same day: the operator's Railway trial had expired and a paid plan was declined; the operator chose a free Oracle Cloud VM. [deploy/vm](../../../deploy/vm/README.md) runs PostgreSQL 18 (true superuser, loopback only), the Web app and Caddy (HTTPS on `<ip>.sslip.io`) with Docker on one Ubuntu 24.04 VM; `railway.json` remains for a later paid Railway option.
+
 ## In-app demo entry
 
 - When `BUILD_MANAGER_MODE=B1`, `BUILD_MANAGER_DEMO_ENTRY=1`, the configured provider domain is the synthetic `b1.synthetic.invalid` and `BUILD_MANAGER_DEMO_SUBJECTS` names two `auth0|synthetic-…` subjects, the `/core` sign-in panel and the home page offer "관리자로 체험하기" / "세입자로 체험하기" instead of the provider login. With a real provider configured, demo entry is off and the existing login is unchanged.
@@ -19,7 +21,7 @@ Date: 2026-10-09. Base: main `1b00df16c83bef1e6330b08187006e9e647a7829` (Vendor 
 ## Hosting changes
 
 - B1 base URL: plain http stays loopback-only; an https origin is accepted. SDK and demo cookies are `Secure` on https.
-- Runtime databases: loopback, the provider's private network (`*.railway.internal`, not Internet-reachable), or any other host only with verified TLS. Invitation and Vendor origins accept https.
+- Runtime databases: loopback (single-VM deployment), the provider's private network (`*.railway.internal`, not Internet-reachable), or any other host only with verified TLS. Invitation and Vendor origins accept https.
 - `scripts/hosted-demo-provision.mjs generate` writes all runtime values (random role passwords, session secret, fixed synthetic demo subjects) to a private file; `ensure` runs as Railway's pre-deploy command, provisions an empty PostgreSQL 18 database (true superuser required) with the existing role helpers, migrations 0001-0023 and synthetic seed data, binds the demo subjects, and on later deploys only applies outstanding migrations and re-asserts role passwords. It prints no secrets.
 - `railway.json` builds the Web app, runs `ensure` before each deploy and starts `next start`.
 
