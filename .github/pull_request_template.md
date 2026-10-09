@@ -1,3 +1,5 @@
+Risk tier: 일반 / 고위험 (keep one per DEV-01 in `development/DEVELOPMENT_RULES.md`; when unsure, keep 고위험)
+
 ## Problem and resulting change
 
 Describe the concrete problem, final behavior, and linked issue. Keep scope focused.

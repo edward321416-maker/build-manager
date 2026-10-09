@@ -4,7 +4,7 @@ Status: **[DECISION] interview design**, not conducted research. Recruit landlor
 
 ## Consent and framing
 
-Explain that this is problem research, participation is voluntary, questions may be skipped, and no legal/technical diagnosis is provided. Obtain separate permission for recording and any quote use. Do not request tenant names, addresses, contracts, or message exports. Use a private participant code; follow [research privacy rules](../README.md).
+Explain that this is problem research, participation is voluntary, questions may be skipped, and no legal/technical diagnosis is provided. Obtain separate permission for recording and any quote use. Do not request tenant names, addresses, contracts, or message exports. Use a private participant code; follow [research privacy rules](../RESEARCH_RULES.md).
 
 ## Recent-event questions
 
