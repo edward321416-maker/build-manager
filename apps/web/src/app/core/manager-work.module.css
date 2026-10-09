@@ -3,7 +3,8 @@
 .title { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: .625rem; margin-bottom: 0; padding: .9375rem 1.25rem; border-bottom: 1px solid var(--color-border); min-height: 3.75rem; }
 .title > div { flex: 1 1 10rem; min-width: 0; }
 .title p,.help { color: var(--color-text-readable); font-size: .9375rem; line-height: 1.25rem; margin-top: .625rem; }
-.filters { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); align-items: end; gap: .625rem; padding: .9375rem 1.25rem; }
+/* Filters stack on phone-width queues so select text is never cut; three per row from a 360px queue. */
+.filters { display: grid; grid-template-columns: minmax(0,1fr); align-items: end; gap: .625rem; padding: .9375rem 1.25rem; }
 .filters label { min-width: 0; font-size: .9375rem; line-height: 1.25rem; }
 .filters > p { grid-column: 1 / -1; color: var(--color-text-readable); font-size: .9375rem; line-height: 1.25rem; }
 .items { list-style: none; margin: 0; padding: 0; border-block: 1px solid var(--color-border); background: var(--color-surface); }
@@ -18,7 +19,8 @@
 .subject strong { grid-column: 2; grid-row: 1; font-weight: 600; }
 .subject > span { grid-column: 1 / -1; grid-row: 2; color: var(--color-text-readable); }
 .workState { grid-column: 3; grid-row: 1; text-align: right; }
-.row .workState > span { padding: 0; display: block; }
+/* Status label keeps its 5/10px padding (rules §8.7). */
+.row .workState > span { display: inline-flex; }
 .assignee { grid-column: 1 / 3; grid-row: 3; color: var(--color-text-readable); }
 .due { grid-column: 1 / -1; grid-row: 4; color: var(--color-text-readable); }
 .due time { display: inline; }
@@ -38,6 +40,7 @@
 .noteList time { color: var(--color-text-readable); font-size: .9375rem; line-height: 1.25rem; }
 .noteList p { white-space: pre-wrap; }
 @container (min-width: 300px) { .assignee { grid-column: 1 / 3; } .due { grid-column: 3; grid-row: 3; text-align: right; } .overdue { display: block; } }
+@container (min-width: 360px) { .filters { grid-template-columns: repeat(3,minmax(0,1fr)); } }
 @container (min-width: 700px) {
   .filters { grid-template-columns: minmax(0,2fr) repeat(2,minmax(0,1fr)) auto; }
   .filters label:first-child,.filters > p { grid-column: auto; }

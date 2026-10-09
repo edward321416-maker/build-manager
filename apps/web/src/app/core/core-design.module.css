@@ -271,4 +271,50 @@
   .managerWorkspace .selectedPane > .detailGrid { grid-column: 1; grid-row: 1; }
   .managerWorkspace .selectedPane > .inspector { grid-column: 2; grid-row: 1; border-top: 0; border-left: 1px solid var(--color-border); }
 }
+/* Spacing audit 2026-10-10 (rules §4, §7, §8.1, §8.10). */
+/* Phone and tablet top bar starts 10px below the screen edge. */
+@media (max-width: 1023px) {
+  /* 10px top inset; the divider is drawn inside the bar so the bar is no taller than its inset and controls. */
+  .root :global(.core-b1-shell .core-account) { padding-top: .625rem; border-bottom: 0; box-shadow: inset 0 -1px 0 var(--color-border); }
+  /* The menu row is as tall as its 40px links (their hit area is unchanged), so the inset does not push the
+     tenant's task action below a 390x844 screen (core-login-e2e/spatial.spec.ts). */
+  .root :global(.core-account nav) { min-height: 0; }
+}
+/* Signed out: one centred block with its own title instead of the account sidebar. */
+.root :global(.core-b1-shell[data-phase="login"]) { grid-template-columns: minmax(0,1fr); }
+.root :global(.core-b1-shell[data-phase="login"] .core-account) { display: block; position: static; width: 100%; max-width: 40rem; min-height: 0; margin: 0 auto; padding: 2.5rem 1.25rem 1.875rem; border: 0; box-shadow: none; background: transparent; }
+.root :global(.core-b1-shell[data-phase="login"] .core-account) > * + * { margin-top: .625rem; }
+.root :global(.core-b1-shell[data-phase="login"] .core-account h1) { display: block; font-size: 1.5625rem; line-height: 2.1875rem; letter-spacing: -0.02em; }
+.root :global(.core-b1-shell[data-phase="login"] .core-account p) { color: var(--color-text-secondary); }
+.root :global(.core-b1-shell[data-phase="login"] .core-workspace) { background: transparent; }
+.root :global(.core-b1-shell[data-phase="login"] .core-environment) { max-width: 40rem; margin-inline: auto; }
+@media (min-width: 768px) {
+  .root :global(.core-b1-shell[data-phase="login"] .core-account) { padding: 3.125rem 1.875rem 2.5rem; }
+  .root :global(.core-b1-shell[data-phase="login"] .core-environment) { padding-inline: 1.875rem; }
+  /* Wide screens: buttons as wide as their text, side by side (§8.1). */
+  .root :global(.core-b1-shell[data-phase="login"] .core-account form.core-demo-entry) { display: inline-block; margin: .625rem .625rem 0 0; }
+  .root :global(.core-b1-shell[data-phase="login"] .core-account form.core-demo-entry button) { width: auto; }
+}
+/* Manager view switch: on the page margins, and the current view reads as selected (§8.10). */
+.root :global(.core-view-switch) { display: flex; flex-wrap: wrap; gap: .625rem; padding: .625rem 1.25rem; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.root :global(.core-view-switch) button { border-color: transparent; background: transparent; font-weight: 400; }
+.root :global(.core-view-switch) button[aria-pressed="true"] { background: var(--color-fill-hover); font-weight: 600; }
+@media (min-width: 768px) { .root :global(.core-view-switch) { padding-inline: 1.875rem; } }
+@media (min-width: 1440px) { .root :global(.core-view-switch) { padding-inline: 2.5rem; } }
+/* Link-styled buttons are boxes, so their padding cannot spill over neighbouring text. */
+.root :global(a.primary-button) { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+/* Join page: heading on the body edge, 20px between blocks. */
+.root :global(.page-shell.core-flow.core-join) > * + * { margin-top: 1.25rem; }
+.root :global(.page-shell.core-flow.core-join) > .heading { padding: 0 0 1.25rem; }
+/* Move-in view: 10px between a heading and its text, and between text and the button after it (§3.3). */
+.root :global(.core-onboarding) h2 + p, .root :global(.core-onboarding) p + button { margin-top: .625rem; }
+/* Move-in view: body and heading share the page margins at every width. */
+@media (min-width: 768px) {
+  .root :global(.page-shell.core-flow.core-onboarding) { padding: 1.875rem; }
+  .root :global(.core-onboarding) .heading { margin: -1.875rem -1.875rem 1.875rem; }
+}
+@media (min-width: 1440px) {
+  .root :global(.page-shell.core-flow.core-onboarding) { padding: 2.5rem; }
+  .root :global(.core-onboarding) .heading { margin: -2.5rem -2.5rem 1.875rem; }
+}
 @media (prefers-reduced-motion: reduce) { .root *, .root *::before, .root *::after { transition: none; animation: none; scroll-behavior: auto; } }

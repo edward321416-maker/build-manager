@@ -43,9 +43,9 @@ export function CoreLoginScreen({demoEntry=false}:{demoEntry?:boolean}={}){
   }catch{if(g===generation.current)setError("소속을 선택하지 못했습니다. 다시 선택해 주세요.");}
  };
  const logout=()=>{clearCommunicationRecovery();clearOutcomeRecovery();generation.current++;setScope(undefined);setAccess(null);setError("");setPhase("logout");logoutForm.current?.submit();};
- return <div className="core-b1-shell">
+ return <div className="core-b1-shell" data-phase={phase}>
   <section className="page-shell core-flow core-account" aria-label="로그인과 내 소속">
-   <h1>내 소속·호실</h1>
+   <h1>{phase==="login"?"자취사무소":"내 소속·호실"}</h1>
    {error?<p role="alert">{error}</p>:null}
    {phase==="loading"?<p role="status">로그인과 소속을 확인하는 중…</p>:null}
    {phase==="login"&&demoEntry?<><p>로그인 없이 체험용 가짜 데이터로 들어가요. 역할을 골라 주세요.</p>
