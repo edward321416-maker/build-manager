@@ -34,7 +34,8 @@ test("task ownership, persistent inspector and mobile collapse preserve the publ
     const queue=m.getByRole("region",{name:"관리 업무함",exact:true}),inspector=m.getByRole("complementary",{name:"관리자 업무 정보"});
     await expect(inspector).toBeVisible();expect((await queue.boundingBox())!.width+1).toBe(380);
     const publicBox=(await m.getByRole("region",{name:"접수 요약",exact:true}).boundingBox())!,privateBox=(await inspector.boundingBox())!;
-    expect(publicBox.width).toBeGreaterThanOrEqual(440);expect(publicBox.x+publicBox.width).toBeLessThanOrEqual(privateBox.x);
+    // 1440 viewport - 248 left menu (rules §5) - 380 queue - 320 inspector - 2 x 40 side padding = 412.
+    expect(publicBox.width).toBeGreaterThanOrEqual(412);expect(publicBox.x+publicBox.width).toBeLessThanOrEqual(privateBox.x);
     expect(await m.getByRole("button",{name:"새로고침",exact:true}).count()).toBe(1);
     await m.getByLabel("담당자",{exact:true}).fill("저장 전 합성 담당자");
     const field=await m.getByLabel("담당자",{exact:true}).elementHandle();

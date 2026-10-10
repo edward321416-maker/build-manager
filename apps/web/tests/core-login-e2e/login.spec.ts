@@ -40,7 +40,7 @@ for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace ->
   const page=await tenant.context.newPage();await page.setViewportSize(viewport);await page.goto("/workspace");await page.getByRole("link",{name:"내 호실 수리 접수·사진·처리 이력 열기"}).click();
   await expect(page.getByTestId("unit-context")).toBeVisible();await expect(page.getByLabel("개발 접근 코드")).toHaveCount(0);
   const accountBox=(await page.getByRole("region",{name:"로그인과 내 소속"}).boundingBox())!;
-  if(width<1024)expect(accountBox.height).toBeLessThan(300);else expect(accountBox.width).toBe(220);
+  if(width<1024)expect(accountBox.height).toBeLessThan(300);else expect(accountBox.width).toBe(248);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await layout(page,width);
   await page.getByLabel("문제 설명").fill("로그인 연결 합성 누수 — 사진과 처리 이력");
