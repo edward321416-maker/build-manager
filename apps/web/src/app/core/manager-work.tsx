@@ -26,7 +26,7 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selected
       <label>호실<select aria-label="건물·호실" value={unit} onChange={e=>setUnit(e.target.value)}><option value="">모든 호실</option>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>
       <label>상태<select aria-label="처리 상태" value={status} onChange={e=>setStatus(e.target.value)}><option value="ALL">전체</option><option value="OPEN">접수</option><option value="IN_PROGRESS">처리중</option><option value="COMPLETED">완료</option></select></label>
       <label>긴급도<select aria-label="긴급도 필터" value={priority} onChange={e=>setPriority(e.target.value)}><option value="ALL">전체</option><option value="URGENT">긴급</option><option value="HIGH">높음</option><option value="NORMAL">보통</option></select></label>
-      <p aria-live="polite">{visible.length}건 표시</p>
+      <p className={styles.count} aria-live="polite">{visible.length}건 표시</p>
     </div>
     {conversation.error?<p role="alert">대화 대기 상태를 확인하지 못했습니다. 새로고침을 눌러 주세요.</p>:null}
     {error?<p role="alert">업무함을 불러오지 못했습니다. 연결을 확인하고 새로고침을 눌러 주세요.</p>:loading?<p role="status">업무함 불러오는 중…</p>:visible.length===0?<p>{items.length?"선택한 조건의 업무가 없습니다. 필터를 전체로 바꿔 주세요.":"접근 가능한 접수 내역이 없습니다. 새 접수가 들어오면 새로고침으로 확인해 주세요."}</p>:<ul className={styles.items}>{visible.map(item=><li key={item.ticketId} data-ticket-id={item.ticketId} data-work-state={item.workStatus}>

@@ -86,7 +86,7 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
       {p.handoff.currentReport.photoOmissionReason?<p>보고 사진 없음 · {OMISSION_LABELS[p.handoff.currentReport.photoOmissionReason]}</p>
         :p.handoff.currentReport.completionPhotoIds.map((id,index)=>{const photo=p.reportPhotos?.find(item=>item.photoId===id);
           return <figure key={id}>{photo?<Image unoptimized src={photo.url} width={640} height={480} style={{width:"100%",height:"auto"}} alt={`업체 보고 사진 ${index+1}`}/>:<p>사진 불러오는 중 또는 연결 확인 필요</p>}</figure>;})}
-      {p.handoff.reportHistory.length>1?<p>작업 보고 이력 {p.handoff.reportHistory.length}건</p>:null}
+      {p.handoff.reportHistory.length>1?<div className={styles.count}>작업 보고 이력 {p.handoff.reportHistory.length}건</div>:null}
     </section>:null}
     {p.handoff?.ticketWorkStatus==="COMPLETED"&&assignment?.status==="ENDED"&&assignment.endReason==="CLOSED"?<p role="status">처리 완료 · COMPLETED / ENDED/CLOSED · 업체 접근 종료</p>:null}
     {active&&p.handoff?.phase==="COMPLETION_REPORTED"?(p.handoff.correctionRequest?<div role="group" aria-label="보고 수정 요청"><p>업체 보고 수정 대기</p><p>{p.handoff.correctionRequest.reason}</p></div>:<div role="group" aria-label="업체 보고 검토">

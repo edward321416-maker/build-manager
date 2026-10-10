@@ -86,13 +86,14 @@
 .root .actionRail form.handling > p { color: var(--color-text-readable); }
 .history { border-top: 1px solid var(--color-border); padding-top: 1.25rem; }
 .history p { margin-top: .9375rem; padding-left: .9375rem; border-left: 1px solid var(--color-border-strong); }
-.history time { display: block; color: var(--color-text-readable); line-height: 1.25rem; }
+.history time { display: block; color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; }
 .root :global(.core-photos) { min-width: 0; }
 .root :global(.photo-grid) { grid-template-columns: repeat(auto-fill,minmax(min(100%,7.5rem),10rem)); gap: .625rem; }
 .root :global(.photo-grid figure) { margin: .625rem 0; }
-.root :global(.photo-grid img) { width: 100%; height: auto; aspect-ratio: 4 / 3; background: var(--color-fill-subtle); border-radius: .3125rem; object-fit: contain; }
+/* Thumbnails fill a 4:3 frame with 15px corners (rules §8.12); the dialog shows the whole photo. */
+.root :global(.photo-grid img) { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; background: var(--color-fill-subtle); border-radius: .9375rem; object-fit: cover; }
 .root :global(.photo-grid figcaption) { color: var(--color-text-readable); font-size: .9375rem; line-height: 1.25rem; margin-top: .3125rem; }
-.root :global(.photo-grid button:has(img)) { padding: .3125rem; border: 1px solid var(--color-border); border-radius: .625rem; }
+.root :global(.photo-grid button:has(img)) { display: block; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: .9375rem; background: none; }
 .root :global(.core-photos) p { margin-block: .625rem; }
 .root :global(.photo-dialog) { color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 1.25rem; padding: 1.5625rem 1.25rem; box-shadow: var(--shadow-float); }
 .root :global(.photo-dialog)::backdrop { background: var(--color-scrim); }
@@ -190,7 +191,6 @@
 .root .actionRail p { font-size: .9375rem; line-height: 1.25rem; }
 .history { margin-top: 1.875rem; }
 .history p { margin-top: .625rem; }
-.history time { font-size: .9375rem; }
 .tenantWorkspace { padding: 1.25rem; max-width: 50rem; margin-inline: auto; }
 .tenantWorkspace[data-detail="true"] { padding: 0; }
 .root .tenantWorkspace > form { margin-top: 0; gap: 1.25rem; }
@@ -255,7 +255,7 @@
   .invitationCreate { border-top: 0; border-left: 1px solid var(--color-border); }
 }
 @media (min-width: 1024px) {
-  .root :global(.core-b1-shell) { grid-template-columns: 220px minmax(0,1fr); }
+  .root :global(.core-b1-shell) { grid-template-columns: 248px minmax(0,1fr); }
   .root :global(.core-b1-shell .core-account) { display: flex; flex-direction: column; align-items: stretch; position: sticky; top: 0; min-height: 100vh; gap: 1.25rem; border: 0; border-right: 1px solid var(--color-border); padding: 1.25rem; }
   .root :global(.core-account h1) { display: block; font-size: 1.25rem; line-height: 1.875rem; }
   .root :global(.core-account nav) { display: grid; }

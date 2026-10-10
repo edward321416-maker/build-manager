@@ -8,7 +8,7 @@
 .filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: end; gap: .625rem; padding: .9375rem 1.25rem; }
 .filters label:first-child { grid-column: 1 / -1; }
 .filters label { min-width: 0; font-size: .9375rem; line-height: 1.25rem; }
-.filters > p { grid-column: 1 / -1; color: var(--color-text-readable); font-size: .9375rem; line-height: 1.25rem; }
+.filters > p { grid-column: 1 / -1; }
 .items { list-style: none; margin: 0; padding: 0; border-block: 1px solid var(--color-border); background: var(--color-surface); }
 .queue .items li { margin: 0; }
 .items li + li { border-top: 1px solid var(--color-border); }
@@ -24,9 +24,11 @@
 /* Status label keeps its 5/10px padding (rules §8.7). */
 .row .workState > span { display: inline-flex; }
 .assignee { grid-column: 1 / 3; grid-row: 3; color: var(--color-text-readable); }
-.due { grid-column: 1 / -1; grid-row: 4; color: var(--color-text-readable); }
+/* Due dates, note times and the shown count are optional detail in the caption style (rules §3.2). */
+.due, .count, .noteList time { color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; }
+.due { grid-column: 1 / -1; grid-row: 4; }
 .due time { display: inline; }
-.overdue { font-weight: 600; color: var(--color-text); margin-left: .625rem; }
+.overdue { font-weight: 600; color: var(--color-text); font-size: .9375rem; line-height: 1.25rem; letter-spacing: -.01em; margin-left: .625rem; }
 .overdue::before { content: "● "; color: var(--color-danger); }
 .row small,.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .detail { padding: 0; border: 0; }
@@ -41,7 +43,6 @@
 .notes textarea { width: 100%; min-height: 6.25rem; }
 .noteList { list-style: none; margin-top: 1.25rem; padding: 0; }
 .noteList li { border-top: 1px solid var(--color-border); padding-block: .9375rem; overflow-wrap: anywhere; }
-.noteList time { color: var(--color-text-readable); font-size: .9375rem; line-height: 1.25rem; }
 .noteList p { white-space: pre-wrap; }
 @container (min-width: 300px) { .assignee { grid-column: 1 / 3; } .due { grid-column: 3; grid-row: 3; text-align: right; } .overdue { display: block; } }
 @container (min-width: 560px) { .filters { grid-template-columns: repeat(3,minmax(0,1fr)); } .filters label:first-child { grid-column: auto; } }
