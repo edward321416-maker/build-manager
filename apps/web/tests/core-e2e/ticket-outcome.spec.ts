@@ -136,10 +136,15 @@ test("uncommitted response loss retries the identical payload only after receipt
 });
 
 for(const status of [401,403])test("outcome permission loss "+status+" clears protected projection and recovery",async({page,request})=>{
- const s=await setup(request);await login(page,s.codes.tenant,s.id);
+ const s=await setup(request);const t0=Date.now(),p=(u:string)=>new URL(u).pathname.replace(/[0-9a-f-]{36}/g,"<id>");
+ page.on("request",r=>{if(r.url().includes("/api/v2/"))console.log(`[diag ${status} req +${Date.now()-t0}] ${r.method()} ${p(r.url())}`);});page.on("response",r=>{if(r.url().includes("/api/v2/"))console.log(`[diag ${status} res +${Date.now()-t0}] ${r.status()} ${p(r.url())}`);});
+ page.on("requestfailed",r=>console.log(`[diag ${status} fail +${Date.now()-t0}] ${p(r.url())} ${r.failure()?.errorText}`));page.on("console",m=>{if(m.type()==="error")console.log(`[diag ${status} console] ${m.text()}`);});page.on("pageerror",e=>console.log(`[diag ${status} pageerror] ${e.message}`));
+ await login(page,s.codes.tenant,s.id);
  await page.route("**/"+s.path+"/outcome/resolved",route=>route.abort("failed"),{times:1});await card(page).getByRole("button",{name:"해결됐어요",exact:true}).click();await expect(page.getByRole("button",{name:"저장 여부 확인 · 해결 응답",exact:true})).toBeVisible();
  await page.route("**/"+s.path+"/outcome/requests/*",route=>route.fulfill({status,contentType:"application/json",body:JSON.stringify({error:{code:status===401?"UNAUTHENTICATED":"FORBIDDEN",message:"접근할 수 없습니다."}})}));
- await page.getByRole("button",{name:"저장 여부 확인 · 해결 응답",exact:true}).click();await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(card(page)).toHaveCount(0);expect(await metadata(page)).toEqual([]);
+ await page.getByRole("button",{name:"저장 여부 확인 · 해결 응답",exact:true}).click();console.log(`[diag ${status} clicked check +${Date.now()-t0}]`);
+ try{await expect(page.getByLabel("개발 접근 코드")).toBeVisible();}catch(e){console.log(`[diag ${status} STUCK +${Date.now()-t0}] body:\n${await page.locator("body").innerText().catch(()=>"<none>")}`);throw e;}
+ await expect(card(page)).toHaveCount(0);expect(await metadata(page)).toEqual([]);
 });
 
 test("loading and failure never masquerade as no assertion, retry is usable at 390px",async({page,request})=>{

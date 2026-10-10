@@ -27,8 +27,9 @@ async function answerNoAndWait(page: Page): Promise<void> {
   const before = await questionHeading(page).textContent();
 
   await page.getByTestId("answer-no").click();
+  console.log(`[diag] clicked answer-no; before=${before}`);
 
-  await expect
+  try { await expect
     .poll(async () => {
       if (
         await page
@@ -46,7 +47,10 @@ async function answerNoAndWait(page: Page): Promise<void> {
 
       return "waiting";
     })
-    .not.toBe("waiting");
+    .not.toBe("waiting"); } catch (error) {
+    console.log(`[diag] STUCK. main text:\n${await page.locator("main").innerText().catch(() => "<none>")}`);
+    throw error;
+  }
 }
 
 async function answerUntilFixtureEvidence(page: Page): Promise<void> {
@@ -71,6 +75,13 @@ test("Hero B: Web Tenant produces the Building B management-office landlord cont
   page,
   request,
 }) => {
+  const t0 = Date.now();
+  page.on("request", (r) => { if (r.url().includes("/api/") || r.isNavigationRequest()) console.log(`[diag req +${Date.now() - t0}] ${r.method()} ${new URL(r.url()).pathname}`); });
+  page.on("response", (r) => { if (r.url().includes("/api/")) console.log(`[diag res +${Date.now() - t0}] ${r.status()} ${new URL(r.url()).pathname}`); });
+  page.on("requestfailed", (r) => console.log(`[diag fail +${Date.now() - t0}] ${r.url()} ${r.failure()?.errorText}`));
+  page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") console.log(`[diag console ${m.type()}] ${m.text()}`); });
+  page.on("pageerror", (e) => console.log(`[diag pageerror] ${e.message}`));
+  page.on("framenavigated", (f) => { if (f === page.mainFrame()) console.log(`[diag nav +${Date.now() - t0}] ${f.url()}`); });
   await resetDemo(request);
   await page.goto("/demo/tenant");
 
