@@ -103,6 +103,26 @@ describe("rules gate", () => {
     expect(edit(screen(), "s2").status).toBe(2);
   });
 
+  it("counts a read in another checkout only while the rulebook content is identical", () => {
+    const other = mkdtempSync(join(tmpdir(), "rules-repo-other-"));
+    try {
+      mkdirSync(join(other, ".claude"), { recursive: true });
+      copyFileSync(CONFIG, join(other, ".claude", "rules-gate.json"));
+      for (const rule of RULES) {
+        mkdirSync(dirname(at(rule.file, other)), { recursive: true });
+        writeFileSync(at(rule.file, other), `# ${rule.name} v1\n`);
+      }
+      read("design", "s1", {}, other);
+      read("development", "s1", {}, other);
+      expect(required(edit(screen()))).toEqual([]);
+      expect(edit(screen(), "s2").status).toBe(2);
+      writeFileSync(at(FILE.development), "# 개발 규칙 v2\n");
+      expect(required(edit(screen()))).toEqual(["development"]);
+    } finally {
+      rmSync(other, { recursive: true, force: true });
+    }
+  });
+
   it.each<[string, string[]]>([
     ["apps/web/src/server/b1/config.ts", ["development"]],
     ["apps/web/src/components/new/Widget.tsx", ["design", "development"]],

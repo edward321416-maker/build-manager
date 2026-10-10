@@ -6,7 +6,8 @@
 // classes it covers. A checkout that has design/DESIGN_RULES.md but no config gets the design rule only.
 //   record  PostToolUse, matcher Read: remember the hash of a fully read rulebook for the session.
 //   check   PreToolUse, matcher Edit|Write|MultiEdit|NotebookEdit|WebSearch|WebFetch|Bash|PowerShell:
-//           exit 2 while a required rulebook is unread or changed since it was read.
+//           exit 2 while a required rulebook is unread or changed since it was read. Reads are matched
+//           by content hash, so a read in one worktree covers an identical copy in another.
 // A missing rulebook file is skipped and a broken rule is skipped with a warning. Errors never block:
 // they exit 1 so Claude Code shows them to the user. Never place rules-gate.json in ~/.claude: every
 // path under the home folder would then count as a rules repository.
@@ -209,14 +210,16 @@ function demands(input) {
 function check(input) {
   const warnings = [];
   const unread = new Map();
-  let state;
+  let readDigests;
   for (const demand of demands(input)) {
     const found = findRoot(demand.start);
     if (!found) continue;
     for (const rule of loadRules(found, warnings)) {
       if (!demand.needs(rule, found.root) || !existsSync(rule.path)) continue;
-      state ??= loadState(stateFile(input.session_id));
-      if (state[fold(rule.path)] !== digest(rule.path)) unread.set(rule.path, { rule, label: demand.label(found.root) });
+      // Matched by content, not path: a full read also covers other checkouts (worktrees) of the same session
+      // while their copy is byte-identical, and any change still requires a new read.
+      readDigests ??= new Set(Object.values(loadState(stateFile(input.session_id))));
+      if (!readDigests.has(digest(rule.path))) unread.set(rule.path, { rule, label: demand.label(found.root) });
     }
   }
   const warning = warnings.length > 0 ? `rules-gate: ${warnings.join("; ")}\n` : "";
