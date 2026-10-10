@@ -37,7 +37,7 @@ async function captureLayout(page:Page,name:string){
     await expect(workspace.getByRole("heading",{level:1})).toHaveCSS("font-size","20px");
     // Design rules v1 §2.3: every status label pairs its text with the matching soft fill.
     const statusColors=await workspace.locator("span[data-work-state]").evaluateAll(items=>items.map(el=>({state:el.getAttribute("data-work-state"),background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color})));
-    const statusPairs:Record<string,[string,string]>={OPEN:["rgb(99, 103, 113)","rgba(32, 38, 50, 0.04)"],IN_PROGRESS:["rgb(0, 86, 216)","rgb(238, 244, 255)"],COMPLETED:["rgb(23, 117, 79)","rgb(231, 245, 238)"]};
+    const statusPairs:Record<string,[string,string]>={OPEN:["rgb(99, 103, 113)","rgba(32, 38, 50, 0.04)"],DRAFT:["rgb(154, 91, 0)","rgb(255, 243, 220)"],IN_PROGRESS:["rgb(0, 86, 216)","rgb(238, 244, 255)"],COMPLETED:["rgb(23, 117, 79)","rgb(231, 245, 238)"]};
     expect(statusColors.every(s=>statusPairs[s.state!]?.[0]===s.color&&statusPairs[s.state!]?.[1]===s.background)).toBe(true);
     await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:join(evidence,`${name}-${viewport.width}.png`),fullPage:viewport.width<1024});

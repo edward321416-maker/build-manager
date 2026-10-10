@@ -23,6 +23,9 @@ test("task ownership, persistent inspector and mobile collapse preserve the publ
     const action=task(t).getByRole("button",{name:"답변 보내기",exact:true});
     const actionBox=(await action.boundingBox())!;expect(actionBox.y+actionBox.height).toBeLessThanOrEqual(844);
     const photo=t.getByRole("region",{name:"사진",exact:true});expect((await photo.boundingBox())!.y).toBeGreaterThan((await task(t).boundingBox())!.y);
+    // An unsubmitted request also keeps its intake questions open, after the pending reply and before the photos.
+    const intake=t.getByRole("region",{name:"지금 할 일: 추가 확인",exact:true});await expect(intake).toBeVisible();
+    const intakeY=(await intake.boundingBox())!.y;expect(intakeY).toBeGreaterThan((await task(t).boundingBox())!.y);expect((await photo.boundingBox())!.y).toBeGreaterThan(intakeY);
     const editor=task(t).getByLabel("공개 대화 내용",{exact:true});await editor.fill("합성 세입자 답변입니다.");await editor.focus();await t.keyboard.press("Tab");await expect(action).toBeFocused();
     const sent=t.waitForResponse(r=>r.url().endsWith("/communication/messages")&&r.request().method()==="POST");await t.keyboard.press("Enter");expect((await sent).status()).toBe(201);await expect(task(t)).toHaveCount(0);
     await openConversation(t);await expect(t.getByRole("listitem").filter({hasText:"합성 세입자 답변입니다."})).toBeVisible();

@@ -2,7 +2,7 @@
 import type { CoreTicketDto, InvitationDto } from "@build-manager/api-contracts";
 import { useEffect, useRef, type ReactNode } from "react";
 import styles from "../core-design.module.css";
-import { IntakeStatus, WorkStatusBadge } from "./work-status-badge";
+import { DraftBadge, IntakeStatus, WorkStatusBadge } from "./work-status-badge";
 
 /** One persistent DOM subtree preserves unsaved property and note inputs across collapse. */
 export function ManagerInspector({ children, expanded, onExpandedChange }: {
@@ -35,10 +35,11 @@ export function ManagerInspector({ children, expanded, onExpandedChange }: {
   </details>;
 }
 
-export function TaskZone({ tenant, children }: { tenant: boolean; children: ReactNode }) {
-  return <section className={styles.taskZone} aria-label="지금 할 일">
+/** `label` keeps two to-do zones apart for screen readers; `message` replaces the conversation default. */
+export function TaskZone({ tenant, children, label = "지금 할 일", message }: { tenant: boolean; children: ReactNode; label?: string; message?: string }) {
+  return <section className={styles.taskZone} aria-label={label}>
     <h2>지금 할 일</h2>
-    <p>{tenant ? "관리자 질문에 답변해주세요." : "세입자 답변이 도착했습니다. 확인 후 다음 조치를 선택하세요."}</p>
+    <p>{message ?? (tenant ? "관리자 질문에 답변해주세요." : "세입자 답변이 도착했습니다. 확인 후 다음 조치를 선택하세요.")}</p>
     {children}
   </section>;
 }
@@ -77,9 +78,11 @@ export function TicketProgress({ workStatus, intakeStatus, children }: {
   intakeStatus: CoreTicketDto["detail"]["status"];
   children: ReactNode;
 }) {
+  // A saved but unsubmitted request shows one state, not "received" next to a separate intake line.
+  const draft = workStatus === "OPEN" && intakeStatus === "IN_PROGRESS";
   return <div className={styles.progressSummary}>
-    <p data-testid="work-status"><WorkStatusBadge status={workStatus} /></p>
-    <IntakeStatus status={intakeStatus} />
+    <p data-testid="work-status">{draft ? <DraftBadge /> : <WorkStatusBadge status={workStatus} />}</p>
+    {draft ? null : <IntakeStatus status={intakeStatus} />}
     <div className={styles.progressMessage}>{children}</div>
   </div>;
 }

@@ -10,7 +10,7 @@ async function login(page:Page,who:string){await page.goto("/core");await page.g
 test("Web tenant creates, another browser manager handles, tenant reloads and reopens persistent history",async({browser,page})=>{
   await login(page,"tenant");await page.getByRole("radio",{name:"누수",exact:true}).check();await page.getByLabel("문제 설명").fill("RC1 합성 누수 접수 — 브라우저 왕복");
   const created=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");await page.getByRole("button",{name:"접수하기",exact:true}).click();const response=await created;expect(response.status()).toBe(201);const ticket=await response.json();
-  await expect(page.getByTestId("work-status")).toHaveText("접수");
+  await expect(page.getByTestId("work-status")).toHaveText("제출 전");
   const managerContext=await browser.newContext(),manager=await managerContext.newPage();
   try{await login(manager,"manager");await manager.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
     await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 점검 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리중");

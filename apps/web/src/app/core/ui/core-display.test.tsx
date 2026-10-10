@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { EnvironmentNote, InvitationMetadata, PhotoSelectionSurface, TicketProgress } from "./core-display";
+import { EnvironmentNote, InvitationMetadata, PhotoSelectionSurface, TaskZone, TicketProgress } from "./core-display";
+import { isIntakeDraft } from "./work-status-badge";
 
 describe("Apple-Toss presentation boundaries", () => {
   it("keeps the synthetic environment disclosure outside collapsed limitations", () => {
@@ -32,6 +33,39 @@ describe("Apple-Toss presentation boundaries", () => {
     expect(html).toContain('aria-hidden="true">✓ </span>처리 완료');
     expect(html).toContain("접수 상태: 추가 정보 필요");
     expect(html.indexOf("접수 상태")).toBeLessThan(html.indexOf("관리자가 완료로 기록했습니다."));
+  });
+
+  it("shows an unsubmitted request as one 제출 전 state instead of 접수 plus an intake line", () => {
+    const html = renderToStaticMarkup(<TicketProgress workStatus="OPEN" intakeStatus="IN_PROGRESS">아직 보내지 않았어요.</TicketProgress>);
+    expect(html).toContain('data-work-state="DRAFT">제출 전</span>');
+    expect(html).not.toContain("접수 상태:");
+    expect(html).not.toContain('data-work-state="OPEN"');
+    expect(html).toContain("아직 보내지 않았어요.");
+  });
+
+  it("keeps the separate intake line once the request was submitted", () => {
+    const html = renderToStaticMarkup(<TicketProgress workStatus="OPEN" intakeStatus="PARTIAL">관리자에게 보냈어요.</TicketProgress>);
+    expect(html).toContain('data-work-state="OPEN">접수</span>');
+    expect(html).toContain("접수 상태: 추가 정보 필요");
+    expect(html).not.toContain("제출 전");
+  });
+
+  it("treats only an open, unsubmitted intake as a draft", () => {
+    expect(isIntakeDraft({ workStatus: "OPEN", detail: { status: "IN_PROGRESS" } })).toBe(true);
+    expect(isIntakeDraft({ workStatus: "OPEN", detail: { status: "PARTIAL" } })).toBe(false);
+    expect(isIntakeDraft({ workStatus: "OPEN", detail: { status: "NEEDS_MORE_INFO" } })).toBe(false);
+    expect(isIntakeDraft({ workStatus: "IN_PROGRESS", detail: { status: "IN_PROGRESS" } })).toBe(false);
+  });
+
+  it("names a second to-do zone apart while keeping the visible heading and conversation default", () => {
+    const intake = renderToStaticMarkup(<TaskZone tenant label="지금 할 일: 추가 확인" message="질문에 모두 답하면 '수리 요청 제출' 버튼이 나와요.">질문</TaskZone>);
+    expect(intake).toContain('aria-label="지금 할 일: 추가 확인"');
+    expect(intake).toContain("<h2>지금 할 일</h2>");
+    expect(intake).toContain("질문에 모두 답하면");
+    expect(intake).not.toContain("관리자 질문에 답변해주세요.");
+    const conversation = renderToStaticMarkup(<TaskZone tenant>대화</TaskZone>);
+    expect(conversation).toContain('aria-label="지금 할 일"');
+    expect(conversation).toContain("관리자 질문에 답변해주세요.");
   });
 
   it("retains the caller's disabled native file input and accessible name", () => {
