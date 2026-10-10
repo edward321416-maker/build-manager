@@ -42,6 +42,20 @@ function projectSecurityUpdate20261010(lock:DependencyLock,fixtureSource:string)
     else lock.packages[entry.path]=structuredClone(entry.before);
   }
 }
+// Operator decision 2026-10-10 on issue #95: lockfile-only updates of shell-quote, brace-expansion and
+// source-map-js inside their dependents' ranges. Reverse exactly these six reviewed entries.
+const toolingAdvisoriesFixture="tests/architecture/tooling-advisories-20261010-lock.json";
+const toolingAdvisoryPaths=["@expo/fingerprint/node_modules/brace-expansion","@typescript-eslint/typescript-estree/node_modules/brace-expansion","brace-expansion","glob/node_modules/brace-expansion","shell-quote","source-map-js"].map(name=>`node_modules/${name}`);
+function projectToolingAdvisories20261010(lock:DependencyLock,fixtureSource:string) {
+  expect(sha256(fixtureSource),"reviewed tooling advisories fixture").toBe("89f6af636392caf1d141dbb50921831743f352d3268d24d2fe2422d5675824f5");
+  const fixture=JSON.parse(fixtureSource) as {path:string;before:Record<string,unknown>;successorSha256:string}[];
+  expect(fixture.map(entry=>entry.path)).toEqual(toolingAdvisoryPaths);
+  for(const entry of fixture) {
+    expect(lock.packages[entry.path],entry.path).toBeDefined();
+    expect(sha256(JSON.stringify(lock.packages[entry.path])),entry.path).toBe(entry.successorSha256);
+    lock.packages[entry.path]=structuredClone(entry.before);
+  }
+}
 function projectSecurityUpdateManifest(manifest:{dependencies:Record<string,string>;devDependencies:Record<string,string>}) {
   for(const [section,name,successor,original] of [["dependencies","next","16.3.8","16.3.4"],["devDependencies","eslint-config-next","16.3.8","16.3.4"],["dependencies","sharp","0.35.5","0.35.4"]] as const) {
     expect(manifest[section][name],name).toBe(successor);manifest[section][name]=original;
@@ -149,8 +163,9 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
     }
     if(path==="package-lock.json"){
       const lock=JSON.parse(canonical);
-      // Reverse only the reviewed existing SDK57 patch entries, then the original
-      // Sharp directive. Every untouched entry and original frozen hash remains.
+      // Reverse only the reviewed tooling advisory, SDK57 patch and security update entries,
+      // then the original Sharp directive. Every untouched entry and original frozen hash remains.
+      projectToolingAdvisories20261010(lock,(await readFile(toolingAdvisoriesFixture,"utf8")).replaceAll("\r\n","\n"));
       projectExpoSdk57Patch(lock,(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n"));
       projectSecurityUpdate20261010(lock,(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n"));
       projectSharpLock(lock);
@@ -172,7 +187,9 @@ it("AC17 exact Expo SDK57 projection rejects package, fixture and unrelated lock
   const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock;
   const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
   const security=(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n");
+  const tooling=(await readFile(toolingAdvisoriesFixture,"utf8")).replaceAll("\r\n","\n");
   const inventory=(candidate:DependencyLock,source=fixture,securitySource=security)=>{
+    projectToolingAdvisories20261010(candidate,tooling);
     projectExpoSdk57Patch(candidate,source);projectSecurityUpdate20261010(candidate,securitySource);projectSharpLock(candidate);
     expect(sha256(JSON.stringify(candidate,null,2)+"\n")).toBe(frozen["package-lock.json"]);
   };
@@ -199,7 +216,9 @@ it("AC17 security update projection rejects an unreviewed version, a tampered fi
   const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock;
   const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
   const security=(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n");
+  const tooling=(await readFile(toolingAdvisoriesFixture,"utf8")).replaceAll("\r\n","\n");
   const inventory=(candidate:DependencyLock,securitySource=security)=>{
+    projectToolingAdvisories20261010(candidate,tooling);
     projectExpoSdk57Patch(candidate,fixture);projectSecurityUpdate20261010(candidate,securitySource);projectSharpLock(candidate);
     expect(sha256(JSON.stringify(candidate,null,2)+"\n")).toBe(frozen["package-lock.json"]);
   };
@@ -216,6 +235,31 @@ it("AC17 security update projection rejects an unreviewed version, a tampered fi
   expect(()=>inventory(structuredClone(lock),JSON.stringify(changedSecurity,null,2)+"\n")).toThrow();
   const removedSecurity=JSON.parse(security);removedSecurity.pop();
   expect(()=>inventory(structuredClone(lock),JSON.stringify(removedSecurity,null,2)+"\n")).toThrow();
+});
+it("AC17 tooling advisories projection rejects an unreviewed version, unrelated lock drift, a tampered fixture and a dropped entry",async()=>{
+  const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock;
+  const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
+  const security=(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n");
+  const tooling=(await readFile(toolingAdvisoriesFixture,"utf8")).replaceAll("\r\n","\n");
+  const inventory=(candidate:DependencyLock,toolingSource=tooling)=>{
+    projectToolingAdvisories20261010(candidate,toolingSource);
+    projectExpoSdk57Patch(candidate,fixture);projectSecurityUpdate20261010(candidate,security);projectSharpLock(candidate);
+    expect(sha256(JSON.stringify(candidate,null,2)+"\n")).toBe(frozen["package-lock.json"]);
+  };
+  inventory(structuredClone(lock));
+  for(const mutate of [
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/shell-quote"].version="1.12.1";},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/glob/node_modules/brace-expansion"].integrity="sha512-unreviewed";},
+    (candidate:DependencyLock)=>{delete candidate.packages["node_modules/source-map-js"];},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/braces"].version="3.0.4";},
+  ]) {
+    const candidate=structuredClone(lock);mutate(candidate);
+    expect(()=>inventory(candidate)).toThrow();
+  }
+  const changedTooling=JSON.parse(tooling);changedTooling[0].before.version="5.0.8";
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(changedTooling,null,2)+"\n")).toThrow();
+  const removedTooling=JSON.parse(tooling);removedTooling.pop();
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(removedTooling,null,2)+"\n")).toThrow();
 });
 it("AC17 Task12 projection rejects changed commands, order, log capture and unrelated workflow gates",async()=>{
   const source=(await readFile(".github/workflows/app-check.yml","utf8")).replaceAll("\r\n","\n");
