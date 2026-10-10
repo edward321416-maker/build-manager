@@ -10,10 +10,23 @@ export const test = base.extend<{ fixture: Fixture; admin: Client }>({
   fixture: async ({ browserName }, provide) => { expect(browserName).toBe('chromium'); await provide(JSON.parse(await readFile(process.env.VENDOR_BROWSER_PRIVATE_STATE!, 'utf8'))); },
   admin: async ({ fixture }, provide) => { const admin = new Client(fixture.admin); await admin.connect(); try { await provide(admin); } finally { await admin.end(); } },
 });
+// Temporary flake diagnostics (not merged): API responses, errors, focus moves and disclosure toggles.
+async function diag(page: Page, label: string) {
+  const t0 = Date.now(), at = () => `+${Date.now() - t0}`;
+  page.on('response', (r) => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/')) console.log(`[diag ${label} ${at()}] ${r.status()} ${r.request().method()} ${u.pathname.replace(/[0-9a-f-]{36}/g, '<id>')}`); });
+  page.on('console', (m) => { const text = m.text(); if (m.type() === 'error' || text.startsWith('[diag-dom]')) console.log(`[diag ${label} ${at()}] ${text.slice(0, 160)}`); });
+  page.on('pageerror', (e) => console.log(`[diag ${label} ${at()}] pageerror ${e.message.slice(0, 160)}`));
+  await page.addInitScript(() => {
+    const describe = (n: EventTarget | null) => n instanceof Element ? `${n.tagName.toLowerCase()}${n.id ? '#' + n.id : ''}[${(n.textContent ?? '').trim().slice(0, 30)}]` : String(n);
+    document.addEventListener('focusin', (e) => console.log(`[diag-dom] focus ${describe(e.target)} inspector=${(document.getElementById('ticket-inspector') as HTMLDetailsElement | null)?.open}`), true);
+    document.addEventListener('toggle', (e) => console.log(`[diag-dom] toggle ${describe(e.target)} open=${(e.target as HTMLDetailsElement).open}`), true);
+  });
+}
 export async function actor(browser: Browser, fixture: Fixture, who: string, width = 390) {
   const context = await browser.newContext({ baseURL: fixture.origin, viewport: { width, height: 900 } });
   await context.addCookies([{ name: '__session', value: fixture.fixture.accounts[who].cookie, url: fixture.origin, httpOnly: true, sameSite: 'Lax' }]);
   const page = await context.newPage();
+  await diag(page, `${who}@${width}`);
   return { context, page, close: () => context.close() };
 }
 export async function core(f: Fixture, who: string, path: string, body?: unknown, status = 200) {
@@ -81,6 +94,7 @@ export async function provision(f: Fixture, preauthorized = false) {
 }
 export async function vendorContext(browser: Browser, f: Fixture, link: string) {
   const context = await browser.newContext({ baseURL: f.origin, viewport: { width: 390, height: 900 } }); const page = await context.newPage();
+  await diag(page, 'vendor@390');
   await safeGoto(page, link, 'redeem one-time capability');
   await expect(page.getByRole('button', { name: '작업 수락', exact: true })).toBeVisible();
   expect(await page.evaluate(() => location.hash.length === 0), 'capability fragment removed').toBe(true);

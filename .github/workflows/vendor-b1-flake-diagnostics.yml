@@ -1,0 +1,54 @@
+name: Vendor and B1 flake diagnostics (temporary, do not merge)
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.21.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install
+        shell: bash
+        run: npm ci
+      - name: Install Chromium and Linux dependencies
+        shell: bash
+        run: npm exec --workspace @build-manager/web -- playwright install --with-deps chromium
+      - name: Build Web
+        shell: bash
+        run: npm run build:web
+      - name: Vendor suite six times
+        env:
+          BUILD_MANAGER_E2E_PREBUILT: "1"
+        shell: bash
+        run: |
+          for i in 1 2 3 4 5 6; do
+            echo "::group::vendor run $i"
+            touch "$RUNNER_TEMP/marker"
+            npm run test:e2e:vendor || echo "VENDOR_RUN_${i}_FAILED"
+            find "$HOME/.build-manager-vendor-private" -name error-context.md -newer "$RUNNER_TEMP/marker" -exec sh -c 'echo "=== $1"; cat "$1"' _ {} \; || true
+            echo "::endgroup::"
+          done
+      - name: B1 suite three times
+        env:
+          BUILD_MANAGER_E2E_PREBUILT: "1"
+        shell: bash
+        run: |
+          for i in 1 2 3; do
+            echo "::group::b1 run $i"
+            touch "$RUNNER_TEMP/marker"
+            npm run test:e2e:b1 || echo "B1_RUN_${i}_FAILED"
+            find apps/web/test-results -name error-context.md -newer "$RUNNER_TEMP/marker" -exec sh -c 'echo "=== $1"; cat "$1"' _ {} \; || true
+            echo "::endgroup::"
+          done

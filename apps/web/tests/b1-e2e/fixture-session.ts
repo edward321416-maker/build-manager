@@ -23,5 +23,5 @@ export async function fixtureSession(browser:Browser,role:'ORG_ADMIN'|'PROPERTY_
  const sdk=new Auth0Client({domain:'b1.synthetic.invalid',clientId:'synthetic',clientSecret:randomBytes(32).toString('hex'),secret,appBaseUrl:baseURL});
  const read=await sdk.getSession(new NextRequest(baseURL,{headers:{cookie:'__session='+cookie}}));if(!read || read.user.sub!==subject)throw new Error('SYNTHETIC_COOKIE_READBACK_FAILED');
  const context=await browser.newContext({baseURL});await context.addCookies([{name:'__session',value:cookie,url:baseURL,httpOnly:true,sameSite:'Lax'}]);
- return {context,migration,change,orgId,propertyId,userId,csrf,digest,async close(){try{if(browser.isConnected())await context.close();}finally{await login.end();await migration.end();}}};
+ return {context,migration,change,orgId,propertyId,userId,csrf,digest,async close(){try{if(browser.isConnected()){const pages=context.pages().map(p=>p.url().replace(/[0-9a-f-]{36}/g,'<id>'));const t=Date.now();await context.close();const d=Date.now()-t;if(d>1500)console.log(`[diag-close] context.close took ${d} ms; pages: ${pages.join(', ')}`);}}finally{const t=Date.now();await login.end();await migration.end();const d=Date.now()-t;if(d>1500)console.log(`[diag-close] db clients ended in ${d} ms`);}}};
 }
