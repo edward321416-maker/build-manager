@@ -60,7 +60,8 @@
 .badge { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; padding: .3125rem .625rem; color: var(--color-text-secondary); background: var(--color-fill-subtle); border-radius: .3125rem; font-size: .9375rem; line-height: 1.25rem; font-weight: 600; white-space: normal; }
 .badge[data-work-state="IN_PROGRESS"] { color: var(--status-progress-text); background: var(--status-progress-bg); }
 .badge[data-work-state="COMPLETED"] { color: var(--status-done-text); background: var(--status-done-bg); }
-.badge[data-work-state="DRAFT"] { color: var(--status-wait-text); background: var(--status-wait-bg); }
+.badge[data-work-state="DRAFT"], .badge[data-intake-state="NEEDS_MORE_INFO"] { color: var(--status-wait-text); background: var(--status-wait-bg); }
+.badge[data-intake-state="SAFETY_ESCALATED"] { color: var(--status-urgent-text); background: var(--status-urgent-bg); }
 .intakeStatus { width: fit-content; max-width: 100%; padding: .3125rem .625rem; color: var(--color-text-secondary); background: var(--color-fill-subtle); border-radius: .3125rem; font-size: .9375rem; line-height: 1.25rem; font-weight: 600; }
 .intakeStatus:is([data-intake-state="PARTIAL"],[data-intake-state="NEEDS_MORE_INFO"],[data-intake-state="READY_FOR_REVIEW"]) { color: var(--status-wait-text); background: var(--status-wait-bg); }
 .intakeStatus:is([data-intake-state="APPROVED"],[data-intake-state="OVERRIDDEN"]) { color: var(--status-done-text); background: var(--status-done-bg); }

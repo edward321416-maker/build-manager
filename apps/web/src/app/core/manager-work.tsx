@@ -2,8 +2,9 @@
 import { useCallback,useEffect,useState } from "react";
 import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
 import { CoreManagerWorkUpdateSchema,CoreManagerInternalNoteCreateSchema,type CoreManagerWorkItem,type CoreManagerInternalNote,type CoreTicketDto,type CoreUnitDto } from "@build-manager/api-contracts";
-import { WorkStatusBadge } from "./ui/work-status-badge";
+import { DraftBadge,IntakeBadge,WorkStatusBadge } from "./ui/work-status-badge";
 import { compareManagerWork,isOverdue,priorityLabels } from "./manager-work-order";
+import { managerRowHint } from "./manager-next-step";
 import styles from "./manager-work.module.css";
 import { CommunicationBadge,useCommunicationSummaries } from "./ticket-communication";
 
@@ -12,8 +13,11 @@ function localInput(value:string|null){
   if(!value)return "";const d=new Date(value),pad=(n:number)=>String(n).padStart(2,"0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selectedId}:{client:CoreFlowClient;units:CoreUnitDto[];revision:number;onOpen(id:string):void;disabled:boolean;selectedId?:string}){
+export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selectedId,tickets=[]}:{client:CoreFlowClient;units:CoreUnitDto[];revision:number;onOpen(id:string):void;disabled:boolean;selectedId?:string;
+  /** The screen's ticket list; the work items carry no intake state, so row hints join on it by ticket ID. */
+  tickets?:CoreTicketDto[]}){
   const [items,setItems]=useState<CoreManagerWorkItem[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(false);
+  const byId=new Map(tickets.map(t=>[t.ticketId,t]));
   const [status,setStatus]=useState("ALL"),[priority,setPriority]=useState("ALL"),[now,setNow]=useState(()=>Date.now()),[refresh,setRefresh]=useState(0);
   const [unit,setUnit]=useState("");
   const conversation=useCommunicationSummaries(client,items.map(x=>x.ticketId),revision+refresh);
@@ -33,7 +37,7 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selected
       <button data-open-ticket className={styles.row} aria-current={selectedId===item.ticketId?"true":undefined} disabled={disabled} onClick={()=>onOpen(item.ticketId)}>
         <span className={styles.priority} data-priority={item.priority}><span className={styles.srOnly}>긴급도 </span>{priorityLabels[item.priority]}</span>
         <span className={styles.subject}><strong>{item.issueType==="HEATING"?"난방":"누수"}</strong><span>{item.buildingName} · {item.unitLabel}</span></span>
-        <span className={styles.workState}><WorkStatusBadge status={item.workStatus}/><CommunicationBadge summary={conversation.summaries[item.ticketId]}/></span>
+        <span className={styles.workState}>{(hint=><>{hint==="DRAFT"?<DraftBadge/>:<WorkStatusBadge status={item.workStatus}/>}{hint==="NEEDS_MORE_INFO"||hint==="SAFETY_ESCALATED"?<IntakeBadge status={hint}/>:null}<CommunicationBadge summary={conversation.summaries[item.ticketId]}/>{hint==="DECIDE"?<small className={styles.rowHint}>처리 방법 결정 필요</small>:null}</>)(managerRowHint(byId.get(item.ticketId)))}</span>
         <span className={styles.assignee}><small>담당자</small>{item.assigneeLabel??"미지정"}</span>
         <span className={styles.due}><small>처리 예정</small>{item.dueAt?<time dateTime={item.dueAt} title={dateText(item.dueAt)}>{new Date(item.dueAt).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}</time>:"미정"}{isOverdue(item,now)?<strong className={styles.overdue}>기한 지남</strong>:null}</span>
       </button>

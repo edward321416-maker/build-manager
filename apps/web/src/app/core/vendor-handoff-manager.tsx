@@ -58,9 +58,11 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
   const choose=(values:string[],key:string,checked:boolean)=>checked?[...values,key]:values.filter(v=>v!==key);
   const at=p.now??new Date(),appointment=p.handoff?.appointment?.status==="SCHEDULED"?p.handoff.appointment:null;
   const canReschedule=Boolean(p.onReschedule&&appointment&&assignment?.status==="ACTIVE"&&p.handoff?.currentRound?.status==="CONFIRMED"&&Date.parse(appointment.startAt)>at.getTime());
-  return <section className={styles.panel} aria-label="업체 연결 및 작업 요청">
+  return <section id="vendor-handoff" tabIndex={-1} className={styles.panel} aria-label="업체 연결 및 작업 요청">
     <h2>업체 연결 / 작업 요청</h2>
     {p.loading?<p role="status">업체 연결 상태 불러오는 중…</p>:null}
+    {/* Menu audit F-05: say why nothing can be prepared yet instead of an empty section. */}
+    {!p.loading&&!eligible&&!assignment&&p.ticket.workStatus!=="COMPLETED"?<p>{"업체에 보내려면 먼저 처리 방법을 '일반 수리업체'나 '제조사 A/S'로 정해 주세요."}</p>:null}
     {p.error?<p role="alert">{p.error}</p>:null}
     {p.validationError?<p role="alert">{p.validationError}</p>:null}
     {p.notice?<p role="status">{p.notice}</p>:null}
