@@ -493,3 +493,4 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event SECURITY-UPDATE-NEXT-SHARP-20261010: sync_status=pending; Next.js 16.3.8 and sharp 0.35.5 security update with the AC17 projection and acceptance record (PR 97). Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event SECURITY-UPDATE-DEPLOY-20261010: sync_status=pending; security update redeployed to the hosted demo and checked live. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+- Event VENDOR-E2E-RELIABILITY-20261010: sync_status=pending; approved local fixture cleanup and vendor e2e failure timeline, owned-fixture cleanup and port override on fix/vendor-e2e-flakes. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
