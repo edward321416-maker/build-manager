@@ -11,7 +11,7 @@ export type EditorViewProps={completed:boolean;detail:CoreMaintenanceFactDetail|
 export function MaintenanceEditorView(p:EditorViewProps){
  if(!p.completed)return null;
  const current=p.detail?.current,form=Boolean(p.detail)&&(!current||p.editing||p.uncertain);
- return <section className={styles.editor} aria-label="호실 정비 사실 기록"><h2>호실 정비 사실 기록</h2>
+ return <section id="maintenance-fact" tabIndex={-1} className={styles.editor} aria-label="호실 정비 사실 기록"><h2>호실 정비 사실 기록</h2>
   <p className={styles.hint}>세입자 대화나 내부메모가 아니라, 호실에 남길 최소한의 정비 사실만 기록하세요. 객관적인 수리 검증을 뜻하지 않습니다.</p>
   {p.loading?<p role="status">정비 사실 불러오는 중…</p>:null}{p.error?<p role="alert">{p.error}</p>:null}{p.notice?<p role="status">{p.notice}</p>:null}
   <button disabled={p.busy||p.loading} onClick={p.onRefresh}>정비 사실 다시 불러오기</button>
@@ -47,11 +47,17 @@ export function MaintenanceTimelineView({units,unitId,items,loading,error,disabl
   {!units.length?<p>접근 가능한 호실이 없습니다. 배정 상태를 확인하고 새로고침해 주세요.</p>:loading?<p role="status">호실 정비 이력 불러오는 중…</p>:error?<p role="alert">{error}</p>:items.length===0?<div className={styles.empty}><h3>아직 기록된 정비 사실이 없습니다.</h3><p>완료된 접수에서 관리자가 정비 사실을 남기면 이곳에 표시됩니다. 완료 접수만으로 자동 기록되지 않습니다.</p></div>:<div className={styles.cards}>{items.map(f=><MaintenanceFactCard key={f.factId} fact={f} onOpenTicket={onOpenTicket}/>)}</div>}
  </section>;
 }
-type EditorProps={client:CoreFlowClient;ticket:CoreTicketDto;revision:number;onOpenTicket(id:string):void;onChanged():void;onViewUnit?(id:string):void};
+type EditorProps={client:CoreFlowClient;ticket:CoreTicketDto;revision:number;onOpenTicket(id:string):void;onChanged():void;onViewUnit?(id:string):void;
+ /** Reports whether a fact is recorded once loaded, so the screen can suggest recording one. */
+ onRecorded?(recorded:boolean):void};
 type Attempt={kind:"CREATE";id:string;input:CoreMaintenanceFactCreate}|{kind:"CORRECT";id:string;input:CoreMaintenanceFactCorrection};
 export function ManagerMaintenanceFactEditor(props:EditorProps){return props.ticket.workStatus==="COMPLETED"?<CompletedFactEditor key={props.ticket.ticketId} {...props}/>:null;}
-function CompletedFactEditor({client,ticket,revision,onOpenTicket,onChanged,onViewUnit}:EditorProps){
+function CompletedFactEditor({client,ticket,revision,onOpenTicket,onChanged,onViewUnit,onRecorded}:EditorProps){
  const [detail,setDetail]=useState<CoreMaintenanceFactDetail|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ // A ref keeps a new callback identity on every parent render from re-reporting the same loaded detail.
+ const reportRecorded=useRef(onRecorded);
+ useEffect(()=>{reportRecorded.current=onRecorded;},[onRecorded]);
+ useEffect(()=>{if(detail)reportRecorded.current?.(detail.current!==null);},[detail]);
  const [action,setAction]=useState<CoreMaintenanceActionKind>("INSPECTION"),[label,setLabel]=useState(""),[reason,setReason]=useState<CoreMaintenanceCorrectionReason>("ACTION_CLASSIFICATION"),[editing,setEditing]=useState(false),[reviewRequired,setReviewRequired]=useState(false),[uncertain,setUncertain]=useState(false);
  const alive=useRef(false),generation=useRef(0),sending=useRef(false),attempt=useRef<Attempt|null>(null),correctionBase=useRef<string|null>(null);
  const load=useCallback(async()=>{

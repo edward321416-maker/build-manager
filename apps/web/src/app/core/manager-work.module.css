@@ -23,6 +23,8 @@
 .workState { grid-column: 3; grid-row: 1; text-align: right; }
 /* Status label keeps its 5/10px padding (rules §8.7). */
 .row .workState > span { display: inline-flex; }
+/* The manager's next step under the status labels: caption size in the full text colour, since it is why the row matters. */
+.row .workState > .rowHint { display: block; margin-top: .3125rem; font-size: .8125rem; line-height: 1.125rem; font-weight: 400; letter-spacing: 0; color: var(--color-text); }
 .assignee { grid-column: 1 / 3; grid-row: 3; color: var(--color-text-readable); }
 .due { grid-column: 1 / -1; grid-row: 4; color: var(--color-text-readable); }
 .due time { display: inline; }
