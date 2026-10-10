@@ -1,16 +1,19 @@
 // Design audit for design/DESIGN_RULES.md §15: screenshots plus geometric checks on a fresh synthetic fixture.
 //   node --experimental-transform-types scripts/design-audit.mjs <outDir> [--engines chromium,webkit]
-// Requires the pinned Node, Docker and a production Web build (npm run build:web). Synthetic data only; nothing leaves this machine.
+// Requires the pinned Node, Docker and a production Web build (npm run build:web). Synthetic data only; the pages load the
+// Pretendard font from cdn.jsdelivr.net and nothing else leaves this machine. The container and the private state folder
+// the fixture writes are removed at the end, on failure and on Ctrl+C.
 // Checks (each one came from operator feedback recorded in the rules, §18):
 //   edge-box   text closer than 6px to a box edge that is visible (background or border on that side)
 //   edge-view  text closer than 16px to the left or right of the viewport
 //   top        first text closer than 10px to the top of the page
 //   clipped    select, button or input text that does not fit its box
 //   hscroll    the page scrolls sideways
+//   coverage   a requested engine did not start, or a screen that should exist could not be reached
 // Exit code 1 when any finding remains, so it can gate a design change.
 import { createRequire } from "node:module";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 
@@ -22,6 +25,7 @@ const engines = (engineArg > 0 ? process.argv[engineArg + 1] : "chromium,webkit"
 mkdirSync(out, { recursive: true });
 const playwright = createRequire(join(root, "package.json"))("@playwright/test");
 const findings = [], shots = [];
+const missing = (screen, detail) => findings.push({ check: "coverage", screen, where: "audit", detail });
 
 function inspect() {
   document.querySelectorAll("details:not([open])").forEach(d => d.setAttribute("open", ""));
@@ -66,7 +70,7 @@ function inspect() {
   for (const el of document.querySelectorAll("select, button, input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]), a.primary-button")) {
     if (hiddenText(el)) continue;
     const cs = getComputedStyle(el), avail = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    let text = el.tagName === "SELECT" ? (el.options[el.selectedIndex]?.text ?? "") : el.tagName === "INPUT" ? el.value : "";
+    const text = el.tagName === "SELECT" ? (el.options[el.selectedIndex]?.text ?? "") : el.tagName === "INPUT" ? el.value : "";
     if (text) { ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; if (ctx.measureText(text).width > avail + 1) result.push({ check: "clipped", where: label(el), detail: `text ${Math.round(ctx.measureText(text).width)}px in ${Math.round(avail)}px` }); }
     else if (el.scrollWidth > el.clientWidth + 1) result.push({ check: "clipped", where: label(el), detail: `content ${el.scrollWidth}px in ${el.clientWidth}px` });
   }
@@ -75,21 +79,32 @@ function inspect() {
 }
 
 async function audit(page, name) {
-  await page.waitForTimeout(800);
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(500);
   const file = join(out, name + ".png");
   await page.screenshot({ path: file, fullPage: true }); shots.push(file);
   for (const f of await page.evaluate(inspect)) findings.push({ screen: name, ...f });
 }
 
-let server, state;
+let server, prepared, cleaned = false;
+async function cleanup() {
+  if (cleaned) return; cleaned = true;
+  try { await server?.stop(); } catch { /* already stopped */ }
+  if (prepared?.state?.containerId) { try { execFileSync("docker", ["rm", "-f", prepared.state.containerId], { stdio: "ignore" }); } catch { /* already removed */ } }
+  // The fixture's private folder holds synthetic passwords and session cookies for the removed container.
+  if (prepared?.file) { try { rmSync(dirname(prepared.file), { recursive: true, force: true }); } catch { /* already removed */ } }
+}
+for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { void cleanup().finally(() => process.exit(130)); });
+
 try {
   const dev = await import(pathToFileURL(join(root, "scripts/vendor-handoff-dev.mjs")).href);
-  ({ state } = await dev.prepareVendorHandoff());
-  server = await dev.startVendorHandoffServer(state);
-  const origin = state.origin, phones = [375, 390, 430], wide = [768, 1280, 1440];
+  prepared = await dev.prepareVendorHandoff();
+  server = await dev.startVendorHandoffServer(prepared.state);
+  const origin = prepared.state.origin, phones = [320, 375, 390, 430], wide = [768, 1280, 1440];
+  let ticketCreated = false;
   for (const engine of engines) {
     let browser;
-    try { browser = await playwright[engine].launch(); } catch { console.log(`DESIGN_AUDIT | ${engine} not installed: npx playwright install ${engine}`); continue; }
+    try { browser = await playwright[engine].launch(); } catch { missing(engine, `${engine} did not start: npx playwright install ${engine}`); continue; }
     const page = async (width, role) => {
       const p = await (await browser.newContext({ viewport: { width, height: width < 768 ? 844 : 900 } })).newPage();
       await p.goto(origin + "/core");
@@ -104,25 +119,31 @@ try {
       if (width === 390) { await p.goto(origin + "/core/join"); await audit(p, `${engine}-${width}-join`); await p.goto(origin + "/vendor/job"); await audit(p, `${engine}-${width}-vendor-nolink`); }
       await p.context().close();
     }
-    // Manager before any ticket (empty states), then a filter with no result.
-    if (engine === engines[0]) for (const width of widths) {
-      const m = await page(width, "manager"); await audit(m, `${engine}-${width}-manager-empty`);
-      await m.getByRole("combobox", { name: "긴급도 필터" }).selectOption("URGENT"); await audit(m, `${engine}-${width}-manager-filter-empty`);
-      await m.context().close();
-    }
-    // Tenant creates one ticket (once), then tenant and manager screens with data.
-    if (engine === engines[0]) {
+    // Before the first ticket exists: the manager's empty queue, once, in the first engine that started.
+    if (!ticketCreated) {
+      for (const width of widths) { const m = await page(width, "manager"); await audit(m, `${engine}-${width}-manager-empty`); await m.context().close(); }
       const t = await page(390, "tenant");
       await t.getByLabel("문제 설명").fill("거실 보일러가 켜지지 않아요. 온수도 미지근해요.");
-      await t.getByRole("button", { name: "접수하기", exact: true }).click(); await t.waitForTimeout(2500);
+      await t.getByRole("button", { name: "접수하기", exact: true }).click();
+      try { await t.getByText("접수 내용이 저장되었습니다", { exact: false }).first().waitFor({ timeout: 20000 }); ticketCreated = true; }
+      catch { missing(`${engine}-390-tenant`, "the synthetic ticket was not saved, so screens with data cannot be checked"); }
       await t.context().close();
     }
+    if (!ticketCreated) { await browser.close(); continue; }
     for (const width of widths) {
       const t = await page(width, "tenant"); await audit(t, `${engine}-${width}-tenant-intake`);
-      const open = t.locator("[data-open-ticket]").first(); if (await open.count()) { await open.click(); await audit(t, `${engine}-${width}-tenant-ticket`); }
+      const open = t.locator("[data-open-ticket]").first();
+      if (await open.count()) { await open.click(); await audit(t, `${engine}-${width}-tenant-ticket`); } else missing(`${engine}-${width}-tenant-ticket`, "no ticket row to open");
       await t.context().close();
-      const m = await page(width, "manager"); await audit(m, `${engine}-${width}-manager-queue`);
-      const row = m.locator("[data-open-ticket]").first(); if (await row.count()) { await row.click(); await audit(m, `${engine}-${width}-manager-detail`); }
+      const m = await page(width, "manager");
+      const row = m.locator("[data-open-ticket]").first();
+      try { await row.waitFor({ timeout: 20000 }); } catch { /* reported below */ }
+      await audit(m, `${engine}-${width}-manager-queue`);
+      await m.getByRole("combobox", { name: "긴급도 필터" }).selectOption("URGENT");
+      try { await m.getByText("선택한 조건의 업무가 없습니다", { exact: false }).waitFor({ timeout: 10000 }); await audit(m, `${engine}-${width}-manager-filter-empty`); }
+      catch { missing(`${engine}-${width}-manager-filter-empty`, "the no-result filter message did not appear"); }
+      await m.getByRole("combobox", { name: "긴급도 필터" }).selectOption("ALL");
+      if (await row.count()) { await row.click(); await audit(m, `${engine}-${width}-manager-detail`); } else missing(`${engine}-${width}-manager-detail`, "no ticket row to open");
       await m.getByRole("navigation", { name: "관리자 보기" }).getByRole("button", { name: "호실 정비 이력", exact: true }).click(); await audit(m, `${engine}-${width}-manager-maintenance`);
       await m.getByRole("navigation", { name: "작업 이동" }).getByRole("link", { name: "입주 연결", exact: true }).click(); await audit(m, `${engine}-${width}-manager-onboarding`);
       await m.context().close();
@@ -130,8 +151,7 @@ try {
     await browser.close();
   }
 } finally {
-  try { await server?.stop(); } catch { /* already stopped */ }
-  if (state?.containerId) { try { execFileSync("docker", ["rm", "-f", state.containerId], { stdio: "ignore" }); } catch { /* already removed */ } }
+  await cleanup();
 }
 writeFileSync(join(out, "findings.json"), JSON.stringify(findings, null, 1));
 for (const f of findings) console.log(`${f.check.padEnd(9)} ${f.screen.padEnd(40)} ${f.where} | ${f.detail}`);

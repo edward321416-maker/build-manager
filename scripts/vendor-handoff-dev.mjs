@@ -23,6 +23,7 @@ export async function prepareVendorHandoff() {
   process.env.TESTCONTAINERS_RYUK_DISABLED = "true";
   const { startPostgres18Container, provisionTestRoles, runPostgresMigrations, grantRuntimeAccess, seedCoreFlowFixture } = await import("@build-manager/persistence-postgres/testing");
   const p = await startPostgres18Container();
+  try {
   const roles = await provisionTestRoles(p.admin, p.adminConfig, p.database);
   const migration = new Client(roles.migrationConfig), login = new Client(roles.b1.loginConfig);
   await migration.connect(); await login.connect();
@@ -51,6 +52,11 @@ export async function prepareVendorHandoff() {
     await writeFile(file, JSON.stringify(state), { mode: 0o600 });
     return { state, file };
   } finally { await login.end(); await migration.end(); await p.admin.end(); }
+  } catch (error) {
+    // Testcontainers' reaper is disabled above, so a setup that fails after the container started removes it here.
+    try { await p.container.stop(); } catch { /* already stopped */ }
+    throw error;
+  }
 }
 
 export async function readVendorHandoffState(file) {

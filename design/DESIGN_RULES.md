@@ -411,7 +411,7 @@ build-manager의 모든 화면(웹, 앱, 소개 페이지)은 이 문서를 따�
 
 - 예전 데모 화면 `/demo/*`: `apps/web/src/app/globals.css`의 초록·베이지 색, `apps/web/src/components/tenant`, `apps/web/src/components/landlord`.
 - 모바일 앱 기본 컴포넌트: `apps/mobile/src/features/core-ui.tsx`의 남색 헤더(`#17283B`), Tailwind 기본값과 같은 상태색(`#1D4ED8`, `#DCFCE7` 등), 자간 없음, `apps/mobile/src/components/ui.tsx`.
-- `/core`에 남은 것: 합쇼체("~습니다") 안내 문구, 사진 썸네일 모서리 5px, 시각·건수 같은 보조 정보에 `caption` 스타일 미적용, 관리자 왼쪽 메뉴 너비 220px(규칙 248px).
+- `/core`에 남은 것: 합쇼체("~습니다") 안내 문구, 사진 썸네일 모서리 5px, 시각·건수 같은 보조 정보에 `caption` 스타일 미적용, 관리자 왼쪽 메뉴 너비 220px(규칙 248px), 호실 정비 이력의 카드 안 카드(`.timeline` 안 `.fact`, [6.3](#63-그림자)).
 
 ## 17. 규칙을 바꾸는 방법
 
