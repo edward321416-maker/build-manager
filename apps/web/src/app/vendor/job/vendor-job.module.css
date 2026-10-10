@@ -45,6 +45,7 @@
 /* Tenant windows: the time, then the secondary button that copies it into a proposal row. */
 .windows { display: grid; gap: .625rem; margin: .3125rem 0 0; padding: 0; list-style: none; }
 .windows li { display: grid; gap: .3125rem; justify-items: start; }
+.windows + .missing { margin-top: .625rem; }
 .footer { display: grid; gap: .625rem; }
 @media (min-width: 768px) { .page { padding-inline: 1.875rem; } }
 @media (prefers-reduced-motion: reduce) { .page * { transition: none; } }

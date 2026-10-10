@@ -656,9 +656,12 @@ function CurrentTask(props:ViewProps&{job:VendorJobDto}){
 }
 
 const blankDraft=(draft:IntervalDraft)=>!draft.date&&!draft.start&&!draft.end;
-/** Menu audit F-17: copies a Tenant window into the first blank proposal row, or a new row while fewer than five exist. */
-function withWindow(drafts:IntervalDraft[],window:{startAt:string;endAt:string}):IntervalDraft[]{
-  const row=intervalToDraft(window);
+/**
+ * Menu audit F-17: copies a Tenant window into the first blank proposal row, or a new row while fewer than five exist.
+ * A window that has already started gets today's date and a blank start, so the Vendor picks a start that is still ahead.
+ */
+function withWindow(drafts:IntervalDraft[],window:{startAt:string;endAt:string},at:Date):IntervalDraft[]{
+  const row=Date.parse(window.startAt)>at.getTime()?intervalToDraft(window):{...intervalToDraft({startAt:at.toISOString(),endAt:window.endAt}),start:""};
   if(drafts.some(draft=>draft.date===row.date&&draft.start===row.start&&draft.end===row.end))return drafts;
   const blank=drafts.findIndex(blankDraft);
   if(blank>=0)return drafts.map((draft,index)=>index===blank?row:draft);
@@ -696,9 +699,9 @@ function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,
       <ul className={styles.windows}>{windows.map(item=>{const text=label(item.startAt,item.endAt);return <li key={item.id}>
         <span>{text}{availability!.authorizedWindowIds.includes(item.id)?" · 부재 중 출입 동의":""}</span>
         {proposing?<button type="button" disabled={submitting||!roomForWindow} aria-label={`${text} 제안 시간에 넣기`}
-          onClick={()=>onSchedule({drafts:withWindow(schedule.drafts,item)})}>제안 시간에 넣기</button>:null}
+          aria-describedby={roomForWindow?undefined:"vendor-window-full"} onClick={()=>onSchedule({drafts:withWindow(schedule.drafts,item,at)})}>제안 시간에 넣기</button>:null}
       </li>;})}</ul>
-      {proposing&&!roomForWindow?<p className={styles.missing}>제안할 시간은 5개까지예요. 다른 시간을 넣으려면 아래 시간대 하나를 지워 주세요.</p>:null}
+      {proposing&&!roomForWindow?<p id="vendor-window-full" className={styles.missing}>제안할 시간은 5개까지예요. 다른 시간을 넣으려면 아래 시간대 하나를 지워 주세요.</p>:null}
     </div>:null}
     {authorized.length?<form className={styles.form} onSubmit={event=>{event.preventDefault();onSelectPreauthorized();}}>
       <fieldset disabled={submitting}>
@@ -822,6 +825,7 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
     </fieldset>
     <fieldset disabled={busy||selected>0}>
       <legend>사진 없이 보고하는 이유</legend>
+      {selected>0?<p className={styles.missing}>사진을 보고에서 모두 빼면 고를 수 있어요.</p>:null}
       {(Object.keys(OMISSION_LABELS) as VendorPhotoOmissionReason[]).map(reason=><label key={reason} className={styles.choice}>
         <input type="radio" name="vendor-photo-omission" checked={completion.omission===reason} onChange={()=>onCompletion({omission:reason})}/><span>{OMISSION_LABELS[reason]}</span>
       </label>)}
@@ -835,7 +839,8 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
     </label>
     <label className={styles.choice}><input type="checkbox" checked={acknowledged} disabled={busy} onChange={event=>onCompletion({ackPacketId:event.target.checked?job.currentPacket!.id:null})}/>
       <span>현재 작업 요청 내용({job.currentPacket.revision}번째 게시본)을 확인했습니다</span></label>
-    {completion.confirming?<div className={styles.confirm} role="group" aria-labelledby="vendor-completion-confirm">
+    {/* A change that makes the report incomplete during the confirm step shows the missing list again instead of a silently disabled button. */}
+    {completion.confirming&&ready?<div className={styles.confirm} role="group" aria-labelledby="vendor-completion-confirm">
       <h3 id="vendor-completion-confirm">작업 보고를 제출할까요?</h3>
       <p>작업 보고를 제출하면 관리자가 확인할 때까지 수정할 수 없습니다.</p>
       <button type="button" disabled={busy||!ready} onClick={onSubmitReport}>작업 보고 제출하기</button>

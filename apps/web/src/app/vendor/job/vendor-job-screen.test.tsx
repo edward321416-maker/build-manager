@@ -527,8 +527,17 @@ describe("Task6 Vendor visit scheduling",()=>{
     await mount(client,`#${tokenB}`,now);
     for(const item of late.slice(0,5))await act(async()=>{fill(formatVendorInterval(item.startAt,item.endAt,now()))!.click();});
     expect(rows()).toEqual(late.slice(0,5).map((_,i)=>[`2026-10-${10+i}`,"23:30",""]));
-    expect(fill(formatVendorInterval(late[5].startAt,late[5].endAt,now()))?.disabled).toBe(true);
+    const full=fill(formatVendorInterval(late[5].startAt,late[5].endAt,now()));
+    expect(full?.disabled).toBe(true);
     expect(page()).toContain("제안할 시간은 5개까지예요");
+    expect(host.querySelector(`#${full!.getAttribute("aria-describedby")}`)?.textContent).toContain("제안할 시간은 5개까지예요");
+  });
+  it("leaves the start blank for a Tenant window that has already started",async()=>{
+    const started={id:w1,startAt:"2026-10-06T02:00:00.000Z",endAt:"2026-10-06T05:00:00.000Z"};
+    const client=fakeClient({redeem:opened(vendorTurn({availability:{...availability,windows:[started]}}))});
+    await mount(client,`#${tokenB}`,now);
+    await act(async()=>{fill(formatVendorInterval(started.startAt,started.endAt,now()))!.click();});
+    expect(rows()).toEqual([["2026-10-06","","14:00"]]);
   });
   it("rejects a past proposal slot locally without sending",async()=>{
     const client=fakeClient({redeem:opened(vendorTurn())});
@@ -916,6 +925,18 @@ describe("Task8 Vendor completion report",()=>{
     await pick(ids.map((_,i)=>file(`${i}.png`)));
     expect(includeBoxes().map(box=>box.checked)).toEqual([true,true,true,true,true,false]);
     expect(includeBoxes()[5].disabled).toBe(true);
+    // The omission reasons are off while photos are in the report, and the form says how to turn them on.
+    expect(page()).toContain("사진을 보고에서 모두 빼면 고를 수 있어요.");
+  });
+  it("goes back to the missing list when the report stops being ready during the confirm step",async()=>{
+    const client=fakeClient({redeem:opened(visited())});
+    await mount(client,`#${tokenB}`,now);
+    await toggle("사진이 필요 없는 작업");await summary("합성 배관 교체");await toggle("1번째 게시본");
+    await click("작업 보고 제출");
+    expect(button("작업 보고 제출하기")).toBeDefined();
+    await toggle("1번째 게시본");
+    expect(button("작업 보고 제출하기")).toBeUndefined();
+    expect(Array.from(host.querySelectorAll("#vendor-completion-missing li")).map(item=>item.textContent)).toEqual(["현재 작업 요청 내용을 확인했다고 표시해 주세요."]);
   });
   it("does not put a new photo in the report after the Vendor chose to report without photos",async()=>{
     const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>visited())});
