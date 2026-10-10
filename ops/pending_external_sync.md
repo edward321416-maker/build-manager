@@ -477,3 +477,9 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event RULES-FOLLOWUPS-DOCS-20261010: sync_status=pending; reference rules 1.0.1, LICENSE, README and STATUS prepared on docs/rules-followups. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event NAV-RULES-V1-20261010: sync_status=pending; navigation spec and design-rule additions (bottom tab bar, badge, account menu, Tabler icon set) written on docs/navigation-rules-v1 after operator decisions. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event IA-RESEARCH-V1-ASIS-20261010: sync_status=pending; as-is IA inventory of main 3bb409b and the hosted demo recorded for the pre-audit research. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event IA-RESEARCH-V1-REFERENCES-20261010: sync_status=pending; navigation guidelines and domestic/international benchmarks collected and registered as SRC-083..SRC-125 and CLM-042..CLM-076. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event IA-RESEARCH-V1-FOLLOWUP-20261010: sync_status=pending; operator decisions recorded and home-management, owner-reporting and notification-channel research registered as SRC-126..SRC-138 and CLM-077..CLM-095. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
