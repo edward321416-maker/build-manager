@@ -1,4 +1,5 @@
 import { openConversation,openInspector } from "./presentation";
+import { abortOnce } from "./routes";
 import { test,expect,type Page,type APIRequestContext } from "@playwright/test";
 import { readFile,mkdir,writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -85,7 +86,7 @@ test("uncommitted uncertainty remains unconfirmed after refresh and requires an 
 
 for(const status of [401,403])test(`denied receipt ${status} clears protected content and all recovery metadata`,async({page,request})=>{
   const s=await setup(request);await login(page,s.codes.tenant,s.id);
-  await page.route(`**/tickets/${s.id}/communication/messages`,route=>route.abort("failed"),{times:1});
+  await abortOnce(page,`**/tickets/${s.id}/communication/messages`);
   await conversation(page).getByLabel("공개 대화 내용").fill("합성 접근 회수 점검");await conversation(page).getByRole("button",{name:"추가 문의 보내기",exact:true}).click();await expect(conversation(page).getByRole("button",{name:"저장 여부 확인",exact:true})).toBeEnabled();
   await page.route(`**/tickets/${s.id}/communication/requests/*`,route=>route.fulfill({status,contentType:"application/json",body:JSON.stringify({error:{code:status===401?"UNAUTHENTICATED":"FORBIDDEN",message:"접근할 수 없습니다."}})}));
   await conversation(page).getByRole("button",{name:"저장 여부 확인",exact:true}).click();await expect(page.getByLabel("개발 접근 코드")).toBeVisible();expect(await metadata(page)).toEqual([]);await expect(conversation(page)).toHaveCount(0);
