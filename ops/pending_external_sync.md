@@ -460,3 +460,9 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event WORK-RULES-V1-PLAN-20261010: sync_status=pending; final check passed with nine fixes, design committed, rulebook plan written and delivery split into three PRs. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event WORK-RULES-V1-RULEBOOKS-20261010: sync_status=pending; development, research and reference rulebooks written and linked on docs/work-rules-v1-rulebooks; gate and entry-point pointers wait for PR-2. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event WORK-RULES-V1-GATE-20261010: sync_status=pending; generalized rules gate, tests and entry-point tables committed on feat/rules-gate-v1. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event SECURITY-POLICY-20261010: sync_status=pending; security policy and private vulnerability reporting prepared on docs/security-policy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event WORK-RULES-V1-GATE-ROLLOUT-20261010: sync_status=pending; rules gate merged, user-level hook swapped and verified live. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
