@@ -27,6 +27,7 @@ The [IA reference note](../ux/2026-10-10-ia-feature-audit-reference.md) §6 comp
 
 - [FACT] These sources establish only what each vendor describes. Help-center categories and store descriptions do not prove the in-app menu layout, which stays UNKNOWN.
 - [FACT] 더빌딩솔루션 and 온자리 product statements used there were re-read at their official pages (SRC-113, SRC-116). Their other claims in the table below remain TO VERIFY.
+- The [home-management follow-up](../ux/2026-10-10-home-management-scope-owner-reporting.md) adds 랜들리's delegation flow (SRC-135), 안심이's move-in/move-out records (SRC-136) and Property Meld's owner documentation (SRC-134) as benchmarks for owner reporting and move-in/move-out features.
 
 ## Unverified / legacy leads
 

@@ -11,6 +11,7 @@
 | [sources/provenance_backfill_plan.md](sources/provenance_backfill_plan.md), [sources/s1_row_source_map.csv](sources/s1_row_source_map.csv) | 출처 보강 계획과 S1 행 출처 대응표 |
 | [competitors/README.md](competitors/README.md) | 경쟁·벤치마크 색인 |
 | [ux/2026-10-10-ia-feature-audit-reference.md](ux/2026-10-10-ia-feature-audit-reference.md) | 기능 배치·메뉴 구조 점검 전 레퍼런스·연구 분석 |
+| [ux/2026-10-10-home-management-scope-owner-reporting.md](ux/2026-10-10-home-management-scope-owner-reporting.md) | 집 관리 범위, 건물주 보고·승인, 모바일 알림 채널 후속 연구 |
 | [interviews/landlord_guide.md](interviews/landlord_guide.md), [interviews/tenant_guide.md](interviews/tenant_guide.md) | 인터뷰 가이드 |
 
 ## 현재 근거 경계
