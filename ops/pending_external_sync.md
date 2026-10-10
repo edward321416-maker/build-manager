@@ -466,3 +466,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event SECURITY-POLICY-20261010: sync_status=pending; security policy and private vulnerability reporting prepared on docs/security-policy. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event WORK-RULES-V1-GATE-ROLLOUT-20261010: sync_status=pending; rules gate merged, user-level hook swapped and verified live. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event NAV-RULES-V1-20261010: sync_status=pending; navigation spec and design-rule additions (bottom tab bar, badge, account menu, Tabler icon set) written on docs/navigation-rules-v1 after operator decisions. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
