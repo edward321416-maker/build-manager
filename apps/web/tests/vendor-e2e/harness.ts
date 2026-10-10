@@ -6,14 +6,45 @@ import type { VendorJobDto } from '@build-manager/api-contracts';
 export { expect };
 export type Account = { cookie: string; csrf: string; orgId: string; userId: string; digest: string };
 export type Fixture = { origin: string; admin: ClientConfig; fixture: { unitA: string; orgA: string; accounts: Record<string, Account> } };
-export const test = base.extend<{ fixture: Fixture; admin: Client }>({
+// Per-test timeline of API requests, focus moves, disclosure toggles and button enablement, printed only when a
+// test fails so an intermittent CI failure shows where it stopped. API paths drop ids, query and fragment, and
+// labels are limited to button and summary text, so no capability or session value reaches the log.
+const trail: string[] = [];
+let trailStart = 0;
+const note = (who: string, line: string) => { if (trail.length < 400) trail.push(`${Date.now() - trailStart}ms ${who} ${line}`); };
+async function watch(context: BrowserContext, page: Page, who: string) {
+  const path = (url: string) => new URL(url).pathname.replace(/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}|[\w-]{32,}/gi, ':id');
+  const api = (url: string) => { const p = path(url); return p.startsWith('/api/') ? p : null; };
+  page.on('request', r => {
+    if (r.isNavigationRequest() && r.frame() === page.mainFrame()) note(who, `navigate ${path(r.url())}`);
+    const p = api(r.url()); if (p) note(who, `→ ${r.method()} ${p}`);
+  });
+  page.on('requestfinished', r => { const p = api(r.url()); if (p) r.response().then(x => note(who, `← ${r.method()} ${p} ${x?.status()}`), () => {}); });
+  page.on('requestfailed', r => { const p = api(r.url()); if (p) note(who, `✕ ${r.method()} ${p} ${r.failure()?.errorText}`); });
+  page.on('load', () => note(who, 'load'));
+  page.on('pageerror', e => note(who, `pageerror ${e.name}`));
+  page.on('console', m => { if (m.text().startsWith('[trail] ')) note(who, m.text().slice(8)); else if (m.type() === 'error') note(who, 'console error'); });
+  await context.addInitScript(() => {
+    const say = (line: string) => console.log('[trail] ' + line);
+    const label = (e: Element) => e.matches('button, summary') ? (e.textContent ?? '').trim().slice(0, 24) : e.tagName.toLowerCase();
+    document.addEventListener('focusin', e => { if (e.target instanceof Element) say(`focus ${label(e.target)}`); }, true);
+    document.addEventListener('toggle', e => { if (e.target instanceof HTMLDetailsElement && e.target.id) say(`#${e.target.id} open=${e.target.open}`); }, true);
+    new MutationObserver(records => { for (const r of records) if (r.target instanceof HTMLButtonElement) say(`${label(r.target)} ${r.target.disabled ? 'disabled' : 'enabled'}`); })
+      .observe(document, { subtree: true, attributes: true, attributeFilter: ['disabled'] });
+  });
+}
+export const test = base.extend<{ fixture: Fixture; admin: Client; trail: void }>({
   fixture: async ({ browserName }, provide) => { expect(browserName).toBe('chromium'); await provide(JSON.parse(await readFile(process.env.VENDOR_BROWSER_PRIVATE_STATE!, 'utf8'))); },
   admin: async ({ fixture }, provide) => { const admin = new Client(fixture.admin); await admin.connect(); try { await provide(admin); } finally { await admin.end(); } },
+  trail: [async ({}, provide, testInfo) => {
+    trail.length = 0; trailStart = Date.now(); await provide();
+    if (testInfo.status !== testInfo.expectedStatus) console.log([`VENDOR_E2E_TRAIL | ${testInfo.title}`, ...(trail.length ? trail : ['no browser activity recorded'])].join('\n'));
+  }, { auto: true }],
 });
 export async function actor(browser: Browser, fixture: Fixture, who: string, width = 390) {
   const context = await browser.newContext({ baseURL: fixture.origin, viewport: { width, height: 900 } });
   await context.addCookies([{ name: '__session', value: fixture.fixture.accounts[who].cookie, url: fixture.origin, httpOnly: true, sameSite: 'Lax' }]);
-  const page = await context.newPage();
+  const page = await context.newPage(); await watch(context, page, who);
   return { context, page, close: () => context.close() };
 }
 export async function core(f: Fixture, who: string, path: string, body?: unknown, status = 200) {
@@ -80,7 +111,7 @@ export async function provision(f: Fixture, preauthorized = false) {
   return { ticketId: t.ticketId, assignmentId: m.assignment.id, packetId: m.currentPacket.id, link: link.link };
 }
 export async function vendorContext(browser: Browser, f: Fixture, link: string) {
-  const context = await browser.newContext({ baseURL: f.origin, viewport: { width: 390, height: 900 } }); const page = await context.newPage();
+  const context = await browser.newContext({ baseURL: f.origin, viewport: { width: 390, height: 900 } }); const page = await context.newPage(); await watch(context, page, 'vendor');
   await safeGoto(page, link, 'redeem one-time capability');
   await expect(page.getByRole('button', { name: '작업 수락', exact: true })).toBeVisible();
   expect(await page.evaluate(() => location.hash.length === 0), 'capability fragment removed').toBe(true);

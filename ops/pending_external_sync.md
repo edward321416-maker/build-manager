@@ -494,4 +494,6 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 
 - Event SECURITY-UPDATE-DEPLOY-20261010: sync_status=pending; security update redeployed to the hosted demo and checked live. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
+- Event VENDOR-E2E-RELIABILITY-20261010: sync_status=pending; approved local fixture cleanup and vendor e2e failure timeline, owned-fixture cleanup and port override on fix/vendor-e2e-flakes. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
 - Event P1-INTAKE-COMPLETION-20261010: sync_status=pending; tenant intake completion (menu audit P1) implemented on the web with unit, browser and design-audit checks. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.

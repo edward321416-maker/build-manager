@@ -13,7 +13,9 @@ import { Client } from "pg";
 import { generateSessionCookie } from "@auth0/nextjs-auth0/testing";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
-export const vendorOrigin = "http://localhost:3134";
+// VENDOR_HANDOFF_ORIGIN moves the owned server off port 3134 when another local dev server already uses it.
+export const vendorOrigin = process.env.VENDOR_HANDOFF_ORIGIN ?? "http://localhost:3134";
+assert.match(vendorOrigin, /^http:\/\/localhost:\d{4,5}$/, "LOCAL_VENDOR_ORIGIN_REQUIRED");
 const connection = c => { const u = new URL("postgresql://localhost"); u.hostname = c.host; u.port = String(c.port); u.username = c.user; u.password = c.password; u.pathname = "/" + c.database; return u.href; };
 
 /** Owned, disposable PostgreSQL18.6 only. Private state stays outside the checkout for Task12 reuse. */
