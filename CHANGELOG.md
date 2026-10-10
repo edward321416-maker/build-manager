@@ -38,3 +38,4 @@
 ## 2026-10-10 — Security update
 
 - Redeployed the hosted demo with Next.js 16.3.8 and sharp 0.35.5 (PR #97), fixing the published Next.js and sharp advisories that Dependabot reported. Demo data and settings were kept.
+- Closed the unused Next.js image optimizer route `/_next/image` (PR #106). The hosted demo was redeployed from main, which also brought the tenant intake completion from PR #100. The rollback procedure was rehearsed first and is now in `deploy/vm/README.md`.

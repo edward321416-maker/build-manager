@@ -39,6 +39,31 @@ git pull && bash deploy/vm/setup.sh <public-ipv4>
 
 `sudo docker build` refreshes the image; existing values and the database volume are kept. Logs: `sudo docker compose -f deploy/vm/compose.yml logs -f web`.
 
+## Rollback
+
+Before each update, keep the running image as an archive named after its image ID (`sudo docker images build-manager-demo-web`):
+
+- If the image was loaded from an archive, keep that archive under the new name.
+- Otherwise save it: `sudo docker save build-manager-demo-web:latest | gzip -1 > ~/demo-web-<image-id>.tar.gz`.
+
+To roll back, load the archive and recreate only the web container:
+
+```bash
+# on the VM
+gunzip -c ~/demo-web-<image-id>.tar.gz | sudo docker load
+cd ~/build-manager
+sudo docker compose --env-file "$HOME/build-manager-demo-secrets/compose.env" -f deploy/vm/compose.yml up -d --no-deps --force-recreate web
+sudo docker inspect --format '{{.Image}}' vm-web-1   # the archived image ID
+```
+
+The web start runs the provisioning check again and logs `HOSTED_DEMO_ENSURED`.
+- If a migration was added between the two images, that rollback needs its own plan. This procedure does not undo database changes.
+- Afterwards, open the first page, both demo entries and one Core screen.
+
+Rehearsed on 2026-10-10 with image `f4a98a3fb611` before the PR #106 redeploy:
+- Load, recreate and ready took 161 seconds.
+- The live checks passed.
+
 ## Boundaries
 
 All accounts, buildings and reports are synthetic and anyone can change them. PostgreSQL is published on the VM loopback only. Real login, notifications and real personal or property data are out of scope.
