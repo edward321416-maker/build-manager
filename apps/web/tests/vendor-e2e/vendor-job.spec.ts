@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { readFile } from 'node:fs/promises';
+import { routeOnce } from '../routes';
 import { test, expect, actor, ticket, core, openTicket, issueThroughUI, vendorContext, provision, job, guards, interval, click, keyboardClick, responsive, forbiddenCopy, safeGoto, vendorPost, scheduled } from './harness';
 
 test('T12-B01 mounted Manager issue survives own refresh; browser redeem is not Accept and reuse fails', async ({ browser, fixture }) => {
@@ -107,7 +108,7 @@ test('T12-B06 issue response loss reconciles unrecoverable raw link and requires
   try {
     await openTicket(m.page, c.ticketId, true);
     let posts = 0;
-    await m.page.route('**/api/v2/core/manager/vendor-assignments/*/link/reissue', async route => { posts++; await route.fetch(); await route.abort('failed'); }, { times: 1 });
+    await routeOnce(m.page, '**/api/v2/core/manager/vendor-assignments/*/link/reissue', async route => { posts++; await route.fetch(); await route.abort('failed'); });
     await m.page.getByRole('button', { name: '보안 링크 재발급', exact: true }).focus(); await m.page.keyboard.press('Enter'); await expect(m.page.getByRole('button', { name: '같은 요청으로 발급 결과 확인', exact: true })).toBeVisible();
     await keyboardClick(m.page, '같은 요청으로 발급 결과 확인'); await expect(m.page.getByText('발급 기록을 확인했습니다. 원래 링크는 다시 표시할 수 없습니다.', { exact: true })).toBeVisible();
     expect(await m.page.getByLabel('직접 전달할 보안 링크', { exact: true }).count()).toBe(0); expect(posts).toBe(1); await forbiddenCopy(m.page);
@@ -120,7 +121,7 @@ test('T12-B07 mounted navigation and delayed old-ticket issuance never restore p
   try {
     await openTicket(m.page, first.ticketId, true);
     let release!: () => void; const held = new Promise<void>(ok => { release = ok; }); let fetched!: () => void; const committed = new Promise<void>(ok => { fetched = ok; });
-    await m.page.route('**/api/v2/core/manager/vendor-assignments/*/link/reissue', async route => { const response = await route.fetch(); fetched(); await held; await route.fulfill({ response }); }, { times: 1 });
+    await routeOnce(m.page, '**/api/v2/core/manager/vendor-assignments/*/link/reissue', async route => { const response = await route.fetch(); fetched(); await held; await route.fulfill({ response }); });
     const sent = m.page.getByRole('button', { name: '보안 링크 재발급', exact: true }).click(); await committed;
     await m.page.locator(`[data-ticket-id="${second.ticketId}"] [data-open-ticket]`).click(); release(); await sent;
     await expect(m.page.getByLabel('업체 표시 이름', { exact: true })).toBeVisible(); expect(await m.page.getByLabel('직접 전달할 보안 링크', { exact: true }).count()).toBe(0);
@@ -173,7 +174,7 @@ test('T12-B02 resident UI schedules immutable visits, blocker FOLLOW_UP, photo-l
     // The persistent listener observes every exact report POST and job GET; the one-shot route only loses the first committed response.
     let reportPosts=0;const reportRecoveryOrder:string[]=[];
     v.page.on('request', request=>{const path=new URL(request.url()).pathname;if(path==='/api/v2/vendor/completion-reports'&&request.method()==='POST'){reportPosts++;reportRecoveryOrder.push('POST');}else if(path==='/api/v2/vendor/job'&&request.method()==='GET')reportRecoveryOrder.push('GET');});
-    await v.page.route('**/api/v2/vendor/completion-reports',async route=>{const response=await route.fetch();expect(response.status()).toBe(200);await route.abort('failed');},{times:1});
+    await routeOnce(v.page,'**/api/v2/vendor/completion-reports',async route=>{const response=await route.fetch();expect(response.status()).toBe(200);await route.abort('failed');});
     await v.page.getByRole('checkbox', { name: '작업 사진 1 보고에 포함', exact: true }).check(); await v.page.getByLabel('작업 내용 요약', { exact: true }).fill('Task12 synthetic report'); await v.page.getByRole('checkbox', { name: /현재 작업 요청 내용/ }).check(); await keyboardClick(v.page, '작업 보고 제출');
     // This request deliberately loses its response; the ordinary helper waits for a successful response event.
     await v.page.getByRole('button',{name:'작업 보고 제출하기',exact:true}).focus();await v.page.keyboard.press('Enter');

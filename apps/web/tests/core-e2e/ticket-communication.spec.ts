@@ -1,5 +1,5 @@
 import { openConversation,openInspector } from "./presentation";
-import { abortOnce } from "./routes";
+import { abortOnce,routeOnce } from "../routes";
 import { test,expect,type Page,type APIRequestContext } from "@playwright/test";
 import { readFile,mkdir,writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -68,7 +68,7 @@ test("public Q&A round trip, independent protocol and queue, photo/privacy, comp
 
 test("lost response after commit recovers one receipt after refresh without saving the body",async({page,request})=>{
   const s=await setup(request);await login(page,s.codes.tenant,s.id);let key="";
-  await page.route(`**/tickets/${s.id}/communication/messages`,async route=>{key=route.request().postDataJSON().clientRequestId;const r=await route.fetch();expect(r.status()).toBe(201);await route.abort("failed");},{times:1});
+  await routeOnce(page,`**/tickets/${s.id}/communication/messages`,async route=>{key=route.request().postDataJSON().clientRequestId;const r=await route.fetch();expect(r.status()).toBe(201);await route.abort("failed");});
   await conversation(page).getByLabel("공개 대화 내용").fill("합성 응답 유실 점검");await conversation(page).getByRole("button",{name:"추가 문의 보내기",exact:true}).click();await expect(conversation(page).getByRole("button",{name:"저장 여부 확인",exact:true})).toBeEnabled();
   const pending=await metadata(page);expect(pending).toEqual([{ticketId:s.id,clientRequestId:key,intent:"TENANT_MESSAGE",expectedVersion:0}]);
   await page.reload();await open(page,s.id);await expect(conversation(page).getByLabel("공개 대화 내용")).toHaveValue("");await conversation(page).getByRole("button",{name:"저장 여부 확인",exact:true}).click();await expect(conversation(page).getByRole("status").filter({hasText:"이미 저장된 대화"})).toContainText("이미 저장된 대화");expect(await metadata(page)).toEqual([]);expect((await s.read()).messages).toHaveLength(1);
@@ -78,7 +78,7 @@ test("lost response after commit recovers one receipt after refresh without savi
 
 test("uncommitted uncertainty remains unconfirmed after refresh and requires an explicit new draft",async({page,request})=>{
   const s=await setup(request);await login(page,s.codes.tenant,s.id);let writes=0;
-  await page.route(`**/tickets/${s.id}/communication/messages`,async route=>{writes++;await route.abort("failed");},{times:1});
+  await routeOnce(page,`**/tickets/${s.id}/communication/messages`,async route=>{writes++;await route.abort("failed");});
   await conversation(page).getByLabel("공개 대화 내용").fill("합성 미저장 요청");await conversation(page).getByRole("button",{name:"추가 문의 보내기",exact:true}).click();await expect(conversation(page).getByRole("button",{name:"저장 여부 확인",exact:true})).toBeEnabled();
   await page.reload();await open(page,s.id);await conversation(page).getByRole("button",{name:"저장 여부 확인",exact:true}).click();await expect(conversation(page).getByRole("alert")).toContainText("저장 기록을 찾지 못했습니다");expect((await s.read()).messages).toEqual([]);expect(writes).toBe(1);
   await expect(conversation(page).getByRole("button",{name:"추가 문의 보내기",exact:true})).toBeDisabled();await conversation(page).getByRole("button",{name:"확인 후 새 메시지 작성",exact:true}).click();expect(await metadata(page)).toEqual([]);await expect(conversation(page).getByLabel("공개 대화 내용")).toHaveValue("");
