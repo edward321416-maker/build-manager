@@ -86,19 +86,21 @@ async function audit(page, name) {
   for (const f of await page.evaluate(inspect)) findings.push({ screen: name, ...f });
 }
 
-let server, prepared, cleaned = false;
-async function cleanup() {
-  if (cleaned) return; cleaned = true;
+let server, prepared, cleaning, settingUp = true, interrupted = false;
+// One shared cleanup promise, so every caller (normal end, failure, Ctrl+C) waits for the same work to finish.
+const cleanup = () => cleaning ??= (async () => {
   try { await server?.stop(); } catch { /* already stopped */ }
   if (prepared?.state?.containerId) { try { execFileSync("docker", ["rm", "-f", prepared.state.containerId], { stdio: "ignore" }); } catch { /* already removed */ } }
   // The fixture's private folder holds synthetic passwords and session cookies for the removed container.
   if (prepared?.file) { try { rmSync(dirname(prepared.file), { recursive: true, force: true }); } catch { /* already removed */ } }
-}
-for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { void cleanup().finally(() => process.exit(130)); });
+})();
+// During setup the container id is not known yet: remember the interruption and stop once setup has settled.
+for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { interrupted = true; if (!settingUp) void cleanup().finally(() => process.exit(130)); });
 
 try {
   const dev = await import(pathToFileURL(join(root, "scripts/vendor-handoff-dev.mjs")).href);
-  prepared = await dev.prepareVendorHandoff();
+  try { prepared = await dev.prepareVendorHandoff(); } finally { settingUp = false; }
+  if (interrupted) { await cleanup(); process.exit(130); }
   server = await dev.startVendorHandoffServer(prepared.state);
   const origin = prepared.state.origin, phones = [320, 375, 390, 430], wide = [768, 1280, 1440];
   let ticketCreated = false;

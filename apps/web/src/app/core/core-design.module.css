@@ -325,6 +325,5 @@
 .root :global(.core-account .core-org-field) { position: relative; display: block; }
 .root :global(.core-account .core-org-current) { display: block; min-height: 3.125rem; padding: .625rem 2.5rem .625rem .9375rem; border: 1px solid var(--color-border-control); border-radius: .625rem; background: var(--color-surface) var(--icon-chevron) no-repeat right .9375rem center / 1rem 1rem; line-height: 1.5625rem; overflow-wrap: anywhere; }
 .root :global(.core-account .core-org-field select) { position: absolute; inset: 0; height: 100%; opacity: 0; cursor: pointer; }
-.root :global(.core-account .core-org-field:hover .core-org-current) { background-color: var(--color-fill-hover); }
-.root :global(.core-account .core-org-field:has(select:focus-visible) .core-org-current) { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.root :global(.core-account .core-org-field:has(select:focus-visible) .core-org-current) { outline: 2px solid var(--color-primary); outline-offset: 0; border-color: var(--color-primary); }
 @media (prefers-reduced-motion: reduce) { .root *, .root *::before, .root *::after { transition: none; animation: none; scroll-behavior: auto; } }

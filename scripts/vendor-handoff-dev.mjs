@@ -54,6 +54,8 @@ export async function prepareVendorHandoff() {
   } finally { await login.end(); await migration.end(); await p.admin.end(); }
   } catch (error) {
     // Testcontainers' reaper is disabled above, so a setup that fails after the container started removes it here.
+    // Close the admin client first so stopping the server cannot raise an unhandled client error that hides `error`.
+    await p.admin.end().catch(() => {});
     try { await p.container.stop(); } catch { /* already stopped */ }
     throw error;
   }
