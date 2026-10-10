@@ -23,4 +23,4 @@ This repository is public. Publish only reviewed, anonymized summaries and origi
 
 All rights are reserved ([LICENSE](LICENSE)): the code is public to read and review, not licensed for reuse. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
-No application stack has been selected. Python 3.11+ runs the repository checks: `python scripts/verify_repository.py`. This does not execute package/config files or prove product behavior.
+The stack is a Next.js 16 Web app (`apps/web`), an Expo 57 mobile app (`apps/mobile`), shared TypeScript packages (`packages/*`) and PostgreSQL 18, on Node 24.21.0 (`.nvmrc`) with npm 11.19.0 in CI; the [development rules](development/DEVELOPMENT_RULES.md) (DEV-06, DEV-07) list the structure and the required checks. Python 3.11+ runs the repository checks: `python scripts/verify_repository.py`. These checks do not execute package or config files or prove product behavior.
