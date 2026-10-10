@@ -173,6 +173,25 @@ describe("rules gate", () => {
       expect(markers()).toEqual([]);
     });
 
+    it("still blocks when the marker cannot be removed", () => {
+      read("development");
+      expect(required(edit(own()))).toEqual([]);
+      const marker = join(state, "build-manager-rules-gate", "s1", markers()[0]);
+      rmSync(marker);
+      mkdirSync(marker); // removing a directory without `recursive` throws
+      writeFileSync(own(), "# 개발 규칙 v2 (outside change)\n");
+      expect(required(edit(own()))).toEqual(["development"]);
+    });
+
+    it("does not count an edit whose result lacks the original content", () => {
+      read("development");
+      expect(required(edit(own()))).toEqual([]);
+      const original = readFileSync(own(), "utf8"), updated = `${original}edited\n`;
+      writeFileSync(own(), updated);
+      run("record", { session_id: "s1", tool_name: "Edit", tool_input: { file_path: own(), old_string: original, new_string: updated }, tool_response: {} });
+      expect(required(code())).toEqual(["development"]);
+    });
+
     it("still requires a new read after someone else changes the rulebook again", () => {
       read("development");
       expect(required(edit(own()))).toEqual([]);

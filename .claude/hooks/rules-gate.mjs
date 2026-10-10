@@ -182,6 +182,7 @@ function editedContent(tool, args, original) {
  * The session wrote this rulebook itself after `check` confirmed it had read the previous content.
  * Credit the new content only when the edit started from that read content, was not changed by the user,
  * and the file on disk is exactly what the edit produced; anything else still needs a full read.
+ * Returns the digest of the content the edit produced, or null.
  */
 function creditedEdit(input, rulebookPath) {
   const pending = pendingEditFile(input.session_id, rulebookPath);
@@ -190,7 +191,7 @@ function creditedEdit(input, rulebookPath) {
   try {
     renameSync(pending, claimed);
   } catch {
-    return false;
+    return null;
   }
   let before, fresh;
   try {
@@ -199,12 +200,15 @@ function creditedEdit(input, rulebookPath) {
   } finally {
     rmSync(claimed, { force: true });
   }
-  if (!fresh || !readDigests(input.session_id).has(before)) return false;
+  if (!fresh || !readDigests(input.session_id).has(before)) return null;
   const response = input.tool_response ?? {};
-  if (response.userModified === true || typeof response.originalFile !== "string") return false;
-  if (createHash("sha256").update(response.originalFile).digest("hex") !== before) return false;
+  if (response.userModified === true || typeof response.originalFile !== "string") return null;
+  if (createHash("sha256").update(response.originalFile).digest("hex") !== before) return null;
   const expected = editedContent(input.tool_name, input.tool_input, response.originalFile);
-  return expected !== null && createHash("sha256").update(expected).digest("hex") === digest(rulebookPath);
+  if (expected === null) return null;
+  // Name the record after the compared content: a write landing after this comparison stays unread.
+  const produced = createHash("sha256").update(expected).digest("hex");
+  return produced === digest(rulebookPath) ? produced : null;
 }
 
 function record(input) {
@@ -218,9 +222,10 @@ function record(input) {
   const target = fold(posix(found.root, absolute));
   const rule = loadRules(found, []).find((candidate) => fold(candidate.file) === target);
   if (!rule || !existsSync(rule.path)) return 0;
-  if (edited && !creditedEdit(input, rule.path)) return 0;
+  const recorded = edited ? creditedEdit(input, rule.path) : digest(rule.path);
+  if (!recorded) return 0;
   // One file per record: parallel Read hooks never rewrite a shared file, so no record is lost or fails.
-  writeFileSync(join(sessionDir(input.session_id), digest(rule.path)), "");
+  writeFileSync(join(sessionDir(input.session_id), recorded), "");
   return 0;
 }
 
