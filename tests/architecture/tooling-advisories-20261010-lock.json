@@ -1,0 +1,83 @@
+[
+  {
+    "path": "node_modules/@expo/fingerprint/node_modules/brace-expansion",
+    "before": {
+      "version": "5.0.9",
+      "license": "MIT",
+      "dependencies": {
+        "balanced-match": "^4.0.2"
+      },
+      "engines": {
+        "node": "20 || >=22"
+      }
+    },
+    "successorSha256": "ecc382beec860dd1af5600a543662a872f9f0df178d0151a0dc62e3dcb307928"
+  },
+  {
+    "path": "node_modules/@typescript-eslint/typescript-estree/node_modules/brace-expansion",
+    "before": {
+      "version": "5.0.9",
+      "dev": true,
+      "license": "MIT",
+      "dependencies": {
+        "balanced-match": "^4.0.2"
+      },
+      "engines": {
+        "node": "20 || >=22"
+      }
+    },
+    "successorSha256": "6c817380f8d67d02bb0b40223d5824c880de50c9116251ee4f242e8044fca404"
+  },
+  {
+    "path": "node_modules/brace-expansion",
+    "before": {
+      "version": "1.1.18",
+      "devOptional": true,
+      "license": "MIT",
+      "dependencies": {
+        "balanced-match": "^1.0.0",
+        "concat-map": "0.0.1"
+      }
+    },
+    "successorSha256": "f35a0a88b3721456c9b57c96aa270c709384d3e88048684ab193efecf6d8a674"
+  },
+  {
+    "path": "node_modules/glob/node_modules/brace-expansion",
+    "before": {
+      "version": "5.0.9",
+      "license": "MIT",
+      "dependencies": {
+        "balanced-match": "^4.0.2"
+      },
+      "engines": {
+        "node": "20 || >=22"
+      }
+    },
+    "successorSha256": "ecc382beec860dd1af5600a543662a872f9f0df178d0151a0dc62e3dcb307928"
+  },
+  {
+    "path": "node_modules/shell-quote",
+    "before": {
+      "version": "1.10.0",
+      "license": "MIT",
+      "engines": {
+        "node": ">= 0.4"
+      },
+      "funding": {
+        "url": "https://github.com/sponsors/ljharb"
+      }
+    },
+    "successorSha256": "77f9e2c9875f85bd5866c9ca23892eca78936ae7dafdb3a2ffddc0c79cca0257"
+  },
+  {
+    "path": "node_modules/source-map-js",
+    "before": {
+      "version": "1.2.1",
+      "license": "BSD-3-Clause",
+      "engines": {
+        "node": ">=0.10.0"
+      }
+    },
+    "successorSha256": "99ded185b54881f72150d315145f7d7eef5e0af26c0449cb41a0e8311d8690d3"
+  }
+]
