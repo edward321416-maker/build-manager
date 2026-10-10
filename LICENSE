@@ -11,10 +11,11 @@ You may:
 2. Read and review the source code, and run and change a local copy, only to evaluate it, to find
    and report security problems as described in SECURITY.md (including a fix suggested in a private
    report), or to prepare a pull request to this repository.
-3. Propose a contribution through a pull request. By submitting one, you confirm that you have the
-   right to submit it, and you grant the copyright holder a perpetual, worldwide, royalty-free,
-   irrevocable license to use, modify, sublicense and distribute it as part of this project under
-   any terms. Contributing gives you no other rights in this project.
+3. Propose a contribution through a pull request, or suggest a fix in a private report under
+   SECURITY.md. By submitting either, you confirm that you have the right to submit it, and you
+   grant the copyright holder a perpetual, worldwide, royalty-free, irrevocable license to use,
+   modify, sublicense and distribute it as part of this project under any terms. Contributing gives
+   you no other rights in this project.
 
 You may not, without written permission from the copyright holder:
 
@@ -41,10 +42,10 @@ LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
 1. GitHub 이용약관이 허용하는 범위에서 이 저장소를 보고 포크하기
 2. 평가, SECURITY.md에 따른 보안 문제 확인과 신고(비공개 신고에 담는 수정 제안 포함), 이 저장소로
    보낼 PR 준비만을 위해 코드를 읽고 검토하며 로컬 사본을 실행하고 고치기
-3. PR로 기여 제안하기. 기여를 보내면, 그 기여를 보낼 권리가 자신에게 있음을 확인하고, 저작권자가
-   그 기여를 이 프로젝트의 일부로 어떤 조건으로든 사용·수정·재허락·배포할 수 있는 영구적이고 전
-   세계적이며 무상이고 취소할 수 없는 권리를 주는 것입니다. 기여해도 이 프로젝트에 대한 다른 권리는
-   생기지 않습니다.
+3. PR로 기여를 제안하거나 SECURITY.md에 따른 비공개 신고에 수정을 제안하기. 어느 쪽이든 보내면,
+   그 기여를 보낼 권리가 자신에게 있음을 확인하고, 저작권자가 그 기여를 이 프로젝트의 일부로
+   어떤 조건으로든 사용·수정·재허락·배포할 수 있는 영구적이고 전 세계적이며 무상이고 취소할 수
+   없는 권리를 주는 것입니다. 기여해도 이 프로젝트에 대한 다른 권리는 생기지 않습니다.
 
 저작권자의 서면 허락 없이 할 수 없는 것:
 
