@@ -8,7 +8,8 @@ import { expect, test } from "@playwright/test";
 const PROBES = [
   "/_next/image",
   "/_next/image?url=%2F&w=64&q=75",
-  "/_next/image?url=https%3A%2F%2Fexample.com%2Fa.png&w=64&q=75",
+  // A reserved domain: even a reopened optimizer that allowed it could never reach a real host.
+  "/_next/image?url=https%3A%2F%2Fexample.invalid%2Fa.png&w=64&q=75",
 ];
 
 test.describe("image optimizer route", () => {
