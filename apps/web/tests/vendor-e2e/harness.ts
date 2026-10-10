@@ -14,6 +14,8 @@ export const test = base.extend<{ fixture: Fixture; admin: Client }>({
 async function diag(page: Page, label: string) {
   const t0 = Date.now(), at = () => `+${Date.now() - t0}`;
   page.on('response', (r) => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/')) console.log(`[diag ${label} ${at()}] ${r.status()} ${r.request().method()} ${u.pathname.replace(/[0-9a-f-]{36}/g, '<id>')}`); });
+  page.on('request', (r) => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/')) console.log(`[diag ${label} ${at()}] -> ${r.method()} ${u.pathname.replace(/[0-9a-f-]{36}/g, '<id>')}`); });
+  page.on('requestfailed', (r) => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/')) console.log(`[diag ${label} ${at()}] requestfailed ${r.method()} ${u.pathname.replace(/[0-9a-f-]{36}/g, '<id>')} ${r.failure()?.errorText}`); });
   page.on('console', (m) => { const text = m.text(); if (m.type() === 'error' || text.startsWith('[diag-dom]')) console.log(`[diag ${label} ${at()}] ${text.slice(0, 160)}`); });
   page.on('pageerror', (e) => console.log(`[diag ${label} ${at()}] pageerror ${e.message.slice(0, 160)}`));
   await page.addInitScript(() => {

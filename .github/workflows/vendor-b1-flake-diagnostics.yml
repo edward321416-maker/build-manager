@@ -28,24 +28,45 @@ jobs:
       - name: Build Web
         shell: bash
         run: npm run build:web
-      - name: Vendor suite six times
+      - name: T12-B06 with the expiring route, 2 x 40
         env:
           BUILD_MANAGER_E2E_PREBUILT: "1"
         shell: bash
         run: |
-          for i in 1 2 3 4 5 6; do
+          for i in 1 2; do
+            echo "::group::B06 times run $i"
+            npm run test:e2e:vendor -- --grep "T12-B06" --repeat-each=40 || echo "B06_TIMES_RUN_${i}_FAILED"
+            echo "::endgroup::"
+          done
+      - name: T12-B06 with the persistent route, 2 x 40
+        env:
+          BUILD_MANAGER_E2E_PREBUILT: "1"
+          T12_B06_ROUTE: persistent
+        shell: bash
+        run: |
+          for i in 1 2; do
+            echo "::group::B06 persistent run $i"
+            npm run test:e2e:vendor -- --grep "T12-B06" --repeat-each=40 || echo "B06_PERSISTENT_RUN_${i}_FAILED"
+            echo "::endgroup::"
+          done
+      - name: Vendor suite four times
+        env:
+          BUILD_MANAGER_E2E_PREBUILT: "1"
+        shell: bash
+        run: |
+          for i in 1 2 3 4; do
             echo "::group::vendor run $i"
             touch "$RUNNER_TEMP/marker"
             npm run test:e2e:vendor || echo "VENDOR_RUN_${i}_FAILED"
             find "$HOME/.build-manager-vendor-private" -name error-context.md -newer "$RUNNER_TEMP/marker" -exec sh -c 'echo "=== $1"; cat "$1"' _ {} \; || true
             echo "::endgroup::"
           done
-      - name: B1 suite three times
+      - name: B1 suite four times
         env:
           BUILD_MANAGER_E2E_PREBUILT: "1"
         shell: bash
         run: |
-          for i in 1 2 3; do
+          for i in 1 2 3 4; do
             echo "::group::b1 run $i"
             touch "$RUNNER_TEMP/marker"
             npm run test:e2e:b1 || echo "B1_RUN_${i}_FAILED"

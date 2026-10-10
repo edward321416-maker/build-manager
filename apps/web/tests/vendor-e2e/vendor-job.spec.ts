@@ -107,7 +107,9 @@ test('T12-B06 issue response loss reconciles unrecoverable raw link and requires
   try {
     await openTicket(m.page, c.ticketId, true);
     let posts = 0;
-    await m.page.route('**/api/v2/core/manager/vendor-assignments/*/link/reissue', async route => { posts++; await route.fetch(); await route.abort('failed'); }, { times: 1 });
+    // Temporary diagnostics: T12_B06_ROUTE=persistent keeps the route registered instead of expiring it.
+    if (process.env.T12_B06_ROUTE === 'persistent') { let used = false; await m.page.route('**/api/v2/core/manager/vendor-assignments/*/link/reissue', async route => { if (used) return route.fallback(); used = true; posts++; await route.fetch(); await route.abort('failed'); }); }
+    else await m.page.route('**/api/v2/core/manager/vendor-assignments/*/link/reissue', async route => { posts++; await route.fetch(); await route.abort('failed'); }, { times: 1 });
     await m.page.getByRole('button', { name: '보안 링크 재발급', exact: true }).focus(); await m.page.keyboard.press('Enter'); await expect(m.page.getByRole('button', { name: '같은 요청으로 발급 결과 확인', exact: true })).toBeVisible();
     await keyboardClick(m.page, '같은 요청으로 발급 결과 확인'); await expect(m.page.getByText('발급 기록을 확인했습니다. 원래 링크는 다시 표시할 수 없습니다.', { exact: true })).toBeVisible();
     expect(await m.page.getByLabel('직접 전달할 보안 링크', { exact: true }).count()).toBe(0); expect(posts).toBe(1); await forbiddenCopy(m.page);
