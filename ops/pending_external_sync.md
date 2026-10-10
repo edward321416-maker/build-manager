@@ -475,3 +475,5 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event E2E-FLAKE-FIX-20261010: sync_status=pending; Hero B and receipt-denial e2e flakes fixed at their root causes (PR 91). Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event RULES-FOLLOWUPS-DOCS-20261010: sync_status=pending; reference rules 1.0.1, LICENSE, README and STATUS prepared on docs/rules-followups. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event NAV-RULES-V1-20261010: sync_status=pending; navigation spec and design-rule additions (bottom tab bar, badge, account menu, Tabler icon set) written on docs/navigation-rules-v1 after operator decisions. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
