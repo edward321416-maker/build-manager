@@ -483,5 +483,14 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 - Event IA-RESEARCH-V1-REFERENCES-20261010: sync_status=pending; navigation guidelines and domestic/international benchmarks collected and registered as SRC-083..SRC-125 and CLM-042..CLM-076. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event IA-RESEARCH-V1-FOLLOWUP-20261010: sync_status=pending; operator decisions recorded and home-management, owner-reporting and notification-channel research registered as SRC-126..SRC-138 and CLM-077..CLM-095. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
 - Event DESIGN-FEEDBACK-DEPLOY-20261010: sync_status=pending; PR 86 (2ca1207) deployed to the hosted synthetic demo with the operator's approval; live smoke 6/6 and a read-only WebKit/Chromium layout check passed. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event MENU-AUDIT-V1-20261010: sync_status=pending; internal menu and feature-placement audit on a local synthetic server recorded with SRC-140..SRC-141 and CLM-099..CLM-110. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event MENU-AUDIT-V1-DECISIONS-20261010: sync_status=pending; operator decisions D1 (role tabs) and D2 (flow defects first) recorded as SRC-142, CLM-111 and CLM-112. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event SECURITY-UPDATE-NEXT-SHARP-20261010: sync_status=pending; Next.js 16.3.8 and sharp 0.35.5 security update with the AC17 projection and acceptance record (PR 97). Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
+- Event SECURITY-UPDATE-DEPLOY-20261010: sync_status=pending; security update redeployed to the hosted demo and checked live. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 - Event VENDOR-E2E-RELIABILITY-20261010: sync_status=pending; approved local fixture cleanup and vendor e2e failure timeline, owned-fixture cleanup and port override on fix/vendor-e2e-flakes. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
