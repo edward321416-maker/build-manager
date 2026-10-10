@@ -490,4 +490,6 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 
 - Event MENU-AUDIT-V1-DECISIONS-20261010: sync_status=pending; operator decisions D1 (role tabs) and D2 (flow defects first) recorded as SRC-142, CLM-111 and CLM-112. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
+- Event SECURITY-UPDATE-NEXT-SHARP-20261010: sync_status=pending; Next.js 16.3.8 and sharp 0.35.5 security update with the AC17 projection and acceptance record (PR 97). Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
 - Event P1-INTAKE-COMPLETION-20261010: sync_status=pending; tenant intake completion (menu audit P1) implemented on the web with unit, browser and design-audit checks. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.

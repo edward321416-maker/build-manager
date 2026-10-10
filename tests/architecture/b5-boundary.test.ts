@@ -29,6 +29,24 @@ function projectSharpLock(lock:DependencyLock) {
     lock.packages[key]=Object.fromEntries(Object.entries(lock.packages[key]).flatMap(([k,v])=>k==="license"?[[k,v],["optional",true]]:[[k,v]]));
   }
 }
+// Operator decision 2026-10-10 on Dependabot advisories: next and eslint-config-next 16.3.8, sharp 0.35.5.
+// The reviewed fixture holds every lock entry that update changed or added; reverse exactly those entries.
+const securityUpdateFixture="tests/architecture/security-update-20261010-lock.json";
+function projectSecurityUpdate20261010(lock:DependencyLock,fixtureSource:string) {
+  expect(sha256(fixtureSource),"reviewed security update fixture").toBe("317dbea345c275ebef2b534180dfdd72846fe37a057339856a9b70e98096784c");
+  const fixture=JSON.parse(fixtureSource) as {path:string;before:Record<string,unknown>|null;successorSha256:string}[];
+  for(const entry of fixture) {
+    expect(lock.packages[entry.path],entry.path).toBeDefined();
+    expect(sha256(JSON.stringify(lock.packages[entry.path])),entry.path).toBe(entry.successorSha256);
+    if(entry.before===null) delete lock.packages[entry.path];
+    else lock.packages[entry.path]=structuredClone(entry.before);
+  }
+}
+function projectSecurityUpdateManifest(manifest:{dependencies:Record<string,string>;devDependencies:Record<string,string>}) {
+  for(const [section,name,successor,original] of [["dependencies","next","16.3.8","16.3.4"],["devDependencies","eslint-config-next","16.3.8","16.3.4"],["dependencies","sharp","0.35.5","0.35.4"]] as const) {
+    expect(manifest[section][name],name).toBe(successor);manifest[section][name]=original;
+  }
+}
 const task12RootScripts = {
   "test:e2e:core": "node --experimental-transform-types scripts/core-browser-run.mjs core",
   "test:e2e:sdk": "node --experimental-transform-types scripts/core-browser-run.mjs sdk",
@@ -125,6 +143,7 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
     if(path==="apps/web/package.json"){
       const manifest=JSON.parse(canonical);
       projectTask12Scripts(manifest,{"test:e2e:vendor":"playwright test --config playwright.vendor.config.ts"});
+      projectSecurityUpdateManifest(manifest);
       expect(manifest.dependencies.sharp).toBe("0.35.4");delete manifest.dependencies.sharp;
       canonical=JSON.stringify(manifest,null,2)+"\n";
     }
@@ -133,6 +152,7 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
       // Reverse only the reviewed existing SDK57 patch entries, then the original
       // Sharp directive. Every untouched entry and original frozen hash remains.
       projectExpoSdk57Patch(lock,(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n"));
+      projectSecurityUpdate20261010(lock,(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n"));
       projectSharpLock(lock);
       canonical=JSON.stringify(lock,null,2)+"\n";
     }
@@ -151,8 +171,9 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
 it("AC17 exact Expo SDK57 projection rejects package, fixture and unrelated lock drift",async()=>{
   const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock;
   const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
-  const inventory=(candidate:DependencyLock,source=fixture)=>{
-    projectExpoSdk57Patch(candidate,source);projectSharpLock(candidate);
+  const security=(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n");
+  const inventory=(candidate:DependencyLock,source=fixture,securitySource=security)=>{
+    projectExpoSdk57Patch(candidate,source);projectSecurityUpdate20261010(candidate,securitySource);projectSharpLock(candidate);
     expect(sha256(JSON.stringify(candidate,null,2)+"\n")).toBe(frozen["package-lock.json"]);
   };
   inventory(structuredClone(lock));
@@ -173,6 +194,28 @@ it("AC17 exact Expo SDK57 projection rejects package, fixture and unrelated lock
   expect(()=>inventory(structuredClone(lock),JSON.stringify(changedFixture,null,2)+"\n")).toThrow();
   const removedFixture=JSON.parse(fixture);removedFixture.pop();
   expect(()=>inventory(structuredClone(lock),JSON.stringify(removedFixture,null,2)+"\n")).toThrow();
+});
+it("AC17 security update projection rejects an unreviewed version, a tampered fixture and a dropped entry",async()=>{
+  const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock;
+  const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
+  const security=(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n");
+  const inventory=(candidate:DependencyLock,securitySource=security)=>{
+    projectExpoSdk57Patch(candidate,fixture);projectSecurityUpdate20261010(candidate,securitySource);projectSharpLock(candidate);
+    expect(sha256(JSON.stringify(candidate,null,2)+"\n")).toBe(frozen["package-lock.json"]);
+  };
+  inventory(structuredClone(lock));
+  for(const mutate of [
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/next"].version="16.3.9";},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/sharp"].integrity="sha512-unreviewed";},
+    (candidate:DependencyLock)=>{delete candidate.packages["node_modules/@img/sharp-wasm32"];},
+  ]) {
+    const candidate=structuredClone(lock);mutate(candidate);
+    expect(()=>inventory(candidate)).toThrow();
+  }
+  const changedSecurity=JSON.parse(security);changedSecurity[0].before.version="9.9.9";
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(changedSecurity,null,2)+"\n")).toThrow();
+  const removedSecurity=JSON.parse(security);removedSecurity.pop();
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(removedSecurity,null,2)+"\n")).toThrow();
 });
 it("AC17 Task12 projection rejects changed commands, order, log capture and unrelated workflow gates",async()=>{
   const source=(await readFile(".github/workflows/app-check.yml","utf8")).replaceAll("\r\n","\n");

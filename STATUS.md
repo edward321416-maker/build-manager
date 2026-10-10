@@ -39,7 +39,7 @@ PF00 completion concerns reproducible development and verification with automati
 
 Open risks retained before private beta/release:
 
-- **OPEN_RISK / dependency-security-triage:** 14 moderate vulnerabilities reported by npm; unrs-resolver install-script warning requires separate review. No audit fix or script approval performed.
+- **OPEN_RISK / dependency-security-triage:** Dependabot alerts were enabled on 2026-10-10 and reported 27 open alerts (3 critical, 9 high, 13 medium, 2 low). The runtime Web ones are fixed by upgrading Next.js to 16.3.8 and sharp to 0.35.5, and next and sharp are no longer reported by `npm audit --omit=dev` (one npm 11.19.0 run on 2026-10-10 went from 67 to 65 findings; counts vary between runs). The remaining critical and high alerts are in tooling that the running Web server does not execute: shell-quote through react-native's devtools, node-forge through the Expo CLI (no fix released), braces through jest, brace-expansion through eslint, and source-map-js through postcss, which runs during `next build` and Expo Metro. They are tracked in [issue #95](https://github.com/edward321416-maker/build-manager/issues/95). The unrs-resolver install-script warning still needs a separate review.
 - **OPEN_RISK / e2e-flake-residual:** the Hero B and receipt-denial end-to-end flakes have known root causes and are fixed in PR #91. Root causes are not established for:
   - `tests/vendor-e2e/vendor-job.spec.ts:81` (T12-B04): failed on main on 2026-10-09 and on a PR run on 2026-10-10.
   - `tests/vendor-e2e/vendor-job.spec.ts:105` (T12-B06): failed once on 2026-10-10.
