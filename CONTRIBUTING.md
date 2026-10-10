@@ -11,4 +11,4 @@ Read [project policy](governance/project_policy.md) and the work rulebook for yo
 
 Suggested commit types: `chore`, `docs`, `research`, `feat`, `fix`, `test`. Do not rewrite shared history. Resolve conflicts by preserving intent and documenting decisions.
 
-Public users can read and propose contributions; public visibility does not grant Write access. Only explicitly authorized accounts with Write (or greater) can push/merge. A collaborator username is still pending.
+Public users can read and propose contributions; [LICENSE](LICENSE) item 3 states the rights a contribution grants. Public visibility does not grant Write access. Only explicitly authorized accounts with Write (or greater) can push/merge. A collaborator username is still pending.
