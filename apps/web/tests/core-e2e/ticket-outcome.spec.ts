@@ -6,6 +6,7 @@ import { randomUUID,randomBytes,createHash } from "node:crypto";
 import { Client } from "pg";
 import sharp from "sharp";
 import { openConversation,openInspector } from "./presentation";
+import { abortOnce } from "./routes";
 
 const root=join(homedir(),".build-manager-rc1-private"),evidence=join(root,"completion-followup-browser");
 let outcomeCodes:Record<string,string>;
@@ -137,7 +138,7 @@ test("uncommitted response loss retries the identical payload only after receipt
 
 for(const status of [401,403])test("outcome permission loss "+status+" clears protected projection and recovery",async({page,request})=>{
  const s=await setup(request);await login(page,s.codes.tenant,s.id);
- await page.route("**/"+s.path+"/outcome/resolved",route=>route.abort("failed"),{times:1});await card(page).getByRole("button",{name:"해결됐어요",exact:true}).click();await expect(page.getByRole("button",{name:"저장 여부 확인 · 해결 응답",exact:true})).toBeVisible();
+ await abortOnce(page,"**/"+s.path+"/outcome/resolved");await card(page).getByRole("button",{name:"해결됐어요",exact:true}).click();await expect(page.getByRole("button",{name:"저장 여부 확인 · 해결 응답",exact:true})).toBeVisible();
  await page.route("**/"+s.path+"/outcome/requests/*",route=>route.fulfill({status,contentType:"application/json",body:JSON.stringify({error:{code:status===401?"UNAUTHENTICATED":"FORBIDDEN",message:"접근할 수 없습니다."}})}));
  await page.getByRole("button",{name:"저장 여부 확인 · 해결 응답",exact:true}).click();await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(card(page)).toHaveCount(0);expect(await metadata(page)).toEqual([]);
 });
