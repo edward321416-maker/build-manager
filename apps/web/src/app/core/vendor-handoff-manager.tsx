@@ -18,6 +18,10 @@ export function vendorHandoffEligible(ticket:CoreTicketDto):boolean{
   const route=decision?.type==="OVERRIDE"?decision.routeCode:decision?.type==="APPROVE"?detail.repairPacket?.recommendation?.routeCode:null;
   return route==="GENERAL_VENDOR"||route==="MANUFACTURER_AS";
 }
+/** The decision screen offers no route choice for a safety-escalated request, so the Vendor route prerequisite does not apply. */
+function safetyEscalated(ticket:CoreTicketDto):boolean{
+  return ticket.detail.status==="SAFETY_ESCALATED"||("decision" in ticket.detail&&ticket.detail.repairPacket?.safetyEscalated===true);
+}
 export function ManagerDirectCompletionGate({handoff,loading,children,enabled=true}: {handoff:ManagerVendorHandoffDto|null;loading:boolean;children:ReactNode;enabled?:boolean}){
   if(!enabled)return children;
   if(loading||!handoff||handoff.assignment&&handoff.assignment.status!=="ENDED")return null;
@@ -62,7 +66,7 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     <h2>업체 연결 / 작업 요청</h2>
     {p.loading?<p role="status">업체 연결 상태 불러오는 중…</p>:null}
     {/* Menu audit F-05: say why nothing can be prepared yet instead of an empty section. */}
-    {!p.loading&&!eligible&&!assignment&&p.ticket.workStatus!=="COMPLETED"?<p>{"업체에 보내려면 먼저 처리 방법을 '일반 수리업체'나 '제조사 A/S'로 정해 주세요."}</p>:null}
+    {!p.loading&&!eligible&&!assignment&&p.ticket.workStatus!=="COMPLETED"&&!safetyEscalated(p.ticket)?<p>{"업체에 보내려면 먼저 처리 방법을 '일반 수리업체'나 '제조사 A/S'로 정해 주세요."}</p>:null}
     {p.error?<p role="alert">{p.error}</p>:null}
     {p.validationError?<p role="alert">{p.validationError}</p>:null}
     {p.notice?<p role="status">{p.notice}</p>:null}

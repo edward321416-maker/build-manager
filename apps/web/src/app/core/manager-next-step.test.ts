@@ -7,8 +7,9 @@ function ticket(workStatus: CoreTicketDto["workStatus"], detail: Detail, events:
   // Only the fields the next-step rules read; the rest of the DTO is irrelevant to these rules.
   return { workStatus, detail: { decision: null, repairPacket: null, ...detail }, events: events.map(kind => ({ kind })) } as unknown as CoreTicketDto;
 }
-function handoff(assignment: string | null, extra: Partial<Pick<ManagerVendorHandoffDto, "phase" | "waitingOn">> & { blocker?: boolean } = {}): ManagerVendorHandoffDto {
-  return { assignment: assignment ? { status: assignment } : null, phase: extra.phase ?? "OFFERED", waitingOn: extra.waitingOn ?? "NONE", activeBlocker: extra.blocker ? { code: "ACCESS" } : null } as unknown as ManagerVendorHandoffDto;
+function handoff(assignment: string | null, extra: Partial<Pick<ManagerVendorHandoffDto, "phase" | "waitingOn">> & { blocker?: boolean; correction?: boolean } = {}): ManagerVendorHandoffDto {
+  return { assignment: assignment ? { status: assignment } : null, phase: extra.phase ?? "OFFERED", waitingOn: extra.waitingOn ?? "NONE", activeBlocker: extra.blocker ? { code: "ACCESS" } : null,
+    correctionRequest: extra.correction ? { id: "c", completionReportId: "r", reason: "합성 수정 사유" } : null } as unknown as ManagerVendorHandoffDto;
 }
 const step = (input: Partial<ManagerNextStepInput> & Pick<ManagerNextStepInput, "ticket">) =>
   managerNextStep({ handoff: null, vendorEnabled: false, handoffLoading: false, factRecorded: null, ...input });
@@ -41,12 +42,22 @@ describe("manager next step", () => {
     expect(step({ ticket: vendorRoute(), vendorEnabled: true, handoff: handoff(null) })?.action).toEqual({ label: "업체 연결 열기", target: "vendor" });
     expect(step({ ticket: vendorRoute(), vendorEnabled: true, handoff: handoff("ENDED") })?.title).toBe("업체에 작업을 보내 주세요.");
     expect(step({ ticket: vendorRoute(), vendorEnabled: true, handoff: handoff("PREPARING") })?.title).toBe("업체 전달을 마무리해 주세요.");
-    expect(step({ ticket: vendorRoute(), vendorEnabled: true, handoff: handoff("OFFERED") })?.action).toBeUndefined();
+    expect(step({ ticket: vendorRoute(), vendorEnabled: true, handoff: handoff("OFFERED") })).toEqual({ title: "업체가 요청을 확인하기를 기다리고 있어요.", detail: "보안 링크를 업체에 전했는지 확인해 주세요." });
     const reported = step({ ticket: vendorRoute("IN_PROGRESS"), vendorEnabled: true, handoff: handoff("ACTIVE", { phase: "COMPLETION_REPORTED" }) });
     expect(reported).toEqual({ title: "업체가 작업 보고를 보냈어요.", detail: "보고를 확인하고 처리 완료를 기록하거나 수정·추가 작업을 요청해 주세요.", action: { label: "업체 보고 확인하기", target: "vendor" } });
+    // A requested correction leaves the phase as COMPLETION_REPORTED, but there is nothing to review until it arrives.
+    expect(step({ ticket: vendorRoute("IN_PROGRESS"), vendorEnabled: true, handoff: handoff("ACTIVE", { phase: "COMPLETION_REPORTED", correction: true }) }))
+      .toEqual({ title: "업체가 보고를 수정하기를 기다리고 있어요.", detail: "수정한 보고가 오면 이 칸에 표시돼요." });
     expect(step({ ticket: vendorRoute("IN_PROGRESS"), vendorEnabled: true, handoff: handoff("ACTIVE", { phase: "IN_PROGRESS", blocker: true }) })?.title).toBe("업체 작업이 막혔어요.");
-    expect(step({ ticket: vendorRoute("IN_PROGRESS"), vendorEnabled: true, handoff: handoff("ACTIVE", { phase: "SCHEDULING", waitingOn: "TENANT" }) })?.detail).toBe("세입자가 시간을 알려 주기를 기다리고 있어요.");
+    expect(step({ ticket: vendorRoute("IN_PROGRESS"), vendorEnabled: true, handoff: handoff("ACTIVE", { phase: "SCHEDULING", waitingOn: "TENANT" }) })).toEqual({ title: "방문 일정을 조율하고 있어요.", detail: "세입자가 시간을 알려 주기를 기다리고 있어요." });
+    expect(step({ ticket: vendorRoute("IN_PROGRESS"), vendorEnabled: true, handoff: handoff("ACTIVE", { phase: "SCHEDULING", waitingOn: "VENDOR" }) })).toEqual({ title: "방문 일정을 조율하고 있어요.", detail: "업체가 시간을 제안하기를 기다리고 있어요." });
     expect(step({ ticket: vendorRoute("IN_PROGRESS"), vendorEnabled: true, handoff: handoff("ACTIVE", { phase: "SCHEDULED" }) })).toEqual({ title: "업체가 작업 중이에요.", detail: "작업 보고가 오면 이 칸에 표시돼요." });
+  });
+
+  it("lets an active assignment decide the step even after the route moved away from a Vendor", () => {
+    const office = ticket("IN_PROGRESS", { status: "OVERRIDDEN", decision: { type: "OVERRIDE", routeCode: "MANAGEMENT_OFFICE" } });
+    expect(step({ ticket: office, vendorEnabled: true, handoff: handoff("ACTIVE", { phase: "IN_PROGRESS" }) })).toEqual({ title: "업체가 작업 중이에요.", detail: "작업 보고가 오면 이 칸에 표시돼요." });
+    expect(step({ ticket: office, vendorEnabled: true, handoff: handoff("ENDED") })?.action?.target).toBe("handling");
   });
 
   it("asks for a maintenance fact only after completion when none is recorded", () => {

@@ -25,12 +25,14 @@ type LoadState =
   | { kind: "error"; message: string }
   | { kind: "ready"; ticket: LandlordTicketDetailDto };
 
-export function TicketReview({ ticketId, client, coreFlow=false, onStatusChange }: {
+export function TicketReview({ ticketId, client, coreFlow=false, onStatusChange, onDecided }: {
   ticketId: string;
   client?: ReturnType<typeof createBrowserApiClient>;
   coreFlow?: boolean;
   /** Called with each status the server returns, so an embedding screen can refresh after a decision. */
   onStatusChange?: (status: LandlordTicketDetailDto["status"]) => void;
+  /** Called after every action the server accepted, including a route correction that keeps the status. */
+  onDecided?: (status: LandlordTicketDetailDto["status"]) => void;
 }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const loadedStatus = state.kind === "ready" ? state.ticket.status : null;
@@ -102,6 +104,7 @@ export function TicketReview({ ticketId, client, coreFlow=false, onStatusChange 
       const ticket = await action(client ?? createBrowserApiClient());
       setState({ kind: "ready", ticket });
       setSelectedRoute(overrideOptions(ticket)[0]?.routeCode ?? "");
+      onDecided?.(ticket.status);
     } catch (error) {
       setActionError(describeApiError(error));
     } finally {

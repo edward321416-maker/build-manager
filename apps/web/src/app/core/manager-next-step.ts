@@ -38,6 +38,8 @@ function vendorStep(handoff: ManagerVendorHandoffDto | null): ManagerNextStep {
     return { title: "업체가 요청을 확인하기를 기다리고 있어요.", detail: "보안 링크를 업체에 전했는지 확인해 주세요." };
   }
   if (handoff?.phase === "COMPLETION_REPORTED") {
+    // After 보고 수정 요청 the phase stays, but the Vendor section only says it waits for the corrected report.
+    if (handoff.correctionRequest) return { title: "업체가 보고를 수정하기를 기다리고 있어요.", detail: "수정한 보고가 오면 이 칸에 표시돼요." };
     return { title: "업체가 작업 보고를 보냈어요.", detail: "보고를 확인하고 처리 완료를 기록하거나 수정·추가 작업을 요청해 주세요.", action: { label: "업체 보고 확인하기", target: "vendor" } };
   }
   if (handoff?.activeBlocker) {
