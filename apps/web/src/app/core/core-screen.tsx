@@ -6,7 +6,7 @@ import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { TicketIntake } from "../../components/tenant/ticket-intake";
 import { TicketReview } from "../../components/landlord/ticket-review";
 import { PhotoPicker,PhotoGallery,photoError,type PendingPhoto } from "../../components/core-photos";
-import { DraftBadge,isIntakeDraft,WorkStatusBadge } from "./ui/work-status-badge";
+import { DraftBadge,intakeDisplayStatus,isIntakeDraft,WorkStatusBadge } from "./ui/work-status-badge";
 import { EnvironmentNote,TicketProgress,ManagerInspector,TaskZone } from "./ui/core-display";
 import styles from "./core-design.module.css";
 import { ManagerWorkQueue,ManagerWorkDetail } from "./manager-work";
@@ -23,16 +23,17 @@ const eventLabels:Record<string,string>={CREATED:"접수 내용 저장",ANSWERED
 type IntakeState=CoreTicketDto["detail"]["status"];
 // Intake steps that still wait on the tenant stay open above the record instead of collapsed at the bottom.
 const openIntakeStates:IntakeState[]=["IN_PROGRESS","NEEDS_MORE_INFO","SAFETY_ESCALATED"];
-const tenantIntakeOpen=(t:CoreTicketDto)=>t.workStatus==="OPEN"&&openIntakeStates.includes(t.detail.status);
+const tenantIntakeOpen=(t:CoreTicketDto)=>t.workStatus==="OPEN"&&openIntakeStates.includes(intakeDisplayStatus(t));
 const intakeTaskMessage=(status:IntakeState)=>status==="NEEDS_MORE_INFO"?"답한 뒤 다시 제출해 주세요.":status==="SAFETY_ESCALATED"?"아래 안내를 먼저 확인해 주세요.":"질문에 모두 답하면 '수리 요청 제출' 버튼이 나와요.";
 function progressMessage(t:CoreTicketDto,tenant:boolean){
   if(t.workStatus==="COMPLETED")return "관리자가 완료로 기록했습니다.";
   if(t.workStatus==="IN_PROGRESS")return tenant?"관리자가 확인하고 있어요.":"처리 중이에요.";
-  switch(t.detail.status){
+  switch(intakeDisplayStatus(t)){
     case "IN_PROGRESS":return tenant?"아직 보내지 않았어요. 아래 질문에 답하고 '수리 요청 제출'을 눌러야 관리자에게 전달돼요.":"세입자가 아직 질문에 답하는 중이에요.";
     case "NEEDS_MORE_INFO":return tenant?"관리자가 추가 확인을 요청했어요. 아래 질문에 답해 주세요.":"세입자의 추가 답변을 기다리고 있어요.";
     case "SAFETY_ESCALATED":return tenant?"안전 확인이 필요해요.":"안전 확인이 필요한 접수예요.";
     case "PARTIAL":return tenant?"관리자에게 보냈어요. 부족한 정보가 있으면 관리자가 다시 물어볼 거예요.":"세입자가 제출했어요. 필수 정보가 부족해요.";
+    case "APPROVED":case "OVERRIDDEN":return tenant?"관리자가 확인했어요. 처리를 기다리고 있어요.":"처리 방법을 정했어요.";
     default:return tenant?"관리자에게 보냈어요. 확인을 기다리고 있어요.":"세입자가 제출했어요.";
   }
 }
@@ -97,11 +98,17 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
   useEffect(()=>{if(selected?.ticketId)detailHeading.current?.focus();},[selected?.ticketId]);
   useEffect(()=>{if(error)errorPanel.current?.focus();},[error]);
   // The embedded questions report every server status; re-read the summary once per new status (submit, safety check).
-  const intakeSync=useRef("");
+  // Only the latest read may land, so a slow earlier response cannot leave the summary behind.
+  const intakeSync=useRef(""),intakeRead=useRef(0);
   const onIntakeStatus=(status:IntakeState)=>{
     if(!selected||status===selected.detail.status)return;
     const key=`${selected.ticketId}:${status}`;if(intakeSync.current===key)return;intakeSync.current=key;
-    const id=selected.ticketId;void run(async()=>setSelected(await client.read(id)));
+    const id=selected.ticketId,seq=++intakeRead.current,wasOpen=tenantIntakeOpen(selected);
+    void run(async()=>{
+      const ticket=await client.read(id);if(seq!==intakeRead.current)return;setSelected(ticket);
+      // The to-do zone that held focus is gone: return focus to the request, and say "sent" only for a real submission.
+      if(wasOpen&&!tenantIntakeOpen(ticket)){if(["PARTIAL","READY_FOR_REVIEW"].includes(intakeDisplayStatus(ticket)))setNotice("수리 요청을 관리자에게 보냈어요.");detailHeading.current?.focus();}
+    });
   };
   const restore=async()=>{
     try{const s=await client.session(),u=await client.units(),t=await client.tickets();setSession(s);setUnits(u);setUnit(u[0]?.id??"");setTickets(t);}
@@ -170,7 +177,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
         <section className={`core-result ${styles.summary}`} aria-label="접수 요약">
           <h2 ref={detailHeading} tabIndex={-1} data-testid="ticket-heading">{selected.detail.issueType==="HEATING"?"난방":"누수"}{selectedUnit?` · ${selectedUnit.label}`:""}</h2>
           <p className={styles.ticketSubject}>{selectedUnit?.buildingName}</p>
-          <TicketProgress workStatus={selected.workStatus} intakeStatus={selected.detail.status}>
+          <TicketProgress workStatus={selected.workStatus} intakeStatus={intakeDisplayStatus(selected)}>
             {progressMessage(selected,session.role==="TENANT")}
           </TicketProgress>
 
@@ -179,7 +186,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
         <TicketOutcome key={`outcome-${selected.ticketId}`} client={client} ticket={selected} tenant={session.role==="TENANT"} revision={revision} onFollowUp={beginFollowUp} onOpen={openOutcome}/>
         <TicketCommunication key={selected.ticketId} client={client} ticketId={selected.ticketId} tenant={session.role==="TENANT"} revision={revision} completed={selected.workStatus==="COMPLETED"} onVersion={setCommunicationVersion}>
         {/* Tenant-only children render right after the conversation's own to-do, so a pending reply stays first. */}
-        {session.role==="TENANT"&&tenantIntakeOpen(selected)?<TaskZone tenant label="지금 할 일: 추가 확인" message={intakeTaskMessage(selected.detail.status)}><TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus}/></TaskZone>:null}
+        {/* Keyed on the shown state, not on photo revisions, so uploads right after 접수하기 do not remount the questions. */}
+        {session.role==="TENANT"&&tenantIntakeOpen(selected)?<TaskZone tenant label="지금 할 일: 추가 확인" message={intakeTaskMessage(intakeDisplayStatus(selected))}><TicketIntake key={`${selected.ticketId}-${intakeDisplayStatus(selected)}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus}/></TaskZone>:null}
         <div className={styles.photoArea}>
         <PhotoGallery client={client} ticketId={selected.ticketId} revision={revision} />
         {session.role==="TENANT"?<>
@@ -192,7 +200,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
 
         <section className={styles.history} aria-label="진행 이력"><h2>진행 이력</h2>{selected.events.map(event=><p key={event.id}><time dateTime={event.at}>{new Date(event.at).toLocaleString("ko-KR")}</time> · {event.actorRole==="TENANT"?"세입자":"관리자"} · {eventLabels[event.kind]??"접수 정보 변경"}{event.message?` · ${event.message}`:""}</p>)}</section></TicketCommunication>
           <details className={styles.technicalDetails}><summary>접수 세부 정보</summary><p className={styles.ticketId}>접수번호 {selected.ticketId}</p></details>
-        {selected.workStatus==="COMPLETED"?<p>관리자의 완료 기록을 확인했습니다. 목록에서 이력을 다시 볼 수 있습니다.</p>:session.role==="TENANT"&&tenantIntakeOpen(selected)?null:<details className={styles.protocolDetails}><summary>{session.role==="TENANT"?"추가 확인":"추가 확인·결정 기록"}</summary>{session.role==="TENANT"?<TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow />:<TicketReview key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow />}</details>}
+        {selected.workStatus==="COMPLETED"?<p>관리자의 완료 기록을 확인했습니다. 목록에서 이력을 다시 볼 수 있습니다.</p>:session.role==="TENANT"&&tenantIntakeOpen(selected)?null:<details className={styles.protocolDetails}><summary>{session.role==="TENANT"?"추가 확인":"추가 확인·결정 기록"}</summary>{session.role==="TENANT"?<TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus}/>:<TicketReview key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow />}</details>}
         </div>
         {session.role!=="TENANT"?<ManagerInspector expanded={inspectorExpanded} onExpandedChange={setInspectorExpanded}><div className={styles.actionRail}>
         <ManagerWorkDetail key={selected.ticketId} client={client} ticket={selected} revision={revision}/>

@@ -55,7 +55,7 @@ test("320px tenant and manager can save and read a clear handling result",async(
   }finally{await managerContext.close();}
 });
 
-test("390px tenant answers the follow-up questions right after 접수하기 and the summary updates on submit",async({page,browser})=>{
+test("390px tenant answers the follow-up questions right after 접수하기 and the summary updates on submit",async({page})=>{
   await page.setViewportSize({width:390,height:844});const tenant=new CoreScreen(page);await tenant.login("tenant");
   await page.getByRole("radio",{name:"난방",exact:true}).check();await page.getByLabel("문제 설명").fill("합성 난방 접수 마무리 확인");
   const response=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");
@@ -73,14 +73,18 @@ test("390px tenant answers the follow-up questions right after 접수하기 and 
     const answered=page.waitForResponse(r=>r.url().endsWith(`/${ticket.ticketId}/answers`)&&r.request().method()==="POST");
     if(await no.isVisible())await no.click();
     else if(await text.isVisible()){await text.fill("합성 답변");await zone.getByTestId("answer-text-submit").click();}
-    else await zone.locator("[data-testid^='answer-']").first().click();
+    // Single-select options only: never answer-yes, which would escalate a safety question.
+    else await zone.locator("[data-testid^='answer-']:not([data-testid='answer-yes']):not([data-testid='answer-no']):not([data-testid='answer-text-submit'])").first().click();
     expect((await answered).status()).toBe(200);await expect(zone.getByTestId("refresh")).toBeEnabled();
   }
+  const finalizedNotice=page.getByRole("status").filter({hasText:"수리 요청을 관리자에게 보냈어요."});
   const finalized=page.waitForResponse(r=>r.url().endsWith(`/${ticket.ticketId}/finalize`)&&r.request().method()==="POST");
   await zone.getByTestId("finalize").click();expect((await finalized).status()).toBe(200);
   // The summary re-reads the submitted request without reopening it; the record moves back below.
-  await expect(page.getByTestId("work-status")).toHaveText("접수");await expect(page.getByText("관리자에게 보냈어요.",{exact:false})).toBeVisible();
+  await expect(page.getByTestId("work-status")).toHaveText("접수");await expect(page.getByText(/^관리자에게 보냈어요\./)).toBeVisible();
   await expect(zone).toHaveCount(0);await expect(page.locator("summary").filter({hasText:/^추가 확인$/})).toHaveCount(1);
+  // The zone that held focus is gone: the result is announced and focus returns to the request heading.
+  await expect(finalizedNotice).toBeVisible();await expect(page.getByTestId("ticket-heading")).toBeFocused();
 });
 
 test("an unsubmitted request reads 제출 전 in the tenant list and on the manager's detail",async({page,browser})=>{

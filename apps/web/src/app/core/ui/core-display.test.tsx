@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { EnvironmentNote, InvitationMetadata, PhotoSelectionSurface, TaskZone, TicketProgress } from "./core-display";
-import { isIntakeDraft } from "./work-status-badge";
+import { intakeDisplayStatus, isIntakeDraft } from "./work-status-badge";
 
 describe("Apple-Toss presentation boundaries", () => {
   it("keeps the synthetic environment disclosure outside collapsed limitations", () => {
@@ -55,6 +55,15 @@ describe("Apple-Toss presentation boundaries", () => {
     expect(isIntakeDraft({ workStatus: "OPEN", detail: { status: "PARTIAL" } })).toBe(false);
     expect(isIntakeDraft({ workStatus: "OPEN", detail: { status: "NEEDS_MORE_INFO" } })).toBe(false);
     expect(isIntakeDraft({ workStatus: "IN_PROGRESS", detail: { status: "IN_PROGRESS" } })).toBe(false);
+  });
+
+  it("keeps a request that was sent once out of the draft state while its more-info answers reset the status", () => {
+    const sent = [{ kind: "CREATED" }, { kind: "FINALIZED" }, { kind: "MORE_INFO" }, { kind: "ANSWERED" }];
+    expect(intakeDisplayStatus({ workStatus: "OPEN", detail: { status: "IN_PROGRESS" }, events: sent })).toBe("NEEDS_MORE_INFO");
+    expect(isIntakeDraft({ workStatus: "OPEN", detail: { status: "IN_PROGRESS" }, events: sent })).toBe(false);
+    expect(intakeDisplayStatus({ workStatus: "OPEN", detail: { status: "IN_PROGRESS" }, events: [{ kind: "CREATED" }, { kind: "ANSWERED" }] })).toBe("IN_PROGRESS");
+    expect(intakeDisplayStatus({ workStatus: "OPEN", detail: { status: "SAFETY_ESCALATED" }, events: sent })).toBe("SAFETY_ESCALATED");
+    expect(intakeDisplayStatus({ workStatus: "OPEN", detail: { status: "PARTIAL" }, events: sent })).toBe("PARTIAL");
   });
 
   it("names a second to-do zone apart while keeping the visible heading and conversation default", () => {
