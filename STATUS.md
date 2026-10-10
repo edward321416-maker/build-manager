@@ -28,6 +28,9 @@ Snapshot: **2026-10-04**. **Core flow RC1 is ACCEPTED_IN_DEVELOPMENT_MAIN_WITH_R
 | Collaborator invitation | PENDING | Username not supplied; no invitation performed by this work |
 | Google Sheets / Drive | PARTIAL_SYNC | PR48 correction/sync/cache events were written and read back through the connected Google tools; historical queued events remain pending. See [pending queue](ops/pending_external_sync.md). |
 | Prompt runtime enforcement and token savings | NOT TESTED | Prompt text alone does not establish runtime behavior |
+| Work rulebooks and rules gate | ACTIVE (2026-10-10) | Design, development, research and reference rulebooks, listed in [AGENTS.md](AGENTS.md). In Claude Code, `.claude/hooks/rules-gate.mjs` blocks covered edits, web lookups and package additions until the matching rulebook was read; tested in `tests/architecture/rules-gate.test.ts` and checked in a live session. Other tools are not gated. PRs #79, #81, #82, #84, #90 |
+| Security policy | ACTIVE (2026-10-10) | [SECURITY.md](SECURITY.md); GitHub private vulnerability reporting enabled (PR #85). Maintainers are notified only while watching the repository (All Activity, or Custom → Security alerts) with notifications enabled. |
+| License | ALL RIGHTS RESERVED (2026-10-10) | [LICENSE](LICENSE), operator decision 2026-10-10: public to read and review, not licensed for reuse |
 
 PF00 completion concerns reproducible development and verification with automatic test gates. It does **not** establish production-ready, launch-ready, or real-user-ready service. The PF02-A PostgreSQL schema, transaction/RLS boundary and ephemeral integration tests are implemented and verified on actual main. B1 Database-only Web authentication and internal identity/session authorization are implemented and verified within a validation-only local boundary. B2 staff organization context and assignment-limited Property reads are independently accepted, verified on implementation main, and canonically closed on closure main. Production hosting/credential provisioning, real-user identity operations and real property/unit/occupancy operations remain unimplemented or unauthorized. Real tenant data is not authorized. Security/privacy work is not complete. Synthetic prototype storage and JS/assets export do not prove those capabilities or native device readiness.
 
@@ -36,6 +39,10 @@ PF00 completion concerns reproducible development and verification with automati
 Open risks retained before private beta/release:
 
 - **OPEN_RISK / dependency-security-triage:** 14 moderate vulnerabilities reported by npm; unrs-resolver install-script warning requires separate review. No audit fix or script approval performed.
+- **OPEN_RISK / e2e-flake-residual:** the Hero B and receipt-denial end-to-end flakes have known root causes and are fixed in PR #91. Root causes are not established for:
+  - `tests/vendor-e2e/vendor-job.spec.ts:81` (T12-B04): failed on main on 2026-10-09 and on a PR run on 2026-10-10.
+  - `tests/vendor-e2e/vendor-job.spec.ts:105` (T12-B06): failed once on 2026-10-10.
+  - `tests/b1-e2e/b3.spec.ts:361`: a 30-second timeout on main at `2ca1207` on 2026-10-10.
 - **OPEN_RISK / ci-supply-chain-maintenance:** pinned v4 Actions target an older internal Node runtime and hosted execution forces Node24. Action-major upgrades remain separate work.
 - **OPEN_RISK / b3-local-mobile-timeout:** LOCAL_MOBILE_FAILED_DISCLOSED_EXCEPTION / FAILED / OPEN / ROOT_CAUSE_NOT_ESTABLISHED. Original and native Windows A/B failures remain failures; instrumented BASE and hosted passes are separate evidence. PR45 exact-candidate risk acceptance is completed history, not a future waiver. See the [follow-up receipt](ops/pf02_b_b3_low_remediation_acceptance.md); this is distinct from the earlier Windows-mounted Ubuntu limitation below.
 
