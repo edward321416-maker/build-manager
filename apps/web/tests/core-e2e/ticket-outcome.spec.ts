@@ -84,7 +84,7 @@ for(const kind of ["UNRESOLVED","RECURRENCE_CLAIM"] as const)test(kind+" fresh f
  expect((await s.get(path+"/communication")).messages).toEqual([]);expect((await s.get("manager/"+path+"/internal-notes","manager"))).toEqual([]);
  expect((await s.get("manager/"+path+"/work","manager"))).toMatchObject({priority:"NORMAL",assigneeLabel:null,dueAt:null});
  const created=await s.get(path);expect(created.detail.issueType).toBe("HEATING");expect(created.detail.activeQuestion).not.toBeNull();expect(created.events.map((e:{kind:string})=>e.kind)).toEqual(["CREATED"]);
- await page.getByText("추가 확인",{exact:true}).click();const protocol=page.locator("details").filter({has:page.locator("summary").filter({hasText:/^추가 확인$/})}),question=created.detail.activeQuestion;
+ const protocol=page.getByRole("region",{name:"지금 할 일: 추가 확인",exact:true}),question=created.detail.activeQuestion;
  const answered=page.waitForResponse(r=>r.url().endsWith("/"+path+"/answers")&&r.request().method()==="POST");
  if(question.responseType==="YES_NO")await protocol.getByTestId("answer-no").click();else if(question.responseType==="SINGLE_SELECT")await protocol.getByTestId("answer-"+question.options[0].value).click();else{await protocol.getByLabel("답변",{exact:true}).fill("새 후속 접수의 합성 답변");await protocol.getByTestId("answer-text-submit").click();}
  expect((await answered).status()).toBe(200);expect((await s.get(path)).events.map((e:{kind:string})=>e.kind)).toContain("ANSWERED");
