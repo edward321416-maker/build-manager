@@ -8,7 +8,7 @@ export default defineConfig({
   globalSetup: './tests/vendor-e2e/global-setup.ts', timeout: 30000,
   reporter: [['list'], ['./tests/vendor-e2e/coverage-reporter.ts']],
   outputDir: join(homedir(), '.build-manager-vendor-private', 'task12-results-' + randomUUID()),
-  use: { baseURL: 'http://localhost:3134', ...devices['Desktop Chrome'], actionTimeout: 5000, trace: 'off', screenshot: 'off', video: 'off' },
+  use: { baseURL: process.env.VENDOR_HANDOFF_ORIGIN ?? 'http://localhost:3134', ...devices['Desktop Chrome'], actionTimeout: 5000, trace: 'off', screenshot: 'off', video: 'off' },
   // Playwright DOM error snapshots can contain transient capability input values.
   captureGitInfo: { commit: false, diff: false },
 });
