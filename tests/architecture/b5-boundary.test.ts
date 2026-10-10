@@ -163,8 +163,8 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
     }
     if(path==="package-lock.json"){
       const lock=JSON.parse(canonical);
-      // Reverse only the reviewed existing SDK57 patch entries, then the original
-      // Sharp directive. Every untouched entry and original frozen hash remains.
+      // Reverse only the reviewed tooling advisory, SDK57 patch and security update entries,
+      // then the original Sharp directive. Every untouched entry and original frozen hash remains.
       projectToolingAdvisories20261010(lock,(await readFile(toolingAdvisoriesFixture,"utf8")).replaceAll("\r\n","\n"));
       projectExpoSdk57Patch(lock,(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n"));
       projectSecurityUpdate20261010(lock,(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n"));
@@ -236,7 +236,7 @@ it("AC17 security update projection rejects an unreviewed version, a tampered fi
   const removedSecurity=JSON.parse(security);removedSecurity.pop();
   expect(()=>inventory(structuredClone(lock),JSON.stringify(removedSecurity,null,2)+"\n")).toThrow();
 });
-it("AC17 tooling advisories projection rejects an unreviewed version, a tampered fixture and a dropped entry",async()=>{
+it("AC17 tooling advisories projection rejects an unreviewed version, unrelated lock drift, a tampered fixture and a dropped entry",async()=>{
   const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock;
   const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
   const security=(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n");
