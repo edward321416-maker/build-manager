@@ -194,7 +194,16 @@ it("AC17 exact Expo SDK57 projection rejects package, fixture and unrelated lock
   expect(()=>inventory(structuredClone(lock),JSON.stringify(changedFixture,null,2)+"\n")).toThrow();
   const removedFixture=JSON.parse(fixture);removedFixture.pop();
   expect(()=>inventory(structuredClone(lock),JSON.stringify(removedFixture,null,2)+"\n")).toThrow();
-  // The security update projection rejects an unreviewed version, a tampered fixture and a dropped entry.
+});
+it("AC17 security update projection rejects an unreviewed version, a tampered fixture and a dropped entry",async()=>{
+  const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock;
+  const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
+  const security=(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n");
+  const inventory=(candidate:DependencyLock,securitySource=security)=>{
+    projectExpoSdk57Patch(candidate,fixture);projectSecurityUpdate20261010(candidate,securitySource);projectSharpLock(candidate);
+    expect(sha256(JSON.stringify(candidate,null,2)+"\n")).toBe(frozen["package-lock.json"]);
+  };
+  inventory(structuredClone(lock));
   for(const mutate of [
     (candidate:DependencyLock)=>{candidate.packages["node_modules/next"].version="16.3.9";},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/sharp"].integrity="sha512-unreviewed";},
@@ -204,9 +213,9 @@ it("AC17 exact Expo SDK57 projection rejects package, fixture and unrelated lock
     expect(()=>inventory(candidate)).toThrow();
   }
   const changedSecurity=JSON.parse(security);changedSecurity[0].before.version="9.9.9";
-  expect(()=>inventory(structuredClone(lock),fixture,JSON.stringify(changedSecurity,null,2)+"\n")).toThrow();
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(changedSecurity,null,2)+"\n")).toThrow();
   const removedSecurity=JSON.parse(security);removedSecurity.pop();
-  expect(()=>inventory(structuredClone(lock),fixture,JSON.stringify(removedSecurity,null,2)+"\n")).toThrow();
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(removedSecurity,null,2)+"\n")).toThrow();
 });
 it("AC17 Task12 projection rejects changed commands, order, log capture and unrelated workflow gates",async()=>{
   const source=(await readFile(".github/workflows/app-check.yml","utf8")).replaceAll("\r\n","\n");
