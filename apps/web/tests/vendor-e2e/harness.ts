@@ -13,15 +13,16 @@ const trail: string[] = [];
 let trailStart = 0;
 const note = (who: string, line: string) => { if (trail.length < 400) trail.push(`${Date.now() - trailStart}ms ${who} ${line}`); };
 async function watch(context: BrowserContext, page: Page, who: string) {
-  const api = (url: string) => { const { pathname } = new URL(url); return pathname.startsWith('/api/') ? pathname.replace(/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}|[\w-]{32,}/gi, ':id') : null; };
+  const path = (url: string) => new URL(url).pathname.replace(/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}|[\w-]{32,}/gi, ':id');
+  const api = (url: string) => { const p = path(url); return p.startsWith('/api/') ? p : null; };
   page.on('request', r => {
-    if (r.isNavigationRequest() && r.frame() === page.mainFrame()) note(who, `navigate ${new URL(r.url()).pathname}`);
+    if (r.isNavigationRequest() && r.frame() === page.mainFrame()) note(who, `navigate ${path(r.url())}`);
     const p = api(r.url()); if (p) note(who, `→ ${r.method()} ${p}`);
   });
   page.on('requestfinished', r => { const p = api(r.url()); if (p) r.response().then(x => note(who, `← ${r.method()} ${p} ${x?.status()}`), () => {}); });
   page.on('requestfailed', r => { const p = api(r.url()); if (p) note(who, `✕ ${r.method()} ${p} ${r.failure()?.errorText}`); });
   page.on('load', () => note(who, 'load'));
-  page.on('pageerror', e => note(who, `pageerror ${e.name}: ${e.message.slice(0, 80).replace(/[\w-]{32,}/g, ':id')}`));
+  page.on('pageerror', e => note(who, `pageerror ${e.name}`));
   page.on('console', m => { if (m.text().startsWith('[trail] ')) note(who, m.text().slice(8)); else if (m.type() === 'error') note(who, 'console error'); });
   await context.addInitScript(() => {
     const say = (line: string) => console.log('[trail] ' + line);
