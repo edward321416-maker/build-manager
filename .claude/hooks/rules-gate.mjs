@@ -4,14 +4,16 @@
 // same session. `.claude/rules-gate.json` of the repository that contains the edited file (or the
 // directory a command or lookup runs in) lists each rulebook with the edit globs, tools and command
 // classes it covers. A checkout that has design/DESIGN_RULES.md but no config gets the design rule only.
-//   record  PostToolUse, matcher Read: remember the hash of a fully read rulebook for the session.
+//   record  PostToolUse, matcher Read: leave a marker named by the hash of a fully read rulebook in
+//           the session's folder, one file per record so parallel reads cannot overwrite each other.
 //   check   PreToolUse, matcher Edit|Write|MultiEdit|NotebookEdit|WebSearch|WebFetch|Bash|PowerShell:
-//           exit 2 while a required rulebook is unread or changed since it was read.
+//           exit 2 while a required rulebook is unread or changed since it was read. Reads are matched
+//           by content hash, so a read in one worktree covers an identical copy in another.
 // A missing rulebook file is skipped and a broken rule is skipped with a warning. Errors never block:
 // they exit 1 so Claude Code shows them to the user. Never place rules-gate.json in ~/.claude: every
 // path under the home folder would then count as a rules repository.
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
@@ -128,13 +130,19 @@ function loadRules({ root, fallback }, warnings) {
   });
 }
 
-function stateFile(session) {
+/** Each session has a folder; every full read of a rulebook leaves an empty file named by its content hash. */
+function sessionDir(session) {
   if (typeof session !== "string" || !session) throw new Error("session_id missing");
-  const dir = join(tmpdir(), "build-manager-rules-gate");
+  const dir = join(tmpdir(), "build-manager-rules-gate", session.replace(/[^A-Za-z0-9_-]/g, "_"));
   mkdirSync(dir, { recursive: true });
-  return join(dir, session.replace(/[^A-Za-z0-9_-]/g, "_") + ".json");
+  return dir;
 }
-/** A missing or corrupt state file counts as "nothing read yet" and is rewritten on the next record. */
+/** Hashes read in the session, including records that the earlier single-file format left in `<session>.json`. */
+function readDigests(session) {
+  const dir = sessionDir(session);
+  return new Set([...readdirSync(dir), ...Object.values(loadState(`${dir}.json`))]);
+}
+/** A missing or corrupt legacy state file counts as "nothing read yet". */
 function loadState(file) {
   try {
     const state = JSON.parse(readFileSync(file, "utf8"));
@@ -154,10 +162,8 @@ function record(input) {
   const target = fold(posix(found.root, absolute));
   const rule = loadRules(found, []).find((candidate) => fold(candidate.file) === target);
   if (!rule || !existsSync(rule.path)) return 0;
-  const file = stateFile(input.session_id);
-  const temporary = `${file}.${process.pid}.tmp`;
-  writeFileSync(temporary, JSON.stringify({ ...loadState(file), [fold(rule.path)]: digest(rule.path) }));
-  renameSync(temporary, file);
+  // One file per record: parallel Read hooks never rewrite a shared file, so no record is lost or fails.
+  writeFileSync(join(sessionDir(input.session_id), digest(rule.path)), "");
   return 0;
 }
 
@@ -209,14 +215,16 @@ function demands(input) {
 function check(input) {
   const warnings = [];
   const unread = new Map();
-  let state;
+  let read;
   for (const demand of demands(input)) {
     const found = findRoot(demand.start);
     if (!found) continue;
     for (const rule of loadRules(found, warnings)) {
       if (!demand.needs(rule, found.root) || !existsSync(rule.path)) continue;
-      state ??= loadState(stateFile(input.session_id));
-      if (state[fold(rule.path)] !== digest(rule.path)) unread.set(rule.path, { rule, label: demand.label(found.root) });
+      // Matched by content, not path: a full read also covers other checkouts (worktrees) of the same session
+      // while their copy is byte-identical, and any change still requires a new read.
+      read ??= readDigests(input.session_id);
+      if (!read.has(digest(rule.path))) unread.set(rule.path, { rule, label: demand.label(found.root) });
     }
   }
   const warning = warnings.length > 0 ? `rules-gate: ${warnings.join("; ")}\n` : "";

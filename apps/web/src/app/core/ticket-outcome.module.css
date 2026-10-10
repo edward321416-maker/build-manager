@@ -1,10 +1,12 @@
-.card{min-width:0;padding:1.1rem;border:1px solid #c7d4e1;border-radius:12px;background:#fff;color:#20384b;overflow-wrap:anywhere}
-.card h2{margin:0 0 .65rem;font-size:1.1rem}
-.card p{margin:.65rem 0;line-height:1.6}
-.actions{display:flex;gap:.65rem;flex-wrap:wrap}
-.actions button,.card>button{min-height:44px;max-width:100%;white-space:normal;padding:.6rem .9rem;border:1px solid #8b9fb2;border-radius:8px;background:#f2f6fa;color:inherit;font:inherit}
-.actions button:focus-visible,.card>button:focus-visible{outline:3px solid #2161ad;outline-offset:3px}
-.actions button:disabled{opacity:.55;cursor:not-allowed}
-.status{padding:.75rem;background:#edf5ff;border-radius:8px}
-.error{padding:.75rem;border-left:3px solid #a63535;background:#fff4f4}
-.hint{font-size:.9rem;color:#526b7c}
+/* Ticket outcome card on design rules v1 (design/DESIGN_RULES.md): rule tokens, 5px scale, radii by role, no thick one-side border. */
+.card{min-width:0;padding:1.25rem;border:1px solid var(--color-border);border-radius:.9375rem;background:var(--color-surface);color:var(--color-text);overflow-wrap:anywhere}
+.card h2{margin:0 0 .625rem;font-size:1.25rem;line-height:1.875rem;font-weight:600;letter-spacing:-0.02em}
+.card p{margin:.625rem 0;line-height:1.5625rem}
+.actions{display:flex;gap:.625rem;flex-wrap:wrap}
+.actions button,.card>button{min-height:3.125rem;max-width:100%;white-space:normal;padding:.625rem 1.25rem;border:1px solid var(--color-border-strong);border-radius:.625rem;background:var(--color-surface);color:inherit;font:inherit;font-weight:600}
+.actions button:hover:not(:disabled),.card>button:hover:not(:disabled){background:var(--color-fill-hover)}
+.actions button:focus-visible,.card>button:focus-visible{outline:2px solid var(--color-primary);outline-offset:3px}
+.actions button:disabled{color:var(--color-text-secondary);background:var(--color-fill-subtle);border-color:var(--color-border);cursor:not-allowed}
+.status{padding:.9375rem;background:var(--color-fill-subtle);border-radius:.625rem}
+.error{padding:.9375rem;border:1px solid var(--color-danger);border-radius:.625rem;background:var(--color-danger-soft)}
+.hint{font-size:.9375rem;line-height:1.5625rem;color:var(--color-text-secondary)}

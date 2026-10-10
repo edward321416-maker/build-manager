@@ -54,6 +54,10 @@ test("neutral account and white workspace reflow without remounting drafts; mana
     await account.focus();await page.keyboard.press("Tab");await page.keyboard.press("Shift+Tab");await expect(account).toBeFocused();
     expect(await account.evaluate(el=>getComputedStyle(el).outlineStyle)).toBe("solid");
     expect(await account.evaluate(el=>getComputedStyle(el).outlineColor)).toBe("rgb(0, 100, 255)");
+    // The select is the transparent control; the visible ring is drawn on the wrapped current choice (rules §8.2, §2.4).
+    const currentOrg=page.getByRole("region",{name:"로그인과 내 소속"}).locator(".core-org-current");
+    await expect(currentOrg).toBeVisible();
+    await expect(currentOrg).toHaveCSS("outline-style","solid");await expect(currentOrg).toHaveCSS("outline-width","2px");await expect(currentOrg).toHaveCSS("outline-color","rgb(0, 100, 255)");
     await page.getByLabel("문제 설명").fill("합성 디자인 상태 구분 검사");
     await expect(page.getByRole("button",{name:"접수하기",exact:true})).toHaveCSS("background-color","rgb(0, 100, 255)");
     await expect(page.getByRole("region",{name:"로그인과 내 소속"})).not.toContainText(/B1|RC1 합성 주거 데이터/);
