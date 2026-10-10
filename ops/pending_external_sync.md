@@ -467,6 +467,9 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 
 - Event WORK-RULES-V1-GATE-ROLLOUT-20261010: sync_status=pending; rules gate merged, user-level hook swapped and verified live. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
+- Event DESIGN-FEEDBACK-RULES-20261010: sync_status=pending; operator design feedback turned into rules, the design audit script and spacing fixes on fix/design-feedback-rules. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+- Event DESIGN-FEEDBACK-REVIEW-20261010: sync_status=pending; PR 86 end review fixes (320px organization select, hover/focus, audit cleanup). Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
 - Event RULES-GATE-CONTENT-HASH-20261010: sync_status=pending; content-hash rule reads and race-free records merged (PR 90), user-level copy swapped and verified live. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event E2E-FLAKE-FIX-20261010: sync_status=pending; Hero B and receipt-denial e2e flakes fixed at their root causes (PR 91). Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.

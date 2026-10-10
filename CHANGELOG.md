@@ -29,3 +29,8 @@
 
 - Added English ChatGPT/Codex instructions for bounded autonomous tooling, selective context, patch-only code payloads, and durable checkpoints.
 - Codified Sheets append and Drive schema caching with pending fallback and receipt verification. Runtime enforcement, external sync, and token savings remain untested.
+
+## 2026-10-10 — Hosted demo design
+
+- Deployed the login-free synthetic demo to the operator's VM with design rules v1 applied to the home, `/core` and `/vendor/job` screens, including the spacing fixes from the operator's iPhone reports.
+- Added `scripts/design-audit.mjs` (Chromium and WebKit, empty states) and the operator feedback log in the design rules.

@@ -1,10 +1,18 @@
-.timeline,.editor{min-width:0;max-width:100%;padding:1rem;border:1px solid var(--color-border,#ddd);border-radius:12px;background:var(--color-surface,#fff);overflow-wrap:anywhere}
-.timeline{margin:1rem 0}.editor{margin-top:1rem}.heading{display:flex;justify-content:space-between;align-items:start;gap:1rem}.heading h2,.editor h2{margin-top:0}
-.hint,.heading p{color:var(--color-text-muted,#5f665f);font-size:.85rem;line-height:1.6}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:1rem;margin-top:1rem}
-.fact{min-width:0;padding:1rem;border:1px solid var(--color-border,#ddd);border-radius:9px;background:var(--color-surface-subtle,#f8faf8);overflow-wrap:anywhere}
-.fact h3{font-size:1rem;margin:0 0 .5rem}.component{font-weight:650;white-space:pre-wrap}.fact dl{font-size:.85rem}.fact dl div{margin-bottom:.5rem}.fact dt{color:#626b65}.fact dd{margin:0}
-.actions{display:flex;flex-wrap:wrap;gap:.5rem;margin:.75rem 0}.timeline button,.editor button{min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
-.timeline label,.fields label{display:grid;gap:.4rem;min-width:0}.timeline select,.fields select,.fields input{box-sizing:border-box;min-width:0;max-width:100%;width:100%;min-height:44px}
-.fields{display:grid;gap:.85rem;margin-top:1rem;padding:0;border:0;min-width:0}.fields p{margin:0}.revisions{padding-left:1.3rem}.revisions li{margin-top:.75rem}.revisions p{font-size:.8rem}.empty{padding:2rem 0}
-@media(max-width:600px){.heading{display:block}.timeline,.editor,.fact{padding:.85rem}.cards{grid-template-columns:1fr}.actions{flex-direction:column}.actions button{width:100%}}
+/* Unit maintenance history on design rules v1 (design/DESIGN_RULES.md): page side margins by width, 5px spacing scale,
+   radii by role (15 group, 10 inner box), rule tokens and type styles. */
+.timeline,.editor{min-width:0;max-width:100%;padding:1.25rem;border:1px solid var(--color-border);border-radius:.9375rem;background:var(--color-surface);overflow-wrap:anywhere}
+.timeline{margin:1.25rem}.editor{margin-top:1.25rem}
+.heading{display:flex;justify-content:space-between;align-items:start;gap:.625rem}.heading h2,.editor h2{margin:0}
+.hint,.heading p{margin-top:.625rem;color:var(--color-text-secondary);font-size:.9375rem;line-height:1.5625rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));gap:.9375rem;margin-top:1.25rem}
+.fact{min-width:0;padding:.9375rem;border:1px solid var(--color-border);border-radius:.625rem;background:var(--color-fill-subtle);overflow-wrap:anywhere}
+.fact h3{margin:0 0 .625rem;font-size:.9375rem;line-height:1.5625rem;font-weight:600}.component{font-weight:600;white-space:pre-wrap}
+.fact dl{margin:0}.fact dl div{margin-bottom:.625rem}.fact dt{color:var(--color-text-secondary);font-size:.8125rem;line-height:1.125rem;letter-spacing:0}.fact dd{margin:0}
+.actions{display:flex;flex-wrap:wrap;gap:.625rem;margin:.625rem 0}.timeline button,.editor button{min-height:3.125rem;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.timeline label,.fields label{display:grid;gap:.3125rem;min-width:0}.timeline select,.fields select,.fields input{box-sizing:border-box;min-width:0;max-width:100%;width:100%;min-height:3.125rem}
+.fields{display:grid;gap:1.25rem;margin-top:1.25rem;padding:0;border:0;min-width:0}.fields p{margin:0}
+.revisions{padding-left:1.25rem}.revisions li{margin-top:.625rem}.revisions p{font-size:.8125rem;line-height:1.125rem;letter-spacing:0}
+.empty{padding:1.875rem 0}
+@media(max-width:767px){.heading{display:block}.cards{grid-template-columns:1fr}.actions{flex-direction:column}.actions button{width:100%}}
+@media(min-width:768px){.timeline{margin:1.875rem;padding:1.5625rem}}
+@media(min-width:1440px){.timeline{margin:2.5rem}}
