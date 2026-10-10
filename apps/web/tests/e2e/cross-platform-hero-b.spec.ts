@@ -39,8 +39,11 @@ async function answerNoAndWait(page: Page): Promise<void> {
         return "evidence";
       }
 
-      const next = await questionHeading(page).textContent().catch(() => null);
-      if (next !== null && next !== before) {
+      // allTextContents() reads without waiting. textContent() waits for the heading, so when the last
+      // answer swaps the question card for the evidence step between the two reads, the callback never
+      // returned and the poll failed with "Timeout 5000ms exceeded while waiting on the predicate".
+      const [next] = await questionHeading(page).allTextContents();
+      if (next !== undefined && next !== before) {
         return "question";
       }
 
