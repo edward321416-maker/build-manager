@@ -21,4 +21,6 @@ Start with [Project Charter](PROJECT_CHARTER.md), [Status](STATUS.md), [contribu
 
 This repository is public. Publish only reviewed, anonymized summaries and original project documents. Never upload contracts, interview recordings, participant identities, credentials, or third-party files without redistribution rights.
 
+All rights are reserved ([LICENSE](LICENSE)): the code is public to read and review, not licensed for reuse. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
 No application stack has been selected. Python 3.11+ runs the repository checks: `python scripts/verify_repository.py`. This does not execute package/config files or prove product behavior.
