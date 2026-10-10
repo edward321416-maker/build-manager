@@ -15,7 +15,7 @@
 // they exit 1 so Claude Code shows them to the user. Never place rules-gate.json in ~/.claude: every
 // path under the home folder would then count as a rules repository.
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
@@ -160,6 +160,53 @@ function loadState(file) {
   }
 }
 
+/** The content an Edit, Write or MultiEdit should have produced from `original`, or null when it cannot be derived. */
+function editedContent(tool, args, original) {
+  const replace = (text, oldString, newString, all) => {
+    if (typeof oldString !== "string" || typeof newString !== "string" || !oldString || !text.includes(oldString)) return null;
+    return all ? text.split(oldString).join(newString) : text.replace(oldString, () => newString);
+  };
+  if (tool === "Write") return typeof args?.content === "string" ? args.content : null;
+  if (tool === "Edit") return replace(original, args?.old_string, args?.new_string, args?.replace_all === true);
+  if (tool === "MultiEdit" && Array.isArray(args?.edits)) {
+    let text = original;
+    for (const edit of args.edits) {
+      text = replace(text, edit?.old_string, edit?.new_string, edit?.replace_all === true);
+      if (text === null) return null;
+    }
+    return text;
+  }
+  return null;
+}
+/**
+ * The session wrote this rulebook itself after `check` confirmed it had read the previous content.
+ * Credit the new content only when the edit started from that read content, was not changed by the user,
+ * and the file on disk is exactly what the edit produced; anything else still needs a full read.
+ */
+function creditedEdit(input, rulebookPath) {
+  const pending = pendingEditFile(input.session_id, rulebookPath);
+  // Claim the marker first so two copies of this hook recording the same edit cannot both use it.
+  const claimed = `${pending}.${process.pid}`;
+  try {
+    renameSync(pending, claimed);
+  } catch {
+    return false;
+  }
+  let before, fresh;
+  try {
+    before = readFileSync(claimed, "utf8");
+    fresh = Date.now() - statSync(claimed).mtimeMs < PENDING_EDIT_MAX_AGE_MS;
+  } finally {
+    rmSync(claimed, { force: true });
+  }
+  if (!fresh || !readDigests(input.session_id).has(before)) return false;
+  const response = input.tool_response ?? {};
+  if (response.userModified === true || typeof response.originalFile !== "string") return false;
+  if (createHash("sha256").update(response.originalFile).digest("hex") !== before) return false;
+  const expected = editedContent(input.tool_name, input.tool_input, response.originalFile);
+  return expected !== null && createHash("sha256").update(expected).digest("hex") === digest(rulebookPath);
+}
+
 function record(input) {
   const edited = EDIT_TOOLS.has(input.tool_name);
   const path = edited ? input.tool_input?.file_path ?? input.tool_input?.notebook_path : input.tool_input?.file_path;
@@ -171,16 +218,7 @@ function record(input) {
   const target = fold(posix(found.root, absolute));
   const rule = loadRules(found, []).find((candidate) => fold(candidate.file) === target);
   if (!rule || !existsSync(rule.path)) return 0;
-  if (edited) {
-    // The session wrote this content itself after `check` confirmed it had read the previous content.
-    // Credit it only for that checked edit; an unchecked or failed-open edit still needs a full read.
-    const pending = pendingEditFile(input.session_id, rule.path);
-    if (!existsSync(pending)) return 0;
-    const before = readFileSync(pending, "utf8");
-    const fresh = Date.now() - statSync(pending).mtimeMs < PENDING_EDIT_MAX_AGE_MS;
-    rmSync(pending, { force: true });
-    if (!fresh || !readDigests(input.session_id).has(before)) return 0;
-  }
+  if (edited && !creditedEdit(input, rule.path)) return 0;
   // One file per record: parallel Read hooks never rewrite a shared file, so no record is lost or fails.
   writeFileSync(join(sessionDir(input.session_id), digest(rule.path)), "");
   return 0;
@@ -250,7 +288,13 @@ function check(input) {
       const current = digest(rule.path);
       if (!read.has(current)) {
         unread.set(rule.path, { rule, label: demand.label(found.root) });
-        if (demand.editsRulebook?.(rule, found.root)) rmSync(pendingEditFile(input.session_id, rule.path), { force: true });
+        // Best effort only: a leftover marker cannot credit anything that `creditedEdit` rejects, and a cleanup
+        // error must not turn this block into an internal error that lets the edit through.
+        if (demand.editsRulebook?.(rule, found.root)) {
+          try {
+            rmSync(pendingEditFile(input.session_id, rule.path), { force: true });
+          } catch {}
+        }
       } else if (demand.editsRulebook?.(rule, found.root)) editedRulebooks.push({ path: rule.path, current });
     }
   }

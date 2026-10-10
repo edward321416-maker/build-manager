@@ -100,57 +100,103 @@ describe("rules gate", () => {
 
   describe("editing a rulebook", () => {
     const own = () => at(FILE.development);
-    const recordEdit = (session = "s1", tool_name = "Edit") =>
-      run("record", { session_id: session, tool_name, tool_input: { file_path: own() } });
+    const code = (session = "s1") => edit(at("packages/domain/src/a.ts"), session, "Write");
+    const markers = (session = "s1") => readdirSync(join(state, "build-manager-rules-gate", session)).filter((name) => name.startsWith("edit-"));
+    /** Applies an edit the way Claude Code does, then runs the PostToolUse record with that tool input and result. */
+    const ownEdit = ({ session = "s1", tool_name = "Edit", userModified = false, onDisk = (text: string) => text }: {
+      session?: string; tool_name?: "Edit" | "Write"; userModified?: boolean; onDisk?: (text: string) => string;
+    } = {}) => {
+      const original = readFileSync(own(), "utf8");
+      const updated = `${original}edited ${markers(session).length} ${Date.now()}\n`;
+      writeFileSync(own(), onDisk(updated));
+      const tool_input = tool_name === "Write" ? { file_path: own(), content: updated } : { file_path: own(), old_string: original, new_string: updated };
+      return run("record", { session_id: session, tool_name, tool_input, tool_response: { originalFile: original, userModified } });
+    };
 
     it("requires reading the rulebook before editing it", () => {
       expect(required(edit(own()))).toEqual(["development"]);
     });
 
-    it("counts the session's own checked edit as read", () => {
+    it("counts the session's own checked Edit and Write as read", () => {
       read("development");
       expect(required(edit(own()))).toEqual([]);
-      writeFileSync(own(), "# 개발 규칙 v2 (own edit)\n");
-      expect(recordEdit().status).toBe(0);
-      expect(required(edit(at("packages/domain/src/a.ts"), "s1", "Write"))).toEqual([]);
-      expect(required(edit(own()))).toEqual([]);
+      expect(ownEdit().status).toBe(0);
+      expect(required(code())).toEqual([]);
+      expect(required(edit(own(), "s1", "Write"))).toEqual([]);
+      expect(ownEdit({ tool_name: "Write" }).status).toBe(0);
+      expect(required(code())).toEqual([]);
     });
 
     it("does not count an edit that never passed the check", () => {
       read("development");
-      writeFileSync(own(), "# 개발 규칙 v2 (unchecked)\n");
-      expect(recordEdit().status).toBe(0);
-      expect(required(edit(at("packages/domain/src/a.ts"), "s1", "Write"))).toEqual(["development"]);
+      ownEdit();
+      expect(required(code())).toEqual(["development"]);
+    });
+
+    it("does not count an edit the user changed before accepting it", () => {
+      read("development");
+      expect(required(edit(own()))).toEqual([]);
+      ownEdit({ userModified: true });
+      expect(required(code())).toEqual(["development"]);
+    });
+
+    it("does not count an outside change that lands together with the edit", () => {
+      read("development");
+      expect(required(edit(own()))).toEqual([]);
+      ownEdit({ onDisk: (text) => `${text}outside line\n` });
+      expect(required(code())).toEqual(["development"]);
+    });
+
+    it("does not let a failed edit's marker credit content changed outside afterwards", () => {
+      read("development");
+      expect(required(edit(own()))).toEqual([]); // the edit then fails, so no record runs
+      writeFileSync(own(), "# 개발 규칙 v2 (outside change)\n");
+      ownEdit(); // an edit recorded without its own check, starting from the unread outside content
+      expect(required(code())).toEqual(["development"]);
+    });
+
+    it("uses each check for one edit only", () => {
+      read("development");
+      expect(required(edit(own()))).toEqual([]);
+      ownEdit();
+      expect(markers()).toEqual([]);
+      ownEdit(); // a second edit with no check of its own
+      expect(required(code())).toEqual(["development"]);
+    });
+
+    it("drops the marker when a later check of that rulebook blocks", () => {
+      read("development");
+      expect(required(edit(own()))).toEqual([]);
+      expect(markers()).toHaveLength(1);
+      writeFileSync(own(), "# 개발 규칙 v2 (outside change)\n");
+      expect(required(edit(own()))).toEqual(["development"]);
+      expect(markers()).toEqual([]);
     });
 
     it("still requires a new read after someone else changes the rulebook again", () => {
       read("development");
       expect(required(edit(own()))).toEqual([]);
-      writeFileSync(own(), "# 개발 규칙 v2 (own edit)\n");
-      recordEdit();
+      ownEdit();
       writeFileSync(own(), "# 개발 규칙 v3 (outside change)\n");
-      expect(required(edit(at("packages/domain/src/a.ts"), "s1", "Write"))).toEqual(["development"]);
+      expect(required(code())).toEqual(["development"]);
     });
 
     it("does not count a checked edit whose marker went stale", () => {
       read("development");
       expect(required(edit(own()))).toEqual([]);
-      const dir = join(state, "build-manager-rules-gate", "s1");
-      const markers = readdirSync(dir).filter((name) => name.startsWith("edit-"));
-      expect(markers).toHaveLength(1);
+      const [marker] = markers();
       const old = new Date(Date.now() - 11 * 60 * 1000);
-      utimesSync(join(dir, markers[0]), old, old);
-      writeFileSync(own(), "# 개발 규칙 v2 (late)\n");
-      recordEdit();
-      expect(required(edit(at("packages/domain/src/a.ts"), "s1", "Write"))).toEqual(["development"]);
+      utimesSync(join(state, "build-manager-rules-gate", "s1", marker), old, old);
+      ownEdit();
+      expect(required(code())).toEqual(["development"]);
     });
 
     it("does not carry a checked edit into another session", () => {
       read("development");
+      read("development", "s2");
       expect(required(edit(own()))).toEqual([]);
-      writeFileSync(own(), "# 개발 규칙 v2 (own edit)\n");
-      recordEdit("s2");
-      expect(required(edit(at("packages/domain/src/a.ts"), "s2", "Write"))).toEqual(["development"]);
+      ownEdit({ session: "s2" });
+      expect(required(code("s2"))).toEqual(["development"]);
     });
   });
 
