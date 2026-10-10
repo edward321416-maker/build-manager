@@ -127,7 +127,7 @@ try {
       const t = await page(390, "tenant");
       await t.getByLabel("문제 설명").fill("거실 보일러가 켜지지 않아요. 온수도 미지근해요.");
       await t.getByRole("button", { name: "접수하기", exact: true }).click();
-      try { await t.getByText("접수 내용이 저장되었습니다", { exact: false }).first().waitFor({ timeout: 20000 }); ticketCreated = true; }
+      try { await t.getByText("접수 내용을 저장했어요", { exact: false }).first().waitFor({ timeout: 20000 }); ticketCreated = true; }
       catch { missing(`${engine}-390-tenant`, "the synthetic ticket was not saved, so screens with data cannot be checked"); }
       await t.context().close();
     }

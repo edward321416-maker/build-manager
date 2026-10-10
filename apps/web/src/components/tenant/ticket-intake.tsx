@@ -48,10 +48,21 @@ function readAnswer(
   return submitter?.value ?? null;
 }
 
-export function TicketIntake({ ticketId, client, coreFlow=false }: { ticketId: string; client?: ReturnType<typeof createBrowserApiClient>; coreFlow?: boolean }) {
+export function TicketIntake({ ticketId, client, coreFlow=false, onStatusChange }: {
+  ticketId: string;
+  client?: ReturnType<typeof createBrowserApiClient>;
+  coreFlow?: boolean;
+  /** Called with each status the server returns, so an embedding screen can refresh its own summary. */
+  onStatusChange?: (status: TenantTicketStatusDto["status"]) => void;
+}) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const loadedStatus = state.kind === "ready" ? state.ticket.status : null;
+
+  useEffect(() => {
+    if (loadedStatus !== null) onStatusChange?.(loadedStatus);
+  }, [loadedStatus, onStatusChange]);
 
   /** Reads the next state rather than setting it, so callers own the timing. */
   const fetchTicket = useCallback(async (): Promise<LoadState> => {
@@ -142,13 +153,17 @@ export function TicketIntake({ ticketId, client, coreFlow=false }: { ticketId: s
 
   const ticket = state.kind === "ready" ? state.ticket : null;
   const stage = ticket === null ? null : intakeStage(ticket);
+  // Inside /core the page already has its own main landmark and back button.
+  const Root = coreFlow ? "section" : "main";
 
   return (
-    <main className="tenant-page">
+    <Root className="tenant-page">
       {coreFlow ? null : <TenantDemoBanner />}
-      <p>
-        <Link href={coreFlow ? "/core" : "/demo/tenant"}>{coreFlow ? "← 접수 목록" : "← 세입자 데모 홈"}</Link>
-      </p>
+      {coreFlow ? null : (
+        <p>
+          <Link href="/demo/tenant">← 세입자 데모 홈</Link>
+        </p>
+      )}
 
       {state.kind === "loading" ? <StateMessage kind="loading" /> : null}
 
@@ -260,7 +275,8 @@ export function TicketIntake({ ticketId, client, coreFlow=false }: { ticketId: s
             </section>
           ) : null}
 
-          <TenantStatusPanel ticket={ticket} />
+          {/* Inside /core the screen summary already shows this status with the /core labels. */}
+          {coreFlow ? null : <TenantStatusPanel ticket={ticket} />}
 
           <button
             type="button"
@@ -272,6 +288,6 @@ export function TicketIntake({ ticketId, client, coreFlow=false }: { ticketId: s
           </button>
         </>
       )}
-    </main>
+    </Root>
   );
 }
