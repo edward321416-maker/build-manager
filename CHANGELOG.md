@@ -34,3 +34,7 @@
 
 - Deployed the login-free synthetic demo to the operator's VM with design rules v1 applied to the home, `/core` and `/vendor/job` screens, including the spacing fixes from the operator's iPhone reports.
 - Added `scripts/design-audit.mjs` (Chromium and WebKit, empty states) and the operator feedback log in the design rules.
+
+## 2026-10-10 — Security update
+
+- Redeployed the hosted demo with Next.js 16.3.8 and sharp 0.35.5 (PR #97), fixing the published Next.js and sharp advisories that Dependabot reported. Demo data and settings were kept.
