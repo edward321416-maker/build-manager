@@ -2,6 +2,7 @@
 .root {
   /* Older names kept for the core modules: readable muted text is the rules' text-secondary. */
   --color-text-readable: var(--color-text-secondary); --color-fill-selected: var(--color-primary-soft);
+  --icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23636771' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
   --core-canvas: var(--color-page); --core-surface: var(--color-surface); --core-text: var(--color-text);
   --core-muted: var(--color-text-secondary); --core-action: var(--color-primary);
   --core-border: var(--color-border-strong); --core-rule: var(--color-border);
@@ -25,7 +26,11 @@
 .root button.dangerAction { border-color: var(--color-danger); background: transparent; }
 .root button:disabled { opacity: 1; color: var(--color-text-readable); background: var(--color-fill-subtle); border-color: var(--color-border); cursor: not-allowed; }
 .root a:not(:global(.primary-button)) { color: var(--color-primary); text-decoration: underline; text-underline-offset: 5px; }
-.root :is(select,textarea,input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"])) { width: 100%; min-width: 0; min-height: 3.125rem; max-width: 100%; padding: .625rem .9375rem; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border-control); border-radius: .625rem; }
+.root :is(select,textarea,input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"])) { width: 100%; min-width: 0; min-height: 3.125rem; max-width: 100%; padding: .625rem var(--control-pad-right, .9375rem) .625rem .9375rem; color: var(--color-text); background-color: var(--color-surface); border: 1px solid var(--color-border-control); border-radius: .625rem; }
+/* Disabled controls (rules §2.4): subtle fill and secondary text, never opacity. */
+.root :is(select,textarea,input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"])):disabled { color: var(--color-text-secondary); background-color: var(--color-fill-subtle); border-color: var(--color-border); cursor: not-allowed; }
+/* One chevron and one text area for every select, so Safari and Chrome give the text the same room (rules §8.2). */
+.root select { --control-pad-right: 2.5rem; appearance: none; -webkit-appearance: none; background-image: var(--icon-chevron); background-repeat: no-repeat; background-position: right .9375rem center; background-size: 1rem 1rem; }
 .root :is(select,textarea,input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"])):focus-visible { outline-offset: 0; border-color: var(--color-primary); }
 .root ::placeholder { color: var(--color-text-secondary); opacity: 1; }
 .root textarea { min-height: 7.5rem; resize: vertical; }
@@ -138,11 +143,10 @@
 .heading > div { min-width: 0; }
 .heading :global(.core-actions) { flex: 0 1 auto; min-width: 0; max-width: 100%; }
 .heading button { padding: .625rem; min-height: 3.125rem; background: transparent; border-color: transparent; }
-.root :global(.core-b1-shell .core-account) { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: .3125rem .625rem; padding: .625rem 1.25rem; }
+.root :global(.core-b1-shell .core-account) { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: start; gap: .3125rem .625rem; padding: .625rem 1.25rem; }
 .root :global(.core-account) > * + * { margin-top: 0; }
 .root :global(.core-account h1) { display: none; }
 .root :global(.core-account label) { min-width: 0; font-size: .9375rem; line-height: 1.25rem; }
-.root :global(.core-account label select) { min-height: 2.5rem; padding: .3125rem .625rem; }
 .root :global(.core-account .core-logout) { min-height: 2.5rem; padding: .3125rem .625rem; border-color: transparent; background: transparent; font-weight: 400; }
 .root :global(.core-account nav) { grid-column: 1 / -1; gap: .625rem; }
 .root :global(.core-account nav a) { min-height: 2.5rem; padding: .3125rem .625rem; font-weight: 500; }
@@ -224,7 +228,6 @@
 @media (max-width: 1023px) {
   .root :global(.core-b1-shell .core-account) { padding-block: 0; row-gap: 0; }
   .root :global(.core-account nav) { min-height: 3.125rem; align-items: center; flex-wrap: nowrap; }
-  .root :global(.core-account label select) { text-overflow: ellipsis; }
   .root :global(.core-org-label) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
 /* Only intake previews are compact; ticket detail and stored photos retain their layout. */
@@ -317,4 +320,10 @@
   .root :global(.page-shell.core-flow.core-onboarding) { padding: 2.5rem; }
   .root :global(.core-onboarding) .heading { margin: -2.5rem -2.5rem 1.875rem; }
 }
+/* Organisation field at every width: the current choice wraps in a select-like box, so a long name is never cut
+   (rules §8.2); the native select sits on top, transparent, as the real focusable control. */
+.root :global(.core-account .core-org-field) { position: relative; display: block; }
+.root :global(.core-account .core-org-current) { display: block; min-height: 3.125rem; padding: .625rem 2.5rem .625rem .9375rem; border: 1px solid var(--color-border-control); border-radius: .625rem; background: var(--color-surface) var(--icon-chevron) no-repeat right .9375rem center / 1rem 1rem; line-height: 1.5625rem; overflow-wrap: anywhere; }
+.root :global(.core-account .core-org-field select) { position: absolute; inset: 0; height: 100%; opacity: 0; cursor: pointer; }
+.root :global(.core-account .core-org-field:has(select:focus-visible) .core-org-current) { outline: 2px solid var(--color-primary); outline-offset: 0; border-color: var(--color-primary); }
 @media (prefers-reduced-motion: reduce) { .root *, .root *::before, .root *::after { transition: none; animation: none; scroll-behavior: auto; } }
