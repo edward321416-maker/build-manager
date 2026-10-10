@@ -1,4 +1,5 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -122,6 +123,41 @@ describe("rules gate", () => {
       rmSync(other, { recursive: true, force: true });
     }
   });
+
+  it("keeps every record when Claude reads several rulebooks in parallel", async () => {
+    // Parallel Read calls run their record hooks at the same time. Each checkout gets its own rulebook
+    // contents, so a lost record shows up as a blocked checkout.
+    const checkouts = [repo, ...[1, 2].map(() => mkdtempSync(join(tmpdir(), "rules-repo-parallel-")))];
+    try {
+      checkouts.forEach((base, index) => {
+        mkdirSync(join(base, ".claude"), { recursive: true });
+        copyFileSync(CONFIG, join(base, ".claude", "rules-gate.json"));
+        for (const rule of RULES) {
+          mkdirSync(dirname(at(rule.file, base)), { recursive: true });
+          writeFileSync(at(rule.file, base), `# ${rule.name} copy ${index}\n`);
+        }
+      });
+      const record = (file_path: string) =>
+        new Promise<number | null>((done) => {
+          const child = spawn(process.execPath, [SCRIPT, "record"], {
+            cwd: outside,
+            env: { ...process.env, TMP: state, TEMP: state, TMPDIR: state },
+            stdio: ["pipe", "ignore", "ignore"],
+          });
+          child.on("close", done);
+          child.stdin.end(JSON.stringify({ session_id: "s1", tool_name: "Read", tool_input: { file_path } }));
+        });
+      const statuses = await Promise.all(checkouts.flatMap((base) => RULES.map((rule) => record(at(rule.file, base)))));
+      expect(statuses).toEqual(statuses.map(() => 0));
+      for (const base of checkouts) {
+        expect(required(edit(at("apps/web/src/app/core/page.tsx", base))), base).toEqual([]);
+        expect(required(edit(at("research/a.md", base), "s1", "Write")), base).toEqual([]);
+        expect(required(edit(at("references/a.md", base), "s1", "Write")), base).toEqual([]);
+      }
+    } finally {
+      for (const base of checkouts.slice(1)) rmSync(base, { recursive: true, force: true });
+    }
+  }, 30_000);
 
   it.each<[string, string[]]>([
     ["apps/web/src/server/b1/config.ts", ["development"]],
@@ -255,6 +291,18 @@ describe("rules gate", () => {
     const result = edit(screen());
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("rules-gate");
+  });
+
+  it("still honours reads recorded in the earlier single-file format", () => {
+    // Until every copy of the hook is updated, an older copy may still record reads in <session>.json.
+    const sha = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
+    mkdirSync(join(state, "build-manager-rules-gate"), { recursive: true });
+    writeFileSync(
+      join(state, "build-manager-rules-gate", "s1.json"),
+      JSON.stringify({ "old/design": sha(at(FILE.design)), "old/development": sha(at(FILE.development)) }),
+    );
+    expect(required(edit(screen()))).toEqual([]);
+    expect(required(edit(at("research/a.md"), "s1", "Write"))).toEqual(["research"]);
   });
 
   it("recovers from a corrupt session state file", () => {
