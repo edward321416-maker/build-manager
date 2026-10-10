@@ -484,6 +484,8 @@ Sanitized connector/tool-schema cache synchronization is also pending because no
 
 - Event IA-RESEARCH-V1-FOLLOWUP-20261010: sync_status=pending; operator decisions recorded and home-management, owner-reporting and notification-channel research registered as SRC-126..SRC-138 and CLM-077..CLM-095. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
+- Event DESIGN-FEEDBACK-DEPLOY-20261010: sync_status=pending; PR 86 (2ca1207) deployed to the hosted synthetic demo with the operator's approval; live smoke 6/6 and a read-only WebKit/Chromium layout check passed. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
+
 - Event MENU-AUDIT-V1-20261010: sync_status=pending; internal menu and feature-placement audit on a local synthetic server recorded with SRC-140..SRC-141 and CLM-099..CLM-110. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
 
 - Event MENU-AUDIT-V1-DECISIONS-20261010: sync_status=pending; operator decisions D1 (role tabs) and D2 (flow defects first) recorded as SRC-142, CLM-111 and CLM-112. Google append/readback and schema-cache writes NOT_RUN. Prior prefixes and evidence preserved.
