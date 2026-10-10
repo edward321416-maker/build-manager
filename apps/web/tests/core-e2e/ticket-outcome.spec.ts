@@ -6,7 +6,7 @@ import { randomUUID,randomBytes,createHash } from "node:crypto";
 import { Client } from "pg";
 import sharp from "sharp";
 import { openConversation,openInspector } from "./presentation";
-import { abortOnce } from "./routes";
+import { abortOnce,routeOnce } from "../routes";
 
 const root=join(homedir(),".build-manager-rc1-private"),evidence=join(root,"completion-followup-browser");
 let outcomeCodes:Record<string,string>;
@@ -146,7 +146,7 @@ for(const status of [401,403])test("outcome permission loss "+status+" clears pr
 test("loading and failure never masquerade as no assertion, retry is usable at 390px",async({page,request})=>{
  const s=await setup(request);await page.setViewportSize({width:390,height:844});await login(page,s.codes.tenant);
  let release!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve;});
- await page.route("**/"+s.path+"/outcome",async route=>{await pending;await route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:{code:"UNAVAILABLE",message:"일시적으로 사용할 수 없습니다."}})});},{times:1});
+ await routeOnce(page,"**/"+s.path+"/outcome",async route=>{await pending;await route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:{code:"UNAVAILABLE",message:"일시적으로 사용할 수 없습니다."}})});});
  await open(page,s.id);await expect(card(page).getByRole("status")).toContainText("불러오는 중");await expect(card(page).getByRole("button",{name:"해결됐어요",exact:true})).toHaveCount(0);release();
  await expect(card(page).getByRole("alert")).toBeVisible();await fit(page);await page.screenshot({path:join(evidence,"error-retry-390.png"),fullPage:true});await card(page).getByRole("button",{name:"결과 새로고침",exact:true}).click();await expect(card(page).getByRole("button",{name:"해결됐어요",exact:true})).toBeVisible();
 });

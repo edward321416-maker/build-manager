@@ -6,6 +6,7 @@ import { randomUUID,randomBytes,createHash } from "node:crypto";
 import { Client } from "pg";
 import sharp from "sharp";
 import { openInspector } from "./presentation";
+import { routeOnce } from "../routes";
 const root=join(homedir(),".build-manager-rc1-private"),evidence=join(root,"maintenance-fact-browser");
 let codes:Record<string,string>;
 test.beforeAll(async()=>{
@@ -75,6 +76,6 @@ test("refresh cannot silently rebase a correction draft onto another manager's n
 });
 test("real timeline distinguishes loading, retryable error and empty unit without losing queue navigation",async({page,request})=>{
  await setup(request);await login(page);let release!:()=>void;const gate=new Promise<void>(r=>{release=r;});
- await page.route("**/maintenance-timeline",async route=>{await gate;await route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:{code:"DEPENDENCY_UNAVAILABLE",message:"합성 장애"}})});},{times:1});await page.getByRole("navigation",{name:"관리자 보기"}).getByRole("button",{name:"호실 정비 이력",exact:true}).click();await expect(timeline(page).getByText("호실 정비 이력 불러오는 중…",{exact:true})).toBeVisible();release();await expect(timeline(page).getByRole("alert")).toBeVisible();await timeline(page).getByRole("button",{name:"이력 다시 불러오기",exact:true}).click();await expect(timeline(page).getByRole("alert")).toHaveCount(0);
+ await routeOnce(page,"**/maintenance-timeline",async route=>{await gate;await route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:{code:"DEPENDENCY_UNAVAILABLE",message:"합성 장애"}})});});await page.getByRole("navigation",{name:"관리자 보기"}).getByRole("button",{name:"호실 정비 이력",exact:true}).click();await expect(timeline(page).getByText("호실 정비 이력 불러오는 중…",{exact:true})).toBeVisible();release();await expect(timeline(page).getByRole("alert")).toBeVisible();await timeline(page).getByRole("button",{name:"이력 다시 불러오기",exact:true}).click();await expect(timeline(page).getByRole("alert")).toHaveCount(0);
  const state=JSON.parse(await readFile(join(root,"state.json"),"utf8"));await timeline(page).getByLabel("정비 이력 건물·호실").selectOption(state.fixture.unitOther);await expect(timeline(page).getByText("아직 기록된 정비 사실이 없습니다.",{exact:true})).toBeVisible();await page.getByRole("navigation",{name:"관리자 보기"}).getByRole("button",{name:"업무함",exact:true}).click();await expect(page.getByRole("region",{name:"관리 업무함",exact:true})).toBeVisible();
 });
