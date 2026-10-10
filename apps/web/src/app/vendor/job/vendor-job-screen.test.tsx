@@ -5,6 +5,7 @@ import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import { ApiClientError,type VendorJobClient } from "@build-manager/api-client";
 import type { VendorAcceptCommand,VendorBlockerCommand,VendorClearBlockerCommand,VendorCompletionPhotoUploadCommand,VendorCompletionReportCommand,VendorDeclineCommand,VendorJobDto,VendorPreauthorizedAppointmentCommand,VendorProposalCommand,VendorRescheduleCommand,VendorVisitStartCommand,VendorWithdrawCommand } from "@build-manager/api-contracts";
 import { VendorJobScreen } from "./vendor-job-screen";
+import { formatVendorInterval } from "../../../lib/vendor-time";
 
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 const tokenB="B".repeat(42)+"x";
@@ -506,6 +507,38 @@ describe("Task6 Vendor visit scheduling",()=>{
     expect(page()).toContain("10월 10일(토) 오전 10:00–11:00");
     expect(tokenFree()).toBe(true);
   });
+  // Menu audit F-17: a Tenant's available time can be copied into a proposal row instead of retyped.
+  const fill=(text:string)=>host.querySelector<HTMLButtonElement>(`button[aria-label="${text} 제안 시간에 넣기"]`);
+  const rows=()=>Array.from(host.querySelectorAll<HTMLElement>('[role="group"][aria-label^="시간대 "]')).map(row=>Array.from(row.querySelectorAll("input")).map(input=>input.value));
+  it("copies a Tenant's available time into the proposal rows and proposes it",async()=>{
+    const client=fakeClient({redeem:opened(vendorTurn()),proposeSlots:vi.fn(async()=>proposed([{id:slotNew,startAt:availability.windows[0].startAt,endAt:availability.windows[0].endAt}]))});
+    await mount(client,`#${tokenB}`,now);
+    await act(async()=>{fill("10월 7일(수) 오후 2:00–4:00")!.click();});
+    expect(rows()).toEqual([["2026-10-07","14:00","16:00"]]);
+    await act(async()=>{fill("10월 8일(목) 오전 10:00–오후 1:00")!.click();});
+    await act(async()=>{fill("10월 7일(수) 오후 2:00–4:00")!.click();});
+    expect(rows()).toEqual([["2026-10-07","14:00","16:00"],["2026-10-08","10:00","13:00"]]);
+    await click("방문 시간 제안하기");
+    expect(client.proposeSlots.mock.calls[0][1].slots).toEqual(availability.windows.map(({startAt,endAt})=>({startAt,endAt})));
+  });
+  it("keeps only the start of a Tenant window that ends the next day and stops at five proposal rows",async()=>{
+    const late=Array.from({length:6},(_,i)=>({id:`1313131${i}-1313-4313-8313-131313131313`,startAt:`2026-10-${10+i}T14:30:00.000Z`,endAt:`2026-10-${10+i}T16:00:00.000Z`}));
+    const client=fakeClient({redeem:opened(vendorTurn({availability:{...availability,windows:late}}))});
+    await mount(client,`#${tokenB}`,now);
+    for(const item of late.slice(0,5))await act(async()=>{fill(formatVendorInterval(item.startAt,item.endAt,now()))!.click();});
+    expect(rows()).toEqual(late.slice(0,5).map((_,i)=>[`2026-10-${10+i}`,"23:30",""]));
+    const full=fill(formatVendorInterval(late[5].startAt,late[5].endAt,now()));
+    expect(full?.disabled).toBe(true);
+    expect(page()).toContain("제안할 시간은 5개까지예요");
+    expect(host.querySelector(`#${full!.getAttribute("aria-describedby")}`)?.textContent).toContain("제안할 시간은 5개까지예요");
+  });
+  it("leaves the start blank for a Tenant window that has already started",async()=>{
+    const started={id:w1,startAt:"2026-10-06T02:00:00.000Z",endAt:"2026-10-06T05:00:00.000Z"};
+    const client=fakeClient({redeem:opened(vendorTurn({availability:{...availability,windows:[started]}}))});
+    await mount(client,`#${tokenB}`,now);
+    await act(async()=>{fill(formatVendorInterval(started.startAt,started.endAt,now()))!.click();});
+    expect(rows()).toEqual([["2026-10-06","","14:00"]]);
+  });
   it("rejects a past proposal slot locally without sending",async()=>{
     const client=fakeClient({redeem:opened(vendorTurn())});
     await mount(client,`#${tokenB}`,now);
@@ -841,7 +874,8 @@ describe("Task8 Vendor completion report",()=>{
     expect(host.querySelector('textarea[aria-label="작업 내용 요약"]')).not.toBeNull();
     await pick([file("correction.png")]);
     expect(client.uploadCompletionPhoto.mock.calls[0][1].expectedCorrectionRequestId).toBe(correctionId);
-    await toggle("작업 사진 1");await toggle("작업 사진 2");await toggle("1번째 게시본");
+    // The reused report photo starts unselected; the new upload is in the report by default (menu audit F-17).
+    await toggle("작업 사진 1");await toggle("1번째 게시본");
     await summary("관리자 요청에 맞춘 설명");await click("작업 보고 제출");await click("작업 보고 제출하기");
     expect(client.submitCompletionReport.mock.calls[0][1]).toMatchObject({expectedCorrectionRequestId:correctionId,supersedesReportId:reportB,completionPhotoIds:[photo1,photo2],workSummary:"관리자 요청에 맞춘 설명"});
   });
@@ -858,7 +892,8 @@ describe("Task8 Vendor completion report",()=>{
     expect(uploads[0][1]).toMatchObject({expectedAssignmentVersion:5,expectedPacketRevisionId:packetB,expectedAppointmentId:apptB,expectedCorrectionRequestId:null});
     expect(uploads[0][1].clientRequestId).not.toBe(uploads[1][1].clientRequestId);
     expect(host.querySelectorAll('img[alt^="업로드한 작업 사진"]')).toHaveLength(2);
-    await toggle("작업 사진 1");
+    // Both uploads start in the report (menu audit F-17); leave the second one out.
+    await toggle("작업 사진 2");
     await summary("합성 배관 교체");
     expect(button("작업 보고 제출")?.disabled).toBe(true);
     await toggle("1번째 게시본");
@@ -880,6 +915,48 @@ describe("Task8 Vendor completion report",()=>{
     await click("작업 보고 제출");
     await click("작업 보고 제출하기");
     expect(client.submitCompletionReport.mock.calls[0][1]).toMatchObject({completionPhotoIds:[],photoOmissionReason:"SAFETY_OR_PRIVACY"});
+  });
+  const includeBoxes=()=>Array.from(host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')).filter(x=>x.closest("label")?.textContent?.includes("보고에 포함"));
+  it("puts newly uploaded photos in the report by default while there is room",async()=>{
+    const ids=Array.from({length:6},(_,i)=>`2121212${i}-2121-4121-8121-212121212121`);let n=0;
+    const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>visited()),
+      uploadCompletionPhoto:vi.fn(async()=>({photoId:ids[n++],mime:"image/png",byteSize:3,width:1,height:1,createdAt:"2026-10-06T03:00:00.000Z"}))});
+    await mount(client,`#${tokenB}`,now);
+    await pick(ids.map((_,i)=>file(`${i}.png`)));
+    expect(includeBoxes().map(box=>box.checked)).toEqual([true,true,true,true,true,false]);
+    expect(includeBoxes()[5].disabled).toBe(true);
+    // The omission reasons are off while photos are in the report, and the form says how to turn them on.
+    expect(page()).toContain("사진을 보고에서 모두 빼면 고를 수 있어요.");
+  });
+  it("goes back to the missing list when the report stops being ready during the confirm step",async()=>{
+    const client=fakeClient({redeem:opened(visited())});
+    await mount(client,`#${tokenB}`,now);
+    await toggle("사진이 필요 없는 작업");await summary("합성 배관 교체");await toggle("1번째 게시본");
+    await click("작업 보고 제출");
+    expect(button("작업 보고 제출하기")).toBeDefined();
+    await toggle("1번째 게시본");
+    expect(button("작업 보고 제출하기")).toBeUndefined();
+    expect(Array.from(host.querySelectorAll("#vendor-completion-missing li")).map(item=>item.textContent)).toEqual(["현재 작업 요청 내용을 확인했다고 표시해 주세요."]);
+  });
+  it("does not put a new photo in the report after the Vendor chose to report without photos",async()=>{
+    const client=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>visited())});
+    await mount(client,`#${tokenB}`,now);
+    await toggle("사진이 필요 없는 작업");
+    await pick([file("a.png")]);
+    expect(includeBoxes().map(box=>box.checked)).toEqual([false]);
+  });
+  it("lists what is still missing while the report cannot be submitted",async()=>{
+    const client=fakeClient({redeem:opened(visited())});
+    await mount(client,`#${tokenB}`,now);
+    const missing=()=>Array.from(host.querySelectorAll("#vendor-completion-missing li")).map(item=>item.textContent);
+    expect(missing()).toEqual(["작업 사진을 1장 이상 보고에 포함하거나, 사진 없이 보고하는 이유를 골라 주세요.","작업 내용 요약을 적어 주세요.","현재 작업 요청 내용을 확인했다고 표시해 주세요."]);
+    expect(button("작업 보고 제출")?.getAttribute("aria-describedby")).toBe("vendor-completion-missing");
+    await summary("합성 배관 교체");await toggle("1번째 게시본");
+    expect(missing()).toEqual(["작업 사진을 1장 이상 보고에 포함하거나, 사진 없이 보고하는 이유를 골라 주세요."]);
+    await toggle("사진이 필요 없는 작업");
+    expect(host.querySelector("#vendor-completion-missing")).toBeNull();
+    expect(button("작업 보고 제출")?.disabled).toBe(false);
+    expect(button("작업 보고 제출")?.hasAttribute("aria-describedby")).toBe(false);
   });
   it("needs either a selected photo or an omission reason, a summary and the packet acknowledgment",async()=>{
     const client=fakeClient({redeem:opened(visited())});
@@ -987,7 +1064,7 @@ describe("Task8 review remediation (Vendor screen)",()=>{
     await mount(client,`#${tokenB}`,now);
     await pick([file("a.png")]);
     expect(host.querySelectorAll('img[alt^="업로드한 작업 사진"]')).toHaveLength(1);
-    await toggle("작업 사진 1");
+    // The upload is already in the report by default (menu audit F-17).
     await summary("합성 배관 교체");
     await toggle("1번째 게시본");
     await click("작업 보고 제출");

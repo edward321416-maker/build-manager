@@ -39,6 +39,13 @@
 .photos { display: grid; gap: .625rem; margin-top: .3125rem; }
 .photos img { display: block; width: 100%; height: auto; max-height: 20rem; object-fit: contain; background: var(--color-fill-subtle); border-radius: .9375rem; }
 .meta { color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; }
+/* What a disabled action still needs (menu audit F-17, C-07): body text in the secondary colour, right above the action. */
+.missing { color: var(--color-text-secondary); }
+.missing ul { display: grid; gap: .3125rem; margin: .3125rem 0 0; padding-left: 1.25rem; list-style: disc; }
+/* Tenant windows: the time, then the secondary button that copies it into a proposal row. */
+.windows { display: grid; gap: .625rem; margin: .3125rem 0 0; padding: 0; list-style: none; }
+.windows li { display: grid; gap: .3125rem; justify-items: start; }
+.windows + .missing { margin-top: .625rem; }
 .footer { display: grid; gap: .625rem; }
 @media (min-width: 768px) { .page { padding-inline: 1.875rem; } }
 @media (prefers-reduced-motion: reduce) { .page * { transition: none; } }

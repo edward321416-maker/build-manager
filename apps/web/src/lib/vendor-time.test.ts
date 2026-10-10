@@ -1,5 +1,5 @@
 import { describe,expect,it } from "vitest";
-import { formatVendorInstant,formatVendorInterval,intervalWithin,seoulLocalToInstant } from "./vendor-time";
+import { formatVendorInstant,formatVendorInterval,instantToSeoulLocal,intervalWithin,seoulLocalToInstant } from "./vendor-time";
 
 const now=new Date("2026-10-06T03:00:00Z");
 
@@ -53,5 +53,12 @@ describe("Seoul wall-clock entry",()=>{
   });
   it.each([["2026-02-30","10:00"],["2026-13-01","10:00"],["2026-10-07","24:00"],["2026-10-07","9:5"],["","10:00"],["2026-10-07T10:00","10:00"]])("rejects an impossible or malformed entry %s %s",(date,time)=>{
     expect(seoulLocalToInstant(date,time)).toBeNull();
+  });
+  it("turns an instant back into the Seoul date and time it was entered as, across midnight and the new year",()=>{
+    expect(instantToSeoulLocal("2026-10-07T05:00:00.000Z")).toEqual({date:"2026-10-07",time:"14:00"});
+    expect(instantToSeoulLocal("2026-10-07T15:00:00Z")).toEqual({date:"2026-10-08",time:"00:00"});
+    expect(instantToSeoulLocal("2026-12-31T15:30:00Z")).toEqual({date:"2027-01-01",time:"00:30"});
+    const {date,time}=instantToSeoulLocal("2026-10-07T05:00:00.000Z");
+    expect(seoulLocalToInstant(date,time)).toBe("2026-10-07T05:00:00.000Z");
   });
 });

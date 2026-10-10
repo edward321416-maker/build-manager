@@ -3,7 +3,7 @@ import Image from "next/image";
 import { useCallback,useEffect,useRef,useState } from "react";
 import { ApiClientError,createVendorJobClient,type VendorJobClient } from "@build-manager/api-client";
 import { VendorBlockerCommandSchema,VendorCompletionReportCommandSchema,VendorDeclineCommandSchema,type VendorBlockerCode,type VendorBlockerCommand,type VendorClearBlockerCommand,type VendorCompletionPhotoUploadCommand,type VendorCompletionReportCommand,type VendorDeclineCommand,type VendorWithdrawCommand,type VendorDeclineReason,type VendorJobDto,type VendorPhotoOmissionReason,type VendorPreauthorizedAppointmentCommand,type VendorProposalCommand,type VendorRescheduleCommand,type VendorSharedDetailSourceType,type VendorVisitStartCommand } from "@build-manager/api-contracts";
-import { IntervalFields,draftsToIntervals,emptyIntervalDraft,type IntervalDraft } from "../../../components/vendor-interval-fields";
+import { IntervalFields,draftsToIntervals,emptyIntervalDraft,intervalToDraft,type IntervalDraft } from "../../../components/vendor-interval-fields";
 import { formatVendorInterval,intervalWithin } from "../../../lib/vendor-time";
 import { BLOCKER_LABELS,OMISSION_LABELS } from "../../../lib/vendor-blocker";
 import styles from "./vendor-job.module.css";
@@ -69,7 +69,7 @@ type Completion={context?:string;assignmentId:string|null;appointmentId:string|n
   ackPacketId:string|null;confirming:boolean;sent:VendorCompletionReportCommand|null;status:"idle"|"submitting"|"uncertain";notice:string};
 const idleCompletion:Completion={assignmentId:null,appointmentId:null,correctionRequestId:null,uploads:[],pending:null,uploadStatus:"idle",omission:null,summary:"",note:"",ackPacketId:null,
   confirming:false,sent:null,status:"idle",notice:""};
-const VISIT_PHOTO_LIMIT=10;
+const VISIT_PHOTO_LIMIT=10,REPORT_PHOTO_LIMIT=5;
 /** Staged photos and the report draft belong to exactly one assignment and visit (review L2). */
 const ownsCompletion=(job:VendorJobDto,state:Completion)=>state.assignmentId===job.assignmentId&&state.appointmentId===(job.appointment?.id??null)&&state.correctionRequestId===(job.correctionRequest?.id??null);
 const freshCompletion=(job:VendorJobDto):Completion=>({...idleCompletion,assignmentId:job.assignmentId,appointmentId:job.appointment?.id??null,correctionRequestId:job.correctionRequest?.id??null,
@@ -365,8 +365,10 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     try{
       const photo=await withFreshCsrf(gen,value=>client.uploadCompletionPhoto(value,input,file));
       if(gen!==generation.current)return false;
+      // Menu audit F-17: a new upload goes into the report while there is room and no omission reason was chosen.
       setCompletion(current=>({...current,pending:null,uploadStatus:"idle",
-        uploads:current.uploads.some(item=>item.photoId===photo.photoId)?current.uploads:[...current.uploads,{photoId:photo.photoId,selected:false}]}));
+        uploads:current.uploads.some(item=>item.photoId===photo.photoId)?current.uploads:[...current.uploads,{photoId:photo.photoId,
+          selected:current.omission===null&&current.uploads.filter(item=>item.selected).length<REPORT_PHOTO_LIMIT}]}));
       return true;
     }catch(error){
       if(gen!==generation.current)return false;
@@ -653,6 +655,19 @@ function CurrentTask(props:ViewProps&{job:VendorJobDto}){
   </section>;
 }
 
+const blankDraft=(draft:IntervalDraft)=>!draft.date&&!draft.start&&!draft.end;
+/**
+ * Menu audit F-17: copies a Tenant window into the first blank proposal row, or a new row while fewer than five exist.
+ * A window that has already started gets today's date and a blank start, so the Vendor picks a start that is still ahead.
+ */
+function withWindow(drafts:IntervalDraft[],window:{startAt:string;endAt:string},at:Date):IntervalDraft[]{
+  const row=Date.parse(window.startAt)>at.getTime()?intervalToDraft(window):{...intervalToDraft({startAt:at.toISOString(),endAt:window.endAt}),start:""};
+  if(drafts.some(draft=>draft.date===row.date&&draft.start===row.start&&draft.end===row.end))return drafts;
+  const blank=drafts.findIndex(blankDraft);
+  if(blank>=0)return drafts.map((draft,index)=>index===blank?row:draft);
+  return drafts.length<5?[...drafts,row]:drafts;
+}
+
 function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,onSelectPreauthorized,onReschedule,onRetrySchedule}:ViewProps&{job:VendorJobDto;submitting:boolean}){
   const at=now(),future=(instant:string)=>Date.parse(instant)>at.getTime(),label=(startAt:string,endAt:string)=>formatVendorInterval(startAt,endAt,at);
   const round=job.currentRound,open=job.phase==="SCHEDULING"&&round?.status==="OPEN";
@@ -661,6 +676,7 @@ function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,
   const windows=availability?.windows.filter(item=>future(item.endAt))??[];
   const authorized=job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"?windows.filter(item=>availability!.authorizedWindowIds.includes(item.id)):[];
   const liveSlots=open?job.proposal?.slots.filter(slot=>future(slot.startAt))??[]:[];
+  const proposing=open&&!liveSlots.length,roomForWindow=schedule.drafts.some(blankDraft)||schedule.drafts.length<5;
   if(schedule.status==="uncertain"&&schedule.sent)return <div className={styles.confirm} role="group" aria-label="방문 일정 결과 확인">
     <p role="alert">{UNCERTAIN_SCHEDULE[schedule.sent.kind]}</p>
     <button type="button" onClick={onRetrySchedule}>같은 요청으로 결과 확인</button>
@@ -680,7 +696,12 @@ function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,
     </div>:null}
     {windows.length?<div>
       <h3>세입자가 알려 준 가능한 시간</h3>
-      <ul>{windows.map(item=><li key={item.id}>{label(item.startAt,item.endAt)}{availability!.authorizedWindowIds.includes(item.id)?" · 부재 중 출입 동의":""}</li>)}</ul>
+      <ul className={styles.windows}>{windows.map(item=>{const text=label(item.startAt,item.endAt);return <li key={item.id}>
+        <span>{text}{availability!.authorizedWindowIds.includes(item.id)?" · 부재 중 출입 동의":""}</span>
+        {proposing?<button type="button" disabled={submitting||!roomForWindow} aria-label={`${text} 제안 시간에 넣기`}
+          aria-describedby={roomForWindow?undefined:"vendor-window-full"} onClick={()=>onSchedule({drafts:withWindow(schedule.drafts,item,at)})}>제안 시간에 넣기</button>:null}
+      </li>;})}</ul>
+      {proposing&&!roomForWindow?<p id="vendor-window-full" className={styles.missing}>제안할 시간은 5개까지예요. 다른 시간을 넣으려면 아래 시간대 하나를 지워 주세요.</p>:null}
     </div>:null}
     {authorized.length?<form className={styles.form} onSubmit={event=>{event.preventDefault();onSelectPreauthorized();}}>
       <fieldset disabled={submitting}>
@@ -770,7 +791,13 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
   const selected=completion.uploads.filter(item=>item.selected).length;
   const busy=completion.uploadStatus==="uploading"||completion.status==="submitting";
   const acknowledged=completion.ackPacketId===job.currentPacket.id;
-  const ready=acknowledged&&completion.summary.trim().length>0&&((selected>=1&&selected<=5)!==(completion.omission!==null));
+  const ready=acknowledged&&completion.summary.trim().length>0&&((selected>=1&&selected<=REPORT_PHOTO_LIMIT)!==(completion.omission!==null));
+  // Menu audit F-17 and C-07: a disabled submit says what is still missing.
+  const missing=[
+    ...(selected===0&&completion.omission===null?["작업 사진을 1장 이상 보고에 포함하거나, 사진 없이 보고하는 이유를 골라 주세요."]:[]),
+    ...(completion.summary.trim().length>0?[]:["작업 내용 요약을 적어 주세요."]),
+    ...(acknowledged?[]:["현재 작업 요청 내용을 확인했다고 표시해 주세요."]),
+  ];
   if(completion.status==="uncertain"&&completion.sent)return <div className={styles.confirm} role="group" aria-label="작업 보고 결과 확인">
     <p role="alert">작업 보고 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.</p>
     <button type="button" onClick={onRetryReport}>같은 요청으로 결과 확인</button>
@@ -792,12 +819,13 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
       </div>:null}
       {completion.uploads.map((item,index)=><div key={item.photoId}>
         <Image unoptimized src={completionPhotoPath(item.photoId)} width={320} height={240} alt={`업로드한 작업 사진 ${index+1}`}/>
-        <label className={styles.choice}><input type="checkbox" checked={item.selected} disabled={!item.selected&&(selected>=5||completion.omission!==null)}
+        <label className={styles.choice}><input type="checkbox" checked={item.selected} disabled={!item.selected&&(selected>=REPORT_PHOTO_LIMIT||completion.omission!==null)}
           onChange={event=>onCompletion({uploads:completion.uploads.map(other=>other.photoId===item.photoId?{...other,selected:event.target.checked}:other)})}/><span>작업 사진 {index+1} 보고에 포함</span></label>
       </div>)}
     </fieldset>
     <fieldset disabled={busy||selected>0}>
       <legend>사진 없이 보고하는 이유</legend>
+      {selected>0?<p className={styles.missing}>사진을 보고에서 모두 빼면 고를 수 있어요.</p>:null}
       {(Object.keys(OMISSION_LABELS) as VendorPhotoOmissionReason[]).map(reason=><label key={reason} className={styles.choice}>
         <input type="radio" name="vendor-photo-omission" checked={completion.omission===reason} onChange={()=>onCompletion({omission:reason})}/><span>{OMISSION_LABELS[reason]}</span>
       </label>)}
@@ -811,12 +839,19 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
     </label>
     <label className={styles.choice}><input type="checkbox" checked={acknowledged} disabled={busy} onChange={event=>onCompletion({ackPacketId:event.target.checked?job.currentPacket!.id:null})}/>
       <span>현재 작업 요청 내용({job.currentPacket.revision}번째 게시본)을 확인했습니다</span></label>
-    {completion.confirming?<div className={styles.confirm} role="group" aria-labelledby="vendor-completion-confirm">
+    {/* A change that makes the report incomplete during the confirm step shows the missing list again instead of a silently disabled button. */}
+    {completion.confirming&&ready?<div className={styles.confirm} role="group" aria-labelledby="vendor-completion-confirm">
       <h3 id="vendor-completion-confirm">작업 보고를 제출할까요?</h3>
       <p>작업 보고를 제출하면 관리자가 확인할 때까지 수정할 수 없습니다.</p>
       <button type="button" disabled={busy||!ready} onClick={onSubmitReport}>작업 보고 제출하기</button>
       <button type="button" disabled={busy} onClick={()=>onCompletion({confirming:false})}>돌아가기</button>
-    </div>:<button type="submit" disabled={busy||!ready}>작업 보고 제출</button>}
+    </div>:<>
+      {missing.length?<div id="vendor-completion-missing" className={styles.missing}>
+        <p>제출하려면 아래를 마쳐 주세요.</p>
+        <ul>{missing.map(item=><li key={item}>{item}</li>)}</ul>
+      </div>:null}
+      <button type="submit" disabled={busy||!ready} aria-describedby={missing.length?"vendor-completion-missing":undefined}>작업 보고 제출</button>
+    </>}
   </form>;
 }
 

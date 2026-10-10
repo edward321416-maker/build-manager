@@ -1,9 +1,14 @@
 "use client";
-import { seoulLocalToInstant } from "../lib/vendor-time";
+import { instantToSeoulLocal,seoulLocalToInstant } from "../lib/vendor-time";
 
 /** One Seoul wall-clock row. Strings come straight from date/time inputs; no browser time-zone conversion happens. */
 export type IntervalDraft={date:string;start:string;end:string};
 export const emptyIntervalDraft=():IntervalDraft=>({date:"",start:"",end:""});
+/** One interval as a row. A row holds one date, so an interval ending on a later Seoul day keeps only its start and leaves the end to choose. */
+export function intervalToDraft({startAt,endAt}:{startAt:string;endAt:string}):IntervalDraft{
+  const start=instantToSeoulLocal(startAt),end=instantToSeoulLocal(endAt);
+  return {date:start.date,start:start.time,end:end.date===start.date?end.time:""};
+}
 export type IntervalResult={ok:true;intervals:{startAt:string;endAt:string}[]}|{ok:false;message:string};
 
 /** Converts 1–5 Seoul rows into ordered absolute intervals; validation compares instants, never display strings. */

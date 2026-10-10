@@ -49,6 +49,12 @@ export function intervalWithin(inner:VendorInterval,outer:VendorInterval):boolea
   }catch{return false;}
 }
 
+/** ISO instant → Seoul calendar date `YYYY-MM-DD` and wall time `HH:MM` (seconds dropped); the inverse of seoulLocalToInstant. */
+export function instantToSeoulLocal(at:string):{date:string;time:string}{
+  const p=seoul(at),pad=(value:number)=>String(value).padStart(2,"0");
+  return {date:`${p.year}-${pad(p.month)}-${pad(p.day)}`,time:`${pad(p.hour)}:${pad(p.minute)}`};
+}
+
 /** Seoul calendar date `YYYY-MM-DD` + wall time `HH:MM` → ISO instant; null for impossible or malformed entries. */
 export function seoulLocalToInstant(date:string,time:string):string|null{
   const d=/^(\d{4})-(\d{2})-(\d{2})$/.exec(date),t=/^(\d{2}):(\d{2})$/.exec(time);
