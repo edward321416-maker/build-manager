@@ -217,7 +217,7 @@
 
 ## 게이트
 
-- **규칙 목록** `.claude/rules-gate.json`: 규칙마다 `id`, `name`, `file`, `edit`(glob 목록), `exclude`, `tools`, `commands`(정규식 목록)를 적는다.
+- **규칙 목록** `.claude/rules-gate.json`: 규칙마다 `id`, `name`, `file`, `edit`(glob 목록), `exclude`, `tools`, `commands`(명령 분류 이름 목록, 예: `package-add`)를 적는다. 분류 판정은 스크립트가 명령을 토큰으로 나눠서 한다. PR-2 리뷰에서 정규식으로는 `npm --workspace X install pkg` 같은 옵션 순서를 다룰 수 없다는 점이 확인돼 이 방식으로 바꿨다.
 
   | 규칙 | 편집 대상(`edit`) | 도구(`tools`) | 명령(`commands`) |
   | --- | --- | --- | --- |
