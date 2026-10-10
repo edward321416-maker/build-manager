@@ -4,8 +4,10 @@
 // same session. `.claude/rules-gate.json` of the repository that contains the edited file (or the
 // directory a command or lookup runs in) lists each rulebook with the edit globs, tools and command
 // classes it covers. A checkout that has design/DESIGN_RULES.md but no config gets the design rule only.
-//   record  PostToolUse, matcher Read: leave a marker named by the hash of a fully read rulebook in
-//           the session's folder, one file per record so parallel reads cannot overwrite each other.
+//   record  PostToolUse, matcher Read|Edit|Write|MultiEdit|NotebookEdit: leave a marker named by the hash
+//           of a fully read rulebook in the session's folder, one file per record so parallel reads cannot
+//           overwrite each other. A rulebook the session edited itself counts too, but only when `check`
+//           confirmed just before the edit that its previous content had been read.
 //   check   PreToolUse, matcher Edit|Write|MultiEdit|NotebookEdit|WebSearch|WebFetch|Bash|PowerShell:
 //           exit 2 while a required rulebook is unread or changed since it was read. Reads are matched
 //           by content hash, so a read in one worktree covers an identical copy in another.
@@ -13,7 +15,7 @@
 // they exit 1 so Claude Code shows them to the user. Never place rules-gate.json in ~/.claude: every
 // path under the home folder would then count as a rules repository.
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
@@ -140,8 +142,14 @@ function sessionDir(session) {
 /** Hashes read in the session, including records that the earlier single-file format left in `<session>.json`. */
 function readDigests(session) {
   const dir = sessionDir(session);
-  return new Set([...readdirSync(dir), ...Object.values(loadState(`${dir}.json`))]);
+  const markers = readdirSync(dir).filter((name) => /^[0-9a-f]{64}$/.test(name));
+  return new Set([...markers, ...Object.values(loadState(`${dir}.json`))]);
 }
+/** A checked edit runs right after its check; an older marker is stale and credits nothing. */
+const PENDING_EDIT_MAX_AGE_MS = 10 * 60 * 1000;
+/** Marks a checked edit of a rulebook whose current content was read; `record` credits the result after the edit. */
+const pendingEditFile = (session, rulebookPath) =>
+  join(sessionDir(session), `edit-${createHash("sha256").update(fold(rulebookPath)).digest("hex")}`);
 /** A missing or corrupt legacy state file counts as "nothing read yet". */
 function loadState(file) {
   try {
@@ -153,15 +161,26 @@ function loadState(file) {
 }
 
 function record(input) {
-  const path = input.tool_input?.file_path;
-  if (input.tool_name !== "Read" || typeof path !== "string") return 0;
-  if (input.tool_input.offset != null || input.tool_input.limit != null) return 0;
+  const edited = EDIT_TOOLS.has(input.tool_name);
+  const path = edited ? input.tool_input?.file_path ?? input.tool_input?.notebook_path : input.tool_input?.file_path;
+  if ((input.tool_name !== "Read" && !edited) || typeof path !== "string") return 0;
+  if (!edited && (input.tool_input.offset != null || input.tool_input.limit != null)) return 0;
   const absolute = resolve(native(input.cwd ?? "."), native(path));
   const found = findRoot(dirname(absolute));
   if (!found) return 0;
   const target = fold(posix(found.root, absolute));
   const rule = loadRules(found, []).find((candidate) => fold(candidate.file) === target);
   if (!rule || !existsSync(rule.path)) return 0;
+  if (edited) {
+    // The session wrote this content itself after `check` confirmed it had read the previous content.
+    // Credit it only for that checked edit; an unchecked or failed-open edit still needs a full read.
+    const pending = pendingEditFile(input.session_id, rule.path);
+    if (!existsSync(pending)) return 0;
+    const before = readFileSync(pending, "utf8");
+    const fresh = Date.now() - statSync(pending).mtimeMs < PENDING_EDIT_MAX_AGE_MS;
+    rmSync(pending, { force: true });
+    if (!fresh || !readDigests(input.session_id).has(before)) return 0;
+  }
   // One file per record: parallel Read hooks never rewrite a shared file, so no record is lost or fails.
   writeFileSync(join(sessionDir(input.session_id), digest(rule.path)), "");
   return 0;
@@ -180,8 +199,11 @@ function demands(input) {
       {
         start: dirname(absolute),
         label: (root) => posix(root, absolute),
+        // Editing a rulebook itself requires having read it.
+        editsRulebook: (rule, root) => fold(posix(root, absolute)) === fold(rule.file),
         needs: (rule, root) => {
           const relativePath = posix(root, absolute);
+          if (fold(relativePath) === fold(rule.file)) return true;
           return rule.edit.some((re) => re.test(relativePath)) && !rule.exclude.some((re) => re.test(relativePath));
         },
       },
@@ -215,6 +237,7 @@ function demands(input) {
 function check(input) {
   const warnings = [];
   const unread = new Map();
+  const editedRulebooks = [];
   let read;
   for (const demand of demands(input)) {
     const found = findRoot(demand.start);
@@ -224,11 +247,16 @@ function check(input) {
       // Matched by content, not path: a full read also covers other checkouts (worktrees) of the same session
       // while their copy is byte-identical, and any change still requires a new read.
       read ??= readDigests(input.session_id);
-      if (!read.has(digest(rule.path))) unread.set(rule.path, { rule, label: demand.label(found.root) });
+      const current = digest(rule.path);
+      if (!read.has(current)) {
+        unread.set(rule.path, { rule, label: demand.label(found.root) });
+        if (demand.editsRulebook?.(rule, found.root)) rmSync(pendingEditFile(input.session_id, rule.path), { force: true });
+      } else if (demand.editsRulebook?.(rule, found.root)) editedRulebooks.push({ path: rule.path, current });
     }
   }
   const warning = warnings.length > 0 ? `rules-gate: ${warnings.join("; ")}\n` : "";
   if (unread.size === 0) {
+    for (const { path, current } of editedRulebooks) writeFileSync(pendingEditFile(input.session_id, path), current);
     process.stderr.write(warning);
     return warning ? 1 : 0;
   }

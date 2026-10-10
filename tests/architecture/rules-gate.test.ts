@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -98,6 +98,62 @@ describe("rules gate", () => {
     expect(required(edit(screen()))).toEqual([]);
   });
 
+  describe("editing a rulebook", () => {
+    const own = () => at(FILE.development);
+    const recordEdit = (session = "s1", tool_name = "Edit") =>
+      run("record", { session_id: session, tool_name, tool_input: { file_path: own() } });
+
+    it("requires reading the rulebook before editing it", () => {
+      expect(required(edit(own()))).toEqual(["development"]);
+    });
+
+    it("counts the session's own checked edit as read", () => {
+      read("development");
+      expect(required(edit(own()))).toEqual([]);
+      writeFileSync(own(), "# 개발 규칙 v2 (own edit)\n");
+      expect(recordEdit().status).toBe(0);
+      expect(required(edit(at("packages/domain/src/a.ts"), "s1", "Write"))).toEqual([]);
+      expect(required(edit(own()))).toEqual([]);
+    });
+
+    it("does not count an edit that never passed the check", () => {
+      read("development");
+      writeFileSync(own(), "# 개발 규칙 v2 (unchecked)\n");
+      expect(recordEdit().status).toBe(0);
+      expect(required(edit(at("packages/domain/src/a.ts"), "s1", "Write"))).toEqual(["development"]);
+    });
+
+    it("still requires a new read after someone else changes the rulebook again", () => {
+      read("development");
+      expect(required(edit(own()))).toEqual([]);
+      writeFileSync(own(), "# 개발 규칙 v2 (own edit)\n");
+      recordEdit();
+      writeFileSync(own(), "# 개발 규칙 v3 (outside change)\n");
+      expect(required(edit(at("packages/domain/src/a.ts"), "s1", "Write"))).toEqual(["development"]);
+    });
+
+    it("does not count a checked edit whose marker went stale", () => {
+      read("development");
+      expect(required(edit(own()))).toEqual([]);
+      const dir = join(state, "build-manager-rules-gate", "s1");
+      const markers = readdirSync(dir).filter((name) => name.startsWith("edit-"));
+      expect(markers).toHaveLength(1);
+      const old = new Date(Date.now() - 11 * 60 * 1000);
+      utimesSync(join(dir, markers[0]), old, old);
+      writeFileSync(own(), "# 개발 규칙 v2 (late)\n");
+      recordEdit();
+      expect(required(edit(at("packages/domain/src/a.ts"), "s1", "Write"))).toEqual(["development"]);
+    });
+
+    it("does not carry a checked edit into another session", () => {
+      read("development");
+      expect(required(edit(own()))).toEqual([]);
+      writeFileSync(own(), "# 개발 규칙 v2 (own edit)\n");
+      recordEdit("s2");
+      expect(required(edit(at("packages/domain/src/a.ts"), "s2", "Write"))).toEqual(["development"]);
+    });
+  });
+
   it("does not unlock another session", () => {
     read("design");
     read("development");
@@ -176,7 +232,9 @@ describe("rules gate", () => {
     ["references/a.md", ["reference"]],
     ["README.md", []],
     ["ops/AI_Execution_Log.csv", []],
-    ["design/DESIGN_RULES.md", []],
+    ["design/DESIGN_RULES.md", ["design"]],
+    ["development/DEVELOPMENT_RULES.md", ["development"]],
+    ["research/RESEARCH_RULES.md", ["research"]],
     ["governance/project_policy.md", []],
   ])("maps %s to its rulebooks", (path, ids) => {
     expect(required(edit(at(path), "s1", "Write"))).toEqual(ids);
