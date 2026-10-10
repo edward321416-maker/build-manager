@@ -236,8 +236,8 @@
 .root :global(.core-photos[data-compact="true"]) .photoSelectionCount { margin: 0; }
 .root :global(.core-photos[data-compact="true"] .photo-grid) { grid-template-columns: repeat(3,minmax(0,1fr)); gap: .625rem; margin-top: .625rem; }
 .root :global(.core-photos[data-compact="true"] .photo-grid figure) { min-width: 0; margin: 0; }
-.root :global(.core-photos[data-compact="true"] .photo-grid img) { aspect-ratio: 1; }
-.root :global(.core-photos[data-compact="true"] .photo-grid button) { width: 100%; padding: .3125rem; }
+.root :global(.core-photos[data-compact="true"] .photo-grid img) { aspect-ratio: 4 / 3; }
+.root :global(.core-photos[data-compact="true"] .photo-grid button) { width: 100%; padding: 0; }
 .root :global(.photo-intake-help) { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 .625rem; }
 .root :global(.photo-intake-help details) { min-width: 0; }
 .root :global(.photo-intake-help details[open]) { flex-basis: 100%; }
