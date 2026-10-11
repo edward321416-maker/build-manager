@@ -60,12 +60,28 @@ sudo docker logs --since 5m vm-web-1                 # Ready, and HOSTED_DEMO_EN
 - This procedure does not undo database changes.
   - An older image also logs `migrations current` on a newer schema, so that line does not prove the two fit together.
   - Before rolling back, check that no migration was added between the two images. If one was, that rollback needs its own plan.
-- Afterwards, open the first page, both demo entries and one Core screen.
+- Afterwards, run the [checks](#checks).
 
 Rehearsed on 2026-10-10 with image `f4a98a3fb611` before the PR #106 redeploy:
 - Load, recreate and ready took 161 seconds.
 - The live checks passed.
 - That archive was saved with the `latest` tag, so the load set the tag and no separate tag step ran.
+
+## Checks
+
+Run these after every deploy or rollback, and whenever the demo looks wrong, from a checkout where `npm ci` has run. The browser checks also need Playwright's Chromium once per machine: `npx playwright install chromium`.
+
+```bash
+DEMO_ORIGIN=https://<ip-with-dashes>.sslip.io node scripts/demo-smoke.mjs              # HTTP and browser checks
+DEMO_ORIGIN=https://<ip-with-dashes>.sslip.io node scripts/demo-smoke.mjs --http-only  # HTTP only
+```
+
+- Each check prints one `PASS` or `FAIL` line, and the run ends with `SMOKE PASS` or `SMOKE FAIL`. The address is printed as `<demo>`. Exit 0 means every check passed, 1 means a check failed and 2 means a usage error.
+- HTTP checks: the first page, `/core`, `/vendor/job`, one static chunk, `/api/v2/core/access` (401 when signed out), `/demo/landlord` (404), the closed `/_next/image` route and, over HTTPS, a certificate with at least 7 days left.
+- Browser checks: both demo entry buttons, then the manager work queue at 1280 px and the tenant repair intake at 390 px, with no 5xx responses or page errors.
+- `--expect-text <path> <text>` proves that a release reached the site, for example a chunk file that only the new image has. In Git Bash on Windows, add `MSYS_NO_PATHCONV=1`, or Git Bash rewrites `/_next/...` into a Windows path.
+- `--write-check` saves one synthetic repair request on the demo. Use it only right after a deploy.
+- `.github/workflows/demo-health.yml` runs the HTTP checks every hour with the repository secret `DEMO_ORIGIN` and retries a failed check once a minute later. If the retry also fails, GitHub notifies the user who last changed its cron line. GitHub turns scheduled workflows off in a public repository after 60 days without activity; turn it back on with `gh workflow enable demo-health.yml`.
 
 ## Boundaries
 
