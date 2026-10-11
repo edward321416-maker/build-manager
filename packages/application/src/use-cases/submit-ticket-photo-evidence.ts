@@ -1,12 +1,9 @@
 import {
-  evaluateRuleExpression,
-  type AnswerValue,
+  activeEvidenceRequirements,
   type EvidenceType,
-  type RuleField,
-  type RuleValues,
   type Ticket,
 } from "@build-manager/domain";
-import { stateConflict } from "../errors";
+import { notFound, stateConflict } from "../errors";
 import type { ApplicationDependencies } from "../ports";
 import {
   assertIntakeAllowed,
@@ -29,10 +26,14 @@ export function corePhotoRef(photoId: string): string {
   return `${CORE_PHOTO_REF_PREFIX}${photoId}`;
 }
 
+/** Core photo ids are lowercase UUIDs; nothing else can name one of the ticket's photos. */
+const PHOTO_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 /**
  * Names one of the tenant's own photos as the evidence the protocol asks for now
  * (spec docs/superpowers/specs/2026-10-11-intake-photo-evidence-p1b-design.md).
  * The evidence gate is unchanged: it only sees that the required type is present.
+ * What counts as asked for is read as the gate reads it (activeEvidenceRequirements).
  * One photo per type; choosing again replaces it, and the same choice changes nothing.
  * The caller must have checked that the photo belongs to this ticket.
  */
@@ -40,17 +41,16 @@ export async function submitTicketPhotoEvidence(
   deps: ApplicationDependencies,
   input: SubmitTicketPhotoEvidenceInput,
 ): Promise<{ ticket: Ticket; changed: boolean }> {
+  if (!PHOTO_ID.test(input.photoId)) {
+    throw notFound(`Photo for ticket ${input.ticketId} not found`);
+  }
   const ticket = await loadTicket(deps, input.ticketId);
   assertIntakeAllowed(ticket);
 
   const building = await loadBuilding(deps, ticket.buildingId);
   const { protocol } = assessTicket(ticket, building);
-  const values = ruleValues(ticket);
-  const requested = protocol.evidence.some(
-    (requirement) =>
-      requirement.type === input.evidenceType &&
-      (requirement.showWhen === undefined ||
-        evaluateRuleExpression(requirement.showWhen, values)),
+  const requested = activeEvidenceRequirements(protocol, ticket.answers).some(
+    (requirement) => requirement.type === input.evidenceType,
   );
   if (!requested) {
     throw stateConflict(
@@ -93,26 +93,4 @@ export async function submitTicketPhotoEvidence(
 
   await deps.tickets.save(updated);
   return { ticket: updated, changed: true };
-}
-
-function isMissing(value: AnswerValue): boolean {
-  return (
-    value === null ||
-    (typeof value === "string" && value.trim().length === 0) ||
-    (Array.isArray(value) && value.length === 0)
-  );
-}
-
-/** The rule values the evidence gate sees: the first answer per question, blanks left out. */
-function ruleValues(ticket: Ticket): RuleValues {
-  const values: RuleValues = {};
-  const seen = new Set<string>();
-  for (const answer of ticket.answers) {
-    if (seen.has(answer.questionId)) continue;
-    seen.add(answer.questionId);
-    if (!isMissing(answer.value)) {
-      values[`answer.${answer.questionId}` as RuleField] = answer.value as string | boolean;
-    }
-  }
-  return values;
 }

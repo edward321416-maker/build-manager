@@ -20,21 +20,42 @@ beforeEach(() => {
 });
 
 /** A leak in an office-managed building, answered up to the evidence step. */
-async function leakAwaitingEvidence(location: "CEILING_WALL" | "APPLIANCE" = "CEILING_WALL"): Promise<Ticket> {
+async function leakAwaitingEvidence(location: "CEILING_WALL" | "APPLIANCE" = "CEILING_WALL", gasSmell = false): Promise<Ticket> {
   const building = await createDemoBuilding(deps, { displayName: "DEMO 라온하우징" });
   await verifyBuildingContext(deps, { buildingId: building.id, managementMode: "MANAGEMENT_OFFICE", heatingType: "CENTRAL_SHARED" });
   const ticket = await createTicket(deps, { buildingId: building.id, unitId: "demo-unit-b", issueType: "LEAK", rawUserText: "합성 천장 누수" });
-  let current = ticket;
-  for (const [questionId, value] of [
+  return answerAll(ticket, [
     ["safety.electricalWaterRisk", false],
     ["safety.otherUrgentHazard", false],
-    ["safety.gasSmell", false],
+    ["safety.gasSmell", gasSmell],
     ["safety.smokeOrFire", false],
     ["leak.location", location],
     ["leak.active", true],
     ["leak.applianceOnly", false],
     ["leak.firstObservedAt", "오늘 아침"],
-  ] as const) {
+  ]);
+}
+
+/** A heating fault in an owner-run building with an individual boiler, answered up to the evidence step. */
+async function heatingAwaitingEvidence(): Promise<Ticket> {
+  const building = await createDemoBuilding(deps, { displayName: "DEMO 해솔빌라" });
+  await verifyBuildingContext(deps, { buildingId: building.id, managementMode: "OWNER_DIRECT", heatingType: "INDIVIDUAL" });
+  const ticket = await createTicket(deps, { buildingId: building.id, unitId: "demo-unit-a", issueType: "HEATING", rawUserText: "합성 난방 고장" });
+  return answerAll(ticket, [
+    ["safety.electricalWaterRisk", false],
+    ["safety.otherUrgentHazard", false],
+    ["safety.gasSmell", false],
+    ["safety.smokeOrFire", false],
+    ["heating.hotWater", false],
+    ["heating.allRooms", true],
+    ["heating.powerOn", true],
+    ["heating.errorCode", "E1"],
+  ]);
+}
+
+async function answerAll(ticket: Ticket, answers: [string, string | boolean][]): Promise<Ticket> {
+  let current = ticket;
+  for (const [questionId, value] of answers) {
     current = await submitTicketAnswer(deps, { ticketId: ticket.id, questionId, value });
   }
   return current;
@@ -90,5 +111,48 @@ describe("submitTicketPhotoEvidence", () => {
     const finalized = await finalizeTicket(deps, { ticketId: ticket.id });
     await approveRecommendation(deps, { ticketId: ticket.id, selectedRoute: finalized.repairPacket!.recommendation!.primary });
     await expect(submitTicketPhotoEvidence(deps, { ticketId: ticket.id, evidenceType: "LEAK_AREA_PHOTO", photoId: PHOTO_B })).rejects.toMatchObject({ code: "STATE_CONFLICT" });
+  });
+
+  it("keeps a safety escalation ahead of the chosen photo", async () => {
+    const ticket = await leakAwaitingEvidence("CEILING_WALL", true);
+    expect(ticket.status).toBe("SAFETY_ESCALATED");
+    const result = await submitTicketPhotoEvidence(deps, { ticketId: ticket.id, evidenceType: "LEAK_AREA_PHOTO", photoId: PHOTO_A });
+    expect(result.ticket.status).toBe("SAFETY_ESCALATED");
+    expect(result.ticket.safetyFlags).toEqual(ticket.safetyFlags);
+    expect(result.ticket.safetyFlags).not.toEqual([]);
+    expect((await finalizeTicket(deps, { ticketId: ticket.id })).status).toBe("SAFETY_ESCALATED");
+  });
+
+  it("reopens a submitted intake when the tenant picks another photo, as a changed answer does", async () => {
+    const ticket = await leakAwaitingEvidence();
+    await submitTicketPhotoEvidence(deps, { ticketId: ticket.id, evidenceType: "LEAK_AREA_PHOTO", photoId: PHOTO_A });
+    expect((await finalizeTicket(deps, { ticketId: ticket.id })).status).toBe("READY_FOR_REVIEW");
+    const rechosen = await submitTicketPhotoEvidence(deps, { ticketId: ticket.id, evidenceType: "LEAK_AREA_PHOTO", photoId: PHOTO_B });
+    expect(rechosen.ticket.status).toBe("IN_PROGRESS");
+    expect((await finalizeTicket(deps, { ticketId: ticket.id })).status).toBe("READY_FOR_REVIEW");
+  });
+
+  it("takes the boiler display photo for a heating intake and nothing a leak asks for", async () => {
+    const ticket = await heatingAwaitingEvidence();
+    await expect(submitTicketPhotoEvidence(deps, { ticketId: ticket.id, evidenceType: "LEAK_AREA_PHOTO", photoId: PHOTO_A })).rejects.toMatchObject({ code: "STATE_CONFLICT" });
+    await submitTicketPhotoEvidence(deps, { ticketId: ticket.id, evidenceType: "CONTROL_PANEL_PHOTO", photoId: PHOTO_A });
+    const finalized = await finalizeTicket(deps, { ticketId: ticket.id });
+    expect(finalized.status).toBe("READY_FOR_REVIEW");
+    expect(finalized.repairPacket?.recommendation?.primary).toBe("LANDLORD_REVIEW");
+  });
+
+  it("refuses a photo id that is not a photo UUID, so no other reference can be stored", async () => {
+    const ticket = await leakAwaitingEvidence();
+    for (const photoId of ["", "not-a-photo", `core-photo:${PHOTO_A}`, "demo-leak-location", PHOTO_A.toUpperCase(), `${PHOTO_A}\n`]) {
+      await expect(submitTicketPhotoEvidence(deps, { ticketId: ticket.id, evidenceType: "LEAK_AREA_PHOTO", photoId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    }
+    expect((await deps.tickets.findById(ticket.id))?.evidence).toEqual([]);
+  });
+
+  it("asks for the evidence the gate reads from the first answer when a question was answered twice", async () => {
+    const ticket = await answerAll(await leakAwaitingEvidence("CEILING_WALL"), [["leak.location", "APPLIANCE"]]);
+    await expect(submitTicketPhotoEvidence(deps, { ticketId: ticket.id, evidenceType: "FIXTURE_PHOTO", photoId: PHOTO_A })).rejects.toMatchObject({ code: "STATE_CONFLICT" });
+    const result = await submitTicketPhotoEvidence(deps, { ticketId: ticket.id, evidenceType: "LEAK_AREA_PHOTO", photoId: PHOTO_A });
+    expect(result.changed).toBe(true);
   });
 });
