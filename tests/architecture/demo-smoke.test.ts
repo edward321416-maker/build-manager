@@ -1,0 +1,152 @@
+import { spawn } from "node:child_process";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { certificateCheck, maskerFor } from "../../scripts/demo-smoke.mjs";
+
+// Spec: docs/superpowers/specs/2026-10-11-demo-ops-reliability-design.md (PR A). The script runs for real against
+// a fake demo on 127.0.0.1, so every assertion below is about its exit code and printed lines.
+const ROOT = fileURLToPath(new URL("../../", import.meta.url));
+const SCRIPT = join(ROOT, "scripts", "demo-smoke.mjs");
+const CHUNK = "/_next/static/chunks/3su_lcb-c4-x-.js";
+const SPAWN_TIMEOUT = 20_000;
+
+type Route = { status: number; type?: string; body?: string };
+function healthy(): Record<string, Route> {
+  return {
+    "/": { status: 200, type: "text/html", body: `<html><script src="${CHUNK}" async=""></script></html>` },
+    [CHUNK]: { status: 200, type: "application/javascript", body: 'id:"vendor-window-full"' },
+    "/core": { status: 200, type: "text/html", body: "<html></html>" },
+    "/vendor/job": { status: 200, type: "text/html", body: "<html></html>" },
+    "/api/v2/core/access": { status: 401, type: "application/json", body: "{}" },
+    "/demo/landlord": { status: 404, type: "text/html", body: "" },
+    "/_next/image*": { status: 404, type: "text/html; charset=utf-8", body: "" },
+  };
+}
+
+let server: Server, origin: string, routes: Record<string, Route>, requests: number;
+beforeEach(async () => {
+  routes = healthy();
+  requests = 0;
+  server = createServer((request, response) => {
+    requests += 1;
+    const path = request.url ?? "/";
+    const route = routes[path] ?? (path.startsWith("/_next/image") ? routes["/_next/image*"] : undefined) ?? { status: 404 };
+    response.writeHead(route.status, { "content-type": route.type ?? "text/plain" });
+    response.end(route.body ?? "");
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+});
+afterEach(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+// Asynchronous on purpose: the fake demo answers from this same process. `null` runs without DEMO_ORIGIN.
+function run(args: string[], demoOrigin: string | null = origin): Promise<{ code: number | null; output: string }> {
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  delete env.DEMO_ORIGIN;
+  if (demoOrigin !== null) env.DEMO_ORIGIN = demoOrigin;
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [SCRIPT, ...args], { cwd: ROOT, env });
+    let output = "";
+    child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()));
+    child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString()));
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ code, output }));
+  });
+}
+
+describe("demo smoke check over HTTP", () => {
+  it("passes against a healthy demo and never prints the address", async () => {
+    const { code, output } = await run(["--http-only"]);
+    expect(output).toContain("SMOKE PASS");
+    expect(code).toBe(0);
+    expect(output).toMatch(/^PASS GET \/api\/v2\/core\/access = 401$/m);
+    expect(output).toMatch(/^PASS GET a static chunk = 200$/m);
+    expect(output).not.toContain("127.0.0.1");
+  }, SPAWN_TIMEOUT);
+
+  it("fails when the image optimizer route answers again", async () => {
+    routes["/_next/image*"] = { status: 400, type: "text/plain", body: '"url" parameter is required' };
+    const { code, output } = await run(["--http-only"]);
+    expect(code).toBe(1);
+    expect(output).toMatch(/^FAIL GET \/_next\/image = 404 — got 400/m);
+    expect(output).toContain("SMOKE FAIL");
+  }, SPAWN_TIMEOUT);
+
+  it("fails when a signed-out visitor is let in", async () => {
+    routes["/api/v2/core/access"] = { status: 200, type: "application/json", body: "{}" };
+    const { code, output } = await run(["--http-only"]);
+    expect(code).toBe(1);
+    expect(output).toMatch(/^FAIL GET \/api\/v2\/core\/access = 401 — got 200/m);
+  }, SPAWN_TIMEOUT);
+
+  it("fails when the first page loads no static chunk", async () => {
+    routes["/"] = { status: 200, type: "text/html", body: "<html></html>" };
+    const { code, output } = await run(["--http-only"]);
+    expect(code).toBe(1);
+    expect(output).toMatch(/^FAIL GET a static chunk = 200/m);
+  }, SPAWN_TIMEOUT);
+
+  it("checks that a released file carries the expected text", async () => {
+    const present = await run(["--http-only", "--expect-text", CHUNK, "vendor-window-full"]);
+    expect(present.code).toBe(0);
+    expect(present.output).toContain(`PASS GET ${CHUNK} has the expected text`);
+    const missing = await run(["--http-only", "--expect-text", CHUNK, "vendor-completion-missing"]);
+    expect(missing.code).toBe(1);
+    expect(missing.output).toContain(`FAIL GET ${CHUNK} has the expected text`);
+  }, SPAWN_TIMEOUT);
+
+  it.each([
+    { name: "no address", args: ["--http-only"], target: "none", message: "DEMO_ORIGIN_REQUIRED" },
+    { name: "an address with a path", args: ["--http-only"], target: "path", message: "DEMO_ORIGIN_INVALID" },
+    { name: "a write check without the browser", args: ["--http-only", "--write-check"], target: "demo", message: "WRITE_CHECK_NEEDS_BROWSER" },
+    { name: "an unknown option", args: ["--http-only", "--fast"], target: "demo", message: "UNKNOWN_ARGUMENT" },
+    { name: "an expect-text without its text", args: ["--http-only", "--expect-text", CHUNK], target: "demo", message: "EXPECT_TEXT_NEEDS_PATH_AND_TEXT" },
+    // Git Bash turns `/_next/...` into a Windows path before node sees it; say how to stop that.
+    { name: "a path Git Bash rewrote", args: ["--http-only", "--expect-text", `C:/Program Files/Git${CHUNK}`, "id"], target: "demo", message: "MSYS_NO_PATHCONV=1" },
+  ] as const)("stops with exit 2 and no request for $name", async ({ args, target, message }) => {
+    const demoOrigin = target === "none" ? null : target === "path" ? `${origin}/core` : origin;
+    const { code, output } = await run([...args], demoOrigin);
+    expect(code).toBe(2);
+    expect(output).toContain(message);
+    expect(output).not.toContain("127.0.0.1");
+    expect(requests).toBe(0);
+  }, SPAWN_TIMEOUT);
+
+  it("fails with the address hidden when the demo cannot be reached", async () => {
+    const closed = createServer();
+    await new Promise<void>((resolve) => closed.listen(0, "127.0.0.1", resolve));
+    const port = (closed.address() as AddressInfo).port;
+    await new Promise<void>((resolve) => closed.close(() => resolve()));
+    const { code, output } = await run(["--http-only"], `http://127.0.0.1:${port}`);
+    expect(code).toBe(1);
+    expect(output).toMatch(/^FAIL GET \/ = 200/m);
+    expect(output).not.toContain("127.0.0.1");
+    expect(output).not.toContain(`:${port}`);
+  }, SPAWN_TIMEOUT);
+});
+
+describe("address masking", () => {
+  it("hides the origin, host and port in an error that spells them out", async () => {
+    const mask = await maskerFor(new URL("http://127.0.0.1:8080"));
+    expect(mask("GET http://127.0.0.1:8080/core failed: connect ECONNREFUSED 127.0.0.1:8080")).toBe("GET <demo>/core failed: connect ECONNREFUSED <demo>");
+  });
+  it("hides the address an sslip.io-style name spells with dashes", async () => {
+    // The reserved .invalid name never resolves, so only the dashed spelling can reveal the address.
+    const mask = await maskerFor(new URL("https://203-0-113-7.sslip.invalid"));
+    expect(mask("navigating to https://203-0-113-7.sslip.invalid/core: connect ETIMEDOUT 203.0.113.7:443")).toBe("navigating to <demo>/core: connect ETIMEDOUT <demo>:443");
+  }, SPAWN_TIMEOUT);
+});
+
+describe("certificate check", () => {
+  const now = new Date("2026-10-11T00:00:00Z");
+  it("accepts a certificate with seven or more days left", () => {
+    expect(certificateCheck("Oct 20 00:00:00 2026 GMT", now)).toEqual({ ok: true, days: 9 });
+  });
+  it("rejects a certificate close to expiry or an unreadable date", () => {
+    expect(certificateCheck("Oct 15 00:00:00 2026 GMT", now)).toEqual({ ok: false, days: 4 });
+    expect(certificateCheck("not a date", now).ok).toBe(false);
+  });
+});
