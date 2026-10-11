@@ -88,30 +88,41 @@
 - CI를 통과한 뒤 새 문맥에서 독립 리뷰를 받는다.
 - `ops/` 수락 기록을 남기고 병합한다.
 
-## PR 2: 화면 (PR 1 병합 뒤)
+## PR 2: 화면 (PR 1 병합 뒤, 브랜치 `feat/intake-photo-evidence-p1b-screens`)
+
+### U0 계약과 응답 (먼저)
+
+- `SyntheticEvidenceRequirementDtoSchema`에 선택 필드 `instruction`(프로토콜 촬영 안내)을 더한다. presenter가 지금 프로토콜의 같은 유형 요구에서 채운다.
+- `LandlordTicketDetailDtoSchema`에 `submittedEvidence`(세입자 상태와 같은 항목, `photoId` 포함)를 더한다. 세입자와 같은 presenter 함수를 쓴다.
+- 테스트(먼저 실패 확인): 계약 테스트, `presenters.test.ts`
 
 ### U1 세입자 증빙 단계
 
 - 고칠 파일
-  - `apps/web/src/components/tenant/ticket-intake.tsx`(`coreFlow` 분기)
-  - `apps/web/src/app/core/core-screen.tsx`(Core 클라이언트 전달)
-  - `apps/web/src/components/core-photos.tsx`(도움말 문구, 사진 선택 타일)
+  - 새 컴포넌트 `apps/web/src/app/core/photo-evidence-step.tsx`와 같은 이름의 `.test.tsx`
+  - `apps/web/src/components/tenant/ticket-intake.tsx`(`coreFlow` 분기에 render prop `evidenceStep`. 예전 데모와 같이 쓰는 컴포넌트에 Core 클라이언트 코드를 넣지 않는다)
+  - `apps/web/src/app/core/core-screen.tsx`(두 `TicketIntake`에 단계를 넘기고, 단계가 올린 사진은 사진 목록만 다시 읽는다)
+  - `apps/web/src/components/core-photos.tsx`(도움말 문구, 사진 목록의 증빙 이름)
+    - 저장된 사진 읽기는 `PhotoGallery`와 같은 effect를 단계에 따로 둔다. 공용 hook으로 빼려면 `PhotoGallery`의 다시 읽기 방식(key로 다시 마운트)까지 바꿔야 해서 이번에는 하지 않았다.
+  - `apps/web/src/app/core/core-design.module.css`(선택 타일)
 - 동작
   - 남은 요구 항목마다 한 화면씩 보여 준다.
-    - 제목: 요구 항목 이름. 안내: 프로토콜 문구 그대로.
-    - 사진: 선택 타일(4:3, 라디오).
-    - 주요 버튼 "이 사진으로 정하기", 보조 버튼 "사진 추가하기"(3장 제한).
+    - 제목: 유형별 문장(예: "누수 부위가 보이는 사진을 골라 주세요"). 안내: `instruction` 그대로.
+    - 사진: 저장된 사진을 라디오 선택 타일로(4:3, 모서리 15px).
+    - 주요 버튼 "이 사진으로 정하기"(고르기 전에는 비활성, 이유를 `aria-describedby`로 연결).
+    - 보조 버튼 "사진 추가하기": 그 자리에서 올리고, 올린 사진을 고른 상태로 둔다. 3장을 다 쓰면 비활성과 안내. 실패하면 같은 `uploadId`로 다시 올린다.
+    - 글자 버튼 "사진 없이 제출하기"(D6).
+  - 이미 보낸 접수에는 단계 대신 "사진 없이 보냈어요…" 안내만 둔다(D5 메모, 독립 리뷰 반영).
   - 다 고르면 "수리 요청 제출"로 넘어간다.
+  - "위 참고 사진은 필수 증빙 판정과 별개입니다…" 안내를 없앤다.
 - 테스트
-  - 컴포넌트 테스트(타일 선택, 버튼 상태, 문구)
-  - `core-e2e` 흐름: 누수 → 사진 지정 → 제출 → 관리자 추천 경로
+  - 컴포넌트 테스트(먼저 실패 확인): 타일 선택, 버튼 상태(저장 중 잠금 포함), 문구, 올리기 성공·실패(다시 올릴 수 있는 실패만 "다시 올리기")·한도, 다음 단계로 넘어갈 때의 초점
+  - `core-e2e`: 누수 → 사진 지정 → 제출 → `READY_FOR_REVIEW`와 관리자 추천 경로·사진 이름·이력. 기존 `usability.spec.ts` 흐름은 "사진 없이 제출하기"로 바꾼다.
 
 ### U2 관리자 표시
 
-- 서버·계약 변경(리뷰 반영): 관리자 상세 응답(`LandlordTicketDetailDtoSchema`, `presentLandlordTicket`)에는 아직 제출된 증빙이 없다.
-  - 제출된 증빙(유형 이름, `photoId`)을 관리자 상세 계약과 응답에 더한다.
-  - 계약 테스트와 presenter 테스트를 먼저 실패시키고 시작한다.
-- `PhotoGallery`에서 증빙으로 고른 사진 아래에 유형 이름을 보여 준다.
+- 서버·계약 변경은 U0에서 한다(리뷰 반영: 관리자 상세 응답에 제출된 증빙이 없었음).
+- `PhotoGallery`에서 증빙으로 고른 사진 아래에 유형 이름을 보여 준다. 세입자와 관리자 모두 같은 이름이다.
 - 이력에서 `EVIDENCE`를 "증빙 사진 지정"으로 보여 준다. 지금은 대체 이름 "접수 정보 변경"으로 보인다.
 
 ### U3 검사, PR, 리뷰, 수락

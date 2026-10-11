@@ -115,6 +115,7 @@ function answerValues(ticket: Ticket): RuleValues {
 function evidenceRequirement(
   evidenceType: EvidenceType,
   required: boolean,
+  instruction?: string,
 ): SyntheticEvidenceRequirementDto {
   const publicType = PUBLIC_EVIDENCE_TYPE[evidenceType];
   return {
@@ -122,7 +123,27 @@ function evidenceRequirement(
     label: EVIDENCE_LABELS[publicType],
     required,
     demoFixtureId: EVIDENCE_FIXTURE_IDS[publicType],
+    ...(instruction === undefined ? {} : { instruction }),
   };
+}
+
+/** What the tenant supplied. A photo named in the Core flow (P1b) shows which photo it was. */
+function presentSubmittedEvidence(
+  ticket: Ticket,
+): TenantTicketStatusDto["submittedEvidence"] {
+  return ticket.evidence.map((item) => {
+    const publicType = PUBLIC_EVIDENCE_TYPE[item.type];
+    const photoId =
+      item.source === "TENANT_UPLOAD" && item.storageRef?.startsWith(CORE_PHOTO_REF_PREFIX)
+        ? item.storageRef.slice(CORE_PHOTO_REF_PREFIX.length)
+        : undefined;
+    return {
+      evidenceId: item.id,
+      evidenceType: publicType,
+      label: EVIDENCE_LABELS[publicType],
+      ...(photoId === undefined ? {} : { photoId }),
+    };
+  });
 }
 
 function presentQuestion(
@@ -161,6 +182,8 @@ type TicketView = {
   evidenceStatus: ReturnType<typeof assessTicket>["evidenceState"];
   followUpQuestions: TenantQuestionDto[];
   questionById: Map<string, TenantQuestionDto>;
+  /** The protocol's photo instruction per evidence type, for requests made outside the active list. */
+  evidenceInstructions: Map<EvidenceType, string>;
 };
 
 /**
@@ -184,7 +207,11 @@ function describeTicket(ticket: Ticket, building: Building): TicketView {
     assessment.protocol,
     ticket.answers,
   ).map((requirement) =>
-    evidenceRequirement(requirement.type, requirement.required),
+    evidenceRequirement(
+      requirement.type,
+      requirement.required,
+      requirement.instruction,
+    ),
   );
 
   const followUpQuestions = assessment.protocol.questions
@@ -203,6 +230,9 @@ function describeTicket(ticket: Ticket, building: Building): TicketView {
     followUpQuestions,
     questionById: new Map(
       followUpQuestions.map((question) => [question.questionId, question]),
+    ),
+    evidenceInstructions: new Map(
+      assessment.protocol.evidence.map((item) => [item.type, item.instruction]),
     ),
   };
 }
@@ -236,7 +266,12 @@ function presentTenantMoreInfo(
     .filter((question): question is TenantQuestionDto => question !== undefined);
 
   const requestedEvidence = outstanding.requestedEvidenceTypes.map(
-    (evidenceType) => evidenceRequirement(evidenceType, true),
+    (evidenceType) =>
+      evidenceRequirement(
+        evidenceType,
+        true,
+        view.evidenceInstructions.get(evidenceType),
+      ),
   );
 
   return { reason: request.reason, requestedQuestions, requestedEvidence };
@@ -291,6 +326,7 @@ export function presentLandlordTicket(
       questions: view.followUpQuestions,
       evidence: view.evidenceRequirements,
     },
+    submittedEvidence: presentSubmittedEvidence(ticket),
     decision:
       decision === null
         ? null
@@ -327,20 +363,7 @@ export function presentTenantTicket(
     evidenceStatus: view.evidenceStatus,
     activeQuestion: view.activeQuestion,
     evidenceRequirements: view.evidenceRequirements,
-    submittedEvidence: ticket.evidence.map((item) => {
-      const publicType = PUBLIC_EVIDENCE_TYPE[item.type];
-      // A photo the tenant named in the Core flow (P1b) shows which photo it was.
-      const photoId =
-        item.source === "TENANT_UPLOAD" && item.storageRef?.startsWith(CORE_PHOTO_REF_PREFIX)
-          ? item.storageRef.slice(CORE_PHOTO_REF_PREFIX.length)
-          : undefined;
-      return {
-        evidenceId: item.id,
-        evidenceType: publicType,
-        label: EVIDENCE_LABELS[publicType],
-        ...(photoId === undefined ? {} : { photoId }),
-      };
-    }),
+    submittedEvidence: presentSubmittedEvidence(ticket),
     packet:
       packet === null
         ? null
