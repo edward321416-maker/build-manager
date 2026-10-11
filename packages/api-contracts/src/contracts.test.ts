@@ -833,3 +833,27 @@ describe("core photo evidence request", () => {
     expect(schema("CorePhotoEvidenceRequestSchema").safeParse(body).success).toBe(false);
   });
 });
+
+describe("P1b evidence screens", () => {
+  const requirement = { evidenceType: "LEAK_LOCATION", label: "DEMO 누수 위치 이미지", required: true, demoFixtureId: "demo-leak-location" };
+  const photoId = "0b6f7d1e-2c3a-4d5e-8f90-1a2b3c4d5e6f";
+
+  it("lets a requirement carry the protocol's photo instruction, never a blank one", () => {
+    const requirementSchema = schema("SyntheticEvidenceRequirementDtoSchema");
+    expect(requirementSchema.safeParse({ ...requirement, instruction: "안전한 거리에서 누수 부위와 주변 위치가 함께 보이도록 촬영해 주세요." }).success).toBe(true);
+    expect(requirementSchema.safeParse(requirement).success).toBe(true);
+    expect(requirementSchema.safeParse({ ...requirement, instruction: "  " }).success).toBe(false);
+  });
+
+  it("gives the manager the evidence the tenant named, with the chosen photo", () => {
+    const detailSchema = schema("LandlordTicketDetailDtoSchema");
+    const detail = {
+      ticketId: "ticket-a", building: passport, issueType: "LEAK", protocol: "LEAK_V1", status: "READY_FOR_REVIEW", evidenceStatus: "COMPLETE",
+      activeQuestion: null, repairPacket: null, decision: null, followUpOptions: { questions: [], evidence: [] },
+      submittedEvidence: [{ evidenceId: "evidence-1", evidenceType: "LEAK_LOCATION", label: "DEMO 누수 위치 이미지", photoId }],
+    };
+    expect(detailSchema.safeParse(detail).success).toBe(true);
+    expect(detailSchema.safeParse({ ...detail, submittedEvidence: [{ ...detail.submittedEvidence[0], photoId: `core-photo:${photoId}` }] }).success).toBe(false);
+    expect(detailSchema.safeParse({ ...detail, submittedEvidence: [{ ...detail.submittedEvidence[0], evidenceType: "LEAK_AREA_PHOTO" }] }).success).toBe(false);
+  });
+});

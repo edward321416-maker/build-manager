@@ -34,6 +34,32 @@ describe("evidence requirements in ticket views", () => {
   });
 });
 
+describe("P1b evidence screens", () => {
+  const photoId = "0b6f7d1e-2c3a-4d5e-8f90-1a2b3c4d5e6f";
+
+  it("gives each requirement the protocol's photo instruction", () => {
+    const requirements = presentTenantTicket(leakTicket(["APPLIANCE"]), building).evidenceRequirements;
+    expect(requirements.map((item) => [item.evidenceType, item.instruction])).toEqual([
+      ["LEAK_LOCATION", "안전한 거리에서 누수 부위와 주변 위치가 함께 보이도록 촬영해 주세요."],
+      ["FIXTURE_VIEW", "안전한 거리에서 누수와 관련된 기기가 보이도록 촬영해 주세요."],
+    ]);
+    expect(presentLandlordTicket(leakTicket(["APPLIANCE"]), building).followUpOptions.evidence.map((item) => item.instruction)).toEqual(
+      requirements.map((item) => item.instruction),
+    );
+  });
+
+  it("shows the manager which photo the tenant named, as the tenant sees it", () => {
+    const ticket: Ticket = {
+      ...leakTicket(["CEILING_WALL"]),
+      evidence: [{ id: "evidence-core", type: "LEAK_AREA_PHOTO", storageRef: `core-photo:${photoId}`, fixtureRef: null, source: "TENANT_UPLOAD", createdAt: AT }],
+    };
+    expect(presentLandlordTicket(ticket, building).submittedEvidence).toEqual(presentTenantTicket(ticket, building).submittedEvidence);
+    expect(presentLandlordTicket(ticket, building).submittedEvidence).toEqual([
+      { evidenceId: "evidence-core", evidenceType: "LEAK_LOCATION", label: "DEMO 누수 위치 이미지", photoId },
+    ]);
+  });
+});
+
 describe("submitted evidence in the tenant view", () => {
   it("names the chosen Core photo and nothing for other evidence", () => {
     const photoId = "0b6f7d1e-2c3a-4d5e-8f90-1a2b3c4d5e6f";
