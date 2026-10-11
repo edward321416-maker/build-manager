@@ -1,9 +1,10 @@
-import type { Building, Ticket, AnswerValue, IssueType, RouteType } from "@build-manager/domain";
+import type { Building, Ticket, AnswerValue, EvidenceType, IssueType, RouteType } from "@build-manager/domain";
 import type { ApplicationDependencies, Clock, IdGenerator } from "./ports";
 import { stateConflict } from "./errors";
 import { createTicket } from "./use-cases/create-ticket";
 import { submitTicketAnswer } from "./use-cases/submit-ticket-answer";
 import { finalizeTicket } from "./use-cases/finalize-ticket";
+import { submitTicketPhotoEvidence } from "./use-cases/submit-ticket-photo-evidence";
 import { requestMoreInfo } from "./use-cases/request-more-info";
 import { approveRecommendation } from "./use-cases/approve-recommendation";
 import { overrideRoute } from "./use-cases/override-route";
@@ -42,6 +43,7 @@ export type CoreAction =
  | { type: "CREATE"; unitId: string; issueType: IssueType; rawUserText: string }
  | { type: "ANSWER"; ticketId: string; questionId: string; value: AnswerValue }
  | { type: "FINALIZE"; ticketId: string }
+ | { type: "EVIDENCE"; ticketId: string; evidenceType: EvidenceType; photoId: string }
  | { type: "MORE_INFO"; ticketId: string; reason: string; requestedQuestionIds: string[] }
  | { type: "APPROVE"; ticketId: string }
  | { type: "OVERRIDE"; ticketId: string; route: RouteType; reason?: string }
@@ -54,7 +56,7 @@ export class CoreFlowError extends Error {
 
 /** Scoped repositories reuse the existing protocol and safety use cases unchanged. */
 export async function performCoreAction(scope: CoreScope, action: CoreAction, clock: Clock, ids: IdGenerator): Promise<CoreRecord> {
-  const tenantAction=["CREATE","ANSWER","FINALIZE"].includes(action.type);
+  const tenantAction=["CREATE","ANSWER","FINALIZE","EVIDENCE"].includes(action.type);
   if (tenantAction !== (scope.session.role === "TENANT")) throw new CoreFlowError("FORBIDDEN");
   const before=action.type === "CREATE" ? null : await scope.read(action.ticketId,true);
   const building=before?.building ?? await scope.building((action as Extract<CoreAction,{ type:"CREATE" }>).unitId);
@@ -72,6 +74,14 @@ export async function performCoreAction(scope: CoreScope, action: CoreAction, cl
     case "CREATE": await createTicket(deps,{ buildingId:building.id,unitId:action.unitId,issueType:action.issueType,rawUserText:action.rawUserText }); kind="CREATED"; break;
     case "ANSWER": await submitTicketAnswer(deps,{ticketId:action.ticketId,questionId:action.questionId,value:action.value});kind="ANSWERED";break;
     case "FINALIZE": await finalizeTicket(deps,{ticketId:action.ticketId});kind="FINALIZED";break;
+    case "EVIDENCE": {
+      // Only a photo stored with this ticket may stand as its evidence; the reference is built from that verified ID.
+      if (!(await scope.photos(action.ticketId)).some(p=>p.photoId===action.photoId)) throw new CoreFlowError("NOT_FOUND");
+      const result=await submitTicketPhotoEvidence(deps,{ticketId:action.ticketId,evidenceType:action.evidenceType,photoId:action.photoId});
+      // The same choice again records nothing.
+      if (!result.changed) return before!;
+      kind="EVIDENCE";break;
+    }
     case "MORE_INFO": await requestMoreInfo(deps,{ticketId:action.ticketId,reason:action.reason,requestedQuestionIds:action.requestedQuestionIds});message=action.reason;break;
     case "APPROVE": {
       const selectedRoute=before?.ticket.repairPacket?.recommendation?.primary;
