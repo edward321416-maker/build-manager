@@ -48,6 +48,17 @@ test("390px tenant names a stored photo as the leak evidence and the manager see
   const choose=zone.getByRole("button",{name:"이 사진으로 정하기",exact:true});await expect(choose).toBeDisabled();
   await zone.getByRole("radio",{name:"사진 1",exact:true}).check();await expect(choose).toBeEnabled();
   await page.screenshot({path:join(privateRoot,"photo-evidence-step-390.png"),fullPage:true});
+  // Rules §7 and §12: at 390px with 200% root text the step neither scrolls sideways nor pushes a control off screen.
+  await page.evaluate(()=>{document.documentElement.style.fontSize="200%";});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  for(const control of [choose,zone.getByLabel("사진 추가하기",{exact:true}),zone.getByRole("button",{name:"사진 없이 제출하기",exact:true}),zone.getByRole("radio",{name:"사진 1",exact:true})]){
+    const box=await control.boundingBox();expect(box).not.toBeNull();expect(box!.x).toBeGreaterThanOrEqual(0);expect(box!.x+box!.width).toBeLessThanOrEqual(390);
+  }
+  // The tiles stack rather than squeeze their caption into one character a line ("사/진/1" before the rem floor).
+  expect(await zone.getByRole("radio",{name:"사진 1",exact:true}).evaluate(radio=>{const caption=document.getElementById(radio.getAttribute("aria-labelledby")!)!;
+    return Math.round(caption.getBoundingClientRect().height/parseFloat(getComputedStyle(caption).lineHeight));})).toBe(1);
+  await page.screenshot({path:join(privateRoot,"photo-evidence-step-390-text200.png"),fullPage:true});
+  await page.evaluate(()=>{document.documentElement.style.fontSize="";});
   const named=page.waitForResponse(r=>r.url().endsWith(`/${ticketId}/evidence`)&&r.request().method()==="POST");
   await choose.click();const namedResponse=await named;expect(namedResponse.status()).toBe(200);
   expect((await namedResponse.json()).detail.submittedEvidence).toEqual([expect.objectContaining({evidenceType:"LEAK_LOCATION",photoId:expect.any(String)})]);

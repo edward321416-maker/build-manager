@@ -30,7 +30,7 @@ function progressMessage(t:CoreTicketDto,tenant:boolean){
   if(t.workStatus==="COMPLETED")return "관리자가 완료로 기록했습니다.";
   if(t.workStatus==="IN_PROGRESS")return tenant?"관리자가 확인하고 있어요.":"처리 중이에요.";
   switch(intakeDisplayStatus(t)){
-    case "IN_PROGRESS":return tenant?"아직 보내지 않았어요. 아래 질문에 답하고 '수리 요청 제출'을 눌러야 관리자에게 전달돼요.":"세입자가 아직 질문에 답하는 중이에요.";
+    case "IN_PROGRESS":return tenant?"아직 보내지 않았어요. 아래 할 일을 마치고 '수리 요청 제출'을 눌러야 관리자에게 전달돼요.":"세입자가 아직 질문에 답하는 중이에요.";
     case "NEEDS_MORE_INFO":return tenant?"관리자가 추가 확인을 요청했어요. 아래 질문에 답해 주세요.":"세입자의 추가 답변을 기다리고 있어요.";
     case "SAFETY_ESCALATED":return tenant?"안전 확인이 필요해요.":"안전 확인이 필요한 접수예요.";
     case "PARTIAL":return tenant?"관리자에게 보냈어요. 부족한 정보가 있으면 관리자가 다시 물어볼 거예요.":"세입자가 제출했어요. 필수 정보가 부족해요.";
