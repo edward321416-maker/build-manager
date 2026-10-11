@@ -198,9 +198,10 @@ async function browserChecks(origin, options, check) {
         await enter(page, "세입자로 체험하기");
         await page.getByRole("radio", { name: "누수", exact: true }).check({ timeout: TIMEOUT_MS });
         await page.getByLabel("문제 설명").fill("합성 배포 확인 요청 (smoke check)");
-        // Awaited together, so a click that fails cannot leave the response wait rejecting unhandled.
+        // Awaited together, so a click that fails cannot leave the response wait rejecting unhandled. The wait
+        // outlasts the click, so a failed click reports its own error.
         const [created] = await Promise.all([
-          page.waitForResponse((response) => response.url().endsWith("/api/v2/core/tickets") && response.request().method() === "POST", { timeout: TIMEOUT_MS }),
+          page.waitForResponse((response) => response.url().endsWith("/api/v2/core/tickets") && response.request().method() === "POST", { timeout: 2 * TIMEOUT_MS }),
           page.getByRole("button", { name: "접수하기", exact: true }).click({ timeout: TIMEOUT_MS }),
         ]);
         const status = created.status();
@@ -227,6 +228,11 @@ async function main(argv, env) {
   const origin = parseOrigin(env.DEMO_ORIGIN);
   if (typeof origin === "string") {
     console.error(`${origin}\n${USAGE}`);
+    return 2;
+  }
+  // URL parsing turns `/\host` and paths with tabs or newlines into another host; every check stays on the demo.
+  if (parsed.options.expectText.some(([path]) => new URL(path, origin).origin !== origin.origin)) {
+    console.error(`EXPECT_TEXT_PATH_LEAVES_THE_DEMO\n${USAGE}`);
     return 2;
   }
   const mask = await maskerFor(origin);

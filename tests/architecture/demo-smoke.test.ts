@@ -108,8 +108,10 @@ describe("demo smoke check over HTTP", () => {
     { name: "a path Git Bash rewrote", args: ["--http-only", "--expect-text", `C:/Program Files/Git${CHUNK}`, "id"], target: "demo", message: "MSYS_NO_PATHCONV=1" },
     // An unknown --name=value option is named without its value, which could be an address.
     { name: "an unknown option carrying a value", args: ["--http-only", "--origin=https://203-0-113-7.sslip.invalid"], target: "demo", message: "UNKNOWN_ARGUMENT --origin" },
-    // `//host/x` resolves against the demo to another host, so it is not a path on the demo.
+    // `//host/x`, `/\host/x` and a path with a tab all resolve against the demo to another host.
     { name: "an expect-text path to another host", args: ["--http-only", "--expect-text", "//203-0-113-7.sslip.invalid/x", "id"], target: "demo", message: "EXPECT_TEXT_NEEDS_PATH_AND_TEXT" },
+    { name: "an expect-text path with a backslash", args: ["--http-only", "--expect-text", "/\\203-0-113-7.sslip.invalid/x", "id"], target: "demo", message: "EXPECT_TEXT_PATH_LEAVES_THE_DEMO" },
+    { name: "an expect-text path with a tab", args: ["--http-only", "--expect-text", "/\t/203-0-113-7.sslip.invalid/x", "id"], target: "demo", message: "EXPECT_TEXT_PATH_LEAVES_THE_DEMO" },
   ] as const)("stops with exit 2 and no request for $name", async ({ args, target, message }) => {
     const demoOrigin = target === "none" ? null : target === "path" ? `${origin}/core` : origin;
     const { code, output } = await run([...args], demoOrigin);
