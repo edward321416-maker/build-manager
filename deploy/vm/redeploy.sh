@@ -44,8 +44,8 @@ free_kb() {
     echo "$REDEPLOY_FREE_KB"
     return
   fi
-  root="$(docker_ info -f '{{.DockerRootDir}}')" || stop "DOCKER_UNAVAILABLE: nothing was changed"
-  df -Pk "$HOME" "$root" | awk 'NR > 1 && (min == "" || $4 < min) { min = $4 } END { print min }'
+  root="$(docker_ info -f '{{.DockerRootDir}}')" || return 1
+  df -Pk "$HOME" "$root" | awk 'NR > 1 && (min == "" || $4 < min) { min = $4 } END { print min }' || return 2
 }
 
 # Recreate only the web container, then wait until the provisioning check and Next.js report ready, the container runs
@@ -78,14 +78,18 @@ recreate_and_wait() {
 }
 
 deploy() {
-  local archive="$1" sum="${2,,}" need free old keep loaded ref new
+  local archive="$1" sum="${2,,}" unpacked need free old keep loaded ref new
   [[ "$sum" =~ ^[0-9a-f]{64}$ ]] || usage
   [ -f "$archive" ] || stop "ARCHIVE_NOT_FOUND: $archive"
   echo "$sum  $archive" | sha256sum -c --status - || stop "ARCHIVE_CHECKSUM_MISMATCH: nothing was changed"
   # Docker unpacks the whole image before it registers the layers, so loading needs about twice the unpacked size;
   # a rollback archive of the running image needs about as much as this archive.
-  need=$(($(gzip -dc "$archive" | wc -c) * 2 / 1024 + $(stat -c %s "$archive") / 1024 + 1))
-  free="$(free_kb)"
+  unpacked="$(gzip -dc "$archive" 2>/dev/null | wc -c)" || stop "ARCHIVE_NOT_GZIP: nothing was changed"
+  need=$((unpacked * 2 / 1024 + $(stat -c %s "$archive") / 1024 + 1))
+  free="$(free_kb)" || case $? in
+  1) stop "DOCKER_UNAVAILABLE: nothing was changed" ;;
+  *) stop "DISK_CHECK_FAILED: nothing was changed" ;;
+  esac
   [ "${free:-0}" -ge "$need" ] || stop "LOW_DISK: $need KB must be free in $HOME and Docker's data folder; nothing was changed"
   old="$(running_image)" || stop "WEB_CONTAINER_NOT_FOUND: nothing was changed"
   keep="$HOME/demo-web-$(short "$old").tar.gz"
@@ -144,8 +148,13 @@ deploy) [ "$#" -eq 3 ] || usage ;;
 rollback) [ "$#" -eq 2 ] || usage ;;
 *) usage ;;
 esac
+# A wait that is not a whole number would make the readiness loop spin forever.
+[[ "$READY_SECONDS" =~ ^[0-9]+$ ]] || {
+  echo "REDEPLOY_READY_SECONDS must be a whole number" >&2
+  usage
+}
 [ "$(id -u)" != 0 ] || stop "RUN_WITHOUT_SUDO: run as the VM user; the script calls sudo docker and keeps archives in that user's home"
 # One run at a time: a second one could recreate the container in the middle of the first.
 mkdir "$LOCK" 2>/dev/null || stop "ALREADY_RUNNING: $LOCK exists; remove it only if no other redeploy is running"
-trap 'rmdir "$LOCK"' EXIT
+trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
 "$@"

@@ -84,6 +84,24 @@ describe("deploy/vm/redeploy.sh deploy: checks before any change", () => {
     expect(calls).toEqual([]);
   }, TIMEOUT);
 
+  it("stops before any docker call when the archive is not gzip, even with a matching checksum", () => {
+    writeFileSync(`${home}/demo-web-new.tar.gz`, "not a gzip file");
+    const sha256 = createHash("sha256").update("not a gzip file").digest("hex");
+    const { code, output, calls } = run(["deploy", `${home}/demo-web-new.tar.gz`, sha256]);
+    expect(code).toBe(1);
+    expect(output).toContain("REDEPLOY_STOPPED | ARCHIVE_NOT_GZIP");
+    expect(calls).toEqual([]);
+  }, TIMEOUT);
+
+  it("names an unreachable Docker daemon when it cannot measure Docker's data folder", () => {
+    writeFileSync(`${state}/docker-down`, "");
+    const { path, sha256 } = archive("demo-web-new.tar.gz", `tagged ${NEW}`);
+    const { code, output, calls } = run(["deploy", path, sha256]);
+    expect(code).toBe(1);
+    expect(output).toContain("REDEPLOY_STOPPED | DOCKER_UNAVAILABLE");
+    expect(calls).toEqual(["info -f {{.DockerRootDir}}"]);
+  }, TIMEOUT);
+
   it("stops before any docker call while another run holds the lock, and leaves that lock alone", () => {
     mkdirSync(`${home}/.redeploy.lock`);
     const { path, sha256 } = archive("demo-web-new.tar.gz", `tagged ${NEW}`);
@@ -225,8 +243,10 @@ describe("deploy/vm/redeploy.sh usage", () => {
     { name: "a checksum that is not sha256", args: ["deploy", "demo-web.tar.gz", "not-a-sum"] },
     { name: "an image ID that is not 12 hex characters", args: ["rollback", "not-an-id"] },
     { name: "an unknown command", args: ["upgrade"] },
-  ])("exits 2 with no docker call for $name", ({ args }) => {
-    const { code, output, calls } = run(args);
+    // A wait that is not a whole number would make the readiness loop spin forever.
+    { name: "a readiness wait that is not a number", args: ["rollback", short(OLD)], env: { REDEPLOY_READY_SECONDS: "abc" } },
+  ])("exits 2 with no docker call for $name", ({ args, env }) => {
+    const { code, output, calls } = run(args, env);
     expect(code).toBe(2);
     expect(output).toContain("USAGE: bash deploy/vm/redeploy.sh");
     expect(calls).toEqual([]);

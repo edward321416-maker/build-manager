@@ -54,8 +54,10 @@ git pull --ff-only
 bash deploy/vm/redeploy.sh deploy ~/demo-web-<image-id>.tar.gz <sha256>
 ```
 
-- Run it as the VM user, not with `sudo`: it calls `sudo docker` itself. Run it inside `tmux` or `screen`, so a dropped SSH session cannot stop it halfway. A second run at the same time stops with `ALREADY_RUNNING`.
-- It stops before changing anything if the sha256 differs, or if the home folder or Docker's data folder has less free space than twice the unpacked image plus the archive.
+- Run it as the VM user, not with `sudo`: it calls `sudo docker` itself. Run it inside `tmux` or `screen`, so a dropped SSH session cannot stop it halfway.
+- A second run at the same time stops with `ALREADY_RUNNING`. If a dropped session left `~/.redeploy.lock` behind, remove it once no other run is active.
+- It stops before changing anything if the sha256 differs, the archive is not gzip, or the home folder or Docker's data folder has less free space than twice the unpacked image plus the archive.
+- Measuring the unpacked size and testing an existing rollback archive each unpack an archive once. On a 1 GB VM this can take a few minutes while the demo keeps running.
 - It keeps the running image as `~/demo-web-<image-id>.tar.gz` unless a valid archive with that name exists. Naming the upload after its image ID means the next deploy finds it already kept.
 - It loads the new image and tags it if the archive was saved by image ID, then recreates only the web container.
 - It waits up to 180 seconds for `HOSTED_DEMO_ENSURED` and `Ready in`, then checks that the container runs the new image and has not restarted.
@@ -64,7 +66,7 @@ bash deploy/vm/redeploy.sh deploy ~/demo-web-<image-id>.tar.gz <sha256>
   - `REDEPLOY_DONE` and the rollback command
   - `REDEPLOY_UNCHANGED` when the archive holds the running image
   - `REDEPLOY_NOT_READY`, the reason, the rollback command and exit 1. It does not roll back by itself.
-  - `REDEPLOY_STOPPED` and the reason, when nothing was changed
+  - `REDEPLOY_STOPPED` and the reason. Stops before the load change nothing; later ones leave the running container untouched.
 - Each deploy leaves the previous image's archive (about 0.9 GB) in the home folder and the old image in Docker. Keep the archive you may roll back to. When the disk runs low, delete older archives and run `sudo docker image prune`.
 - Then run the [checks](#checks).
 

@@ -8,7 +8,8 @@ echo "$*" >> "$state/calls.log"
 has() { grep -q "^sha256:${1#sha256:}" "$state/known"; }
 case "$1" in
   info)
-    # The Docker data folder; any existing folder works for df.
+    # The Docker data folder; any existing folder works for df. A docker-down file makes the daemon unreachable.
+    if [ -f "$state/docker-down" ]; then echo "Cannot connect to the Docker daemon" >&2; exit 1; fi
     echo "$HOME" ;;
   inspect)
     if [ "$3" = "{{.Image}}" ]; then cat "$state/running"; else cat "$state/restarts" 2>/dev/null || echo 0; fi ;;
