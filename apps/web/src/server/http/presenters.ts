@@ -10,9 +10,9 @@ import {
   type TenantQuestionDto,
   type TenantTicketStatusDto,
 } from "@build-manager/api-contracts";
-import { assessTicket, getOutstandingMoreInfo } from "@build-manager/application";
+import { assessTicket, CORE_PHOTO_REF_PREFIX, getOutstandingMoreInfo } from "@build-manager/application";
 import {
-  evaluateRuleExpression,
+  activeEvidenceRequirements,
   getActiveQuestions,
   getBuildingContext,
   routingEligibleContextKeys,
@@ -177,18 +177,15 @@ function describeTicket(ticket: Ticket, building: Building): TicketView {
       (question) => question.required && !answered.has(question.id),
     ) ?? null;
 
-  // Only evidence whose condition currently holds, matching the domain gate.
-  // Showing a conditional requirement unconditionally would ask the tenant for
-  // something the server never requires, and the intake could never complete.
-  const evidenceRequirements = assessment.protocol.evidence
-    .filter(
-      (requirement) =>
-        requirement.showWhen === undefined ||
-        evaluateRuleExpression(requirement.showWhen, values),
-    )
-    .map((requirement) =>
-      evidenceRequirement(requirement.type, requirement.required),
-    );
+  // Only evidence whose condition currently holds, read exactly as the domain
+  // gate reads answers. Anything else would ask the tenant for something the
+  // server never requires or refuses, and the intake could never complete.
+  const evidenceRequirements = activeEvidenceRequirements(
+    assessment.protocol,
+    ticket.answers,
+  ).map((requirement) =>
+    evidenceRequirement(requirement.type, requirement.required),
+  );
 
   const followUpQuestions = assessment.protocol.questions
     .map((question) =>
@@ -332,10 +329,16 @@ export function presentTenantTicket(
     evidenceRequirements: view.evidenceRequirements,
     submittedEvidence: ticket.evidence.map((item) => {
       const publicType = PUBLIC_EVIDENCE_TYPE[item.type];
+      // A photo the tenant named in the Core flow (P1b) shows which photo it was.
+      const photoId =
+        item.source === "TENANT_UPLOAD" && item.storageRef?.startsWith(CORE_PHOTO_REF_PREFIX)
+          ? item.storageRef.slice(CORE_PHOTO_REF_PREFIX.length)
+          : undefined;
       return {
         evidenceId: item.id,
         evidenceType: publicType,
         label: EVIDENCE_LABELS[publicType],
+        ...(photoId === undefined ? {} : { photoId }),
       };
     }),
     packet:

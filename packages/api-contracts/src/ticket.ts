@@ -88,6 +88,8 @@ const SubmittedSyntheticEvidenceDtoSchema = z
     evidenceId: z.string().trim().min(1),
     evidenceType: SyntheticEvidenceTypeSchema,
     label: z.string().trim().min(1),
+    /** Present when the tenant named one of the ticket's own Core photos (P1b). */
+    photoId: z.string().uuid().optional(),
   })
   .strict();
 

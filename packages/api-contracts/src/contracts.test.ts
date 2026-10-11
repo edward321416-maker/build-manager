@@ -177,6 +177,10 @@ describe("public API contracts", () => {
     expect(schema("TenantTicketStatusDtoSchema").safeParse(tenantStatus).success).toBe(
       true,
     );
+    // P1b: evidence the tenant named from a Core photo carries that photo's ID; nothing else may stand in for it.
+    const named = { evidenceId: "evidence-1", evidenceType: "LEAK_LOCATION", label: "누수 부위 사진", photoId: "0b6f7d1e-2c3a-4d5e-8f90-1a2b3c4d5e6f" };
+    expect(schema("TenantTicketStatusDtoSchema").safeParse({ ...tenantStatus, submittedEvidence: [named] }).success).toBe(true);
+    expect(schema("TenantTicketStatusDtoSchema").safeParse({ ...tenantStatus, submittedEvidence: [{ ...named, photoId: "core-photo:x" }] }).success).toBe(false);
     expect(
       schema("TenantTicketStatusDtoSchema").safeParse({
         ...tenantStatus,
@@ -809,5 +813,23 @@ describe("landlord follow-up options", () => {
     expect(schema("FollowUpOptionsDtoSchema").safeParse({ questions: [] }).success).toBe(
       false,
     );
+  });
+});
+
+describe("core photo evidence request", () => {
+  // P1b: the browser names a public evidence type and one photo ID; the server builds every storage reference itself.
+  const request = { evidenceType: "LEAK_LOCATION", photoId: "0b6f7d1e-2c3a-4d5e-8f90-1a2b3c4d5e6f" };
+
+  it("accepts a public evidence type with one photo ID", () => {
+    expect(schema("CorePhotoEvidenceRequestSchema").safeParse(request).success).toBe(true);
+  });
+
+  it.each([
+    { name: "a storage reference instead of a photo ID", body: { ...request, photoId: "core-photo:0b6f7d1e-2c3a-4d5e-8f90-1a2b3c4d5e6f" } },
+    { name: "a domain evidence type", body: { ...request, evidenceType: "LEAK_AREA_PHOTO" } },
+    { name: "a fixture ID", body: { ...request, fixtureId: "demo-fixture-leak" } },
+    { name: "no photo", body: { evidenceType: "LEAK_LOCATION" } },
+  ])("rejects $name", ({ body }) => {
+    expect(schema("CorePhotoEvidenceRequestSchema").safeParse(body).success).toBe(false);
   });
 });

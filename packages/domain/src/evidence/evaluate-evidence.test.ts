@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { heatingIndividualV1, heatingUnknownV1 } from "../protocol/heating.v1";
 import { leakV1 } from "../protocol/leak.v1";
 import { evaluateSafety } from "../safety/evaluate-safety";
 import type { Answer, AnswerValue, Evidence } from "../ticket/types";
-import { evaluateEvidence } from "./evaluate-evidence";
+import { activeEvidenceRequirements, evaluateEvidence } from "./evaluate-evidence";
 
 const protocol = leakV1;
 
@@ -45,6 +46,22 @@ function evidence(
   };
 }
 
+/** A photo the tenant named as evidence in the Core flow (P1b). */
+function upload(
+  id: string,
+  type: Evidence["type"],
+  storageRef = `core-photo:${id}`,
+): Evidence {
+  return {
+    id,
+    type,
+    storageRef,
+    fixtureRef: null,
+    source: "TENANT_UPLOAD",
+    createdAt: "2026-09-14T03:00:00.000Z",
+  };
+}
+
 describe("COMPLETE", () => {
   it("accepts all required answers plus the required leak-area photo", () => {
     expect(
@@ -52,6 +69,17 @@ describe("COMPLETE", () => {
         protocol,
         answers: completeAnswers(),
         evidence: [evidence("leak-area", "LEAK_AREA_PHOTO")],
+        safety: safe,
+      }),
+    ).toBe("COMPLETE");
+  });
+
+  it("accepts a tenant photo that carries a storage reference", () => {
+    expect(
+      evaluateEvidence({
+        protocol,
+        answers: completeAnswers(),
+        evidence: [upload("leak-area", "LEAK_AREA_PHOTO")],
         safety: safe,
       }),
     ).toBe("COMPLETE");
@@ -230,6 +258,22 @@ describe("CONFLICTING", () => {
       }),
     ).toBe("CONFLICTING");
   });
+
+  it("reports a tenant photo with a stray fixture reference or a blank storage reference", () => {
+    for (const item of [
+      { ...upload("leak-area", "LEAK_AREA_PHOTO"), fixtureRef: "synthetic:leak-area" },
+      upload("leak-area", "LEAK_AREA_PHOTO", "  "),
+    ]) {
+      expect(
+        evaluateEvidence({
+          protocol,
+          answers: completeAnswers(),
+          evidence: [item],
+          safety: safe,
+        }),
+      ).toBe("CONFLICTING");
+    }
+  });
 });
 
 describe("SAFETY_ESCALATED takes precedence", () => {
@@ -274,4 +318,59 @@ describe("SAFETY_ESCALATED takes precedence", () => {
       }),
     ).toBe("SAFETY_ESCALATED");
   });
+});
+
+// P1b review: screens and the photo evidence action ask for what the gate enforces.
+describe("activeEvidenceRequirements", () => {
+  const types = (answers: Answer[], from = protocol) =>
+    activeEvidenceRequirements(from, answers).map((item) => item.type);
+
+  it("lists the evidence whose condition holds for the answers", () => {
+    expect(types(completeAnswers())).toEqual(["LEAK_AREA_PHOTO"]);
+    expect(types(completeAnswers("APPLIANCE"))).toEqual([
+      "LEAK_AREA_PHOTO",
+      "FIXTURE_PHOTO",
+    ]);
+    expect(types([], heatingIndividualV1)).toEqual(["CONTROL_PANEL_PHOTO"]);
+    expect(types([], heatingUnknownV1)).toEqual([]);
+  });
+
+  it("reads each question's first answer and leaves a blank one out, as the gate does", () => {
+    expect(
+      types([...completeAnswers(), answer("leak.location", "APPLIANCE", 1)]),
+    ).toEqual(["LEAK_AREA_PHOTO"]);
+    expect(
+      types([
+        ...completeAnswers("APPLIANCE"),
+        answer("leak.location", "CEILING_WALL", 1),
+      ]),
+    ).toEqual(["LEAK_AREA_PHOTO", "FIXTURE_PHOTO"]);
+    expect(
+      types([...completeAnswers("  "), answer("leak.location", "APPLIANCE", 1)]),
+    ).toEqual(["LEAK_AREA_PHOTO"]);
+  });
+
+  it.each(["CEILING_WALL", "SINK_BATHROOM_FIXTURE", "APPLIANCE", "UNKNOWN"])(
+    "names exactly the photos the gate requires when the location is %s",
+    (location) => {
+      const answers = completeAnswers(location);
+      const required = activeEvidenceRequirements(protocol, answers)
+        .filter((item) => item.required)
+        .map((item) => item.type);
+      const evaluate = (supplied: Evidence["type"][]) =>
+        evaluateEvidence({
+          protocol,
+          answers,
+          evidence: supplied.map((type) => upload(type, type)),
+          safety: safe,
+        });
+
+      expect(evaluate(required)).toBe("COMPLETE");
+      for (const left of required) {
+        expect(evaluate(required.filter((type) => type !== left))).toBe(
+          "MISSING_REQUIRED",
+        );
+      }
+    },
+  );
 });
