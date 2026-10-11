@@ -1,0 +1,39 @@
+# Hourly HTTP check of the hosted synthetic demo (spec: docs/superpowers/specs/2026-10-11-demo-ops-reliability-design.md).
+# A failed run makes GitHub notify the user who last changed the cron line. GitHub turns scheduled workflows off in a
+# public repository after 60 days without activity; turn this one back on with `gh workflow enable demo-health.yml`.
+name: Demo health
+
+on:
+  schedule:
+    # Minute 23: GitHub delays runs at the top of the hour.
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-health
+  cancel-in-progress: false
+
+jobs:
+  http:
+    if: github.repository == 'edward321416-maker/build-manager'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.21.0"
+      - name: Check the hosted demo over HTTP
+        env:
+          DEMO_ORIGIN: ${{ secrets.DEMO_ORIGIN }}
+        # A failed check (exit 1) is retried once a minute later; a usage error (exit 2, e.g. no address set) is not.
+        run: |
+          status=0
+          node scripts/demo-smoke.mjs --http-only || status=$?
+          if [ "$status" -eq 1 ]; then sleep 60; status=0; node scripts/demo-smoke.mjs --http-only || status=$?; fi
+          exit "$status"
