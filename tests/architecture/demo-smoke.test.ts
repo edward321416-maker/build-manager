@@ -4,7 +4,8 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { certificateCheck, maskerFor } from "../../scripts/demo-smoke.mjs";
+import { evaluateSafety } from "@build-manager/domain";
+import { WRITE_CHECK_TEXT, certificateCheck, maskerFor } from "../../scripts/demo-smoke.mjs";
 
 // Spec: docs/superpowers/specs/2026-10-11-demo-ops-reliability-design.md (PR A). The script runs for real against
 // a fake demo on 127.0.0.1, so every assertion below is about its exit code and printed lines.
@@ -151,6 +152,14 @@ describe("address masking", () => {
     // A message cut short inside the host name still spells the address with dashes.
     expect(mask("TypeError at https://203-0-113-7.ssli")).toBe("TypeError at https://<demo>.ssli");
   }, SPAWN_TIMEOUT);
+});
+
+describe("write check", () => {
+  // The first --write-check run, right after the P1b deploy on 2026-10-12 KST, failed: its text said "smoke check", the
+  // domain's safety scan escalated the request as urgent, and an urgent request never reads 제출 전.
+  it("saves a request whose text the safety scan does not escalate", () => {
+    expect(evaluateSafety({ rawText: WRITE_CHECK_TEXT })).toMatchObject({ escalated: false, flags: [] });
+  });
 });
 
 describe("certificate check", () => {
