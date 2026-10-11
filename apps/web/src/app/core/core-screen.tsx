@@ -5,6 +5,7 @@ import { CoreCreateFollowUpSchema,type CoreCreateFollowUp,type CoreSessionDto,ty
 import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { TicketIntake,type EvidenceStepRenderer } from "../../components/tenant/ticket-intake";
 import { PhotoEvidenceStep } from "./photo-evidence-step";
+import { evidenceStage } from "./evidence-stage";
 import { TicketReview } from "../../components/landlord/ticket-review";
 import { PhotoPicker,PhotoGallery,photoError,type PendingPhoto } from "../../components/core-photos";
 import { DraftBadge,intakeDisplayStatus,isIntakeDraft,WorkStatusBadge } from "./ui/work-status-badge";
@@ -116,14 +117,19 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
   // Naming a photo keeps the status, so onIntakeStatus does not re-read: refresh the summary for the photo names and the
   // history. Only the latest read lands (same sequence as onIntakeStatus); after a failed read the next one catches up.
   const rereadSelected=(id:string)=>{const seq=++intakeRead.current;void client.read(id).then(ticket=>{if(seq===intakeRead.current)setSelected(current=>current?.ticketId===ticket.ticketId?ticket:current);},()=>undefined);};
-  // P1b: before the request is first sent, the intake's evidence step names one of this ticket's photos; an upload there
-  // refreshes only the photo list. A request already sent without its photos stays as sent (spec D5): it says what
-  // happened and offers neither the photo step nor a second submission.
-  const sent=Boolean(selected?.events.some(event=>event.kind==="FINALIZED"));
-  const evidenceStep:EvidenceStepRenderer|undefined=!selected?undefined:sent?()=><p>사진 없이 보냈어요. 관리자가 확인한 뒤 필요한 것을 다시 물어볼 수 있어요.</p>
-    :step=><PhotoEvidenceStep key={`${selected.ticketId}-${step.requirement.evidenceType}`} client={client} ticketId={selected.ticketId} requirement={step.requirement} named={step.ticket.submittedEvidence} revision={revision} busy={step.busy}
+  // P1b: the intake's evidence stage (evidenceStage). A request never sent names one of this ticket's photos, and an upload
+  // there refreshes only the photo list. A request sent without its photos stays as sent (spec D5): it says what happened
+  // and offers neither the photo step nor a second submission. A sent request reopened another way keeps the intake's own
+  // "수리 요청 제출" (null). The intake's own ticket decides at once, before this screen re-reads its events.
+  const sentOnRecord=Boolean(selected?.events.some(event=>event.kind==="FINALIZED"));
+  const evidenceStep:EvidenceStepRenderer|undefined=!selected?undefined:step=>{
+    const view=evidenceStage(step.ticket,sentOnRecord);
+    if(view==="SUBMIT")return null;
+    if(view==="SENT")return <p>필요한 사진 없이 보냈어요. 관리자가 확인한 뒤 다시 물어볼 수 있어요.</p>;
+    return <PhotoEvidenceStep key={`${selected.ticketId}-${step.requirement.evidenceType}`} client={client} ticketId={selected.ticketId} requirement={step.requirement} named={step.ticket.submittedEvidence} revision={revision} busy={step.busy||busy}
       onChoose={photoId=>step.choose(async()=>{const status=await client.submitPhotoEvidence(selected.ticketId,{evidenceType:step.requirement.evidenceType,photoId});rereadSelected(selected.ticketId);return status;})}
       onSubmitWithout={step.submitWithout} onPhotosChanged={()=>setPhotoRevision(r=>r+1)}/>;
+  };
   const restore=async()=>{
     try{const s=await client.session(),u=await client.units(),t=await client.tickets();setSession(s);setUnits(u);setUnit(u[0]?.id??"");setTickets(t);}
     catch(e){if(e instanceof ApiClientError&&e.status===401)clearAccess();else throw e;}

@@ -48,7 +48,10 @@ function readAnswer(
   return submitter?.value ?? null;
 }
 
-/** Core flow only (P1b): the embedding screen renders the step that names a photo as the first outstanding evidence. */
+/**
+ * Core flow only (P1b): the embedding screen renders the step that names a photo as the first outstanding evidence.
+ * Returning null keeps the intake's own "수리 요청 제출" in its place.
+ */
 export type EvidenceStepRenderer = (step: {
   ticket: TenantTicketStatusDto;
   requirement: SyntheticEvidenceRequirementDto;
@@ -164,6 +167,17 @@ export function TicketIntake({ ticketId, client, coreFlow=false, onStatusChange,
 
   const ticket = state.kind === "ready" ? state.ticket : null;
   const stage = ticket === null ? null : intakeStage(ticket);
+  const evidenceView =
+    ticket !== null && coreFlow && stage === "EVIDENCE" && evidenceStep
+      ? evidenceStep({
+          ticket,
+          requirement: outstandingEvidence(ticket)[0]!,
+          busy,
+          choose: (submit) => void runAction(() => submit()),
+          submitWithout: () =>
+            void runAction((client) => client.finalizeTicket(ticketId)),
+        })
+      : null;
   // Inside /core the page already has its own main landmark and back button.
   const Root = coreFlow ? "section" : "main";
 
@@ -266,18 +280,11 @@ export function TicketIntake({ ticketId, client, coreFlow=false, onStatusChange,
             </form>
           ) : null}
 
-          {coreFlow && stage === "EVIDENCE" && evidenceStep
-            ? evidenceStep({
-                ticket,
-                requirement: outstandingEvidence(ticket)[0]!,
-                busy,
-                choose: (submit) => void runAction(() => submit()),
-                submitWithout: () =>
-                  void runAction((client) => client.finalizeTicket(ticketId)),
-              })
-            : null}
+          {evidenceView}
           {stage === "READY_TO_FINALIZE" ||
-          (coreFlow && stage === "EVIDENCE" && !evidenceStep) ? (
+          (coreFlow &&
+            stage === "EVIDENCE" &&
+            (evidenceView === null || evidenceView === undefined)) ? (
             <section className="finalize-stage">
               <h2>제출할 준비가 되었습니다</h2>
               <p className="passport-note">

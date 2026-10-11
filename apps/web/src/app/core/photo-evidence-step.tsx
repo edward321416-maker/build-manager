@@ -58,7 +58,11 @@ export function PhotoEvidenceStep({client,ticketId,requirement,named,revision,bu
       // A response lost on the way back may still have stored the photo: look before sending it again.
       const photo=(await client.photos(ticketId)).find(item=>item.uploadId===uploadId)??await client.uploadPhoto(ticketId,uploadId,file);
       setUpload({state:"idle"});setSelected(photo.photoId);setReload(value=>value+1);onPhotosChanged();
-    }catch(error){setUpload({state:"failed",uploadId,file,...uploadFailure(error)});}
+    }catch(error){
+      setUpload({state:"failed",uploadId,file,...uploadFailure(error)});
+      // A 409 means the photos changed (the limit was reached elsewhere) or the request was closed: read them again.
+      if(error instanceof ApiClientError&&error.status===409)setReload(value=>value+1);
+    }
   };
   const pick=(event:ChangeEvent<HTMLInputElement>)=>{
     const file=Array.from(event.target.files??[])[0];event.target.value="";

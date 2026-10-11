@@ -113,6 +113,16 @@ describe("PhotoEvidenceStep",()=>{
     expect(api.uploadPhoto).toHaveBeenCalledTimes(1);
   });
 
+  it("reads the stored photos again after a 409, so a stale list does not keep offering to add",async()=>{
+    const {api,client}=fake({uploadPhoto:async()=>{stored=[photo(1),photo(2),photo(3)];throw new ApiClientError("PHOTO_ERROR","사진 요청을 처리하지 못했습니다.",{status:409});}});
+    await mount(client);
+    expect(fileInput().disabled).toBe(false);
+    await choose([png()]);
+    expect(api.photos).toHaveBeenCalledTimes(3);
+    expect(radios()).toHaveLength(3);
+    expect(fileInput().disabled).toBe(true);
+  });
+
   it("refuses a file that is not a JPEG or PNG or is too large, without sending it",async()=>{
     const {api,client}=fake();await mount(client);
     await choose([new File(["x"],"note.gif",{type:"image/gif"})]);

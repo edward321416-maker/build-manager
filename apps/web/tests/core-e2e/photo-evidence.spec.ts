@@ -23,14 +23,15 @@ async function createLeak(page:Page,text:string,withPhoto:boolean){
   if(withPhoto)await expect(saved(page).getByRole("img")).toHaveCount(1);
   return ticket.ticketId;
 }
-/** Answers every question with a safe answer (never 예 on a safety question) until the evidence step shows. */
-async function answerUntilEvidence(page:Page,zone:Locator,ticketId:string){
+/** Answers every question with a safe answer (never 예 on a safety question) until the evidence step shows; `prefer` picks that choice when offered. */
+async function answerUntilEvidence(page:Page,zone:Locator,ticketId:string,prefer?:string){
   const evidence=zone.getByRole("button",{name:"이 사진으로 정하기",exact:true});
   await expect(zone.locator("form").first()).toBeVisible();await expect(zone.getByTestId("refresh")).toBeEnabled();
   for(let i=0;i<12&&!await evidence.isVisible();i++){
-    const no=zone.getByTestId("answer-no"),text=zone.getByLabel("답변",{exact:true});
+    const no=zone.getByTestId("answer-no"),text=zone.getByLabel("답변",{exact:true}),preferred=zone.getByTestId(`answer-${prefer}`);
     const answered=page.waitForResponse(r=>r.url().endsWith(`/${ticketId}/answers`)&&r.request().method()==="POST");
-    if(await no.isVisible())await no.click();
+    if(prefer&&await preferred.isVisible())await preferred.click();
+    else if(await no.isVisible())await no.click();
     else if(await text.isVisible()){await text.fill("합성 답변");await zone.getByTestId("answer-text-submit").click();}
     else await zone.locator("[data-testid^='answer-']:not([data-testid='answer-yes']):not([data-testid='answer-no']):not([data-testid='answer-text-submit'])").first().click();
     expect((await answered).status()).toBe(200);await expect(zone.getByTestId("refresh")).toBeEnabled();
@@ -104,9 +105,29 @@ test("390px 사진 없이 제출하기 sends a PARTIAL request that then stays a
   await expect(page.getByRole("status").filter({hasText:"수리 요청을 관리자에게 보냈어요."})).toBeVisible();await expect(zone).toHaveCount(0);
   // The follow-up says what happened; it neither reopens the photo step nor offers a second submission.
   await page.locator("summary").filter({hasText:/^추가 확인$/}).click();
-  await expect(page.getByText("사진 없이 보냈어요. 관리자가 확인한 뒤 필요한 것을 다시 물어볼 수 있어요.",{exact:true})).toBeVisible();
+  await expect(page.getByText("필요한 사진 없이 보냈어요. 관리자가 확인한 뒤 다시 물어볼 수 있어요.",{exact:true})).toBeVisible();
   await expect(page.getByRole("heading",{name:"누수 부위가 보이는 사진을 골라 주세요",exact:true})).toHaveCount(0);
   for(const name of ["이 사진으로 정하기","사진 없이 제출하기"])await expect(page.getByRole("button",{name,exact:true})).toHaveCount(0);
   await expect(page.getByTestId("finalize")).toHaveCount(0);
   await expect(page.getByTestId("work-status")).toHaveText("접수");
+});
+
+test("390px a sent request reopened outside this screen keeps 수리 요청 제출 instead of a dead end",async({page})=>{
+  await page.setViewportSize({width:390,height:844});await login(page);
+  const ticketId=await createLeak(page,"합성 다시 열린 접수",true);const zone=zoneOf(page);
+  // 특정 기기: the leak asks for two photos.
+  await answerUntilEvidence(page,zone,ticketId,"APPLIANCE");
+  const finalized=page.waitForResponse(r=>r.url().endsWith(`/${ticketId}/finalize`)&&r.request().method()==="POST");
+  await zone.getByRole("button",{name:"사진 없이 제출하기",exact:true}).click();expect((await (await finalized).json()).detail.status).toBe("PARTIAL");
+  // Name one of the two photos straight through the API: the request is open again with one photo still to name.
+  const auth={Authorization:`Bearer ${(await codes()).tenant}`};
+  const photos=await (await page.request.get(`/api/v2/core/tickets/${ticketId}/photos`,{headers:auth})).json() as {photoId:string}[];
+  const reopened=await page.request.post(`/api/v2/core/tickets/${ticketId}/evidence`,{headers:auth,data:{evidenceType:"LEAK_LOCATION",photoId:photos[0]!.photoId}});
+  expect(reopened.status()).toBe(200);expect((await reopened.json()).detail.status).toBe("IN_PROGRESS");
+  await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();
+  await expect(zone.getByTestId("finalize")).toBeVisible();
+  await expect(zone.getByRole("heading",{name:"관련 기기가 보이는 사진을 골라 주세요",exact:true})).toHaveCount(0);
+  await expect(zone.getByText("필요한 사진 없이 보냈어요.",{exact:false})).toHaveCount(0);
+  const resent=page.waitForResponse(r=>r.url().endsWith(`/${ticketId}/finalize`)&&r.request().method()==="POST");
+  await zone.getByTestId("finalize").click();expect((await (await resent).json()).detail.status).toBe("PARTIAL");
 });
