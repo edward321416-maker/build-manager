@@ -62,11 +62,14 @@ test("390px tenant names a stored photo as the leak evidence and the manager see
   const named=page.waitForResponse(r=>r.url().endsWith(`/${ticketId}/evidence`)&&r.request().method()==="POST");
   await choose.click();const namedResponse=await named;expect(namedResponse.status()).toBe(200);
   expect((await namedResponse.json()).detail.submittedEvidence).toEqual([expect.objectContaining({evidenceType:"LEAK_LOCATION",photoId:expect.any(String)})]);
+  // Naming a photo keeps the draft status; the photo list and the history still show it before the request is sent.
+  await expect(saved(page).getByText("누수 부위 사진",{exact:true})).toBeVisible();
+  await expect(page.getByRole("region",{name:"진행 이력"})).toContainText("증빙 사진 지정");
+  await expect(page.getByTestId("work-status")).toHaveText("제출 전");
   const finalized=page.waitForResponse(r=>r.url().endsWith(`/${ticketId}/finalize`)&&r.request().method()==="POST");
   await zone.getByTestId("finalize").click();const result=await (await finalized).json();expect(result.detail.status).toBe("READY_FOR_REVIEW");
   await expect(page.getByRole("status").filter({hasText:"수리 요청을 관리자에게 보냈어요."})).toBeVisible();
   await expect(saved(page).getByText("누수 부위 사진",{exact:true})).toBeVisible();
-  await expect(page.getByRole("region",{name:"진행 이력"})).toContainText("증빙 사진 지정");
   const managerContext=await browser.newContext({viewport:{width:1280,height:900}}),manager=await managerContext.newPage();
   try{
     await login(manager,"manager");await manager.locator(`[data-ticket-id="${ticketId}"] [data-open-ticket]`).click();
@@ -92,15 +95,18 @@ test("390px tenant without a stored photo adds one in the evidence step and it i
   await expect(zone.getByTestId("finalize")).toBeVisible();
 });
 
-test("390px 사진 없이 제출하기 sends a PARTIAL request, and the follow-up still lets the tenant pick a photo later",async({page})=>{
+test("390px 사진 없이 제출하기 sends a PARTIAL request that then stays as sent (spec D5)",async({page})=>{
   await page.setViewportSize({width:390,height:844});await login(page);
   const ticketId=await createLeak(page,"합성 사진 없이 제출",false);const zone=zoneOf(page);
   await answerUntilEvidence(page,zone,ticketId);
   const finalized=page.waitForResponse(r=>r.url().endsWith(`/${ticketId}/finalize`)&&r.request().method()==="POST");
   await zone.getByRole("button",{name:"사진 없이 제출하기",exact:true}).click();expect((await (await finalized).json()).detail.status).toBe("PARTIAL");
   await expect(page.getByRole("status").filter({hasText:"수리 요청을 관리자에게 보냈어요."})).toBeVisible();await expect(zone).toHaveCount(0);
+  // The follow-up says what happened; it neither reopens the photo step nor offers a second submission.
   await page.locator("summary").filter({hasText:/^추가 확인$/}).click();
-  await expect(page.getByRole("heading",{name:"누수 부위가 보이는 사진을 골라 주세요",exact:true})).toBeVisible();
-  await expect(page.getByText("이미 사진 없이 보냈어요.",{exact:false})).toBeVisible();
-  await expect(page.getByRole("button",{name:"사진 없이 제출하기",exact:true})).toHaveCount(0);
+  await expect(page.getByText("사진 없이 보냈어요. 관리자가 확인한 뒤 필요한 것을 다시 물어볼 수 있어요.",{exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"누수 부위가 보이는 사진을 골라 주세요",exact:true})).toHaveCount(0);
+  for(const name of ["이 사진으로 정하기","사진 없이 제출하기"])await expect(page.getByRole("button",{name,exact:true})).toHaveCount(0);
+  await expect(page.getByTestId("finalize")).toHaveCount(0);
+  await expect(page.getByTestId("work-status")).toHaveText("접수");
 });

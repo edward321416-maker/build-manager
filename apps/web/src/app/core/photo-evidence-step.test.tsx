@@ -13,8 +13,8 @@ const id=(n:number,prefix="0")=>`${prefix.repeat(8)}-0000-4000-8000-${String(n).
 const photo=(n:number,uploadId=id(n,"a")):CorePhotoDto=>({photoId:id(n),uploadId,createdAt:"2026-10-11T03:00:00.000Z",mime:"image/png",byteSize:100,width:4,height:3,path:`/api/v2/core/tickets/${ticketId}/photos/${id(n)}`});
 const requirement:SyntheticEvidenceRequirementDto={evidenceType:"LEAK_LOCATION",label:"DEMO 누수 위치 이미지",required:true,demoFixtureId:"demo-leak-location",instruction:"안전한 거리에서 누수 부위와 주변 위치가 함께 보이도록 촬영해 주세요."};
 
-type Props=Partial<Parameters<typeof PhotoEvidenceStep>[0]>;
-let root:Root|undefined,host:HTMLDivElement;
+type Props=Parameters<typeof PhotoEvidenceStep>[0];
+let root:Root|undefined,host:HTMLDivElement,props:Props;
 let stored:CorePhotoDto[];
 const calls={choose:vi.fn(),without:vi.fn(),changed:vi.fn()};
 function fake(overrides:Partial<Record<"photos"|"uploadPhoto"|"readPhoto",(...args:never[])=>Promise<unknown>>>={}){
@@ -29,13 +29,16 @@ beforeEach(()=>{
   stored=[photo(1),photo(2)];calls.choose.mockReset();calls.without.mockReset();calls.changed.mockReset();
   Object.assign(URL,{createObjectURL:vi.fn(()=>"blob:synthetic"),revokeObjectURL:vi.fn()});
 });
-afterEach(async()=>{if(root)await act(async()=>root?.unmount());root=undefined;host?.remove();});
+afterEach(async()=>{if(root)await act(async()=>root?.unmount());root=undefined;host?.remove();document.body.replaceChildren();});
 async function flush(){await act(async()=>{for(let i=0;i<20;i++)await Promise.resolve();});}
-async function mount(client:CoreFlowClient,props:Props={}){
+async function render(changes:Partial<Props>={}){
+  props={...props,...changes};
+  await act(async()=>{root!.render(<PhotoEvidenceStep {...props}/>);});await flush();
+}
+async function mount(client:CoreFlowClient,changes:Partial<Props>={}){
   host=document.createElement("div");document.body.append(host);root=createRoot(host);
-  await act(async()=>{root!.render(<PhotoEvidenceStep client={client} ticketId={ticketId} requirement={requirement} named={[]} submitted={false} revision={0} busy={false}
-    onChoose={calls.choose} onSubmitWithout={calls.without} onPhotosChanged={calls.changed} {...props}/>);});
-  await flush();
+  props={client,ticketId,requirement,named:[],revision:0,busy:false,onChoose:calls.choose,onSubmitWithout:calls.without,onPhotosChanged:calls.changed};
+  await render(changes);
 }
 const text=()=>host.textContent??"";
 const button=(label:string)=>Array.from(host.querySelectorAll("button")).find(item=>item.textContent===label);
@@ -82,12 +85,12 @@ describe("PhotoEvidenceStep",()=>{
     expect(calls.choose).toHaveBeenCalledWith(id(3));
   });
 
-  it("keeps a failed upload for a retry with the same upload id, and does not send it twice when the photo was stored after all",async()=>{
+  it("offers a retry with the same upload id after a connection failure, and does not send it twice when the photo was stored after all",async()=>{
     let attempts=0;
     const {api,client}=fake({uploadPhoto:async(_ticket:string,uploadId:string)=>{attempts++;stored=[...stored,photo(3,uploadId)];throw new ApiClientError("NETWORK_ERROR","사진 연결을 확인하지 못했습니다.");}});
     await mount(client);
     await choose([png()]);
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain("사진 전송 결과를 확인하지 못했습니다.");
+    expect(host.querySelector('[role="alert"] p')?.textContent).toBe("사진을 올리지 못했어요. 연결을 확인하고 다시 올려 주세요.");
     const firstUploadId=(api.uploadPhoto.mock.calls[0] as unknown as [string,string])[1];
     await click(button("다시 올리기"));
     expect(attempts).toBe(1);
@@ -95,6 +98,19 @@ describe("PhotoEvidenceStep",()=>{
     expect(stored.at(-1)!.uploadId).toBe(firstUploadId);
     expect(radios().map(radio=>radio.checked)).toEqual([false,false,true]);
     expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it.each([
+    [413,"사진 용량이나 화소가 한도를 넘어요. 5MiB·2천만 화소 이하 사진을 골라 주세요."],
+    [415,"읽을 수 있는 JPEG·PNG 사진을 골라 주세요."],
+    [409,"사진을 더 올릴 수 없어요. 사진은 최대 3장이고, 처리가 끝난 접수에는 올릴 수 없어요."],
+  ])("explains a %i refusal without offering a retry that cannot work",async(status,message)=>{
+    const {api,client}=fake({uploadPhoto:async()=>{throw new ApiClientError("PHOTO_ERROR","사진 요청을 처리하지 못했습니다.",{status});}});
+    await mount(client);
+    await choose([png()]);
+    expect(host.querySelector('[role="alert"] p')?.textContent).toBe(message);
+    expect(button("다시 올리기")).toBeUndefined();
+    expect(api.uploadPhoto).toHaveBeenCalledTimes(1);
   });
 
   it("refuses a file that is not a JPEG or PNG or is too large, without sending it",async()=>{
@@ -121,14 +137,11 @@ describe("PhotoEvidenceStep",()=>{
     expect(button("이 사진으로 정하기")!.disabled).toBe(true);
   });
 
-  it("offers 사진 없이 제출하기 before the first submission only",async()=>{
+  it("offers 사진 없이 제출하기 as a text button (spec D6)",async()=>{
     await mount(fake().client);
     await click(button("사진 없이 제출하기"));
     expect(calls.without).toHaveBeenCalledTimes(1);
-    await act(async()=>root!.unmount());root=undefined;host.remove();
-    await mount(fake().client,{submitted:true});
-    expect(button("사진 없이 제출하기")).toBeUndefined();
-    expect(text()).toContain("이미 사진 없이 보냈어요. 사진을 고르면 '수리 요청 제출'을 한 번 더 눌러야 관리자에게 전달돼요.");
+    expect(text()).toContain("사진 없이 보내도 접수돼요.");
   });
 
   it("shows which evidence a photo already names",async()=>{
@@ -136,12 +149,27 @@ describe("PhotoEvidenceStep",()=>{
     expect(radios().map(radio=>radio.closest("label")?.textContent)).toEqual(["사진 1 · 관련 기기 사진","사진 2"]);
   });
 
-  it("disables every action while the intake is saving",async()=>{
-    await mount(fake().client,{busy:true});
+  it("locks every action, a chosen photo included, while the intake is saving",async()=>{
+    await mount(fake().client);
     await click(radios()[0]);
+    expect(button("이 사진으로 정하기")!.disabled).toBe(false);
+    await render({busy:true});
     expect(button("이 사진으로 정하기")!.disabled).toBe(true);
     expect(button("사진 없이 제출하기")!.disabled).toBe(true);
     expect(fileInput().disabled).toBe(true);
+    expect(radios().every(radio=>radio.disabled)).toBe(true);
+    expect(radios()[0]!.checked).toBe(true);
+  });
+
+  it("continues from its heading when the control that led here is gone",async()=>{
+    await mount(fake().client);
+    expect(document.activeElement).toBe(host.querySelector("h2"));
+  });
+
+  it("leaves focus alone when the tenant is working elsewhere on the screen",async()=>{
+    const elsewhere=document.createElement("input");document.body.append(elsewhere);elsewhere.focus();
+    await mount(fake().client);
+    expect(document.activeElement).toBe(elsewhere);
   });
 
   it("says when the stored photos cannot be read and reads them again on request",async()=>{

@@ -31,8 +31,8 @@ export function PhotoPicker({files,onChange,disabled=false,compact=false}:{files
   </section>;
 }
 
-/** `named` (P1b): evidence the tenant named, so each such photo shows what it stands for. */
-export function PhotoGallery({client,ticketId,revision=0,compact=false,named=[]}:{client:CoreFlowClient;ticketId:string;revision?:number;compact?:boolean;named?:Named}){
+/** `revision` is a reload key. `named` (P1b): evidence the tenant named, so each such photo shows what it stands for. */
+export function PhotoGallery({client,ticketId,revision=0,compact=false,named=[]}:{client:CoreFlowClient;ticketId:string;revision?:number|string;compact?:boolean;named?:Named}){
   const [attempt,setAttempt]=useState(0);
   return <LoadedGallery key={`${ticketId}-${revision}-${attempt}`} client={client} ticketId={ticketId} compact={compact} named={named} retry={()=>setAttempt(a=>a+1)} />;
 }

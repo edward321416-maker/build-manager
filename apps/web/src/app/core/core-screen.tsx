@@ -59,6 +59,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
   const [issue,setIssue]=useState<"HEATING"|"LEAK">("HEATING"),[text,setText]=useState(""),[message,setMessage]=useState("");
   const [busy,setBusy]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState(""),[revision,setRevision]=useState(0);
   const [pending,setPending]=useState<PendingPhoto[]>([]),[photoMessage,setPhotoMessage]=useState("");
+  // Photos stored by the intake's evidence step: reloads the photo list without remounting the intake (keyed by revision).
+  const [photoRevision,setPhotoRevision]=useState(0);
   const [communicationVersion,setCommunicationVersion]=useState<{ticketId:string;version:number}|null>(null);
   const [managerHandoff,setManagerHandoff]=useState<ManagerVendorHandoffDto|null>(null);
   const onManagerHandoff=useCallback((value:ManagerVendorHandoffDto|null)=>setManagerHandoff(value),[]);
@@ -111,9 +113,17 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
       if(wasOpen&&!tenantIntakeOpen(ticket)){if(["PARTIAL","READY_FOR_REVIEW"].includes(intakeDisplayStatus(ticket)))setNotice("수리 요청을 관리자에게 보냈어요.");detailHeading.current?.focus();}
     });
   };
-  // P1b: the intake's evidence step names one of this ticket's photos; an upload there refreshes the photo list below.
-  const evidenceStep:EvidenceStepRenderer|undefined=selected?step=><PhotoEvidenceStep key={`${selected.ticketId}-${step.requirement.evidenceType}`} client={client} ticketId={selected.ticketId} requirement={step.requirement} named={step.ticket.submittedEvidence} submitted={step.ticket.status==="PARTIAL"} revision={revision} busy={step.busy}
-    onChoose={photoId=>step.choose(()=>client.submitPhotoEvidence(selected.ticketId,{evidenceType:step.requirement.evidenceType,photoId}))} onSubmitWithout={step.submitWithout} onPhotosChanged={()=>setRevision(r=>r+1)}/>:undefined;
+  // Naming a photo keeps the status, so onIntakeStatus does not re-read: refresh the summary for the photo names and the
+  // history. Only the latest read lands (same sequence as onIntakeStatus); after a failed read the next one catches up.
+  const rereadSelected=(id:string)=>{const seq=++intakeRead.current;void client.read(id).then(ticket=>{if(seq===intakeRead.current)setSelected(current=>current?.ticketId===ticket.ticketId?ticket:current);},()=>undefined);};
+  // P1b: before the request is first sent, the intake's evidence step names one of this ticket's photos; an upload there
+  // refreshes only the photo list. A request already sent without its photos stays as sent (spec D5): it says what
+  // happened and offers neither the photo step nor a second submission.
+  const sent=Boolean(selected?.events.some(event=>event.kind==="FINALIZED"));
+  const evidenceStep:EvidenceStepRenderer|undefined=!selected?undefined:sent?()=><p>사진 없이 보냈어요. 관리자가 확인한 뒤 필요한 것을 다시 물어볼 수 있어요.</p>
+    :step=><PhotoEvidenceStep key={`${selected.ticketId}-${step.requirement.evidenceType}`} client={client} ticketId={selected.ticketId} requirement={step.requirement} named={step.ticket.submittedEvidence} revision={revision} busy={step.busy}
+      onChoose={photoId=>step.choose(async()=>{const status=await client.submitPhotoEvidence(selected.ticketId,{evidenceType:step.requirement.evidenceType,photoId});rereadSelected(selected.ticketId);return status;})}
+      onSubmitWithout={step.submitWithout} onPhotosChanged={()=>setPhotoRevision(r=>r+1)}/>;
   const restore=async()=>{
     try{const s=await client.session(),u=await client.units(),t=await client.tickets();setSession(s);setUnits(u);setUnit(u[0]?.id??"");setTickets(t);}
     catch(e){if(e instanceof ApiClientError&&e.status===401)clearAccess();else throw e;}
@@ -193,7 +203,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
         {/* Keyed on the shown state, not on photo revisions, so uploads right after 접수하기 do not remount the questions. */}
         {session.role==="TENANT"&&tenantIntakeOpen(selected)?<TaskZone tenant label="지금 할 일: 추가 확인" message={intakeTaskMessage(intakeDisplayStatus(selected))}><TicketIntake key={`${selected.ticketId}-${intakeDisplayStatus(selected)}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} evidenceStep={evidenceStep}/></TaskZone>:null}
         <div className={styles.photoArea}>
-        <PhotoGallery client={client} ticketId={selected.ticketId} revision={revision} named={selected.detail.submittedEvidence??[]} />
+        <PhotoGallery client={client} ticketId={selected.ticketId} revision={`${revision}-${photoRevision}`} named={selected.detail.submittedEvidence??[]} />
         {session.role==="TENANT"?<>
           {selected.workStatus!=="COMPLETED"||pending.length?<PhotoPicker files={pending} onChange={setPending} disabled={busy||selected.workStatus==="COMPLETED"} />:null}
           {selected.workStatus==="COMPLETED"&&pending.length?<button disabled={busy} onClick={()=>setPending([])}>미전송 사진 선택 취소</button>:null}

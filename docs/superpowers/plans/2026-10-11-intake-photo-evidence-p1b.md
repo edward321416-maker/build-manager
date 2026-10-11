@@ -100,9 +100,10 @@
 
 - 고칠 파일
   - 새 컴포넌트 `apps/web/src/app/core/photo-evidence-step.tsx`와 같은 이름의 `.test.tsx`
-  - `apps/web/src/components/tenant/ticket-intake.tsx`(`coreFlow` 분기에 선택 prop `photoEvidence`)
-  - `apps/web/src/app/core/core-screen.tsx`(두 `TicketIntake`에 Core 클라이언트와 사진 갱신 전달)
-  - `apps/web/src/components/core-photos.tsx`(도움말 문구, 저장된 사진 읽기를 함께 쓰는 hook)
+  - `apps/web/src/components/tenant/ticket-intake.tsx`(`coreFlow` 분기에 render prop `evidenceStep`. 예전 데모와 같이 쓰는 컴포넌트에 Core 클라이언트 코드를 넣지 않는다)
+  - `apps/web/src/app/core/core-screen.tsx`(두 `TicketIntake`에 단계를 넘기고, 단계가 올린 사진은 사진 목록만 다시 읽는다)
+  - `apps/web/src/components/core-photos.tsx`(도움말 문구, 사진 목록의 증빙 이름)
+    - 저장된 사진 읽기는 `PhotoGallery`와 같은 effect를 단계에 따로 둔다. 공용 hook으로 빼려면 `PhotoGallery`의 다시 읽기 방식(key로 다시 마운트)까지 바꿔야 해서 이번에는 하지 않았다.
   - `apps/web/src/app/core/core-design.module.css`(선택 타일)
 - 동작
   - 남은 요구 항목마다 한 화면씩 보여 준다.
@@ -110,11 +111,12 @@
     - 사진: 저장된 사진을 라디오 선택 타일로(4:3, 모서리 15px).
     - 주요 버튼 "이 사진으로 정하기"(고르기 전에는 비활성, 이유를 `aria-describedby`로 연결).
     - 보조 버튼 "사진 추가하기": 그 자리에서 올리고, 올린 사진을 고른 상태로 둔다. 3장을 다 쓰면 비활성과 안내. 실패하면 같은 `uploadId`로 다시 올린다.
-    - 글자 버튼 "사진 없이 제출하기"(D6). 이미 `PARTIAL`이면 보이지 않는다.
+    - 글자 버튼 "사진 없이 제출하기"(D6).
+  - 이미 보낸 접수에는 단계 대신 "사진 없이 보냈어요…" 안내만 둔다(D5 메모, 독립 리뷰 반영).
   - 다 고르면 "수리 요청 제출"로 넘어간다.
   - "위 참고 사진은 필수 증빙 판정과 별개입니다…" 안내를 없앤다.
 - 테스트
-  - 컴포넌트 테스트(먼저 실패 확인): 타일 선택, 버튼 상태, 문구, 올리기 성공·실패·한도, `PARTIAL`
+  - 컴포넌트 테스트(먼저 실패 확인): 타일 선택, 버튼 상태(저장 중 잠금 포함), 문구, 올리기 성공·실패(다시 올릴 수 있는 실패만 "다시 올리기")·한도, 다음 단계로 넘어갈 때의 초점
   - `core-e2e`: 누수 → 사진 지정 → 제출 → `READY_FOR_REVIEW`와 관리자 추천 경로·사진 이름·이력. 기존 `usability.spec.ts` 흐름은 "사진 없이 제출하기"로 바꾼다.
 
 ### U2 관리자 표시
