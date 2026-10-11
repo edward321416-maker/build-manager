@@ -112,6 +112,8 @@ describe("demo smoke check over HTTP", () => {
     { name: "an expect-text path to another host", args: ["--http-only", "--expect-text", "//203-0-113-7.sslip.invalid/x", "id"], target: "demo", message: "EXPECT_TEXT_NEEDS_PATH_AND_TEXT" },
     { name: "an expect-text path with a backslash", args: ["--http-only", "--expect-text", "/\\203-0-113-7.sslip.invalid/x", "id"], target: "demo", message: "EXPECT_TEXT_PATH_LEAVES_THE_DEMO" },
     { name: "an expect-text path with a tab", args: ["--http-only", "--expect-text", "/\t/203-0-113-7.sslip.invalid/x", "id"], target: "demo", message: "EXPECT_TEXT_PATH_LEAVES_THE_DEMO" },
+    // A path that does not parse must not surface the URL parser's error, which names the demo origin.
+    { name: "an expect-text path that does not parse", args: ["--http-only", "--expect-text", "/\\[", "id"], target: "demo", message: "EXPECT_TEXT_PATH_LEAVES_THE_DEMO" },
   ] as const)("stops with exit 2 and no request for $name", async ({ args, target, message }) => {
     const demoOrigin = target === "none" ? null : target === "path" ? `${origin}/core` : origin;
     const { code, output } = await run([...args], demoOrigin);

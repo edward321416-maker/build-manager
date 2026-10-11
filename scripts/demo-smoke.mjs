@@ -231,7 +231,15 @@ async function main(argv, env) {
     return 2;
   }
   // URL parsing turns `/\host` and paths with tabs or newlines into another host; every check stays on the demo.
-  if (parsed.options.expectText.some(([path]) => new URL(path, origin).origin !== origin.origin)) {
+  // A path that does not parse counts as leaving it: the parser's own error would name the demo origin.
+  const leaves = ([path]) => {
+    try {
+      return new URL(path, origin).origin !== origin.origin;
+    } catch {
+      return true;
+    }
+  };
+  if (parsed.options.expectText.some(leaves)) {
     console.error(`EXPECT_TEXT_PATH_LEAVES_THE_DEMO\n${USAGE}`);
     return 2;
   }
