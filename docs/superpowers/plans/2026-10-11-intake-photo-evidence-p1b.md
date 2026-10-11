@@ -5,7 +5,8 @@
 
 ## 전역 제약
 
-- 판정 규칙(`packages/domain/src/evidence/evaluate-evidence.ts`)과 안전 판정은 바꾸지 않는다.
+- 판정 규칙(`packages/domain/src/evidence/evaluate-evidence.ts`의 `evaluateEvidence`)과 안전 판정은 바꾸지 않는다.
+  - 리뷰 반영: 같은 파일에 요구 목록을 읽는 `activeEvidenceRequirements`만 더한다. 유스케이스와 presenter가 이 함수를 같이 쓴다.
 - `storageRef`는 서버가 확인한 사진 ID로만 만든다: `core-photo:<photoId>`.
 - 마이그레이션은 값을 넓히기만 한다. `core_flow.store_ticket`은 같은 서명, 같은 소유자(`bm_core_flow_owner`)로 다시 정의하고 `SECURITY DEFINER`와 `search_path=pg_catalog`를 그대로 둔다(`tests/postgres/core-flow.test.ts`가 함수 목록과 설정을 고정함).
 - 화면 문구는 디자인 규칙 v1(해요체, 동사 버튼, 화면당 주요 버튼 하나)을 따른다.
@@ -25,6 +26,13 @@
   - 켜지지 않은 유형(`FIXTURE_PHOTO`, 위치가 기기가 아닐 때)은 `STATE_CONFLICT`다.
   - 관리자 결정(APPROVED·OVERRIDDEN)이 기록된 접수는 `assertIntakeAllowed`로 거부된다. 답변처럼, 제출 뒤 결정 전에는 다시 고를 수 있고 상태는 `IN_PROGRESS`로 돌아간다.
   - 필수 답변과 지정한 사진이 다 있으면 판정이 `COMPLETE`다(도메인 회귀).
+  - 리뷰 반영으로 더한 테스트
+    - 안전 신호가 있으면 사진을 골라도 `SAFETY_ESCALATED`다.
+    - 제출 뒤 다시 고르면 `IN_PROGRESS`다.
+    - 난방은 `CONTROL_PANEL_PHOTO`로 제출하면 `READY_FOR_REVIEW`이고, 누수용 유형은 거부한다.
+    - UUID가 아닌 사진 ID는 `NOT_FOUND`다.
+    - 같은 질문에 두 번 답했으면 첫 답변으로 요구를 판단한다.
+    - 도메인: `TENANT_UPLOAD` 판정(`COMPLETE`·`CONFLICTING`)과 `activeEvidenceRequirements`가 판정과 맞는지.
 
 ### T2 Core 동작 `EVIDENCE`
 
@@ -64,7 +72,9 @@
 - `apps/web/src/server/core-flow/http.ts`
   - `POST tickets/{id}/evidence`를 더한다. 본문 검증이 실패하면 DB를 부르지 않는다.
   - 공개 유형 이름을 도메인 유형으로 바꾼다.
-- `apps/web/src/server/http/presenters.ts`: `TENANT_UPLOAD` + `core-photo:` 증빙이면 `photoId`를 채운다.
+- `apps/web/src/server/http/presenters.ts`
+  - `TENANT_UPLOAD` + `core-photo:` 증빙이면 `photoId`를 채운다.
+  - 리뷰 반영: 요구 목록(`evidenceRequirements`)을 `activeEvidenceRequirements`로 만든다. 예전에는 마지막 답변을 읽어서, 같은 질문에 두 번 답하면 서버가 거부할 유형을 보여 줄 수 있었다.
 - `packages/api-client/src/core-flow.ts`: `submitPhotoEvidence(id, body)`를 더한다.
 - 테스트(먼저 실패 확인): 계약 스키마, HTTP 경계(잘못된 본문은 400이고 DB 호출이 없음), presenter의 `photoId`, 클라이언트 요청 경로와 응답 해석.
 
@@ -98,11 +108,15 @@
 
 ### U2 관리자 표시
 
+- 서버·계약 변경(리뷰 반영): 관리자 상세 응답(`LandlordTicketDetailDtoSchema`, `presentLandlordTicket`)에는 아직 제출된 증빙이 없다.
+  - 제출된 증빙(유형 이름, `photoId`)을 관리자 상세 계약과 응답에 더한다.
+  - 계약 테스트와 presenter 테스트를 먼저 실패시키고 시작한다.
 - `PhotoGallery`에서 증빙으로 고른 사진 아래에 유형 이름을 보여 준다.
-- 이력에서 `EVIDENCE`를 "증빙 사진 지정"으로 보여 준다.
+- 이력에서 `EVIDENCE`를 "증빙 사진 지정"으로 보여 준다. 지금은 대체 이름 "접수 정보 변경"으로 보인다.
 
 ### U3 검사, PR, 리뷰, 수락
 
 - 디자인 규칙 15절 체크리스트, `scripts/design-audit.mjs` 0건, 390·1280px 캡처(비공개 보관)
 - `test:e2e:core`, 고위험 흐름(독립 리뷰, `ops/` 수락)
 - 데모 배포는 두 PR을 모두 병합한 뒤, 실행 직전에 운영자에게 확인한다.
+  - 배포 메모: 응답 스키마가 `.strict()`라, 배포 전 번들을 연 탭은 `photoId`가 든 응답을 읽지 못한다. 배포 뒤 열린 탭을 새로고침한다.
