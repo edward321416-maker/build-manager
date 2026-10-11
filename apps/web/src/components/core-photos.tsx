@@ -1,8 +1,11 @@
 "use client";
 import { useEffect,useRef,useState } from "react";
 import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
-import { CORE_PHOTO_MAX_BYTES,type CorePhotoDto } from "@build-manager/api-contracts";
+import { CORE_PHOTO_MAX_BYTES,type CorePhotoDto,type TenantTicketStatusDto } from "@build-manager/api-contracts";
 import { PhotoSelectionSurface } from "../app/core/ui/core-display";
+import { evidenceNamesByPhoto } from "../app/core/ui/evidence-names";
+
+type Named=TenantTicketStatusDto["submittedEvidence"];
 
 export type PendingPhoto={uploadId:string;file:File};
 function Preview({file,index}:{file:File;index:number}){
@@ -12,7 +15,7 @@ function Preview({file,index}:{file:File;index:number}){
 }
 export function PhotoPicker({files,onChange,disabled=false,compact=false}:{files:PendingPhoto[];onChange:(files:PendingPhoto[])=>void;disabled?:boolean;compact?:boolean}){
   const [error,setError]=useState("");
-  const constraints=<p>한 장당 5MiB·2천만 화소 이하입니다. 사진은 참고 첨부이며 자동 분석이나 필수 증빙 판정에 사용하지 않습니다.</p>;
+  const constraints=<p>한 장당 5MiB·2천만 화소 이하만 올릴 수 있어요. 사진을 자동으로 분석하지 않아요. 접수에 꼭 필요한 사진은 다음 단계에서 직접 골라요.</p>;
   const recovery=<p>선택한 사진은 아직 저장되지 않았습니다. 전송 실패 시 이 화면에서 다시 시도할 수 있습니다. 페이지를 닫거나 새로고침하면 미전송 선택은 사라집니다.</p>;
   return <section className="core-photos" data-compact={compact} aria-label="사진 선택 및 미리보기">
     <PhotoSelectionSurface selectionCount={files.length} disabled={disabled} compact={compact}><input aria-label="참고 사진 선택" type="file" accept="image/jpeg,image/png" multiple disabled={disabled} onChange={e=>{
@@ -28,11 +31,13 @@ export function PhotoPicker({files,onChange,disabled=false,compact=false}:{files
   </section>;
 }
 
-export function PhotoGallery({client,ticketId,revision=0,compact=false}:{client:CoreFlowClient;ticketId:string;revision?:number;compact?:boolean}){
+/** `named` (P1b): evidence the tenant named, so each such photo shows what it stands for. */
+export function PhotoGallery({client,ticketId,revision=0,compact=false,named=[]}:{client:CoreFlowClient;ticketId:string;revision?:number;compact?:boolean;named?:Named}){
   const [attempt,setAttempt]=useState(0);
-  return <LoadedGallery key={`${ticketId}-${revision}-${attempt}`} client={client} ticketId={ticketId} compact={compact} retry={()=>setAttempt(a=>a+1)} />;
+  return <LoadedGallery key={`${ticketId}-${revision}-${attempt}`} client={client} ticketId={ticketId} compact={compact} named={named} retry={()=>setAttempt(a=>a+1)} />;
 }
-function LoadedGallery({client,ticketId,compact,retry}:{client:CoreFlowClient;ticketId:string;compact:boolean;retry:()=>void}){
+function LoadedGallery({client,ticketId,compact,named,retry}:{client:CoreFlowClient;ticketId:string;compact:boolean;named:Named;retry:()=>void}){
+  const names=evidenceNamesByPhoto(named);
   const [photos,setPhotos]=useState<{photo:CorePhotoDto;url:string}[]>([]),[error,setError]=useState(false),[loading,setLoading]=useState(true),[zoom,setZoom]=useState<string|null>(null);
   const dialog=useRef<HTMLDialogElement>(null);
   useEffect(()=>{let live=true;const urls:string[]=[];
@@ -46,7 +51,7 @@ function LoadedGallery({client,ticketId,compact,retry}:{client:CoreFlowClient;ti
   useEffect(()=>{if(zoom)dialog.current?.showModal();else dialog.current?.close();},[zoom]);
   return <section className="core-photos" aria-label={compact?"이력의 첨부 사진":"사진"}>
     {!compact?<h2>사진</h2>:null}
-    {loading?<p>사진 불러오는 중…</p>:error?<p role="alert">사진을 불러오지 못했습니다. <button type="button" onClick={retry}>사진 다시 불러오기</button></p>:!photos.length?(!compact?<p>저장된 사진이 없습니다. 글만으로도 접수할 수 있습니다.</p>:null):<div className="photo-grid">{photos.map(({photo,url},i)=><figure key={photo.photoId}><button type="button" aria-label={`저장된 사진 ${i+1} 확대`} onClick={()=>setZoom(url)}><img src={url} alt={`접수 참고 사진 ${i+1}`} /></button>{!compact?<figcaption>사진 {i+1} · <time dateTime={photo.createdAt}>{new Date(photo.createdAt).toLocaleString("ko-KR")}</time></figcaption>:null}</figure>)}</div>}
+    {loading?<p>사진 불러오는 중…</p>:error?<p role="alert">사진을 불러오지 못했습니다. <button type="button" onClick={retry}>사진 다시 불러오기</button></p>:!photos.length?(!compact?<p>저장된 사진이 없습니다. 글만으로도 접수할 수 있습니다.</p>:null):<div className="photo-grid">{photos.map(({photo,url},i)=><figure key={photo.photoId}><button type="button" aria-label={`저장된 사진 ${i+1} 확대`} onClick={()=>setZoom(url)}><img src={url} alt={`접수 참고 사진 ${i+1}`} /></button>{!compact?<figcaption>사진 {i+1} · <time dateTime={photo.createdAt}>{new Date(photo.createdAt).toLocaleString("ko-KR")}</time>{names.has(photo.photoId)?<span className="photo-evidence">{names.get(photo.photoId)!.join(", ")}</span>:null}</figcaption>:null}</figure>)}</div>}
     <dialog ref={dialog} className="photo-dialog" onClose={()=>setZoom(null)} aria-label="첨부 사진 확대"
       onKeyDown={event=>{if(event.key==="Tab"){event.preventDefault();event.currentTarget.querySelector<HTMLButtonElement>("button")?.focus();}}}>
       <button type="button" onClick={()=>setZoom(null)}>사진 닫기</button>{zoom?<img src={zoom} alt="확대한 접수 참고 사진" />:null}</dialog>

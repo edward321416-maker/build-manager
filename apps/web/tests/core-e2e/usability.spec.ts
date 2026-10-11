@@ -68,7 +68,9 @@ test("390px tenant answers the follow-up questions right after 접수하기 and 
   expect(await page.evaluate(()=>scrollY)).toBe(0);const box=await firstQuestion.boundingBox();expect(box!.y+box!.height).toBeLessThanOrEqual(844);
   await expect(page.locator("summary").filter({hasText:/^추가 확인$/})).toHaveCount(0);await expect(page.getByRole("main")).toHaveCount(1);
   await tenant.assertFits();
-  for(let i=0;i<12&&!await zone.getByTestId("finalize").isVisible();i++){
+  // P1b: the fixture's individual boiler asks for a display photo after the questions; this request goes without one (D6).
+  const withoutPhoto=zone.getByRole("button",{name:"사진 없이 제출하기",exact:true});
+  for(let i=0;i<12&&!await zone.getByTestId("finalize").isVisible()&&!await withoutPhoto.isVisible();i++){
     const no=zone.getByTestId("answer-no"),text=zone.getByLabel("답변",{exact:true});
     const answered=page.waitForResponse(r=>r.url().endsWith(`/${ticket.ticketId}/answers`)&&r.request().method()==="POST");
     if(await no.isVisible())await no.click();
@@ -79,7 +81,7 @@ test("390px tenant answers the follow-up questions right after 접수하기 and 
   }
   const finalizedNotice=page.getByRole("status").filter({hasText:"수리 요청을 관리자에게 보냈어요."});
   const finalized=page.waitForResponse(r=>r.url().endsWith(`/${ticket.ticketId}/finalize`)&&r.request().method()==="POST");
-  await zone.getByTestId("finalize").click();expect((await finalized).status()).toBe(200);
+  await (await withoutPhoto.isVisible()?withoutPhoto:zone.getByTestId("finalize")).click();expect((await finalized).status()).toBe(200);
   // The summary re-reads the submitted request without reopening it; the record moves back below.
   await expect(page.getByTestId("work-status")).toHaveText("접수");await expect(page.getByText(/^관리자에게 보냈어요\./)).toBeVisible();
   await expect(zone).toHaveCount(0);await expect(page.locator("summary").filter({hasText:/^추가 확인$/})).toHaveCount(1);
