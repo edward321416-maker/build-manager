@@ -43,12 +43,14 @@ describe("submitted evidence in the tenant view", () => {
         { id: "evidence-core", type: "LEAK_AREA_PHOTO", storageRef: `core-photo:${photoId}`, fixtureRef: null, source: "TENANT_UPLOAD", createdAt: AT },
         { id: "evidence-other", type: "FIXTURE_PHOTO", storageRef: `upload:${photoId}`, fixtureRef: null, source: "TENANT_UPLOAD", createdAt: AT },
         { id: "evidence-demo", type: "GENERAL_PHOTO", storageRef: null, fixtureRef: "demo-general-view", source: "DEMO_FIXTURE", createdAt: AT },
+        { id: "evidence-demo-ref", type: "GENERAL_PHOTO", storageRef: `core-photo:${photoId}`, fixtureRef: "demo-general-view", source: "DEMO_FIXTURE", createdAt: AT },
       ],
     };
     expect(presentTenantTicket(ticket, building).submittedEvidence).toEqual([
       { evidenceId: "evidence-core", evidenceType: "LEAK_LOCATION", label: "DEMO 누수 위치 이미지", photoId },
       { evidenceId: "evidence-other", evidenceType: "FIXTURE_VIEW", label: "DEMO 세대 설비 화면 이미지" },
       { evidenceId: "evidence-demo", evidenceType: "GENERAL_VIEW", label: "DEMO 일반 참고 이미지" },
+      { evidenceId: "evidence-demo-ref", evidenceType: "GENERAL_VIEW", label: "DEMO 일반 참고 이미지" },
     ]);
   });
 });

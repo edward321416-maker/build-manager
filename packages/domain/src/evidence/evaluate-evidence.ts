@@ -204,8 +204,8 @@ export function evaluateEvidence(input: EvidenceEvaluationInput): EvidenceState 
  * The evidence the protocol asks for with these answers, read the way
  * {@link evaluateEvidence} reads them: each question's first answer, with a
  * blank one left out. Screens and the photo evidence action use it, so they
- * never ask for or accept evidence the gate would not require. The gate keeps
- * its own loop unchanged; tests pin the two together.
+ * never ask for or accept evidence the gate would not consider active. The
+ * gate keeps its own loop unchanged; tests pin the two together.
  */
 export function activeEvidenceRequirements(
   protocol: Protocol,
