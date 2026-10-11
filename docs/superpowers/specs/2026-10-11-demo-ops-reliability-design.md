@@ -48,7 +48,10 @@ PR 두 개로 나눈다(DEV-02: PR 하나에 목적 하나).
    - 이 저장소에서만 돌게 저장소 이름 조건을 둔다.
    - `npm ci` 없이 Node 내장 기능만 쓰는 `--http-only`로 실행한다.
    - 실패하면 60초 뒤 한 번 더 확인한다. 그래도 실패하면 작업이 실패하고, GitHub가 cron 줄을 마지막으로 고친 사용자에게 알림을 보낸다. 이 저장소에서는 운영자 계정이다.
-   - `concurrency`로 겹쳐 돌지 않게 하고, `timeout-minutes: 5`를 둔다.
+   - `concurrency`로 겹쳐 돌지 않게 하고, `timeout-minutes: 10`을 둔다.
+     - 연결은 받지만 응답하지 않는 데모에서는 한 번 실행에 최대 약 3분(요청마다 15초)이 걸린다.
+     - 두 번 실행하고 그 사이 1분을 기다려도 제한 시간 안에 "실패"로 끝나야 알림이 간다. 시간 초과로 "취소"되면 알림이 가지 않을 수 있다(PR #114 독립 리뷰).
+   - 확인 단계는 `app-check.yml`처럼 `shell: bash`(`bash -eo pipefail`)로 실행한다.
    - 주소는 저장소 비밀 값 `DEMO_ORIGIN`에서만 읽는다. GitHub는 로그에서 비밀 값을 가린다.
 3. `development/DEVELOPMENT_RULES.md` 1.0.3: DEV-12의 "자동 smoke 스크립트는 아직 없다"를 스크립트와 정기 확인 안내로 바꾼다.
    - 확인 항목과 기록 요구는 그대로이므로 REF-02 비교는 생략하고, 그 사실을 PR에 적는다.
@@ -154,6 +157,11 @@ PR 두 개로 나눈다(DEV-02: PR 하나에 목적 하나).
 
 참고: GitHub Docs "GitHub Actions billing" — https://docs.github.com/en/billing/concepts/product-billing/github-actions, 확인 2026-10-11
 가져온 것: 공개 저장소에서 표준 GitHub 호스팅 러너는 무료이고, 대형 러너는 항상 유료다.
+일부러 가져오지 않은 것: 없음
+라이선스: 해당 없음(사실 확인만)
+
+참고: GitHub Docs "Workflow syntax for GitHub Actions"의 shell 설명 — https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax, 확인 2026-10-11
+가져온 것: Windows가 아닌 러너에서 shell을 지정하지 않으면 `bash -e {0}`, `shell: bash`를 지정하면 `bash --noprofile --norc -eo pipefail {0}`로 실행한다.
 일부러 가져오지 않은 것: 없음
 라이선스: 해당 없음(사실 확인만)
 ```

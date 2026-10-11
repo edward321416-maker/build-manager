@@ -14,6 +14,7 @@ import { pathToFileURL } from "node:url";
 const CERT_MIN_DAYS = 7;
 const DAY_MS = 86_400_000;
 const TIMEOUT_MS = 15_000;
+const MAX_LINE = 400;
 const CHUNK_PATTERN = /\/_next\/static\/chunks\/[\w.~\/-]+?\.js/;
 const PAGES = [["/core", 200], ["/vendor/job", 200], ["/api/v2/core/access", 401], ["/demo/landlord", 404]];
 // The image optimizer route stays closed (PR #106): no query, an internal path and a reserved-domain URL.
@@ -35,10 +36,11 @@ function parseArgs(argv) {
       const path = argv[index + 1], text = argv[index + 2];
       // Git Bash rewrites an argument such as /_next/... into C:/Program Files/Git/_next/... before node starts.
       if (/^[A-Za-z]:[\\/]/.test(path ?? "")) return { error: "EXPECT_TEXT_PATH_REWRITTEN: Git Bash turned the path into a Windows path; run with MSYS_NO_PATHCONV=1" };
-      if (!path?.startsWith("/") || !text || text.startsWith("--")) return { error: "EXPECT_TEXT_NEEDS_PATH_AND_TEXT" };
+      // A path on the demo: `//host/x` would resolve to another host.
+      if (!/^\/(?!\/)/.test(path ?? "") || !text || text.startsWith("--")) return { error: "EXPECT_TEXT_NEEDS_PATH_AND_TEXT" };
       options.expectText.push([path, text]);
       index += 2;
-    } else return { error: `UNKNOWN_ARGUMENT${arg.startsWith("--") ? ` ${arg}` : ""}` };
+    } else return { error: `UNKNOWN_ARGUMENT${arg.startsWith("--") ? ` ${arg.split("=")[0]}` : ""}` };
   }
   if (options.httpOnly && options.writeCheck) return { error: "WRITE_CHECK_NEEDS_BROWSER" };
   return { options };
@@ -56,11 +58,12 @@ function parseOrigin(value) {
   return bare ? url : "DEMO_ORIGIN_INVALID";
 }
 
-// Hide the origin, host, host name and every address it resolves to (an sslip.io name also spells its address).
+// Hide the origin, host, host name and every address it resolves to. An sslip.io name also spells its address,
+// with dots and as its dashed first label, which survives when a message is cut inside the name.
 export async function maskerFor(origin) {
   const secrets = new Set([origin.origin, origin.host, origin.hostname]);
   const dashed = /^(\d{1,3})-(\d{1,3})-(\d{1,3})-(\d{1,3})\./.exec(origin.hostname);
-  if (dashed) secrets.add(dashed.slice(1, 5).join("."));
+  if (dashed) secrets.add(dashed.slice(1, 5).join(".")).add(dashed.slice(1, 5).join("-"));
   try {
     for (const { address } of await lookup(origin.hostname, { all: true })) secrets.add(address);
   } catch {
@@ -92,7 +95,7 @@ function certificateValidTo(origin) {
     socket.setTimeout(TIMEOUT_MS, () => socket.destroy(new Error("TLS_TIMEOUT")));
     socket.once("secureConnect", () => {
       const validTo = socket.getPeerCertificate().valid_to;
-      socket.end();
+      socket.destroy();
       if (validTo) resolve(validTo);
       else reject(new Error("NO_PEER_CERTIFICATE"));
     });
@@ -153,7 +156,8 @@ async function browserChecks(origin, options, check) {
     page.on("response", (response) => {
       if (response.status() >= 500) serverErrors.push(`${response.status()} ${new URL(response.url()).pathname}`);
     });
-    page.on("pageerror", (error) => pageErrors.push(error.message.split("\n")[0].slice(0, 120)));
+    // Kept whole: check() masks the address before it shortens a long line.
+    page.on("pageerror", (error) => pageErrors.push(error.message.split("\n")[0]));
     try {
       await page.goto(new URL("/core", origin).href, { timeout: TIMEOUT_MS });
       await body(page);
@@ -194,9 +198,12 @@ async function browserChecks(origin, options, check) {
         await enter(page, "세입자로 체험하기");
         await page.getByRole("radio", { name: "누수", exact: true }).check({ timeout: TIMEOUT_MS });
         await page.getByLabel("문제 설명").fill("합성 배포 확인 요청 (smoke check)");
-        const created = page.waitForResponse((response) => response.url().endsWith("/api/v2/core/tickets") && response.request().method() === "POST", { timeout: TIMEOUT_MS });
-        await page.getByRole("button", { name: "접수하기", exact: true }).click();
-        const status = (await created).status();
+        // Awaited together, so a click that fails cannot leave the response wait rejecting unhandled.
+        const [created] = await Promise.all([
+          page.waitForResponse((response) => response.url().endsWith("/api/v2/core/tickets") && response.request().method() === "POST", { timeout: TIMEOUT_MS }),
+          page.getByRole("button", { name: "접수하기", exact: true }).click({ timeout: TIMEOUT_MS }),
+        ]);
+        const status = created.status();
         if (status !== 201) throw new Error(`ticket POST answered ${status}`);
         await page.getByRole("status").filter({ hasText: "접수 내용을 저장했어요" }).waitFor({ timeout: TIMEOUT_MS });
         const state = (await page.getByTestId("work-status").textContent({ timeout: TIMEOUT_MS }))?.trim();
@@ -224,10 +231,19 @@ async function main(argv, env) {
   }
   const mask = await maskerFor(origin);
   let failed = 0;
+  // Mask first, then shorten, so a cut can never leave part of the address behind.
   const check = (name, ok, detail) => {
     if (!ok) failed += 1;
-    console.log(mask(ok ? `PASS ${name}` : `FAIL ${name}${detail ? ` — ${detail}` : ""}`));
+    const line = mask(ok ? `PASS ${name}` : `FAIL ${name}${detail ? ` — ${detail}` : ""}`);
+    console.log(line.length > MAX_LINE ? `${line.slice(0, MAX_LINE)}…` : line);
   };
+  // Anything that escapes the checks still counts as a failure and is printed masked, never as a raw stack.
+  const escaped = (error) => {
+    check("smoke run", false, describe(error));
+    process.exitCode = 1;
+  };
+  process.on("unhandledRejection", escaped);
+  process.on("uncaughtException", escaped);
   try {
     await httpChecks(origin, parsed.options, check);
     if (!parsed.options.httpOnly) await browserChecks(origin, parsed.options, check);

@@ -106,12 +106,17 @@ describe("demo smoke check over HTTP", () => {
     { name: "an expect-text without its text", args: ["--http-only", "--expect-text", CHUNK], target: "demo", message: "EXPECT_TEXT_NEEDS_PATH_AND_TEXT" },
     // Git Bash turns `/_next/...` into a Windows path before node sees it; say how to stop that.
     { name: "a path Git Bash rewrote", args: ["--http-only", "--expect-text", `C:/Program Files/Git${CHUNK}`, "id"], target: "demo", message: "MSYS_NO_PATHCONV=1" },
+    // An unknown --name=value option is named without its value, which could be an address.
+    { name: "an unknown option carrying a value", args: ["--http-only", "--origin=https://203-0-113-7.sslip.invalid"], target: "demo", message: "UNKNOWN_ARGUMENT --origin" },
+    // `//host/x` resolves against the demo to another host, so it is not a path on the demo.
+    { name: "an expect-text path to another host", args: ["--http-only", "--expect-text", "//203-0-113-7.sslip.invalid/x", "id"], target: "demo", message: "EXPECT_TEXT_NEEDS_PATH_AND_TEXT" },
   ] as const)("stops with exit 2 and no request for $name", async ({ args, target, message }) => {
     const demoOrigin = target === "none" ? null : target === "path" ? `${origin}/core` : origin;
     const { code, output } = await run([...args], demoOrigin);
     expect(code).toBe(2);
     expect(output).toContain(message);
     expect(output).not.toContain("127.0.0.1");
+    expect(output).not.toContain("203-0-113-7");
     expect(requests).toBe(0);
   }, SPAWN_TIMEOUT);
 
@@ -120,7 +125,9 @@ describe("demo smoke check over HTTP", () => {
     await new Promise<void>((resolve) => closed.listen(0, "127.0.0.1", resolve));
     const port = (closed.address() as AddressInfo).port;
     await new Promise<void>((resolve) => closed.close(() => resolve()));
-    const { code, output } = await run(["--http-only"], `http://127.0.0.1:${port}`);
+    // Over HTTPS the certificate check reports `connect ECONNREFUSED <address>:<port>`, so this fails if any
+    // printed line skips the mask.
+    const { code, output } = await run(["--http-only"], `https://127.0.0.1:${port}`);
     expect(code).toBe(1);
     expect(output).toMatch(/^FAIL GET \/ = 200/m);
     expect(output).not.toContain("127.0.0.1");
@@ -137,6 +144,8 @@ describe("address masking", () => {
     // The reserved .invalid name never resolves, so only the dashed spelling can reveal the address.
     const mask = await maskerFor(new URL("https://203-0-113-7.sslip.invalid"));
     expect(mask("navigating to https://203-0-113-7.sslip.invalid/core: connect ETIMEDOUT 203.0.113.7:443")).toBe("navigating to <demo>/core: connect ETIMEDOUT <demo>:443");
+    // A message cut short inside the host name still spells the address with dashes.
+    expect(mask("TypeError at https://203-0-113-7.ssli")).toBe("TypeError at https://<demo>.ssli");
   }, SPAWN_TIMEOUT);
 });
 

@@ -31,7 +31,10 @@ describe("demo health workflow", () => {
 
   it("cannot overlap or hang, and retries a failed check once but not a usage error", () => {
     expect(source).toMatch(/^concurrency:\n {2}group: demo-health$/m);
-    expect(source).toMatch(/^ {4}timeout-minutes: [1-9]$/m);
+    // Two runs of up to about 3 minutes each against a demo that never answers, plus the minute between them,
+    // must end as a failure (which notifies), not as a cancellation by the job timeout.
+    expect(source).toMatch(/^ {4}timeout-minutes: 10$/m);
+    expect(source).toMatch(/^ {8}shell: bash$/m);
     expect(source).toMatch(/if \[ "\$status" -eq 1 \]; then sleep 60;/);
   });
 });

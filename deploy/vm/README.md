@@ -69,7 +69,7 @@ Rehearsed on 2026-10-10 with image `f4a98a3fb611` before the PR #106 redeploy:
 
 ## Checks
 
-Run these after every deploy or rollback, and whenever the demo looks wrong, from a checkout where `npm ci` has run (the browser checks use the repository's Playwright Chromium):
+Run these after every deploy or rollback, and whenever the demo looks wrong, from a checkout where `npm ci` has run. The browser checks also need Playwright's Chromium once per machine: `npx playwright install chromium`.
 
 ```bash
 DEMO_ORIGIN=https://<ip-with-dashes>.sslip.io node scripts/demo-smoke.mjs              # HTTP and browser checks

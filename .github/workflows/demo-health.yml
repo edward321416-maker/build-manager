@@ -20,7 +20,9 @@ jobs:
   http:
     if: github.repository == 'edward321416-maker/build-manager'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    # Against a demo that accepts connections but never answers, each run waits up to about 3 minutes (15 s per
+    # request); two runs and the minute between them must finish as a failure, which notifies, not a cancellation.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -29,6 +31,7 @@ jobs:
         with:
           node-version: "24.21.0"
       - name: Check the hosted demo over HTTP
+        shell: bash
         env:
           DEMO_ORIGIN: ${{ secrets.DEMO_ORIGIN }}
         # A failed check (exit 1) is retried once a minute later; a usage error (exit 2, e.g. no address set) is not.
