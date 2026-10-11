@@ -39,14 +39,46 @@ git pull && bash deploy/vm/setup.sh <public-ipv4>
 
 `sudo docker build` refreshes the image; existing values and the database volume are kept. Logs: `sudo docker compose -f deploy/vm/compose.yml logs -f web`.
 
+### Update a small VM
+
+Build and save the image on another x86-64 machine from a clean checkout of the commit to deploy, then replace only the web container:
+
+```bash
+docker build --platform linux/amd64 -t build-manager-demo-web -f deploy/vm/Dockerfile .
+id=$(docker images -q build-manager-demo-web:latest)
+docker save build-manager-demo-web:latest | gzip -1 > "demo-web-$id.tar.gz"
+sha256sum "demo-web-$id.tar.gz"
+scp "demo-web-$id.tar.gz" ubuntu@<public-ipv4>:
+# on the VM, inside the clone
+git pull --ff-only
+bash deploy/vm/redeploy.sh deploy ~/demo-web-<image-id>.tar.gz <sha256>
+```
+
+- The script stops before changing anything if the sha256 differs or the disk cannot hold the image and a rollback archive.
+- It keeps the running image as `~/demo-web-<image-id>.tar.gz` if that archive is missing, loads the new image and recreates only the web container. Naming the upload after its image ID means the next deploy finds it already kept.
+- It waits up to 180 seconds for `HOSTED_DEMO_ENSURED` and `Ready in` and prints only those lines. It never reads the files in `~/build-manager-demo-secrets`.
+- It ends with one of these:
+  - `REDEPLOY_DONE` and the rollback command
+  - `REDEPLOY_UNCHANGED` when the archive holds the running image
+  - `REDEPLOY_NOT_READY`, the rollback command and exit 1. It does not roll back by itself.
+- Then run the [checks](#checks).
+
 ## Rollback
 
-Before each update, keep the running image as an archive named after its image ID (`sudo docker images build-manager-demo-web`):
+On the VM, inside the clone:
+
+```bash
+bash deploy/vm/redeploy.sh rollback <image-id>
+```
+
+It loads `~/demo-web-<image-id>.tar.gz`, points the `latest` tag at it, recreates only the web container and waits until it is ready, as `deploy` does.
+
+`redeploy.sh deploy` keeps the running image as an archive named after its image ID before it loads a new one. Without the script, keep it yourself (`sudo docker images build-manager-demo-web` shows the ID):
 
 - If the image was loaded from an archive, keep that archive under the new name.
 - Otherwise save it: `sudo docker save build-manager-demo-web:latest | gzip -1 > ~/demo-web-<image-id>.tar.gz`.
 
-To roll back, load the archive, point the tag at it and recreate only the web container:
+The steps the rollback runs, for doing them by hand:
 
 ```bash
 # on the VM, inside the clone
