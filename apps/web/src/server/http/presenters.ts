@@ -10,7 +10,7 @@ import {
   type TenantQuestionDto,
   type TenantTicketStatusDto,
 } from "@build-manager/api-contracts";
-import { assessTicket, getOutstandingMoreInfo } from "@build-manager/application";
+import { assessTicket, CORE_PHOTO_REF_PREFIX, getOutstandingMoreInfo } from "@build-manager/application";
 import {
   evaluateRuleExpression,
   getActiveQuestions,
@@ -332,10 +332,16 @@ export function presentTenantTicket(
     evidenceRequirements: view.evidenceRequirements,
     submittedEvidence: ticket.evidence.map((item) => {
       const publicType = PUBLIC_EVIDENCE_TYPE[item.type];
+      // A photo the tenant named in the Core flow (P1b) shows which photo it was.
+      const photoId =
+        item.source === "TENANT_UPLOAD" && item.storageRef?.startsWith(CORE_PHOTO_REF_PREFIX)
+          ? item.storageRef.slice(CORE_PHOTO_REF_PREFIX.length)
+          : undefined;
       return {
         evidenceId: item.id,
         evidenceType: publicType,
         label: EVIDENCE_LABELS[publicType],
+        ...(photoId === undefined ? {} : { photoId }),
       };
     }),
     packet:
