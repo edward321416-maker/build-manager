@@ -37,16 +37,55 @@ The script then loads the image instead of building it and adds a 2 GB swap file
 git pull && bash deploy/vm/setup.sh <public-ipv4>
 ```
 
-`sudo docker build` refreshes the image; existing values and the database volume are kept. Logs: `sudo docker compose -f deploy/vm/compose.yml logs -f web`.
+`sudo docker build` refreshes the image; existing values and the database volume are kept. Logs: `sudo docker compose -f deploy/vm/compose.yml logs -f web`. This path keeps no rollback archive by itself, so keep one first as described in [Rollback](#rollback).
+
+### Update a small VM
+
+Build and save the image on another x86-64 machine from a clean checkout of the commit to deploy, then replace only the web container:
+
+```bash
+docker build --platform linux/amd64 -t build-manager-demo-web -f deploy/vm/Dockerfile .
+id=$(docker images -q build-manager-demo-web:latest)
+docker save build-manager-demo-web:latest | gzip -1 > "demo-web-$id.tar.gz"
+sha256sum "demo-web-$id.tar.gz"
+scp "demo-web-$id.tar.gz" ubuntu@<public-ipv4>:
+# on the VM, inside the clone
+git pull --ff-only
+bash deploy/vm/redeploy.sh deploy ~/demo-web-<image-id>.tar.gz <sha256>
+```
+
+- Run it as the VM user, not with `sudo`: it calls `sudo docker` itself. Run it inside `tmux` or `screen`, so a dropped SSH session cannot stop it halfway.
+- A second run at the same time stops with `ALREADY_RUNNING`. If a dropped session left `~/.redeploy.lock` behind, remove it once no other run is active.
+- It stops before changing anything if the sha256 differs, the archive is not gzip, or the home folder or Docker's data folder has less free space than twice the unpacked image plus the archive.
+- Measuring the unpacked size and testing an existing rollback archive each unpack an archive once. On a 1 GB VM this can take a few minutes while the demo keeps running.
+- It keeps the running image as `~/demo-web-<image-id>.tar.gz` unless a valid archive with that name exists. Naming the upload after its image ID means the next deploy finds it already kept.
+- It loads the new image and tags it if the archive was saved by image ID, then recreates only the web container.
+- It waits up to 180 seconds for `HOSTED_DEMO_ENSURED` and `Ready in`, then checks that the container runs the new image and has not restarted.
+- It prints only the two readiness lines and never reads the files in `~/build-manager-demo-secrets`.
+- It ends with one of these:
+  - `REDEPLOY_DONE` and the rollback command
+  - `REDEPLOY_UNCHANGED` when the archive holds the running image
+  - `REDEPLOY_NOT_READY`, the reason, the rollback command and exit 1. It does not roll back by itself.
+  - `REDEPLOY_STOPPED` and the reason. Stops before the load change nothing; later ones leave the running container untouched.
+- Each deploy leaves the previous image's archive (about 0.9 GB) in the home folder and the old image in Docker. Keep the archive you may roll back to. When the disk runs low, delete older archives and run `sudo docker image prune`.
+- Then run the [checks](#checks).
 
 ## Rollback
 
-Before each update, keep the running image as an archive named after its image ID (`sudo docker images build-manager-demo-web`):
+On the VM, inside the clone:
+
+```bash
+bash deploy/vm/redeploy.sh rollback <image-id>
+```
+
+It uses the image if it is still loaded and otherwise loads `~/demo-web-<image-id>.tar.gz`. Then it points the `latest` tag at it, recreates only the web container and waits until it is ready, as `deploy` does.
+
+`redeploy.sh deploy` keeps the running image as an archive named after its image ID before it loads a new one. Without the script, keep it yourself (`sudo docker images build-manager-demo-web` shows the ID):
 
 - If the image was loaded from an archive, keep that archive under the new name.
 - Otherwise save it: `sudo docker save build-manager-demo-web:latest | gzip -1 > ~/demo-web-<image-id>.tar.gz`.
 
-To roll back, load the archive, point the tag at it and recreate only the web container:
+The steps the rollback runs, for doing them by hand:
 
 ```bash
 # on the VM, inside the clone
@@ -62,10 +101,12 @@ sudo docker logs --since 5m vm-web-1                 # Ready, and HOSTED_DEMO_EN
   - Before rolling back, check that no migration was added between the two images. If one was, that rollback needs its own plan.
 - Afterwards, run the [checks](#checks).
 
-Rehearsed on 2026-10-10 with image `f4a98a3fb611` before the PR #106 redeploy:
+Rehearsed on 2026-10-10 with image `f4a98a3fb611` before the PR #106 redeploy, using the manual steps:
 - Load, recreate and ready took 161 seconds.
 - The live checks passed.
 - That archive was saved with the `latest` tag, so the load set the tag and no separate tag step ran.
+
+The script has not run on the VM yet; its first use is the next deploy.
 
 ## Checks
 
