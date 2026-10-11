@@ -106,7 +106,12 @@ Rehearsed on 2026-10-10 with image `f4a98a3fb611` before the PR #106 redeploy, u
 - The live checks passed.
 - That archive was saved with the `latest` tag, so the load set the tag and no separate tag step ran.
 
-The script has not run on the VM yet; its first use is the next deploy.
+The script first ran on the VM on 2026-10-12 KST for the P1b deploy (`ac098edf17b7` → `75a169be84fe`, which applied migration 0024):
+- It found the running image already kept under its image-ID name and printed `REDEPLOY_DONE` with the rollback command, about six minutes after it started.
+- The running image's archive had been uploaded as `demo-web-new.tar.gz`. It was renamed after its checksum matched the local copy, so the script did not save it again.
+- Rolling back to `ac098edf17b7` stays safe with 0024 applied. This was reasoned from the code and not rehearsed:
+  - On start, the older image runs its own migrations (0001–0023). node-pg-migrate 9.0.0 compares only the migrations both sides know, finds nothing to apply, and the start does not fail on the extra 0024.
+  - 0024 only widens allowed values. The older code never writes them, and its history shows such an event under a fallback name.
 
 ## Checks
 

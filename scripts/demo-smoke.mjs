@@ -20,6 +20,9 @@ const PAGES = [["/core", 200], ["/vendor/job", 200], ["/api/v2/core/access", 401
 // The image optimizer route stays closed (PR #106): no query, an internal path and a reserved-domain URL.
 const IMAGE_PATHS = ["/_next/image", "/_next/image?url=%2F&w=64&q=75", "/_next/image?url=https%3A%2F%2Fexample.invalid%2Fa.png&w=64&q=75"];
 const USAGE = "USAGE: DEMO_ORIGIN=https://<host> node scripts/demo-smoke.mjs [--http-only] [--write-check] [--expect-text <path> <text>]...";
+// The write check's synthetic request text. It must stay clear of the domain's safety text scan (evaluate-safety.ts),
+// or the request is escalated as urgent and never reads 제출 전.
+export const WRITE_CHECK_TEXT = "합성 배포 확인 요청 (배포 점검 스크립트)";
 
 export function certificateCheck(validTo, now = new Date()) {
   const days = Math.floor((Date.parse(validTo) - now.getTime()) / DAY_MS);
@@ -197,7 +200,7 @@ async function browserChecks(origin, options, check) {
       await step("write check saves a synthetic request before submission", 390, async (page) => {
         await enter(page, "세입자로 체험하기");
         await page.getByRole("radio", { name: "누수", exact: true }).check({ timeout: TIMEOUT_MS });
-        await page.getByLabel("문제 설명").fill("합성 배포 확인 요청 (smoke check)");
+        await page.getByLabel("문제 설명").fill(WRITE_CHECK_TEXT);
         // Awaited together, so a click that fails cannot leave the response wait rejecting unhandled. The wait
         // outlasts the click, so a failed click reports its own error.
         const [created] = await Promise.all([
