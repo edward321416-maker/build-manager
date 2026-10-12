@@ -3,22 +3,14 @@ import type {
   LandlordTicketDetailDto,
 } from "@build-manager/api-contracts";
 import Link from "next/link";
-import { contextRows, recommendationState } from "./logic";
+import { INTAKE_STATUS_NAMES, buildingFieldName } from "../status-names";
+import { contextRows, recommendationState, routeLabel } from "./logic";
 
 /**
  * Pure presentation. These take already-validated public DTOs and render
  * markup; they perform no fetching and hold no state, so every decision they
  * show came from the server.
  */
-const STATUS_LABELS: Record<string, string> = {
-  IN_PROGRESS: "작성 중",
-  PARTIAL: "정보 부족",
-  READY_FOR_REVIEW: "검토 대기",
-  NEEDS_MORE_INFO: "추가 정보 요청됨",
-  SAFETY_ESCALATED: "안전 확인 필요",
-  APPROVED: "승인됨",
-  OVERRIDDEN: "임대인 지정",
-};
 
 const EVIDENCE_LABELS: Record<string, string> = {
   COMPLETE: "필수 정보 확인됨",
@@ -87,14 +79,14 @@ export function BuildingPassportPanel({
 
       <h3>라우팅 기준 정보</h3>
       <p className="passport-note">
-        이 항목만 수리 경로 판단에 사용됩니다. 임대인이 확인한 정보입니다.
+        이 항목만 수리 경로 판단에 써요. 관리자가 확인한 정보예요.
       </p>
       <dl className="context-rows">
         {routing.map((row) => (
           <div key={row.key}>
             <dt>{row.label}</dt>
             <dd>
-              {row.value} <span className="provenance">임대인 확인</span>
+              {row.value} <span className="provenance">관리자 확인</span>
             </dd>
           </div>
         ))}
@@ -140,7 +132,7 @@ export function TicketList({
           </Link>
           <span className="ticket-building">{ticket.building.displayName}</span>
           <span className="ticket-status" data-status={ticket.status}>
-            {STATUS_LABELS[ticket.status] ?? ticket.status}
+            {INTAKE_STATUS_NAMES[ticket.status]}
           </span>
         </li>
       ))}
@@ -159,10 +151,10 @@ export function RepairPacketPanel({
 
   return (
     <section aria-labelledby="packet-heading" className="repair-packet">
-      <h2 id="packet-heading">수리 요청 {ticket.ticketId}</h2>
+      <h2 id="packet-heading">처리 방법 정하기</h2>
 
       <p className="packet-status" data-status={ticket.status}>
-        상태: {STATUS_LABELS[ticket.status] ?? ticket.status}
+        상태: {INTAKE_STATUS_NAMES[ticket.status]}
       </p>
       <p className="packet-evidence" data-evidence={ticket.evidenceStatus}>
         정보 상태: {EVIDENCE_LABELS[ticket.evidenceStatus] ?? ticket.evidenceStatus}
@@ -172,7 +164,6 @@ export function RepairPacketPanel({
         <p className="packet-empty">{NO_RECOMMENDATION_REASON.AWAITING_INTAKE}</p>
       ) : (
         <>
-          <p className="packet-revision">검토 문서 개정 {packet.revision}</p>
           <p className="packet-summary">{packet.summary}</p>
 
           {recommendation === null ? (
@@ -183,7 +174,7 @@ export function RepairPacketPanel({
             <>
               <h3>추천 경로</h3>
               <p className="recommendation" data-route={recommendation.routeCode}>
-                {recommendation.label}
+                {routeLabel(recommendation.routeCode)}
               </p>
               <h3>왜 이 경로인가</h3>
               <ul className="recommendation-reasons">
@@ -200,7 +191,7 @@ export function RepairPacketPanel({
           ) : (
             <ul className="packet-provenance">
               {packet.provenance.map((key) => (
-                <li key={key}>{key}</li>
+                <li key={key}>{buildingFieldName(key)}</li>
               ))}
             </ul>
           )}
@@ -213,10 +204,10 @@ export function RepairPacketPanel({
       ) : (
         <p className="decision" data-decision={ticket.decision.type}>
           {ticket.decision.type === "APPROVE"
-            ? "추천 경로를 승인했습니다."
+            ? "추천 경로를 승인했어요."
             : ticket.decision.type === "OVERRIDE"
-              ? `임대인이 직접 경로를 지정했습니다: ${ticket.decision.routeCode}`
-              : "추가 정보를 요청했습니다."}
+              ? `관리자가 처리 방법을 직접 정했어요: ${routeLabel(ticket.decision.routeCode)}`
+              : "추가 정보를 요청했어요."}
         </p>
       )}
     </section>

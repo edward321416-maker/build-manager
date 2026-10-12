@@ -160,6 +160,8 @@ describe("safety notice", () => {
 
     expect(html).toContain("안전");
     expect(html).toContain("중단");
+    expect(html).toContain("관리자에게 상황이 전달되도록");
+    expect(html).not.toContain("임대인");
   });
 
   it("gives no DIY instruction and no invented emergency contact", () => {
@@ -228,6 +230,8 @@ describe("follow-up panel", () => {
     expect(html).toContain("누수 위치를 다시 확인해 주세요");
     expect(html).toContain("현재도 계속 새고 있나요?");
     expect(html).toContain("DEMO 누수 위치 이미지");
+    expect(html).toContain("관리자가 추가 정보를 요청했어요");
+    expect(html).not.toContain("임대인");
   });
 
   it("prompts a resubmission once everything requested is done", () => {

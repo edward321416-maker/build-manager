@@ -4,6 +4,7 @@ import {
   type LandlordTicketDetailDto,
   type RouteCode,
 } from "@build-manager/api-contracts";
+import { ROUTE_NAMES, buildingFieldName, buildingValueName } from "../status-names";
 
 /**
  * Pure view decisions for the landlord demo.
@@ -18,19 +19,11 @@ export type RouteOption = { routeCode: RouteCode; label: string };
 export const ALL_ROUTE_CODES: readonly RouteCode[] = RouteCodeSchema.options;
 
 /**
- * Presentation only. Typed as a total record, so adding a route code to the
- * contract without a Korean label stops the build.
+ * Presentation only. The name table is a total record, so adding a route code
+ * to the contract without a Korean name stops the build.
  */
-const ROUTE_LABELS: Record<RouteCode, string> = {
-  LANDLORD_REVIEW: "임대인 검토",
-  MANAGEMENT_OFFICE: "관리사무소",
-  THIRD_PARTY_MANAGER: "위탁관리",
-  MANUFACTURER_AS: "제조사 A/S",
-  GENERAL_VENDOR: "일반 수리업체",
-};
-
 export function routeLabel(routeCode: RouteCode): string {
-  return ROUTE_LABELS[routeCode];
+  return ROUTE_NAMES[routeCode];
 }
 
 /**
@@ -140,26 +133,11 @@ export type ContextRow = {
   provenance: ContextProvenance;
 };
 
-const CONTEXT_LABELS: Record<string, string> = {
-  managementMode: "관리 방식",
-  heatingType: "난방 방식",
-  ownerSuppliedBoiler: "임대인 공급 보일러",
-  primaryUse: "주용도",
-  approvalYear: "사용승인 연도",
-};
-
-const VALUE_LABELS: Record<string, string> = {
-  OWNER_DIRECT: "임대인 직접 관리",
-  MANAGEMENT_OFFICE: "관리사무소",
-  INDIVIDUAL: "개별난방",
-  CENTRAL_SHARED: "중앙·공용난방",
-};
-
-function display(value: string | boolean): string {
+function display(key: string, value: string | boolean): string {
   if (typeof value === "boolean") {
     return value ? "예" : "아니오";
   }
-  return VALUE_LABELS[value] ?? value;
+  return buildingValueName(key, value);
 }
 
 /**
@@ -172,29 +150,29 @@ export function contextRows(passport: BuildingPassportDto): ContextRow[] {
   const rows: ContextRow[] = [
     {
       key: "managementMode",
-      value: display(passport.managementMode),
+      value: display("managementMode", passport.managementMode),
     },
     {
       key: "heatingType",
-      value: display(passport.heatingType),
+      value: display("heatingType", passport.heatingType),
     },
     ...(passport.ownerSuppliedBoiler === undefined
       ? []
       : [
           {
             key: "ownerSuppliedBoiler",
-            value: display(passport.ownerSuppliedBoiler),
+            value: display("ownerSuppliedBoiler", passport.ownerSuppliedBoiler),
           },
         ]),
-    { key: "primaryUse", value: display(passport.primaryUse) },
-    { key: "approvalYear", value: display(passport.approvalYear) },
+    { key: "primaryUse", value: display("primaryUse", passport.primaryUse) },
+    { key: "approvalYear", value: display("approvalYear", passport.approvalYear) },
   ].map((row) => {
     const routingEligible = passport.routingEligibleFields.some(
       (field) => field === row.key,
     );
     return {
       key: row.key,
-      label: CONTEXT_LABELS[row.key] ?? row.key,
+      label: buildingFieldName(row.key),
       value: row.value,
       routingEligible,
       provenance: routingEligible

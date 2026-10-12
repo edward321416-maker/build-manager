@@ -139,7 +139,7 @@ export function TicketReview({ ticketId, client, coreFlow=false, onStatusChange,
           <RepairPacketPanel ticket={state.ticket} />
 
           <section aria-labelledby="decision-heading" className="decision-panel">
-            <h3 id="decision-heading">임대인 결정</h3>
+            <h3 id="decision-heading">처리 방법 결정</h3>
 
             {actionError === null ? null : (
               <p className="state-error" role="alert">
@@ -188,7 +188,7 @@ export function TicketReview({ ticketId, client, coreFlow=false, onStatusChange,
               >
                 {manualRouteMode(state.ticket) === "MANUAL_ONLY" ? (
                   <p className="action-note" data-testid="manual-route-note">
-                    시스템 자동 추천 없음 · 임대인이 직접 처리경로 선택
+                    자동 추천이 없어요. 처리 방법을 직접 골라 주세요.
                   </p>
                 ) : null}
 

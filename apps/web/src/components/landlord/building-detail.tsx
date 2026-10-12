@@ -11,6 +11,7 @@ import {
   createBrowserApiClient,
   describeApiError,
 } from "@/lib/browser-api-client";
+import { buildingValueName } from "../status-names";
 import { BuildingPassportPanel, DemoBanner, StateMessage } from "./views";
 
 type LoadState =
@@ -19,15 +20,10 @@ type LoadState =
   | { kind: "ready"; passport: BuildingPassportDto };
 
 const MANAGEMENT_MODES: ReadonlyArray<{ value: ManagementMode; label: string }> =
-  [
-    { value: "OWNER_DIRECT", label: "임대인 직접 관리" },
-    { value: "MANAGEMENT_OFFICE", label: "관리사무소" },
-  ];
+  (["OWNER_DIRECT", "MANAGEMENT_OFFICE"] as const).map((value) => ({ value, label: buildingValueName("managementMode", value) }));
 
-const HEATING_TYPES: ReadonlyArray<{ value: HeatingType; label: string }> = [
-  { value: "INDIVIDUAL", label: "개별난방" },
-  { value: "CENTRAL_SHARED", label: "중앙·공용난방" },
-];
+const HEATING_TYPES: ReadonlyArray<{ value: HeatingType; label: string }> =
+  (["INDIVIDUAL", "CENTRAL_SHARED"] as const).map((value) => ({ value, label: buildingValueName("heatingType", value) }));
 
 export function BuildingDetail({ buildingId }: { buildingId: string }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });

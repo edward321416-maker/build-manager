@@ -5,21 +5,13 @@ import type {
   TenantQuestionDto,
   TenantTicketStatusDto,
 } from "@build-manager/api-contracts";
+import { INTAKE_STATUS_NAMES } from "../status-names";
 
 /**
  * Pure tenant presentation. These take already-validated tenant DTOs, so no
  * landlord-only field can reach them — there is nothing to filter out here
  * because nothing landlord-only is ever passed in.
  */
-const STATUS_LABELS: Record<string, string> = {
-  IN_PROGRESS: "작성 중",
-  PARTIAL: "정보 부족",
-  READY_FOR_REVIEW: "검토 대기",
-  NEEDS_MORE_INFO: "추가 정보 요청됨",
-  SAFETY_ESCALATED: "안전 확인 필요",
-  APPROVED: "임대인 확인 완료",
-  OVERRIDDEN: "임대인 확인 완료",
-};
 
 const EVIDENCE_STATUS_LABELS: Record<string, string> = {
   COMPLETE: "필수 정보 확인됨",
@@ -136,7 +128,7 @@ export function SafetyNotice() {
       </p>
       <p>
         이 데모는 안전을 판정하지 않으며, 사람이 직접 상황을 확인해야 합니다.
-        임대인·관리 주체에게 상황이 전달되도록 접수 상태가 표시됩니다.
+        관리자에게 상황이 전달되도록 접수 상태가 표시돼요.
       </p>
     </section>
   );
@@ -203,7 +195,7 @@ export function FollowUpPanel({
 
   return (
     <section aria-labelledby="follow-up-heading" className="follow-up-panel">
-      <h2 id="follow-up-heading">임대인이 추가 정보를 요청했습니다</h2>
+      <h2 id="follow-up-heading">관리자가 추가 정보를 요청했어요</h2>
       <p className="follow-up-reason">{request.reason}</p>
 
       {fulfilled ? (
@@ -251,7 +243,7 @@ export function TenantStatusPanel({
       <h2 id="tenant-status-heading">접수 상태</h2>
 
       <p className="packet-status" data-status={ticket.status}>
-        상태: {STATUS_LABELS[ticket.status] ?? ticket.status}
+        상태: {INTAKE_STATUS_NAMES[ticket.status]}
       </p>
       <p className="packet-evidence" data-evidence={ticket.evidenceStatus}>
         정보 상태:{" "}
