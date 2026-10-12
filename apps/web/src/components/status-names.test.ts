@@ -1,6 +1,9 @@
-import { RouteCodeSchema, TicketStatusSchema, VendorAccessPolicySchema } from "@build-manager/api-contracts";
+import { EvidenceStatusSchema, RouteCodeSchema, TicketStatusSchema, VendorAccessPolicySchema, VendorSharedDetailSourceTypeSchema } from "@build-manager/api-contracts";
 import { describe, expect, it } from "vitest";
-import { ACCESS_POLICY_NAMES, INTAKE_STATUS_NAMES, ROUTE_NAMES, WORK_STATUS_NAMES, buildingFieldName, buildingValueName } from "./status-names";
+import {
+  ACCESS_POLICY_NAMES, EVIDENCE_STATUS_NAMES, INTAKE_STATUS_NAMES, ROUTE_NAMES, SHARED_DETAIL_SOURCE_NAMES, WORK_STATUS_NAMES,
+  buildingFieldName, buildingValueName, sentIntakeStatus,
+} from "./status-names";
 
 const rawCode = /[A-Z]{2,}|_/;
 
@@ -40,5 +43,24 @@ describe("status names", () => {
     expect(buildingValueName("managementMode", "MANAGEMENT_OFFICE")).toBe("관리사무소");
     expect(buildingValueName("primaryUse", "다가구주택")).toBe("다가구주택");
     expect(buildingValueName("heatingType", "UNKNOWN_FUTURE")).toBe("UNKNOWN_FUTURE");
+  });
+
+  it("falls back to the raw text for inherited object keys instead of returning a function", () => {
+    expect(buildingValueName("heatingType", "constructor")).toBe("constructor");
+    expect(buildingValueName("constructor", "INDIVIDUAL")).toBe("INDIVIDUAL");
+    expect(buildingFieldName("toString")).toBe("toString");
+  });
+
+  it("names Vendor shared-detail sources and evidence states once, for the preview and the Vendor screen alike", () => {
+    expect(Object.keys(SHARED_DETAIL_SOURCE_NAMES).sort()).toEqual([...VendorSharedDetailSourceTypeSchema.options].sort());
+    expect(SHARED_DETAIL_SOURCE_NAMES).toEqual({ TENANT_REPORTED: "세입자 입력", BUILDING_VERIFIED: "건물 확인", MANAGER_REVIEWED: "관리자 확인" });
+    expect(Object.keys(EVIDENCE_STATUS_NAMES).sort()).toEqual([...EvidenceStatusSchema.options].sort());
+    expect(EVIDENCE_STATUS_NAMES.CONFLICTING).toBe("정보 불일치");
+  });
+
+  it("never shows a request that was already sent as unsubmitted while its more-info answers reset the status", () => {
+    expect(sentIntakeStatus("IN_PROGRESS", true)).toBe("NEEDS_MORE_INFO");
+    expect(sentIntakeStatus("IN_PROGRESS", false)).toBe("IN_PROGRESS");
+    expect(sentIntakeStatus("PARTIAL", true)).toBe("PARTIAL");
   });
 });

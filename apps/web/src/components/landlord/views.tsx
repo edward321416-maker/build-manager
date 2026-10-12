@@ -3,7 +3,7 @@ import type {
   LandlordTicketDetailDto,
 } from "@build-manager/api-contracts";
 import Link from "next/link";
-import { INTAKE_STATUS_NAMES, buildingFieldName } from "../status-names";
+import { EVIDENCE_STATUS_NAMES, INTAKE_STATUS_NAMES, buildingFieldName, sentIntakeStatus } from "../status-names";
 import { contextRows, recommendationState, routeLabel } from "./logic";
 
 /**
@@ -12,12 +12,9 @@ import { contextRows, recommendationState, routeLabel } from "./logic";
  * show came from the server.
  */
 
-const EVIDENCE_LABELS: Record<string, string> = {
-  COMPLETE: "필수 정보 확인됨",
-  MISSING_REQUIRED: "필수 정보 부족",
-  CONFLICTING: "정보 불일치",
-  SAFETY_ESCALATED: "안전 위험 신호",
-};
+/** A repair packet exists once the request was sent, so its more-info answers never read as unsubmitted. */
+const statusName = (ticket: LandlordTicketDetailDto) =>
+  INTAKE_STATUS_NAMES[sentIntakeStatus(ticket.status, ticket.repairPacket !== null)];
 
 const NO_RECOMMENDATION_REASON: Record<string, string> = {
   SAFETY_ESCALATED:
@@ -132,7 +129,7 @@ export function TicketList({
           </Link>
           <span className="ticket-building">{ticket.building.displayName}</span>
           <span className="ticket-status" data-status={ticket.status}>
-            {INTAKE_STATUS_NAMES[ticket.status]}
+            {statusName(ticket)}
           </span>
         </li>
       ))}
@@ -151,13 +148,13 @@ export function RepairPacketPanel({
 
   return (
     <section aria-labelledby="packet-heading" className="repair-packet">
-      <h2 id="packet-heading">처리 방법 정하기</h2>
+      <h2 id="packet-heading">수리 요청 검토</h2>
 
       <p className="packet-status" data-status={ticket.status}>
-        상태: {INTAKE_STATUS_NAMES[ticket.status]}
+        상태: {statusName(ticket)}
       </p>
       <p className="packet-evidence" data-evidence={ticket.evidenceStatus}>
-        정보 상태: {EVIDENCE_LABELS[ticket.evidenceStatus] ?? ticket.evidenceStatus}
+        정보 상태: {EVIDENCE_STATUS_NAMES[ticket.evidenceStatus]}
       </p>
 
       {packet === null ? (

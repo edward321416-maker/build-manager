@@ -182,11 +182,20 @@ describe("repair packet", () => {
       />,
     );
 
-    expect(html).toContain("처리 방법 정하기");
+    expect(html).toContain("수리 요청 검토");
     expect(html).toContain("일반 수리업체");
     expect(html).not.toContain("일반 수리 업체");
     expect(html).not.toContain("ticket-a");
     expect(html).not.toContain("검토 문서 개정");
+  });
+
+  it("keeps a sent request out of 제출 전 while the tenant answers a more-info round, in the panel and the list", () => {
+    // Every tenant answer resets the server status to IN_PROGRESS; the repair packet shows it was sent before.
+    const answering = ticket({ status: "IN_PROGRESS" });
+    expect(markup(<RepairPacketPanel ticket={answering} />)).toContain("상태: 추가 확인 필요");
+    expect(markup(<TicketList tickets={[answering]} />)).toContain("추가 확인 필요");
+    const draft = ticket({ status: "IN_PROGRESS", repairPacket: null });
+    expect(markup(<RepairPacketPanel ticket={draft} />)).toContain("상태: 제출 전");
   });
 
   it("names a directly chosen route instead of its code, without the landlord term", () => {

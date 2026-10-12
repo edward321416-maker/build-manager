@@ -188,7 +188,7 @@ test.describe("tenant demo", () => {
     );
 
     await expect(
-      page.getByRole("heading", { name: "안전 확인이 필요합니다" }),
+      page.getByRole("heading", { name: "안전 확인이 필요해요" }),
     ).toBeVisible();
     await expect(page.getByTestId("answer-no")).toHaveCount(0);
     await expect(page.getByTestId("finalize")).toHaveCount(0);
@@ -207,7 +207,7 @@ test.describe("tenant demo", () => {
     await page.getByTestId("answer-yes").click();
 
     await expect(
-      page.getByRole("heading", { name: "안전 확인이 필요합니다" }),
+      page.getByRole("heading", { name: "안전 확인이 필요해요" }),
     ).toBeVisible();
     await expect(page.getByTestId("finalize")).toHaveCount(0);
   });
@@ -312,7 +312,7 @@ test.describe("tenant demo", () => {
   test("safety assertion distinguishes identifiers from unsafe guidance (DOM_PROBE)", async ({ page, request }) => {
     await resetDemo(request);
     await createTicketThroughUi(page, BUILDING_A, "HEATING", "난방이 안 되고 가스 냄새가 나요");
-    await expect(page.getByRole("heading", { name: "안전 확인이 필요합니다" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "안전 확인이 필요해요" })).toBeVisible();
     // Snapshot real API-backed rendering. Mutations below are DOM probes only,
     // not evidence of fixed server IDs or changed persistence/API behavior.
     const snapshot = await page.evaluate(() => {

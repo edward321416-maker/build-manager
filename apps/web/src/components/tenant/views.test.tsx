@@ -160,8 +160,10 @@ describe("safety notice", () => {
 
     expect(html).toContain("안전");
     expect(html).toContain("중단");
-    expect(html).toContain("관리자에게 상황이 전달되도록");
+    // The meaning is kept: the managing body is still named, and the notice speaks in one level.
+    expect(html).toContain("관리자나 관리 주체에게 상황이 전달되도록");
     expect(html).not.toContain("임대인");
+    expect(html).not.toContain("습니다");
   });
 
   it("gives no DIY instruction and no invented emergency contact", () => {
@@ -265,6 +267,21 @@ describe("tenant status panel", () => {
     expect(html).toContain("정보 부족");
     expect(html).toContain("필수 정보 부족");
     expect(html).toContain("누수 접수 건입니다.");
+  });
+
+  it("keeps a sent request out of 제출 전 while the tenant answers a more-info round", () => {
+    const html = markup(
+      <TenantStatusPanel
+        ticket={ticket({
+          status: "IN_PROGRESS",
+          evidenceStatus: "COMPLETE",
+          packet: { revision: 1, summary: "누수 접수 건입니다.", safetyEscalated: false },
+        })}
+      />,
+    );
+
+    expect(html).toContain("상태: 추가 확인 필요");
+    expect(html).not.toContain("제출 전");
   });
 
   it("never renders landlord-only review data", () => {
