@@ -147,7 +147,7 @@ describe("ticket list", () => {
 
     expect(html).toContain("ticket-a");
     expect(html).toContain("/demo/landlord/tickets/ticket-a");
-    expect(html).toContain("검토 대기");
+    expect(html).toContain("결정 대기");
   });
 
   it("shows a zero-ticket empty state", () => {
@@ -158,13 +158,57 @@ describe("ticket list", () => {
 });
 
 describe("repair packet", () => {
-  it("shows the revision, evidence state, recommendation, and why", () => {
+  it("shows the evidence state, recommendation, why, and the building facts by name", () => {
     const html = markup(<RepairPacketPanel ticket={ticket()} />);
 
-    expect(html).toContain("2");
+    expect(html).toContain("상태: 결정 대기");
     expect(html).toContain("관리사무소");
     expect(html).toContain("관리사무소 관리 건물의 천장·벽 누수");
-    expect(html).toContain("managementMode");
+    expect(html).toContain("관리 방식");
+    expect(html).toContain("난방 방식");
+    expect(html).not.toContain("managementMode");
+    expect(html).not.toContain("heatingType");
+  });
+
+  it("names the route from the name table and hides the request ID and packet revision", () => {
+    const html = markup(
+      <RepairPacketPanel
+        ticket={ticket({
+          repairPacket: {
+            ...ticket().repairPacket!,
+            recommendation: { routeCode: "GENERAL_VENDOR", label: "일반 수리 업체", reasons: ["합성 추천 이유"] },
+          },
+        })}
+      />,
+    );
+
+    expect(html).toContain("수리 요청 검토");
+    expect(html).toContain("일반 수리업체");
+    expect(html).not.toContain("일반 수리 업체");
+    expect(html).not.toContain("ticket-a");
+    expect(html).not.toContain("검토 문서 개정");
+  });
+
+  it("keeps a sent request out of 제출 전 while the tenant answers a more-info round, in the panel and the list", () => {
+    // Every tenant answer resets the server status to IN_PROGRESS; the repair packet shows it was sent before.
+    const answering = ticket({ status: "IN_PROGRESS" });
+    expect(markup(<RepairPacketPanel ticket={answering} />)).toContain("상태: 추가 확인 필요");
+    expect(markup(<TicketList tickets={[answering]} />)).toContain("추가 확인 필요");
+    const draft = ticket({ status: "IN_PROGRESS", repairPacket: null });
+    expect(markup(<RepairPacketPanel ticket={draft} />)).toContain("상태: 제출 전");
+  });
+
+  it("names a directly chosen route instead of its code, without the landlord term", () => {
+    const html = markup(
+      <RepairPacketPanel
+        ticket={ticket({ status: "OVERRIDDEN", decision: { type: "OVERRIDE", routeCode: "LANDLORD_REVIEW", reason: "합성 직접 지정" } })}
+      />,
+    );
+
+    expect(html).toContain("상태: 처리 방법 결정됨");
+    expect(html).toContain("관리자가 처리 방법을 직접 정했어요: 관리자 검토");
+    expect(html).not.toContain("LANDLORD_REVIEW<");
+    expect(html).not.toContain("임대인");
   });
 
   it("states why no route is recommended when evidence is missing", () => {

@@ -13,7 +13,7 @@ test("Web tenant creates, another browser manager handles, tenant reloads and re
   await expect(page.getByTestId("work-status")).toHaveText("제출 전");
   const managerContext=await browser.newContext(),manager=await managerContext.newPage();
   try{await login(manager,"manager");await manager.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
-    await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 점검 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리중");
+    await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 점검 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리 중");
     await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 조치 결과를 관리자가 확인했습니다");await manager.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");await expect(page.getByText("합성 조치 결과를 관리자가 확인했습니다",{exact:false})).toBeVisible();
     await page.reload();await page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");
@@ -57,10 +57,10 @@ test("a more-info round reads 추가 확인 on /core, never 제출 전, and resu
   const q=(await (await request.get(`/api/v2/core/tickets/${t.ticketId}`,{headers:headers("manager")})).json()).detail.followUpOptions.questions[0];
   t=await post(`/${t.ticketId}/decision`,{type:"REQUEST_MORE_INFO",reason:"합성 추가 확인 라운드",requestedQuestionIds:[q.questionId]},"manager");expect(t.detail.status).toBe("NEEDS_MORE_INFO");
   await page.setViewportSize({width:390,height:844});await login(page,"tenant");
-  const row=page.locator(`[data-ticket-id="${t.ticketId}"]`);await expect(row.locator("[data-work-state]")).toHaveText("접수");
+  const row=page.locator(`[data-ticket-id="${t.ticketId}"]`);await expect(row.locator("[data-work-state]")).toHaveText("접수됨");
   await row.locator("[data-open-ticket]").click();
   const zone=page.getByRole("region",{name:"지금 할 일: 추가 확인",exact:true});
-  await expect(page.getByTestId("work-status")).toHaveText("접수");await expect(page.getByText("관리자가 추가 확인을 요청했어요.",{exact:false})).toBeVisible();await expect(zone).toContainText("답한 뒤 다시 제출해 주세요.");
+  await expect(page.getByTestId("work-status")).toHaveText("접수됨");await expect(page.getByText("관리자가 추가 확인을 요청했어요.",{exact:false})).toBeVisible();await expect(zone).toContainText("답한 뒤 다시 제출해 주세요.");
   // Answering resets the server status to IN_PROGRESS; a request that was already sent must not read as unsubmitted.
   // The embedded questions load with their own GET of the same path; let it finish before listening for the re-read.
   await expect(zone.locator("form").first()).toBeVisible();await expect(zone.getByTestId("refresh")).toBeEnabled();
@@ -71,13 +71,13 @@ test("a more-info round reads 추가 확인 on /core, never 제출 전, and resu
   expect((await answered).status()).toBe(200);const after=await (await reread).json();expect(after.detail.status).toBe("IN_PROGRESS");
   await expect(page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true})).toBeEnabled();
   await expect(zone.getByTestId("refinalize")).toBeVisible();
-  await expect(page.getByTestId("work-status")).toHaveText("접수");await expect(page.getByText("아직 보내지 않았어요",{exact:false})).toHaveCount(0);
+  await expect(page.getByTestId("work-status")).toHaveText("접수됨");await expect(page.getByText("아직 보내지 않았어요",{exact:false})).toHaveCount(0);
   await expect(page.getByText("관리자가 추가 확인을 요청했어요.",{exact:false})).toBeVisible();
   const finalized=page.waitForResponse(r=>r.url().endsWith(`/${t.ticketId}/finalize`)&&r.request().method()==="POST");
   await zone.getByTestId("refinalize").click();expect((await finalized).status()).toBe(200);
   await expect(zone).toHaveCount(0);await expect(page.getByRole("status").filter({hasText:"수리 요청을 관리자에게 보냈어요."})).toBeVisible();await expect(page.getByTestId("ticket-heading")).toBeFocused();
   const managerContext=await browser.newContext(),manager=await managerContext.newPage();
-  try{await login(manager,"manager");await manager.locator(`[data-ticket-id="${t.ticketId}"] [data-open-ticket]`).click();await expect(manager.getByTestId("work-status")).toHaveText("접수");}
+  try{await login(manager,"manager");await manager.locator(`[data-ticket-id="${t.ticketId}"] [data-open-ticket]`).click();await expect(manager.getByTestId("work-status")).toHaveText("접수됨");}
   finally{await managerContext.close();}
 });
 

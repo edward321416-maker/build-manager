@@ -288,7 +288,7 @@ export function TicketIntake({ ticketId, client, coreFlow=false, onStatusChange,
             <section className="finalize-stage">
               <h2>제출할 준비가 되었습니다</h2>
               <p className="passport-note">
-                제출 후 필요한 정보가 더 있으면 임대인이 추가로 요청할 수 있습니다.
+                제출한 뒤 필요한 정보가 더 있으면 관리자가 추가로 요청할 수 있어요.
               </p>
               <button
                 type="button"

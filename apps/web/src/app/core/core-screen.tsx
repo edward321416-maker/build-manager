@@ -22,7 +22,7 @@ import { VendorHandoffManager,ManagerDirectCompletionGate } from "./vendor-hando
 import { managerNextStep,type ManagerStepTarget } from "./manager-next-step";
 import { VendorHandoffTenant } from "./vendor-handoff-tenant";
 
-const eventLabels:Record<string,string>={CREATED:"접수 내용 저장",ANSWERED:"답변 저장",EVIDENCE:"증빙 사진 지정",FINALIZED:"수리 요청 제출",MORE_INFO:"추가 확인 요청",DECISION:"추천 경로 결정",HANDLING:"처리 기록"};
+const eventLabels:Record<string,string>={CREATED:"접수 내용 저장",ANSWERED:"답변 저장",EVIDENCE:"증빙 사진 지정",FINALIZED:"수리 요청 제출",MORE_INFO:"추가 확인 요청",DECISION:"처리 방법 결정",HANDLING:"처리 기록"};
 type IntakeState=CoreTicketDto["detail"]["status"];
 // Intake steps that still wait on the tenant stay open above the record instead of collapsed at the bottom.
 const openIntakeStates:IntakeState[]=["IN_PROGRESS","NEEDS_MORE_INFO","SAFETY_ESCALATED"];
@@ -32,7 +32,7 @@ function progressMessage(t:CoreTicketDto,tenant:boolean){
   if(t.workStatus==="COMPLETED")return "관리자가 완료로 기록했습니다.";
   if(t.workStatus==="IN_PROGRESS")return tenant?"관리자가 확인하고 있어요.":"처리 중이에요.";
   switch(intakeDisplayStatus(t)){
-    case "IN_PROGRESS":return tenant?"아직 보내지 않았어요. 아래 할 일을 마치고 '수리 요청 제출'을 눌러야 관리자에게 전달돼요.":"세입자가 아직 질문에 답하는 중이에요.";
+    case "IN_PROGRESS":return tenant?"아직 보내지 않았어요. 아래 할 일을 마치고 '수리 요청 제출'을 눌러야 관리자에게 전달돼요.":"세입자가 아직 제출하지 않았어요.";
     case "NEEDS_MORE_INFO":return tenant?"관리자가 추가 확인을 요청했어요. 아래 질문에 답해 주세요.":"세입자의 추가 답변을 기다리고 있어요.";
     case "SAFETY_ESCALATED":return tenant?"안전 확인이 필요해요.":"안전 확인이 필요한 접수예요.";
     case "PARTIAL":return tenant?"관리자에게 보냈어요. 부족한 정보가 있으면 관리자가 다시 물어볼 거예요.":"세입자가 제출했어요. 필수 정보가 부족해요.";

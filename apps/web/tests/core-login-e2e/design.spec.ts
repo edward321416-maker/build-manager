@@ -82,7 +82,7 @@ test("neutral account and white workspace reflow without remounting drafts; mana
     await m.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
     await openInspector(m);await expect(m.getByLabel("처리 기록")).toBeVisible();await captureLayout(m,"b1-manager-detail");
     await openInspector(m);await m.getByLabel("처리 기록").fill("합성 처리 시작 기록");await m.getByRole("button",{name:"처리 시작 기록",exact:true}).click();
-    await expect(m.getByTestId("work-status")).toHaveText("처리중");
+    await expect(m.getByTestId("work-status")).toHaveText("처리 중");
     await openInspector(m);await m.getByLabel("처리 기록").fill("합성 관리자 완료 기록");await m.getByRole("button",{name:"처리 완료 기록",exact:true}).click();
     await expect(m.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     const completed=await (await tenant.context.request.get(`/api/v2/core/tickets/${ticket.ticketId}`,{headers:tenant.headers})).json();
@@ -90,9 +90,9 @@ test("neutral account and white workspace reflow without remounting drafts; mana
     await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();
     await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     await readable(page.getByTestId("work-status").locator("[data-work-state]"));
-    await expect(page.getByText("접수 상태: 추가 정보 필요",{exact:true})).toBeVisible();
+    await expect(page.getByText("접수 상태: 정보 부족",{exact:true})).toBeVisible();
     await expect(page.getByText("관리자가 완료로 기록했습니다.",{exact:false})).toBeVisible();
-    const work=await page.getByTestId("work-status").boundingBox(),intake=await page.getByText("접수 상태: 추가 정보 필요",{exact:true}).boundingBox(),explanation=await page.getByText("관리자가 완료로 기록했습니다.",{exact:false}).boundingBox();
+    const work=await page.getByTestId("work-status").boundingBox(),intake=await page.getByText("접수 상태: 정보 부족",{exact:true}).boundingBox(),explanation=await page.getByText("관리자가 완료로 기록했습니다.",{exact:false}).boundingBox();
     expect(work!.y+work!.height).toBeLessThanOrEqual(intake!.y);expect(intake!.y+intake!.height).toBeLessThanOrEqual(explanation!.y);
     await expect(page.getByLabel("참고 사진 선택",{exact:true})).toHaveCount(0);
     await captureLayout(page,"b1-tenant-completed");

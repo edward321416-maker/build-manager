@@ -77,7 +77,7 @@ test("390px tenant names a stored photo as the leak evidence and the manager see
     await expect(saved(manager).getByText("누수 부위 사진",{exact:true})).toBeVisible();
     await expect(manager.getByRole("region",{name:"진행 이력"})).toContainText("증빙 사진 지정");
     await manager.getByText("추가 확인·결정 기록",{exact:true}).click();
-    await expect(manager.locator('.recommendation[data-route="LANDLORD_REVIEW"]')).toHaveText("임대인 검토");
+    await expect(manager.locator('.recommendation[data-route="LANDLORD_REVIEW"]')).toHaveText("관리자 검토");
     await manager.screenshot({path:join(privateRoot,"photo-evidence-manager-1280.png"),fullPage:true});
   }finally{await managerContext.close();}
 });
@@ -109,7 +109,7 @@ test("390px 사진 없이 제출하기 sends a PARTIAL request that then stays a
   await expect(page.getByRole("heading",{name:"누수 부위가 보이는 사진을 골라 주세요",exact:true})).toHaveCount(0);
   for(const name of ["이 사진으로 정하기","사진 없이 제출하기"])await expect(page.getByRole("button",{name,exact:true})).toHaveCount(0);
   await expect(page.getByTestId("finalize")).toHaveCount(0);
-  await expect(page.getByTestId("work-status")).toHaveText("접수");
+  await expect(page.getByTestId("work-status")).toHaveText("접수됨");
 });
 
 test("390px a sent request reopened outside this screen keeps 수리 요청 제출 instead of a dead end",async({page})=>{

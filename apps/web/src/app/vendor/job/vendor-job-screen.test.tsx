@@ -78,6 +78,19 @@ async function flush(){await act(async()=>{for(let i=0;i<12;i++)await Promise.re
 async function click(label:string){expect(Boolean(button(label)),label).toBe(true);await act(async()=>{button(label)!.click();});await flush();}
 const tokenFree=()=>![tokenB,tokenC,csrf,csrf2].some(raw=>markup().includes(raw));
 
+describe("shared names",()=>{
+  it("shows a coded building value and the access policy by the shared names",async()=>{
+    const base=job(assignmentA,"A");
+    const named:VendorJobDto={...base,currentPacket:{...base.currentPacket!,accessPolicy:"TENANT_PRESENT_REQUIRED",
+      sharedDetails:[{key:"heatingType",label:"난방 방식",value:"INDIVIDUAL",sourceType:"BUILDING_VERIFIED"}]}};
+    await mount(fakeClient({job:vi.fn(async()=>named)}));
+    expect(page()).toContain("난방 방식: 개별난방");
+    expect(page()).not.toContain("INDIVIDUAL");
+    expect(page()).toContain("세입자가 있을 때만 방문");
+    expect(page()).not.toContain("입회");
+  });
+});
+
 describe("fragment redemption",()=>{
   it("redeems the fragment once, clears it only after success and shows the packet as OFFERED (not accepted)",async()=>{
     const client=fakeClient();

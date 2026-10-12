@@ -39,7 +39,7 @@ test("320px tenant and manager can save and read a clear handling result",async(
   try{
     const managerScreen=new CoreScreen(manager);await managerScreen.login("manager");
     await manager.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
-    await manager.getByText("추가 확인·결정 기록",{exact:true}).click();await expect(manager.getByRole("heading",{name:`수리 요청 ${ticket.ticketId}`,exact:true})).toBeVisible();
+    await manager.getByText("추가 확인·결정 기록",{exact:true}).click();await expect(manager.getByRole("heading",{name:"수리 요청 검토",exact:true})).toBeVisible();
     await managerScreen.assertFits();
     await manager.screenshot({path:join(privateRoot,"usability-manager-active-320.png"),fullPage:true});
     await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 현장 확인 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();
@@ -83,7 +83,7 @@ test("390px tenant answers the follow-up questions right after 접수하기 and 
   const finalized=page.waitForResponse(r=>r.url().endsWith(`/${ticket.ticketId}/finalize`)&&r.request().method()==="POST");
   await (await withoutPhoto.isVisible()?withoutPhoto:zone.getByTestId("finalize")).click();expect((await finalized).status()).toBe(200);
   // The summary re-reads the submitted request without reopening it; the record moves back below.
-  await expect(page.getByTestId("work-status")).toHaveText("접수");await expect(page.getByText(/^관리자에게 보냈어요\./)).toBeVisible();
+  await expect(page.getByTestId("work-status")).toHaveText("접수됨");await expect(page.getByText(/^관리자에게 보냈어요\./)).toBeVisible();
   await expect(zone).toHaveCount(0);await expect(page.locator("summary").filter({hasText:/^추가 확인$/})).toHaveCount(1);
   // The zone that held focus is gone: the result is announced and focus returns to the request heading.
   await expect(finalizedNotice).toBeVisible();await expect(page.getByTestId("ticket-heading")).toBeFocused();
@@ -99,7 +99,7 @@ test("an unsubmitted request reads 제출 전 in the tenant list and on the mana
   const managerContext=await browser.newContext({viewport:{width:390,height:844}}),manager=await managerContext.newPage();
   try{
     await new CoreScreen(manager).login("manager");await manager.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
-    await expect(manager.getByTestId("work-status")).toHaveText("제출 전");await expect(manager.getByText("세입자가 아직 질문에 답하는 중이에요.",{exact:true})).toBeVisible();
+    await expect(manager.getByTestId("work-status")).toHaveText("제출 전");await expect(manager.getByText("세입자가 아직 제출하지 않았어요.",{exact:true})).toBeVisible();
     await expect(manager.getByRole("region",{name:"지금 할 일: 추가 확인",exact:true})).toHaveCount(0);
   }finally{await managerContext.close();}
 });

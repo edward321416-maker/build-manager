@@ -15,6 +15,8 @@ describe("product root", () => {
     expect(html).toContain("세입자 수리 요청, 문자 대신 여기서 받아요");
     expect(html).toContain("101동 1203호 · 난방");
     expect(html).toContain("이렇게 진행돼요");
+    // The example uses the app's own state name.
+    expect(html).toContain('data-state="progress">처리 중</span>');
   });
 
   it("offers a visible way into the tenant demo", () => {

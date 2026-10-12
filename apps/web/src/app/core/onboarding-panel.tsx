@@ -63,12 +63,15 @@ export function OnboardingPanel({csrf,orgId,manager,onRefreshAccess,onDenied}:{c
     {units.nextCursor?<button disabled={busy} onClick={()=>void run(async()=>{const page=await client.units(units.nextCursor!);setUnits({items:[...units.items,...page.items],nextCursor:page.nextCursor});})}>빈 호실 더 보기</button>:null}
     {link?<div className="core-result"><p>링크는 이 화면에서만 한 번 제공됩니다. 원문을 다시 조회할 수 없습니다.</p><button disabled={busy} onClick={()=>void run(async()=>{try{await navigator.clipboard.writeText(link);setNotice("초대 링크를 복사했습니다. 입주 예정자에게 직접 전달해 주세요.");}catch{setError("브라우저가 복사를 허용하지 않았습니다. 이 창을 선택하고 클립보드 쓰기를 허용한 뒤 다시 복사해 주세요. 초대를 다시 만들 필요는 없습니다.");}})}>초대 링크 복사</button><button onClick={()=>setLink("")}>링크 숨기기</button></div>:null}
 </section></div>:null}
+   {/* A manager sees this tenant-side section only for requests of their own. */}
+   {!manager||mine.items.length?<>
    <h2>내 연결 요청</h2>
    {!mine.items.length?<p>아직 신청한 연결이 없습니다. 관리자에게 받은 원래 초대 링크를 열어 직접 신청해 주세요.</p>:null}
    {mine.items.map(i=><article className="core-result invitation-card" key={i.invitationId}><InvitationSummary invite={i}/>
     <p>{i.state==="APPROVED"?"연결이 승인되었습니다. 내 소속·호실을 새로고침하면 접수할 수 있습니다.":i.state==="REQUESTED"?"위 확인 번호를 관리자에게 전달해 주세요. 승인 전에는 이 호실의 접수·사진을 이용할 수 없습니다.":"입주 연결은 생성되지 않았습니다. 관리자에게 새 초대를 문의해 주세요."}</p>
    </article>)}
    {mine.nextCursor?<button disabled={busy} onClick={()=>void run(async()=>{const page=await client.mine(mine.nextCursor!);setMine({items:[...mine.items,...page.items],nextCursor:page.nextCursor});})}>내 요청 더 보기</button>:null}
+   </>:null}
    <button disabled={busy} onClick={onRefreshAccess}>내 소속·호실 새로고침</button>
   </div>
  </section>;

@@ -32,9 +32,24 @@ it("explains the Vendor route prerequisite only where a route can still be chose
 });
 it("previews real canonical fields and selected detail provenance before publishing PREPARING",()=>{
   const html=view({preview:true,draft:{...base.draft,sharedDetailKeys:["leak.active"],allowedPhotoIds:["photo-1"]},photoPreviews:[{photoId:"photo-1",url:"blob:synthetic-preview"}]});
-  for(const text of ["합성 정식 주소","합성 호실","합성 건물","합성 업체","합성 누수 점검","현재 누수","세입자 설명","업체 전달 내용 게시","선택한 원본 사진"])expect(html).toContain(text);
+  for(const text of ["합성 정식 주소","합성 호실","합성 건물","합성 업체","합성 누수 점검","현재 누수","세입자 입력","업체 전달 내용 게시","선택한 원본 사진"])expect(html).toContain(text);
   expect(html.includes('alt="선택한 원본 사진 1"')).toBe(true);
   expect(html.includes("접수 비공개 원문")).toBe(false);
+});
+it("shows coded building values and the access policy by name in the choice, the preview, the current packet and the history",()=>{
+  const heating={key:"heatingType",label:"난방 방식",value:"INDIVIDUAL",sourceType:"BUILDING_VERIFIED" as const};
+  const packet={jobReference:"ticket",buildingName:"합성 건물",serviceAddress:"합성 주소",unitLabel:"합성 호실",issueType:"LEAK" as const,id:"packet",assignmentId:"assignment",revision:1,publishedAt:"2026-10-06T01:00:00Z",vendorLabel:"합성 업체",workSummary:"합성 전달 내용",sharedDetails:[heating],allowedPhotoIds:[],safetyNotice:[],accessPolicy:"TENANT_PRESENT_REQUIRED" as const,accessInstruction:null};
+  const html=view({handoff:{...handoff,packetSource:{...source,sharedDetails:[heating]},currentPacket:packet,packetHistory:[{...packet,id:"old-packet"}]} as ManagerVendorHandoffDto,preview:true,draft:{...base.draft,sharedDetailKeys:["heatingType"]}});
+  expect(html.split("난방 방식: 개별난방 · 건물 확인").length-1).toBe(4);
+  expect(html).not.toContain("INDIVIDUAL");
+  // The preview shows what the Vendor screen will show: the same source and access names.
+  expect(html).not.toContain("확인된 건물 정보");
+  expect(html).toMatch(/<option value="TENANT_PRESENT_REQUIRED"[^>]*>세입자가 있을 때만 방문<\/option>/);
+  expect(html).toMatch(/<option value="TENANT_PREAUTHORIZATION_ALLOWED"[^>]*>세입자가 따로 동의한 시간에만 부재 중 출입 가능<\/option>/);
+  expect(html.split("출입 방식: 세입자가 있을 때만 방문").length-1).toBe(2);
+  expect(html).not.toContain("출입 정책: ");
+  expect(html).toContain("· 세입자가 있을 때만 방문</p>");
+  expect(html).not.toContain("재실");
 });
 it("starts with every source photo unchecked and makes selection explicit",()=>{
   const html=view();expect(html).toContain("공유할 원본 사진 선택");expect(html.includes("checked=")).toBe(false);expect(html).toContain("사진은 선택한 것만 업체에 공개됩니다");

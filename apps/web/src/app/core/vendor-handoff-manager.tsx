@@ -1,17 +1,16 @@
 "use client";
 import { useCallback,useEffect,useRef,useState,type ReactNode } from "react";
-import { VendorCloseoutCommandSchema,VendorRequestCorrectionCommandSchema,VendorReassignCommandSchema,VendorCreateAssignmentCommandSchema,VendorPublishPacketCommandSchema,type CoreTicketDto,type ManagerVendorHandoffDto,type VendorLinkIssueDto,type VendorAccessPolicy } from "@build-manager/api-contracts";
+import { VendorAccessPolicySchema,VendorCloseoutCommandSchema,VendorRequestCorrectionCommandSchema,VendorReassignCommandSchema,VendorCreateAssignmentCommandSchema,VendorPublishPacketCommandSchema,type CoreTicketDto,type ManagerVendorHandoffDto,type VendorLinkIssueDto,type VendorAccessPolicy } from "@build-manager/api-contracts";
 import { ApiClientError,type CoreVendorHandoffClient,type CoreFlowClient } from "@build-manager/api-client";
 import styles from "./vendor-handoff.module.css";
 import Image from "next/image";
 import { formatVendorInstant,formatVendorInterval } from "../../lib/vendor-time";
 import { BLOCKER_LABELS,OMISSION_LABELS,WAITING_LABELS } from "../../lib/vendor-blocker";
+import { ACCESS_POLICY_NAMES,SHARED_DETAIL_SOURCE_NAMES,buildingValueName } from "../../components/status-names";
 export type VendorPacketDraft={vendorLabel:string;workSummary:string;sharedDetailKeys:string[];allowedPhotoIds:string[];accessPolicy:VendorAccessPolicy;accessInstruction:string};
 type PendingLinkRequest={kind:"ISSUE"|"REISSUE";assignmentId:string;input:Parameters<CoreVendorHandoffClient["issueLink"]>[1]};
 type ManagerAction="CLOSEOUT"|"CORRECTION"|"MORE_WORK"|"REASSIGN";
 export type VendorHandoffViewProps={action?:ManagerAction|null;actionText?:string;onAction?:(action:ManagerAction|null)=>void;onActionText?:(text:string)=>void;onSubmitAction?:()=>void;communicationVersion?:number;ticket:CoreTicketDto;handoff:ManagerVendorHandoffDto|null;loading:boolean;busy:boolean;error:string;validationError?:string;notice:string;uncertain:boolean;pendingLink?:PendingLinkRequest|null;linkUnavailable:boolean;immediateLink:string|null;preview:boolean;draft:VendorPacketDraft;photoPreviews:{photoId:string;url:string}[];onDraft:(draft:VendorPacketDraft)=>void;onPreview:()=>void;onCreate:()=>void;onPublish:()=>void;onIssue:()=>void;onReissue:()=>void;onReconcileLink?:()=>void;onRevoke:()=>void;onRefresh:()=>void;onReview:()=>void;now?:Date;rescheduleReview?:boolean;onRescheduleReview?:(open:boolean)=>void;onReschedule?:()=>void;reportPhotos?:{photoId:string;url:string}[];historyReportId?:string|null;onHistoryReport?:(id:string|null)=>void};
-const provenance={TENANT_REPORTED:"세입자 설명",BUILDING_VERIFIED:"확인된 건물 정보",MANAGER_REVIEWED:"관리자 검토"};
-const policyLabels={TENANT_PRESENT_REQUIRED:"세입자 재실 필요",TENANT_PREAUTHORIZATION_ALLOWED:"세입자 별도 사전 동의 허용"};
 export function vendorHandoffEligible(ticket:CoreTicketDto):boolean{
   if(ticket.workStatus==="COMPLETED"||!("decision" in ticket.detail)||ticket.detail.status==="SAFETY_ESCALATED"||ticket.detail.repairPacket?.safetyEscalated)return false;
   const detail=ticket.detail,decision=detail.decision;
@@ -94,7 +93,7 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
           return <figure key={id}>{photo?<Image unoptimized src={photo.url} width={640} height={480} style={{width:"100%",height:"auto"}} alt={`업체 보고 사진 ${index+1}`}/>:<p>사진 불러오는 중 또는 연결 확인 필요</p>}</figure>;})}
       {p.handoff.reportHistory.length>1?<div className={styles.count}>작업 보고 이력 {p.handoff.reportHistory.length}건</div>:null}
     </section>:null}
-    {p.handoff?.ticketWorkStatus==="COMPLETED"&&assignment?.status==="ENDED"&&assignment.endReason==="CLOSED"?<p role="status">처리 완료 · COMPLETED / ENDED/CLOSED · 업체 접근 종료</p>:null}
+    {p.handoff?.ticketWorkStatus==="COMPLETED"&&assignment?.status==="ENDED"&&assignment.endReason==="CLOSED"?<p role="status">처리 완료 · 업체 접근 종료</p>:null}
     {active&&p.handoff?.phase==="COMPLETION_REPORTED"?(p.handoff.correctionRequest?<div role="group" aria-label="보고 수정 요청"><p>업체 보고 수정 대기</p><p>{p.handoff.correctionRequest.reason}</p></div>:<div role="group" aria-label="업체 보고 검토">
       <button type="button" disabled={blocked} onClick={()=>p.onAction?.("CLOSEOUT")}>처리 완료 기록</button>
       <button type="button" disabled={blocked} onClick={()=>p.onAction?.("CORRECTION")}>보고 수정 요청</button>
@@ -120,9 +119,9 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
       {!source?<p role="alert">전달 후보를 다시 불러오세요. 게시 전 미리보기가 필요합니다.</p>:null}
       <fieldset disabled={blocked} className={styles.editor}><legend>공개 내용 검토</legend>
         <label>작업 설명<textarea aria-label="업체 작업 설명" maxLength={1000} required value={p.draft.workSummary} onChange={e=>p.onDraft({...p.draft,workSummary:e.target.value})}/></label>
-        <fieldset><legend>공유할 확인 내용 선택</legend>{source?.sharedDetails.map(detail=><label key={detail.key}><input type="checkbox" checked={p.draft.sharedDetailKeys.includes(detail.key)} onChange={e=>p.onDraft({...p.draft,sharedDetailKeys:choose(p.draft.sharedDetailKeys,detail.key,e.target.checked)})}/>{detail.label}: {detail.value} · {provenance[detail.sourceType]}</label>)}</fieldset>
+        <fieldset><legend>공유할 확인 내용 선택</legend>{source?.sharedDetails.map(detail=><label key={detail.key}><input type="checkbox" checked={p.draft.sharedDetailKeys.includes(detail.key)} onChange={e=>p.onDraft({...p.draft,sharedDetailKeys:choose(p.draft.sharedDetailKeys,detail.key,e.target.checked)})}/>{detail.label}: {buildingValueName(detail.key,detail.value)} · {SHARED_DETAIL_SOURCE_NAMES[detail.sourceType]}</label>)}</fieldset>
         <fieldset><legend>공유할 원본 사진 선택</legend><p>사진은 선택한 것만 업체에 공개됩니다.</p>{source?.sourcePhotoIds.map((id,index)=><label key={id}><input type="checkbox" checked={p.draft.allowedPhotoIds.includes(id)} onChange={e=>p.onDraft({...p.draft,allowedPhotoIds:choose(p.draft.allowedPhotoIds,id,e.target.checked)})}/>원본 사진 {index+1}</label>)}</fieldset>
-        <label>출입 정책<select aria-label="출입 정책" value={p.draft.accessPolicy} onChange={e=>p.onDraft({...p.draft,accessPolicy:e.target.value as VendorAccessPolicy})}><option value="TENANT_PRESENT_REQUIRED">세입자 재실 필요</option><option value="TENANT_PREAUTHORIZATION_ALLOWED">세입자 별도 사전 동의 허용</option></select></label>
+        <label>출입 정책<select aria-label="출입 정책" value={p.draft.accessPolicy} onChange={e=>p.onDraft({...p.draft,accessPolicy:e.target.value as VendorAccessPolicy})}>{VendorAccessPolicySchema.options.map(policy=><option key={policy} value={policy}>{ACCESS_POLICY_NAMES[policy]}</option>)}</select></label>
         <p>출입 정책은 세입자 동의가 아닙니다. 세입자가 별도로 선택한 시간에 동의해야 합니다.</p>
         <label>출입 안내<textarea aria-label="출입 안내" aria-describedby="vendor-access-warning" maxLength={500} value={p.draft.accessInstruction} onChange={e=>p.onDraft({...p.draft,accessInstruction:e.target.value})}/></label>
         <p id="vendor-access-warning">개인 연락처나 반복 사용 가능한 출입 비밀번호를 입력하지 마세요. 이 안내는 업체에 공개됩니다.</p>
@@ -130,15 +129,15 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
       </fieldset>
       {p.preview?<section className={styles.preview} aria-label="업체 전달 내용 미리보기"><h3>게시 전 업체 화면 확인</h3>
         {source?<><dl><dt>접수번호</dt><dd>{source.jobReference}</dd><dt>업체</dt><dd>{assignment?.vendorLabel}</dd><dt>건물</dt><dd>{source.buildingName}</dd><dt>주소</dt><dd>{source.serviceAddress??"주소 확인 필요"}</dd><dt>호실</dt><dd>{source.unitLabel??"호실 확인 필요"}</dd><dt>문제 유형</dt><dd>{source.issueType==="LEAK"?"누수":"난방"}</dd><dt>작업 설명</dt><dd>{p.draft.workSummary}</dd></dl>
-          {selectedDetails.map(detail=><p key={detail.key}>{detail.label}: {detail.value} · {provenance[detail.sourceType]}</p>)}
+          {selectedDetails.map(detail=><p key={detail.key}>{detail.label}: {buildingValueName(detail.key,detail.value)} · {SHARED_DETAIL_SOURCE_NAMES[detail.sourceType]}</p>)}
           {source.safetyNotice.map((notice,index)=><p key={index}>{notice}</p>)}
           <h4>선택한 원본 사진</h4>{p.draft.allowedPhotoIds.length?p.draft.allowedPhotoIds.map((id,index)=>{const photo=p.photoPreviews.find(item=>item.photoId===id);return <figure key={id}>{photo?<Image unoptimized src={photo.url} width={640} height={480} style={{width:"100%",height:"auto"}} alt={`선택한 원본 사진 ${index+1}`}/>:<p>사진 불러오는 중 또는 연결 확인 필요</p>}<figcaption>원본 사진 {(source.sourcePhotoIds.indexOf(id)+1)}</figcaption></figure>}):<p>공유 사진 없음</p>}
-          <p>출입 정책: {policyLabels[p.draft.accessPolicy]}</p>{p.draft.accessInstruction?<p>출입 안내: {p.draft.accessInstruction}</p>:null}
+          <p>출입 방식: {ACCESS_POLICY_NAMES[p.draft.accessPolicy]}</p>{p.draft.accessInstruction?<p>출입 안내: {p.draft.accessInstruction}</p>:null}
         </>:null}
         <button type="button" disabled={blocked||!canPublish||!photosReady||!p.draft.workSummary.trim()} onClick={p.onPublish}>업체 전달 내용 게시</button>
       </section>:null}
     </>:null}
-    {packet?<details><summary>현재 게시된 전달 내용 · {packet.revision}차</summary><p>{packet.workSummary}</p><p>{packet.buildingName} · {packet.serviceAddress} · {packet.unitLabel}</p>{packet.sharedDetails?.map(detail=><p key={detail.key}>{detail.label}: {detail.value} · {provenance[detail.sourceType]}</p>)}<p>공유 사진 {packet.allowedPhotoIds?.length??0}장 · {policyLabels[packet.accessPolicy]}</p></details>:null}
+    {packet?<details><summary>현재 게시된 전달 내용 · {packet.revision}차</summary><p>{packet.workSummary}</p><p>{packet.buildingName} · {packet.serviceAddress} · {packet.unitLabel}</p>{packet.sharedDetails?.map(detail=><p key={detail.key}>{detail.label}: {buildingValueName(detail.key,detail.value)} · {SHARED_DETAIL_SOURCE_NAMES[detail.sourceType]}</p>)}<p>공유 사진 {packet.allowedPhotoIds?.length??0}장 · {ACCESS_POLICY_NAMES[packet.accessPolicy]}</p></details>:null}
     {eligible&&packet&&assignment?.status==="PREPARING"&&!p.linkUnavailable?<button type="button" disabled={blocked} onClick={p.onIssue}>보안 링크 발급</button>:null}
     {canReissue&&!p.pendingLink?<button type="button" disabled={p.busy||p.loading||Boolean(p.error)} onClick={p.onReissue}>보안 링크 재발급</button>:null}
     {p.immediateLink?<div className={styles.link}><label>직접 전달할 보안 링크<input aria-label="직접 전달할 보안 링크" readOnly value={p.immediateLink}/></label><p>이 화면의 링크를 복사해 업체에 직접 전달하세요. 새로고침하거나 다른 접수로 이동하면 다시 표시할 수 없습니다.</p></div>:null}
@@ -150,9 +149,9 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
       {p.handoff.packetHistory.map(revision=><details key={revision.id}>
         <summary>{revision.vendorLabel} · 전달 내용 {revision.revision}차 · {formatVendorInstant(revision.publishedAt,at)}</summary>
         <dl><dt>접수번호</dt><dd>{revision.jobReference}</dd><dt>건물</dt><dd>{revision.buildingName}</dd><dt>주소</dt><dd>{revision.serviceAddress}</dd><dt>호실</dt><dd>{revision.unitLabel}</dd><dt>작업 설명</dt><dd>{revision.workSummary}</dd></dl>
-        {revision.sharedDetails.map(detail=><p key={detail.key}>{detail.label}: {detail.value} · {provenance[detail.sourceType]}</p>)}
+        {revision.sharedDetails.map(detail=><p key={detail.key}>{detail.label}: {buildingValueName(detail.key,detail.value)} · {SHARED_DETAIL_SOURCE_NAMES[detail.sourceType]}</p>)}
         {revision.safetyNotice.map((notice,index)=><p key={index}>{notice}</p>)}
-        <p>출입 정책: {policyLabels[revision.accessPolicy]}</p>{revision.accessInstruction?<p>출입 안내: {revision.accessInstruction}</p>:null}
+        <p>출입 방식: {ACCESS_POLICY_NAMES[revision.accessPolicy]}</p>{revision.accessInstruction?<p>출입 안내: {revision.accessInstruction}</p>:null}
         <p>공유한 원본 사진 {revision.allowedPhotoIds.length}장</p>
       </details>)}
       <label>이전 작업 보고<select aria-label="이전 작업 보고" value={historyReport?.id??""} onChange={e=>p.onHistoryReport?.(e.target.value||null)}>

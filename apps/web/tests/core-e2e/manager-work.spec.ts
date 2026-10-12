@@ -53,6 +53,8 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   await expect.poll(()=>queue.locator("li[data-ticket-id]").evaluateAll((rows,ids)=>rows.map(x=>x.getAttribute("data-ticket-id")).filter(id=>ids.includes(id!)),tickets)).toEqual(tickets);
   await expect(queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`)).toContainText("기한 지남");
   await queue.getByRole("combobox",{name:"긴급도 필터",exact:true}).selectOption("URGENT");await expect(queue.locator(`[data-ticket-id="${tickets[1]}"] [data-open-ticket]`)).toHaveCount(0);await expect(queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`)).toBeVisible();
+  // P3: the filter names each work state as the row badges do.
+  await expect(queue.getByRole("combobox",{name:"처리 상태",exact:true}).locator("option")).toHaveText(["전체","접수됨","처리 중","처리 완료"]);
   await queue.getByRole("combobox",{name:"처리 상태",exact:true}).selectOption("COMPLETED");await expect(queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`)).toHaveCount(0);
   await queue.getByRole("combobox",{name:"처리 상태",exact:true}).selectOption("ALL");await queue.getByRole("combobox",{name:"긴급도 필터",exact:true}).selectOption("ALL");
   await expect(queue.locator(`li[data-ticket-id="${tickets[2]}"]`)).toHaveAttribute("data-work-state","COMPLETED");
@@ -62,11 +64,11 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   await fit(page);await page.screenshot({path:join(evidence,"manager-queue-desktop.png"),fullPage:true});
   await page.setViewportSize({width:390,height:844});await fit(page);await page.screenshot({path:join(evidence,"manager-queue-390.png"),fullPage:true});
   await queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();await openInspector(page);await expect(detail.getByText(memo,{exact:true})).toBeVisible();await fit(page);await page.screenshot({path:join(evidence,"manager-detail-390.png"),fullPage:true});
-  await openInspector(page);await page.getByLabel("처리 기록",{exact:true}).fill("합성 담당자가 확인한 처리 시작");await page.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("처리중");
+  await openInspector(page);await page.getByLabel("처리 기록",{exact:true}).fill("합성 담당자가 확인한 처리 시작");await page.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("처리 중");
   const tenantContext=await browser.newContext({viewport:{width:390,height:844}}),tenant=await tenantContext.newPage();
   try{
     await login(tenant,codes.tenant);await tenant.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();
-    await expect(tenant.getByTestId("work-status")).toHaveText("처리중");await expect(tenant.getByRole("region",{name:"사진",exact:true}).getByRole("img")).toHaveCount(1);
+    await expect(tenant.getByTestId("work-status")).toHaveText("처리 중");await expect(tenant.getByRole("region",{name:"사진",exact:true}).getByRole("img")).toHaveCount(1);
     for(const text of ["업무 관리","내부 메모","담당자","긴급도","합성 내부 담당 A"])await expect(tenant.getByText(text,{exact:true})).toHaveCount(0);
     const publicRead=await request.get(`/api/v2/core/tickets/${tickets[0]}`,{headers:headers("tenant")});expect(publicRead.status()).toBe(200);const publicText=await publicRead.text();for(const text of [memo,"assigneeLabel","priority","internalNotes","noteCount"])expect(publicText).not.toContain(text);
     for(const path of ["manager/work-items",`manager/tickets/${tickets[0]}/work`,`manager/tickets/${tickets[0]}/internal-notes`])expect((await request.get(`/api/v2/core/${path}`,{headers:headers("tenant")})).status()).toBe(403);

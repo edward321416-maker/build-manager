@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 // The real safety flow and DOM probes deliberately share this assertion path.
-async function assertSafeGuidance(page: Page, ticketId: string): Promise<void> {
+async function assertSafeGuidance(page: Page): Promise<void> {
   const required = "SAFETY_SURFACE_REQUIRED";
   for (const selector of ["main.landlord-page", ".repair-packet", "#packet-heading", "[data-testid=\"override-unavailable\"]", "[data-status=\"SAFETY_ESCALATED\"]"]) {
     const region = page.locator(selector);
@@ -10,11 +10,11 @@ async function assertSafeGuidance(page: Page, ticketId: string): Promise<void> {
     expect((await region.innerText()).trim().length, required).toBeGreaterThan(0);
   }
   await expect(page.locator('[data-status="SAFETY_ESCALATED"]'), required)
-    .toHaveText("상태: 안전 확인 필요");
-  expect(ticketId, required).not.toBe("");
+    .toHaveText("상태: 긴급 확인 필요");
+  // The heading names the task, not the request ID. No identifier is shown, so the scan below needs no exception.
   expect(await page.locator("#packet-heading").textContent(), required)
-    .toMatch(new RegExp(`^수리 요청 ${ticketId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|\\s)`));
-  const content = await page.evaluate((expectedId) => {
+    .toMatch(/^수리 요청 검토(?:$|\s)/);
+  const content = await page.evaluate(() => {
     // Inspect the whole body, including adjacent notices, actions and hidden
     // accessible-description text. Framework serialization is not guidance.
     const body = document.body.cloneNode(true) as HTMLElement;
@@ -23,12 +23,8 @@ async function assertSafeGuidance(page: Page, ticketId: string): Promise<void> {
       ["aria-label", "aria-description", "title", "alt", "href", "action", "formaction", "placeholder", "value"]
         .map((name) => element.getAttribute(name) ?? ""),
     );
-    // Only this known field's exact expected ID is excluded, once. Retain
-    // suffix guidance and all attributes, including those on the heading.
-    const heading = body.querySelector("#packet-heading")!;
-    heading.textContent = heading.textContent!.replace(`수리 요청 ${expectedId}`, "수리 요청 ");
     return [body.textContent ?? "", ...attributes].join("\n");
-  }, ticketId);
+  });
   for (const unsafe of ["119", "직접 수리", "밸브를 잠그"]) {
     expect(content, `UNSAFE_GUIDANCE:${unsafe}`).not.toContain(unsafe);
   }
@@ -218,12 +214,13 @@ test.describe("landlord demo", () => {
     await expect(
       page.getByRole("heading", { name: "왜 이 경로인가" }),
     ).toBeVisible();
-    await expect(page.getByText("managementMode")).toBeVisible();
+    await expect(page.locator(".packet-provenance").getByText("관리 방식")).toBeVisible();
+    await expect(page.getByText("managementMode")).toHaveCount(0);
 
     await page.getByTestId("approve").click();
 
-    await expect(page.getByText("추천 경로를 승인했습니다.")).toBeVisible();
-    await expect(page.getByText("상태: 승인됨")).toBeVisible();
+    await expect(page.getByText("추천 경로를 승인했어요.")).toBeVisible();
+    await expect(page.getByText("상태: 처리 방법 결정됨")).toBeVisible();
   });
 
   test("overrides to a different route offered by the server", async ({
@@ -239,9 +236,9 @@ test.describe("landlord demo", () => {
     await page.getByLabel("지정 사유").fill("현장 확인 후 임대인이 직접 검토");
     await page.getByTestId("override").click();
 
-    await expect(page.getByText("상태: 임대인 지정")).toBeVisible();
+    await expect(page.getByText("상태: 처리 방법 결정됨")).toBeVisible();
     await expect(
-      page.getByText("임대인이 직접 경로를 지정했습니다: LANDLORD_REVIEW"),
+      page.getByText("관리자가 처리 방법을 직접 정했어요: 관리자 검토"),
     ).toBeVisible();
   });
 
@@ -261,7 +258,7 @@ test.describe("landlord demo", () => {
     await page.getByLabel("물이 어디에서 보이나요?").check();
     await page.getByTestId("request-more-info").click();
 
-    await expect(page.getByText("상태: 추가 정보 요청됨")).toBeVisible();
+    await expect(page.getByText("상태: 추가 확인 필요")).toBeVisible();
     await expect(page.getByText("아직 기록된 결정이 없습니다.")).toBeVisible();
   });
 
@@ -304,9 +301,9 @@ test.describe("landlord demo", () => {
     await page.getByLabel("지정 사유").fill("위탁관리사가 확인하기로 함");
     await page.getByTestId("override").click();
 
-    await expect(page.getByText("상태: 임대인 지정")).toBeVisible();
+    await expect(page.getByText("상태: 처리 방법 결정됨")).toBeVisible();
     await expect(
-      page.getByText("임대인이 직접 경로를 지정했습니다: THIRD_PARTY_MANAGER"),
+      page.getByText("관리자가 처리 방법을 직접 정했어요: 위탁관리"),
     ).toBeVisible();
 
     const detail = await request.get(
@@ -336,9 +333,11 @@ test.describe("landlord demo", () => {
     await expect(page.getByTestId("override")).toHaveCount(0);
     await expect(page.getByTestId("approve")).toBeDisabled();
 
-    await assertSafeGuidance(page, ticketId);
+    // A request ID can contain digits such as 119. The scan has no ID exception, so the ID must not be shown at all.
+    await expect(page.locator("body")).not.toContainText(ticketId);
+    await assertSafeGuidance(page);
   });
-  test("safety assertion distinguishes identifiers from unsafe guidance (DOM_PROBE)", async ({ page, request }) => {
+  test("safety assertion ignores identifiers kept in data attributes and scripts, and finds unsafe guidance on any shown surface (DOM_PROBE)", async ({ page, request }) => {
     await resetDemo(request);
     const originalId = await createEscalatedTicket(request);
     await page.goto(`/demo/landlord/tickets/${originalId}`);
@@ -355,7 +354,6 @@ test.describe("landlord demo", () => {
       await page.setContent(snapshot);
       await page.evaluate((id) => {
         document.body.dataset.ticketId = id;
-        document.querySelector("#packet-heading")!.textContent = `수리 요청 ${id}`;
         const data = document.createElement("script");
         data.type = "application/json";
         data.textContent = JSON.stringify({ ticketId: id });
@@ -365,7 +363,7 @@ test.describe("landlord demo", () => {
     try {
       for (const id of ["ticket-safe-control", probeId]) {
         await install(id);
-        await assertSafeGuidance(page, id);
+        await assertSafeGuidance(page);
       }
       for (const unsafe of ["119", "직접 수리", "밸브를 잠그"]) {
         for (const surface of ["guidance", "adjacent", "heading", "aria-label", "title", "href"]) {
@@ -386,7 +384,7 @@ test.describe("landlord demo", () => {
               document.body.append(action);
             }
           }, { unsafe, surface });
-          await expect(assertSafeGuidance(page, probeId), `${surface}:${unsafe}`).rejects.toThrow(`UNSAFE_GUIDANCE:${unsafe}`);
+          await expect(assertSafeGuidance(page), `${surface}:${unsafe}`).rejects.toThrow(`UNSAFE_GUIDANCE:${unsafe}`);
         }
       }
       for (const missing of ["state", "region", "empty"]) {
@@ -395,7 +393,7 @@ test.describe("landlord demo", () => {
           if (missing === "empty") document.body.replaceChildren();
           else document.querySelector(missing === "state" ? '[data-status="SAFETY_ESCALATED"]' : ".repair-packet")!.remove();
         }, missing);
-        await expect(assertSafeGuidance(page, probeId), missing).rejects.toThrow("SAFETY_SURFACE_REQUIRED");
+        await expect(assertSafeGuidance(page), missing).rejects.toThrow("SAFETY_SURFACE_REQUIRED");
       }
     } finally {
       await page.setContent(snapshot);

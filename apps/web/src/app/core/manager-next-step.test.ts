@@ -17,7 +17,7 @@ const vendorRoute = (workStatus: CoreTicketDto["workStatus"] = "OPEN") => ticket
 
 describe("manager next step", () => {
   it("waits without a button while the tenant has not submitted, or answers a more-info request", () => {
-    expect(step({ ticket: ticket("OPEN", { status: "IN_PROGRESS" }) })).toEqual({ title: "세입자가 아직 질문에 답하는 중이에요.", detail: "제출되면 처리 방법을 정할 수 있어요." });
+    expect(step({ ticket: ticket("OPEN", { status: "IN_PROGRESS" }) })).toEqual({ title: "세입자가 아직 제출하지 않았어요.", detail: "제출되면 처리 방법을 정할 수 있어요." });
     expect(step({ ticket: ticket("OPEN", { status: "NEEDS_MORE_INFO" }, ["CREATED", "FINALIZED", "MORE_INFO"]) })?.title).toBe("세입자의 추가 답변을 기다리고 있어요.");
     // An answer resets the server status to IN_PROGRESS inside the more-info round; it still waits on the tenant.
     expect(step({ ticket: ticket("OPEN", { status: "IN_PROGRESS" }, ["CREATED", "FINALIZED", "MORE_INFO", "ANSWERED"]) })?.title).toBe("세입자의 추가 답변을 기다리고 있어요.");

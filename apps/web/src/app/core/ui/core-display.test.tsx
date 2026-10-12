@@ -31,7 +31,7 @@ describe("Apple-Toss presentation boundaries", () => {
     const html = renderToStaticMarkup(<TicketProgress workStatus="COMPLETED" intakeStatus="PARTIAL">관리자가 완료로 기록했습니다.</TicketProgress>);
     expect(html).toContain('data-testid="work-status"');
     expect(html).toContain('aria-hidden="true">✓ </span>처리 완료');
-    expect(html).toContain("접수 상태: 추가 정보 필요");
+    expect(html).toContain("접수 상태: 정보 부족");
     expect(html.indexOf("접수 상태")).toBeLessThan(html.indexOf("관리자가 완료로 기록했습니다."));
   });
 
@@ -45,9 +45,15 @@ describe("Apple-Toss presentation boundaries", () => {
 
   it("keeps the separate intake line once the request was submitted", () => {
     const html = renderToStaticMarkup(<TicketProgress workStatus="OPEN" intakeStatus="PARTIAL">관리자에게 보냈어요.</TicketProgress>);
-    expect(html).toContain('data-work-state="OPEN">접수</span>');
-    expect(html).toContain("접수 상태: 추가 정보 필요");
+    expect(html).toContain('data-work-state="OPEN">접수됨</span>');
+    expect(html).toContain("접수 상태: 정보 부족");
     expect(html).not.toContain("제출 전");
+  });
+
+  it("names the in-progress work state and a decided intake with the approved names", () => {
+    const html = renderToStaticMarkup(<TicketProgress workStatus="IN_PROGRESS" intakeStatus="OVERRIDDEN">처리 중이에요.</TicketProgress>);
+    expect(html).toContain('data-work-state="IN_PROGRESS">처리 중</span>');
+    expect(html).toContain("접수 상태: 처리 방법 결정됨");
   });
 
   it("treats only an open, unsubmitted intake as a draft", () => {

@@ -28,6 +28,9 @@ test("a Vendor route points the manager at the Vendor section, which explains it
     const direct=(await route.locator("option").allTextContents()).find(label=>label&&!["일반 수리업체","제조사 A/S"].includes(label));expect(direct).toBeTruthy();
     await decide(direct!,"합성 직접 처리");
     await expect(zone(m)).toContainText("처리를 시작하면 기록해 주세요.");await expect(vendor).toContainText("업체에 보내려면 먼저 처리 방법을");
+    // P3: the summary and the decision screen call a decided request by the same name.
+    await expect(m.getByText("접수 상태: 처리 방법 결정됨",{exact:true})).toBeVisible();
+    await expect(decision.locator(".packet-status")).toHaveText("상태: 처리 방법 결정됨");
     await decide("일반 수리업체","합성 업체 수리로 수정");
     await expect(zone(m)).toContainText("업체에 작업을 보내 주세요.");
     await zone(m).getByRole("button",{name:"업체 연결 열기",exact:true}).click();

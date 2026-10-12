@@ -197,7 +197,7 @@ describe("route labels", () => {
   });
 
   it("uses the approved Korean labels", () => {
-    expect(routeLabel("LANDLORD_REVIEW")).toBe("임대인 검토");
+    expect(routeLabel("LANDLORD_REVIEW")).toBe("관리자 검토");
     expect(routeLabel("MANAGEMENT_OFFICE")).toBe("관리사무소");
     expect(routeLabel("THIRD_PARTY_MANAGER")).toBe("위탁관리");
     expect(routeLabel("MANUFACTURER_AS")).toBe("제조사 A/S");

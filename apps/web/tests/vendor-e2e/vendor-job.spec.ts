@@ -203,7 +203,7 @@ test('T12-B02 resident UI schedules immutable visits, blocker FOLLOW_UP, photo-l
     expect((await closing).postDataJSON().expectedCompletionReportId).toBe(revised.currentReport.id);
     await expect(manager.page.getByTestId('work-status')).toHaveText('✓ 처리 완료');
     const closed = await core(fixture, 'manager', `manager/tickets/${c.ticketId}/vendor-handoff`); expect([closed.assignment.status, closed.assignment.endReason]).toEqual(['ENDED', 'CLOSED']); expect((await v.context.request.get('/api/v2/vendor/job')).status()).toBe(401);
-    const result = manager.page.getByRole('status').filter({ hasText: 'COMPLETED / ENDED/CLOSED' }); expect(await result.evaluate(e => /success|green/i.test(e.className)), 'closeout result uses existing neutral treatment').toBe(false);
+    const result = manager.page.getByRole('status').filter({ hasText: '처리 완료 · 업체 접근 종료' }); expect(await result.evaluate(e => /success|green/i.test(e.className)), 'closeout result uses existing neutral treatment').toBe(false);
     await v.page.reload(); await expect(v.page.getByRole('button', { name: '작업 수락', exact: true })).toHaveCount(0);
     await openTicket(tenant.page, c.ticketId); await responsive(tenant.page, 390); await responsive(tenant.page, 390, true);
     expect(await tenant.page.getByRole('img', { name: /작업 사진/ }).count()).toBe(0);
@@ -303,7 +303,7 @@ test('T12-B11 SAFETY_ESCALATED and nonexternal route expose no handoff; direct c
     const unsafe = await ticket(fixture, '', '가스 냄새가 나요'); expect(unsafe.detail.status).toBe('SAFETY_ESCALATED');
     await openTicket(m.page, unsafe.ticketId, true); await expect(m.page.getByRole('button', { name: '작업 요청 준비', exact: true })).toHaveCount(0);
     const ordinary = await ticket(fixture, 'LANDLORD_REVIEW'); await openTicket(m.page, ordinary.ticketId, true); await expect(m.page.getByRole('button', { name: '작업 요청 준비', exact: true })).toHaveCount(0);
-    await m.page.getByLabel('처리 기록', { exact: true }).fill('Task12 ordinary start'); await keyboardClick(m.page, '처리 시작 기록'); await expect(m.page.getByTestId('work-status')).toHaveText('처리중'); await click(m.page, '업무 정보'); await m.page.getByLabel('처리 기록', { exact: true }).fill('Task12 ordinary completion'); await keyboardClick(m.page, '처리 완료 기록'); await expect(m.page.getByTestId('work-status')).toHaveText('✓ 처리 완료');
+    await m.page.getByLabel('처리 기록', { exact: true }).fill('Task12 ordinary start'); await keyboardClick(m.page, '처리 시작 기록'); await expect(m.page.getByTestId('work-status')).toHaveText('처리 중'); await click(m.page, '업무 정보'); await m.page.getByLabel('처리 기록', { exact: true }).fill('Task12 ordinary completion'); await keyboardClick(m.page, '처리 완료 기록'); await expect(m.page.getByTestId('work-status')).toHaveText('✓ 처리 완료');
     const ended = await provision(fixture), v = await vendorContext(browser, fixture, ended.link);
     try { await click(v.page, '작업 거절'); await v.page.getByRole('radio', { name: '일정·인력 여유가 없음', exact: true }).check(); await click(v.page, '거절 내용 확인'); await click(v.page, '거절하기'); } finally { await v.close(); }
     await openTicket(m.page, ended.ticketId, true); await m.page.getByLabel('처리 기록', { exact: true }).fill('Task12 historical ended direct completion'); await keyboardClick(m.page, '처리 완료 기록'); await expect(m.page.getByTestId('work-status')).toHaveText('✓ 처리 완료');
