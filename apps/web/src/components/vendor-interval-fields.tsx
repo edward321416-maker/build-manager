@@ -1,5 +1,5 @@
 "use client";
-import { instantToSeoulLocal,seoulLocalToInstant } from "../lib/vendor-time";
+import { instantToSeoulLocal,seoulLocalToInstant } from "../lib/date-text";
 
 /** One Seoul wall-clock row. Strings come straight from date/time inputs; no browser time-zone conversion happens. */
 export type IntervalDraft={date:string;start:string;end:string};
