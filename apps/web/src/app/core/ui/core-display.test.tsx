@@ -28,11 +28,11 @@ describe("Apple-Toss presentation boundaries", () => {
   });
 
   it("keeps manager completion and insufficient intake evidence as separate status axes", () => {
-    const html = renderToStaticMarkup(<TicketProgress workStatus="COMPLETED" intakeStatus="PARTIAL">관리자가 완료로 기록했습니다.</TicketProgress>);
+    const html = renderToStaticMarkup(<TicketProgress workStatus="COMPLETED" intakeStatus="PARTIAL">관리자가 완료로 기록했어요.</TicketProgress>);
     expect(html).toContain('data-testid="work-status"');
     expect(html).toContain('aria-hidden="true">✓ </span>처리 완료');
     expect(html).toContain("접수 상태: 정보 부족");
-    expect(html.indexOf("접수 상태")).toBeLessThan(html.indexOf("관리자가 완료로 기록했습니다."));
+    expect(html.indexOf("접수 상태")).toBeLessThan(html.indexOf("관리자가 완료로 기록했어요."));
   });
 
   it("shows an unsubmitted request as one 제출 전 state instead of 접수 plus an intake line", () => {

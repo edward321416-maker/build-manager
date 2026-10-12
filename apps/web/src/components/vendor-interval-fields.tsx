@@ -19,8 +19,8 @@ export function draftsToIntervals(drafts:IntervalDraft[],now:Date):IntervalResul
     if(!draft.date||!draft.start||!draft.end)return {ok:false,message:"날짜와 시작·종료 시간을 모두 입력해 주세요."};
     const startAt=seoulLocalToInstant(draft.date,draft.start),endAt=seoulLocalToInstant(draft.date,draft.end);
     if(!startAt||!endAt)return {ok:false,message:"날짜와 시간을 다시 확인해 주세요."};
-    if(Date.parse(startAt)>=Date.parse(endAt))return {ok:false,message:"종료 시간은 시작 시간보다 늦어야 합니다."};
-    if(Date.parse(startAt)<=now.getTime())return {ok:false,message:"지난 시간은 선택할 수 없습니다."};
+    if(Date.parse(startAt)>=Date.parse(endAt))return {ok:false,message:"종료 시간은 시작 시간보다 늦어야 해요."};
+    if(Date.parse(startAt)<=now.getTime())return {ok:false,message:"지난 시간은 선택할 수 없어요."};
     intervals.push({startAt,endAt});
   }
   intervals.sort((a,b)=>Date.parse(a.startAt)-Date.parse(b.startAt));
@@ -34,7 +34,7 @@ export function IntervalFields({legend,drafts,onChange,disabled,max=5}:Props){
   const update=(index:number,change:Partial<IntervalDraft>)=>onChange(drafts.map((draft,i)=>i===index?{...draft,...change}:draft));
   return <fieldset disabled={disabled}>
     <legend>{legend}</legend>
-    <p>모든 시간은 한국 시간(서울) 기준입니다.</p>
+    <p>모든 시간은 한국 시간(서울) 기준이에요.</p>
     {drafts.map((draft,index)=><div key={index} role="group" aria-label={`시간대 ${index+1}`}>
       <label>날짜<input type="date" value={draft.date} onChange={event=>update(index,{date:event.target.value})}/></label>
       <label>시작 시간<input type="time" value={draft.start} onChange={event=>update(index,{start:event.target.value})}/></label>

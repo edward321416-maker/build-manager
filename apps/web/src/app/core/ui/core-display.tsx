@@ -40,7 +40,7 @@ export function ManagerInspector({ children, expanded, onExpandedChange }: {
 export function TaskZone({ tenant, children, label = "지금 할 일", heading = "지금 할 일", message }: { tenant: boolean; children: ReactNode; label?: string; heading?: string; message?: string }) {
   return <section className={styles.taskZone} aria-label={label}>
     <h2>{heading}</h2>
-    <p>{message ?? (tenant ? "관리자 질문에 답변해주세요." : "세입자 답변이 도착했습니다. 확인 후 다음 조치를 선택하세요.")}</p>
+    <p>{message ?? (tenant ? "관리자 질문에 답변해주세요." : "세입자 답변이 도착했어요. 확인 후 다음 조치를 선택하세요.")}</p>
     {children}
   </section>;
 }

@@ -47,7 +47,7 @@ for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace ->
   const bytes=await sharp(Buffer.from('<svg width="300" height="180" xmlns="http://www.w3.org/2000/svg"><rect width="300" height="180" fill="#edf3ef"/><path d="M35 45H140V100H265" fill="none" stroke="#718e94" stroke-width="25"/><path d="M140 122q-15 19 0 24q15-5 0-24" fill="#278dca"/><text x="12" y="168" font-size="13" fill="#244b43">SYNTHETIC LEAK SAMPLE</text></svg>')).png().toBuffer();
   await page.getByLabel("참고 사진 선택",{exact:true}).setInputFiles({name:"synthetic.png",mimeType:"image/png",buffer:bytes});
   const created=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");await page.getByRole("button",{name:"접수하기",exact:true}).click();const ticket=await (await created).json();
-  await expect(saved(page).getByRole("img")).toHaveCount(1);await expect(page.getByText("사진을 저장했습니다.",{exact:false})).toBeVisible();
+  await expect(saved(page).getByRole("img")).toHaveCount(1);await expect(page.getByText("사진을 저장했어요.",{exact:false})).toBeVisible();
   await expect.poll(()=>saved(page).getByRole("img").evaluateAll(imgs=>imgs.every(img=>(img as HTMLImageElement).naturalWidth>0))).toBe(true);
   await page.evaluate(()=>scrollTo(0,0));await layout(page,width);await page.screenshot({path:capture("tenant"),fullPage:true});
   const m=await manager.context.newPage();await m.setViewportSize(viewport);await m.goto("/core");
@@ -92,7 +92,7 @@ test("ended occupancy, assignment and membership revoke B1 raw photo access",asy
 });
 test("no-association and account switch clear prior actor UI, never offer developer-code fallback",async({browser})=>{
  const tenant=await sdkSession(browser),none=await sdkSession(browser,"none");
- try{const p=await none.context.newPage();await p.goto("/core");await expect(p.getByText("연결된 소속·호실이 없습니다.",{exact:false})).toBeVisible();await expect(p.getByRole("button",{name:"로그아웃"})).toBeVisible();await p.screenshot({path:join(evidenceRoot,"login-no-association-320.png"),fullPage:true});
+ try{const p=await none.context.newPage();await p.goto("/core");await expect(p.getByText("연결된 소속·호실이 없어요.",{exact:false})).toBeVisible();await expect(p.getByRole("button",{name:"로그아웃"})).toBeVisible();await p.screenshot({path:join(evidenceRoot,"login-no-association-320.png"),fullPage:true});
   const page=await tenant.context.newPage();await page.goto("/core");await expect(page.getByLabel("문제 설명")).toBeVisible();await tenant.context.addCookies([{name:"__session",value:none.cookie,url:base,httpOnly:true,sameSite:"Lax"}]);
   // Visibility revalidation can already clear the old screen after cookie switch.
   // If still mounted, dispatch its refresh atomically rather than waiting for a removed button.

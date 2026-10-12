@@ -17,5 +17,5 @@ export function describeApiError(error: unknown): string {
   if (error instanceof Error && error.name === "ApiClientError") {
     return error.message;
   }
-  return "오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+  return "오류가 발생했어요. 잠시 후 다시 시도해 주세요.";
 }

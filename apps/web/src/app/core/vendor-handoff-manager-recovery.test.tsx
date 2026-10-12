@@ -31,7 +31,7 @@ it("definite 409 first-issue rejection restores editable PREPARING review",async
   await click("보안 링크 발급");
   expect(s.issueLink).toHaveBeenCalledTimes(1);expect(s.readHandoff).toHaveBeenCalledTimes(2);
   expect(editable()).toBe(true);expect(Boolean(button("보안 링크 발급"))).toBe(true);
-  expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없습니다")).toBe(false);
+  expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없어요")).toBe(false);
 });
 it("lost precommit issue stays uncertain after PREPARING and offers explicit same-identity recovery",async()=>{
   let calls=0;const s=await mount(async()=>{if(++calls===1)throw new Error("synthetic precommit loss");return {created:false,assignmentId:"assignment",assignmentVersion:2,expiresAt:"2026-10-09T00:00:00Z"};});
@@ -79,7 +79,7 @@ it("a name validation error can be corrected without any server refresh",async()
 it("metadata-only replay followed by ENDED and new preparation/publication permits that assignment's first issue",async()=>{
   const s=await mount(async()=>({created:false,assignmentId:"assignment",assignmentVersion:2,expiresAt:"2026-10-09T00:00:00Z"}));
   s.readHandoff.mockResolvedValue({...preparing,assignment:{...preparing.assignment!,status:"OFFERED",version:2}});
-  await click("보안 링크 발급");expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없습니다")).toBe(true);
+  await click("보안 링크 발급");expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없어요")).toBe(true);
   s.readHandoff.mockResolvedValue({...preparing,assignment:{...preparing.assignment!,status:"ENDED",endReason:"REVOKED"},currentPacket:null});
   await click("업체 연결 상태 다시 확인");await input("업체 표시 이름","새 업체");
   const replacement={...preparing,assignment:{...preparing.assignment!,id:"replacement",vendorLabel:"새 업체"},currentPacket:null};
@@ -89,14 +89,14 @@ it("metadata-only replay followed by ENDED and new preparation/publication permi
   s.publishPacket.mockResolvedValue(published);s.readHandoff.mockResolvedValue(published);await click("업체 전달 내용 게시");
   expect(s.createAssignment).toHaveBeenCalledTimes(1);expect(s.publishPacket).toHaveBeenCalledTimes(1);
   expect(Boolean(button("보안 링크 발급"))).toBe(true);expect(button("보안 링크 발급")?.disabled).toBe(false);
-  expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없습니다")).toBe(false);expect(s.issueLink).toHaveBeenCalledTimes(1);
+  expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없어요")).toBe(false);expect(s.issueLink).toHaveBeenCalledTimes(1);
 });
 it("metadata-only replay loss state does not follow an authoritative replacement PREPARING assignment",async()=>{
   const s=await mount(async()=>({created:false,assignmentId:"assignment",assignmentVersion:2,expiresAt:"2026-10-09T00:00:00Z"}));
   s.readHandoff.mockResolvedValue({...preparing,assignment:{...preparing.assignment!,status:"OFFERED",version:2}});await click("보안 링크 발급");
   s.readHandoff.mockResolvedValue({...preparing,assignment:{...preparing.assignment!,id:"replacement"}});await click("업체 연결 상태 다시 확인");
   expect(Boolean(button("보안 링크 발급"))).toBe(true);expect(button("보안 링크 발급")?.disabled).toBe(false);
-  expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없습니다")).toBe(false);expect(s.issueLink).toHaveBeenCalledTimes(1);
+  expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없어요")).toBe(false);expect(s.issueLink).toHaveBeenCalledTimes(1);
 });
 it("metadata-only replay already ended at immediate readback cannot relatch loss onto a future replacement",async()=>{
   const s=await mount(async()=>({created:false,assignmentId:"assignment",assignmentVersion:2,expiresAt:"2026-10-09T00:00:00Z"}));
@@ -104,5 +104,5 @@ it("metadata-only replay already ended at immediate readback cannot relatch loss
   await click("보안 링크 발급");
   s.readHandoff.mockResolvedValue({...preparing,assignment:{...preparing.assignment!,id:"replacement"}});await click("업체 연결 상태 다시 확인");
   expect(Boolean(button("보안 링크 발급"))).toBe(true);expect(button("보안 링크 발급")?.disabled).toBe(false);
-  expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없습니다")).toBe(false);expect(s.issueLink).toHaveBeenCalledTimes(1);
+  expect(host.textContent!.includes("원래 링크는 다시 표시할 수 없어요")).toBe(false);expect(s.issueLink).toHaveBeenCalledTimes(1);
 });

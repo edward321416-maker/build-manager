@@ -36,7 +36,7 @@ const closedDecline:Decline={assignmentId:null,open:false,reason:null,note:"",co
 /** Accept/Withdraw intent, owned by one assignment; the same request identity is reused only for that assignment. */
 type Lifecycle={context?:string;sent?:VendorWithdrawCommand;kind:"accept"|"withdraw"|null;assignmentId:string|null;open:boolean;note:string;confirming:boolean;requestId:string|null;status:"idle"|"submitting"|"uncertain"};
 const idleLifecycle:Lifecycle={kind:null,assignmentId:null,open:false,note:"",confirming:false,requestId:null,status:"idle"};
-const STALE_NOTICE="작업 요청 내용이 바뀌었습니다. 최신 내용을 확인해 주세요.";
+const STALE_NOTICE="작업 요청 내용이 바뀌었어요. 최신 내용을 확인해 주세요.";
 type ScheduleSend=
   |{kind:"propose";input:VendorProposalCommand}
   |{kind:"preauthorized";input:VendorPreauthorizedAppointmentCommand}
@@ -53,14 +53,14 @@ type Schedule={context?:string;assignmentId:string|null;drafts:IntervalDraft[];w
 const idleSchedule:Schedule={assignmentId:null,drafts:[emptyIntervalDraft()],windowId:null,slot:emptyIntervalDraft(),rescheduling:false,
   work:null,blockerCode:null,followUpAck:false,note:"",sent:null,status:"idle",notice:""};
 const UNCERTAIN_SCHEDULE:Record<ScheduleSend["kind"],string>={
-  propose:"제안 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
-  preauthorized:"방문 확정 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
-  reschedule:"일정 변경 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
-  visit:"방문 시작 기록 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
-  record:"막힘 기록 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
-  clear:"막힘 해제 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.",
+  propose:"제안 결과를 확인하지 못했어요. 새 요청을 만들지 않고 같은 요청으로 결과를 확인해요.",
+  preauthorized:"방문 확정 결과를 확인하지 못했어요. 새 요청을 만들지 않고 같은 요청으로 결과를 확인해요.",
+  reschedule:"일정 변경 결과를 확인하지 못했어요. 새 요청을 만들지 않고 같은 요청으로 결과를 확인해요.",
+  visit:"방문 시작 기록 결과를 확인하지 못했어요. 새 요청을 만들지 않고 같은 요청으로 결과를 확인해요.",
+  record:"막힘 기록 결과를 확인하지 못했어요. 새 요청을 만들지 않고 같은 요청으로 결과를 확인해요.",
+  clear:"막힘 해제 결과를 확인하지 못했어요. 새 요청을 만들지 않고 같은 요청으로 결과를 확인해요.",
 };
-const NOTE_INVALID="메모에 사용할 수 없는 문자가 있습니다. 내용을 고친 뒤 다시 확인해 주세요.";
+const NOTE_INVALID="메모에 사용할 수 없는 문자가 있어요. 내용을 고친 뒤 다시 확인해 주세요.";
 /** Initial completion report draft, photo staging and the one sent command, owned by one assignment. */
 type Completion={context?:string;assignmentId:string|null;appointmentId:string|null;correctionRequestId:string|null;uploads:{photoId:string;selected:boolean;reused?:boolean}[];pending:{file:Blob;input:VendorCompletionPhotoUploadCommand}|null;
   uploadStatus:"idle"|"uploading"|"uncertain";omission:VendorPhotoOmissionReason|null;summary:string;note:string;
@@ -74,11 +74,11 @@ const ownsCompletion=(job:VendorJobDto,state:Completion)=>state.assignmentId===j
 const freshCompletion=(job:VendorJobDto):Completion=>({...idleCompletion,assignmentId:job.assignmentId,appointmentId:job.appointment?.id??null,correctionRequestId:job.correctionRequest?.id??null,
   ...(job.correctionRequest&&job.currentReport?{summary:job.currentReport.workSummary,note:job.currentReport.componentOrPartNote??"",uploads:job.currentReport.completionPhotoIds.map(photoId=>({photoId,selected:false,reused:true}))}:{})});
 const reportActionable=(job:VendorJobDto)=>Boolean(job.correctionRequest)||(job.phase==="IN_PROGRESS"&&(!job.currentReport||job.currentReport.appointmentId!==job.appointment?.id));
-const VISIT_LIMIT="사진은 한 방문에 10장까지 올릴 수 있습니다. 남은 장수만큼만 올렸습니다.";
-const VISIT_FULL="이 방문에는 사진을 더 올릴 수 없습니다. 사진은 한 방문에 10장까지 올릴 수 있습니다.";
-const PHOTO_REJECTED="사진을 확인해 주세요. JPEG 또는 PNG, 5MB 이하만 올릴 수 있습니다.";
-const PREAUTH_VISIT_DENIED="세입자가 출입에 동의한 시간이 아니거나 동의가 더 이상 유효하지 않아 방문을 시작할 수 없습니다. 관리자에게 문의해 주세요.";
-const VISIT_DENIED="지금은 방문을 시작할 수 없습니다. 관리자에게 문의해 주세요.";
+const VISIT_LIMIT="사진은 한 방문에 10장까지 올릴 수 있어요. 남은 장수만큼만 올렸어요.";
+const VISIT_FULL="이 방문에는 사진을 더 올릴 수 없어요. 사진은 한 방문에 10장까지 올릴 수 있어요.";
+const PHOTO_REJECTED="사진을 확인해 주세요. JPEG 또는 PNG, 5MB 이하만 올릴 수 있어요.";
+const PREAUTH_VISIT_DENIED="세입자가 출입에 동의한 시간이 아니거나 동의가 더 이상 유효하지 않아 방문을 시작할 수 없어요. 관리자에게 문의해 주세요.";
+const VISIT_DENIED="지금은 방문을 시작할 수 없어요. 관리자에게 문의해 주세요.";
 /** A form intent is shown only while its target still exists; stale intent never hides other actions (Task7 review L2). */
 function effectiveWork(job:VendorJobDto,schedule:Schedule):Schedule["work"]{
   if(schedule.work==="record"&&job.activeBlocker)return null;
@@ -203,14 +203,14 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     // in-flight report send is released, mirroring the stale-conflict path.
     setDecline(closedDecline);setLifecycle(idleLifecycle);setSchedule(idleSchedule);
     setCompletion(current=>current.status==="submitting"?{...current,context:undefined,sent:null,status:"idle",confirming:false,ackPacketId:null}:current);
-    setTaskNotice(`${STALE_NOTICE} 이전 요청의 성공 여부는 확정하지 않습니다.`);return false;
+    setTaskNotice(`${STALE_NOTICE} 이전 요청의 성공 여부는 확정하지 않아요.`);return false;
   };
   // Local input problems stay editable; they are never reported as an unknown server outcome.
   const confirmDecline=()=>{
     if(!decline.reason)return;
     const note=decline.note.trim();
     if(!VendorDeclineCommandSchema.shape.operationalNote.safeParse(note===""?null:note).success){
-      setDecline({...decline,confirming:false,notice:"메모에 사용할 수 없는 문자가 있습니다. 내용을 고친 뒤 다시 확인해 주세요."});return;
+      setDecline({...decline,confirming:false,notice:"메모에 사용할 수 없는 문자가 있어요. 내용을 고친 뒤 다시 확인해 주세요."});return;
     }
     setDecline({...decline,confirming:true,notice:""});
   };
@@ -231,7 +231,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     }catch(error){
       if(gen!==generation.current)return;
       if(statusOf(error)===409){setDecline({...closedDecline,notice:STALE_NOTICE});await refresh(gen);}
-      else if(statusOf(error)===403)setDecline({...closedDecline,notice:"보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요."});
+      else if(statusOf(error)===403)setDecline({...closedDecline,notice:"보안 확인을 마치지 못했어요. 화면을 다시 불러온 뒤 시도해 주세요."});
       else if(definitive(error)){setDecline(closedDecline);setPhase({kind:"unavailable"});}
       else setDecline({...state,requestId:id,status:"uncertain",notice:""});
     }
@@ -257,7 +257,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
       if(gen!==generation.current)return;
       // A rejected (not committed) Withdraw keeps its safe local draft; the next attempt is a new request.
       if(statusOf(error)===409){setLifecycle(kind==="withdraw"?{...state,requestId:null,sent:undefined,context:undefined,status:"idle",confirming:false}:idleLifecycle);setTaskNotice(STALE_NOTICE);await refresh(gen);}
-      else if(statusOf(error)===403){setLifecycle(idleLifecycle);setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
+      else if(statusOf(error)===403){setLifecycle(idleLifecycle);setTaskNotice("보안 확인을 마치지 못했어요. 화면을 다시 불러온 뒤 시도해 주세요.");}
       else if(definitive(error)){setLifecycle(idleLifecycle);setPhase({kind:"unavailable"});}
       else setLifecycle({...state,requestId:id,status:"uncertain"});
     }
@@ -295,8 +295,8 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
         const refused=send.kind==="visit"&&fresh.assignmentVersion===send.input.expectedAssignmentVersion&&fresh.appointment?.id===send.appointmentId&&fresh.appointment.status==="SCHEDULED";
         setTaskNotice(refused?(fresh.appointment!.confirmationMode==="PREAUTHORIZED_ENTRY"?PREAUTH_VISIT_DENIED:VISIT_DENIED):STALE_NOTICE);
       }
-      else if(statusOf(error)===403){setSchedule(idle);setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
-      else if(statusOf(error)===400)setSchedule({...idle,notice:["visit","record","clear"].includes(send.kind)?"입력한 내용을 다시 확인해 주세요.":"입력한 시간을 다시 확인해 주세요. 지난 시간은 선택할 수 없습니다."});
+      else if(statusOf(error)===403){setSchedule(idle);setTaskNotice("보안 확인을 마치지 못했어요. 화면을 다시 불러온 뒤 시도해 주세요.");}
+      else if(statusOf(error)===400)setSchedule({...idle,notice:["visit","record","clear"].includes(send.kind)?"입력한 내용을 다시 확인해 주세요.":"입력한 시간을 다시 확인해 주세요. 지난 시간은 선택할 수 없어요."});
       else if(definitive(error)){setSchedule(idleSchedule);setPhase({kind:"unavailable"});}
       else setSchedule({...state,sent:send,status:"uncertain"});
     }
@@ -321,7 +321,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
     if(!result.ok){setSchedule({...state,notice:result.message});return;}
     const slot=result.intervals[0];
     // Containment is checked by absolute instant; the server re-checks the same rule under lock.
-    if(!intervalWithin(slot,chosen)){setSchedule({...state,notice:"동의된 시간 안에서만 방문 시간을 정할 수 있습니다."});return;}
+    if(!intervalWithin(slot,chosen)){setSchedule({...state,notice:"동의된 시간 안에서만 방문 시간을 정할 수 있어요."});return;}
     void sendSchedule({kind:"preauthorized",input:{clientRequestId:crypto.randomUUID(),expectedAssignmentVersion:job.assignmentVersion,expectedRoundVersion:job.currentRound.version,
       expectedPacketRevisionId:job.currentPacket.id,availabilitySubmissionId:availability.id,selectedWindowId:chosen.id,startAt:slot.startAt,endAt:slot.endAt}},state);
   };
@@ -381,7 +381,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
           &&fresh.appointment.status==="OCCURRED"&&reportActionable(fresh)&&(fresh.correctionRequest?.id??null)===input.expectedCorrectionRequestId;
         if(full)setCompletion(current=>({...current,notice:VISIT_FULL}));else setTaskNotice(STALE_NOTICE);
       }
-      else if(statusOf(error)===403){setCompletion(current=>({...current,...idle}));setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
+      else if(statusOf(error)===403){setCompletion(current=>({...current,...idle}));setTaskNotice("보안 확인을 마치지 못했어요. 화면을 다시 불러온 뒤 시도해 주세요.");}
       else if(statusOf(error)===401){setCompletion(idleCompletion);setPhase({kind:"unavailable"});}
       else if(definitive(error))setCompletion(current=>({...current,...idle,notice:PHOTO_REJECTED}));
       else setCompletion(current=>({...current,pending:{file,input},uploadStatus:"uncertain"}));
@@ -440,7 +440,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
       if(gen!==generation.current)return;
       const idle={...state,context:undefined,sent:null,status:"idle" as const,confirming:false};
       if(statusOf(error)===409){setCompletion({...idle,ackPacketId:null});setTaskNotice(STALE_NOTICE);await refresh(gen);}
-      else if(statusOf(error)===403){setCompletion(idle);setTaskNotice("보안 확인을 마치지 못했습니다. 화면을 다시 불러온 뒤 시도해 주세요.");}
+      else if(statusOf(error)===403){setCompletion(idle);setTaskNotice("보안 확인을 마치지 못했어요. 화면을 다시 불러온 뒤 시도해 주세요.");}
       else if(statusOf(error)===400)setCompletion({...idle,notice:"입력한 내용을 다시 확인해 주세요."});
       else if(definitive(error)){setCompletion(idleCompletion);setPhase({kind:"unavailable"});}
       else setCompletion({...state,sent:input,status:"uncertain"});
@@ -466,7 +466,7 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
   const confirmWithdraw=()=>{
     const note=lifecycle.note.trim();
     if(!VendorDeclineCommandSchema.shape.operationalNote.safeParse(note===""?null:note).success){
-      setTaskNotice("메모에 사용할 수 없는 문자가 있습니다. 내용을 고친 뒤 다시 확인해 주세요.");return;
+      setTaskNotice("메모에 사용할 수 없는 문자가 있어요. 내용을 고친 뒤 다시 확인해 주세요.");return;
     }
     setTaskNotice("");setLifecycle({...lifecycle,confirming:true});
   };
@@ -482,11 +482,11 @@ export function VendorJobScreen({client:injected,now=systemNow}:{client?:VendorJ
       if(gen!==generation.current)return;
       if(statusOf(error)===401){
         // Only an authoritative dead session confirms logout; a live session must never show a false logout.
-        try{const live=await client.session();if(gen!==generation.current)return;csrf.current=live.csrf;setNotice("나가기를 완료하지 못했습니다. 다시 시도해 주세요.");}
-        catch(check){if(gen!==generation.current)return;if(definitive(check))done();else setNotice("나가기 결과를 확인하지 못했습니다. 같은 요청으로 다시 시도해 주세요.");}
+        try{const live=await client.session();if(gen!==generation.current)return;csrf.current=live.csrf;setNotice("나가기를 완료하지 못했어요. 다시 시도해 주세요.");}
+        catch(check){if(gen!==generation.current)return;if(definitive(check))done();else setNotice("나가기 결과를 확인하지 못했어요. 같은 요청으로 다시 시도해 주세요.");}
       }
-      else if(definitive(error))setNotice("나가기를 완료하지 못했습니다. 다시 시도해 주세요.");
-      else setNotice("나가기 결과를 확인하지 못했습니다. 같은 요청으로 다시 시도해 주세요.");
+      else if(definitive(error))setNotice("나가기를 완료하지 못했어요. 다시 시도해 주세요.");
+      else setNotice("나가기 결과를 확인하지 못했어요. 같은 요청으로 다시 시도해 주세요.");
     }finally{setBusy(false);}
   };
 
@@ -518,32 +518,32 @@ export function VendorJobView(props:ViewProps){
   const {phase,notice,busy,photoPath,onRetryRedeem,onRetryLoad,onLogout}=props;
   return <main className={styles.page}>
     <header className={styles.header}><h1>작업 요청</h1></header>
-    {phase.kind==="loading"||phase.kind==="redeeming"?<p role="status" className={styles.card}>보안 링크를 확인하고 있습니다.</p>:null}
+    {phase.kind==="loading"||phase.kind==="redeeming"?<p role="status" className={styles.card}>보안 링크를 확인하고 있어요.</p>:null}
     {phase.kind==="redeemUncertain"?<section className={styles.card} aria-labelledby="vendor-redeem-uncertain">
-      <h2 id="vendor-redeem-uncertain">연결 결과를 확인하지 못했습니다</h2>
-      <p>새 요청을 만들지 않고 같은 링크 요청으로 결과를 다시 확인합니다.</p>
+      <h2 id="vendor-redeem-uncertain">연결 결과를 확인하지 못했어요</h2>
+      <p>새 요청을 만들지 않고 같은 링크 요청으로 결과를 다시 확인해요.</p>
       <button type="button" onClick={onRetryRedeem}>같은 링크 요청으로 다시 확인</button>
     </section>:null}
     {phase.kind==="loadFailed"?<section className={styles.card} aria-labelledby="vendor-load-failed">
-      <h2 id="vendor-load-failed">작업 화면을 불러오지 못했습니다</h2>
-      <p>연결이 잠시 불안정할 수 있습니다. 같은 기기에서 다시 불러와 주세요.</p>
+      <h2 id="vendor-load-failed">작업 화면을 불러오지 못했어요</h2>
+      <p>연결이 잠시 불안정할 수 있어요. 같은 기기에서 다시 불러와 주세요.</p>
       <button type="button" onClick={onRetryLoad}>다시 불러오기</button>
     </section>:null}
     {phase.kind==="unavailable"?<section className={styles.card} aria-labelledby="vendor-unavailable">
-      <h2 id="vendor-unavailable">작업 화면을 열 수 없습니다</h2>
-      <p>링크가 이미 사용되었거나 만료되었을 수 있습니다. 관리자에게 새 링크를 요청해 주세요.</p>
+      <h2 id="vendor-unavailable">작업 화면을 열 수 없어요</h2>
+      <p>링크가 이미 사용되었거나 만료되었을 수 있어요. 관리자에게 새 링크를 요청해 주세요.</p>
     </section>:null}
     {phase.kind==="loggedOut"?<section className={styles.card} aria-labelledby="vendor-logged-out">
-      <h2 id="vendor-logged-out">이 기기에서 작업 화면을 닫았습니다</h2>
+      <h2 id="vendor-logged-out">이 기기에서 작업 화면을 닫았어요</h2>
       <p>다시 열려면 관리자에게 새 링크를 요청해 주세요.</p>
     </section>:null}
     {phase.kind==="declined"?<section className={styles.card} aria-labelledby="vendor-declined">
-      <h2 id="vendor-declined">작업 요청을 거절했습니다</h2>
-      <p>거절 내용이 기록되었습니다. 이 작업 화면은 더 이상 사용할 수 없습니다.</p>
+      <h2 id="vendor-declined">작업 요청을 거절했어요</h2>
+      <p>거절 내용이 기록됐어요. 이 작업 화면은 더 이상 사용할 수 없어요.</p>
     </section>:null}
     {phase.kind==="withdrawn"?<section className={styles.card} aria-labelledby="vendor-withdrawn">
-      <h2 id="vendor-withdrawn">작업을 철회했습니다</h2>
-      <p>철회 내용이 기록되었습니다. 이 작업 화면은 더 이상 사용할 수 없습니다. 접수 건 자체는 관리자가 계속 처리합니다.</p>
+      <h2 id="vendor-withdrawn">작업을 철회했어요</h2>
+      <p>철회 내용이 기록됐어요. 이 작업 화면은 더 이상 사용할 수 없어요. 접수 건 자체는 관리자가 계속 처리해요.</p>
     </section>:null}
     {phase.kind==="ready"?<>
       <CurrentTask {...props} job={phase.job}/>
@@ -564,15 +564,15 @@ function schedulingTurn(job:VendorJobDto):"TENANT"|"VENDOR"{
 /** A follow-up visit can only be required after a visit actually occurred and nothing else is scheduled. */
 function followUpAllowed(job:VendorJobDto):boolean{return job.appointment?.status==="OCCURRED"&&job.currentRound?.status!=="OPEN";}
 function schedulingStatus(job:VendorJobDto,at:Date):string{
-  if(job.phase==="SCHEDULED")return "방문 일정이 확정되었습니다.";
-  if(job.phase!=="SCHEDULING")return "방문 작업이 진행 중입니다.";
+  if(job.phase==="SCHEDULED")return "방문 일정이 확정됐어요.";
+  if(job.phase!=="SCHEDULING")return "방문 작업이 진행 중이에요.";
   if(job.proposal&&!job.proposal.slots.some(slot=>Date.parse(slot.startAt)>at.getTime()))
-    return "제안한 시간이 모두 지났습니다. 세입자가 새로 가능한 시간을 보내거나, 새 방문 시간을 다시 제안할 수 있습니다.";
-  if(schedulingTurn(job)==="TENANT")return job.proposal?"제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다.":"세입자가 가능한 시간을 알려 주기를 기다리고 있습니다. 먼저 방문 시간을 제안할 수도 있습니다.";
+    return "제안한 시간이 모두 지났어요. 세입자가 새로 가능한 시간을 보내거나, 새 방문 시간을 다시 제안할 수 있어요.";
+  if(schedulingTurn(job)==="TENANT")return job.proposal?"제안한 시간 중 하나를 세입자가 고르기를 기다리고 있어요.":"세입자가 가능한 시간을 알려 주기를 기다리고 있어요. 먼저 방문 시간을 제안할 수도 있어요.";
   const authorized=job.availability?.windows.filter(window=>job.availability!.authorizedWindowIds.includes(window.id))??[];
   if(job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"&&!authorized.some(window=>Date.parse(window.endAt)>at.getTime()))
-    return "세입자가 동의한 시간이 모두 지났습니다. 세입자가 새로 가능한 시간을 보내기를 기다리거나, 방문 시간을 제안할 수 있습니다.";
-  return job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"?"세입자가 동의한 시간 안에서 방문 시간을 정할 차례입니다.":"세입자가 가능한 시간을 알려 주었습니다. 방문 시간을 제안할 차례입니다.";
+    return "세입자가 동의한 시간이 모두 지났어요. 세입자가 새로 가능한 시간을 보내기를 기다리거나, 방문 시간을 제안할 수 있어요.";
+  return job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"?"세입자가 동의한 시간 안에서 방문 시간을 정할 차례예요.":"세입자가 가능한 시간을 알려 주었어요. 방문 시간을 제안할 차례예요.";
 }
 
 function CurrentTask(props:ViewProps&{job:VendorJobDto}){
@@ -591,9 +591,9 @@ function CurrentTask(props:ViewProps&{job:VendorJobDto}){
     <h2 id="vendor-current-task">지금 할 일</h2>
     {notice?<p role="alert">{notice}</p>:null}
     {offered?<>
-      <p>작업 요청을 확인해 주세요. 링크를 연 것만으로 작업을 수락한 것은 아닙니다.</p>
+      <p>작업 요청을 확인해 주세요. 링크를 연 것만으로 작업을 수락한 것은 아니에요.</p>
       {accepting&&lifecycle.status==="uncertain"?<div className={styles.confirm} role="group" aria-label="수락 결과 확인">
-        <p role="alert">수락 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.</p>
+        <p role="alert">수락 결과를 확인하지 못했어요. 새 요청을 만들지 않고 같은 요청으로 결과를 확인해요.</p>
         <button type="button" onClick={onAccept}>같은 요청으로 수락 결과 확인</button>
       </div>:null}
       {!decline.open&&!(accepting&&lifecycle.status==="uncertain")?<>
@@ -616,9 +616,9 @@ function CurrentTask(props:ViewProps&{job:VendorJobDto}){
       </form>:null}
       {decline.open&&(decline.confirming||decline.status!=="idle")?<div className={styles.confirm} role="group" aria-labelledby="vendor-decline-confirm">
         <h3 id="vendor-decline-confirm">이 작업 요청을 거절할까요?</h3>
-        <p>거절하면 이 링크로 더 이상 작업 화면을 열 수 없습니다. 접수 건 자체는 관리자가 계속 처리합니다.</p>
+        <p>거절하면 이 링크로 더 이상 작업 화면을 열 수 없어요. 접수 건 자체는 관리자가 계속 처리해요.</p>
         {decline.status==="uncertain"?<>
-          <p role="alert">거절 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.</p>
+          <p role="alert">거절 결과를 확인하지 못했어요. 새 요청을 만들지 않고 같은 요청으로 결과를 확인해요.</p>
           <button type="button" onClick={onSubmitDecline}>같은 요청으로 결과 확인</button>
         </>:<>
           <button type="button" disabled={submitting} onClick={onSubmitDecline}>거절하기</button>
@@ -641,16 +641,16 @@ function CurrentTask(props:ViewProps&{job:VendorJobDto}){
       </form>:null}
       {withdrawing&&(lifecycle.confirming||lifecycle.status!=="idle")?<div className={styles.confirm} role="group" aria-labelledby="vendor-withdraw-confirm">
         <h3 id="vendor-withdraw-confirm">이 작업을 철회할까요?</h3>
-        <p>철회하면 이 작업 화면을 더 이상 사용할 수 없고, 아직 진행하지 않은 방문 일정은 취소됩니다. 접수 건 자체는 관리자가 계속 처리합니다.</p>
+        <p>철회하면 이 작업 화면을 더 이상 사용할 수 없고, 아직 진행하지 않은 방문 일정은 취소돼요. 접수 건 자체는 관리자가 계속 처리해요.</p>
         {lifecycle.status==="uncertain"?<>
-          <p role="alert">철회 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.</p>
+          <p role="alert">철회 결과를 확인하지 못했어요. 새 요청을 만들지 않고 같은 요청으로 결과를 확인해요.</p>
           <button type="button" onClick={onSubmitWithdraw}>같은 요청으로 결과 확인</button>
         </>:<>
           <button type="button" disabled={submitting} onClick={onSubmitWithdraw}>철회하기</button>
           <button type="button" disabled={submitting} onClick={()=>onLifecycle({confirming:false})}>돌아가기</button>
         </>}
       </div>:null}
-    </>:<p>지금 진행할 수 있는 작업이 없습니다.</p>}
+    </>:<p>지금 진행할 수 있는 작업이 없어요.</p>}
   </section>;
 }
 
@@ -685,10 +685,10 @@ function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,
     {appointment?<div aria-label="확정된 방문 일정" role="group">
       <h3>확정된 방문 일정</h3>
       <p>{label(appointment.startAt,appointment.endAt)}</p>
-      <p>{appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?"세입자가 부재 중 출입에 동의한 시간 안에서 정한 방문입니다.":"세입자가 확정한 방문 시간입니다."}</p>
+      <p>{appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?"세입자가 부재 중 출입에 동의한 시간 안에서 정한 방문이에요.":"세입자가 확정한 방문 시간이에요."}</p>
       {future(appointment.startAt)&&round?.status==="CONFIRMED"?(schedule.rescheduling?<div className={styles.confirm} role="group" aria-labelledby="vendor-reschedule-confirm">
         <h3 id="vendor-reschedule-confirm">방문 일정을 바꿀까요?</h3>
-        <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 세입자와 새로 일정을 조율해야 합니다.</p>
+        <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 세입자와 새로 일정을 조율해야 해요.</p>
         <button type="button" disabled={submitting} onClick={onReschedule}>일정 변경하기</button>
         <button type="button" disabled={submitting} onClick={()=>onSchedule({rescheduling:false})}>돌아가기</button>
       </div>:<button type="button" disabled={submitting} onClick={()=>onSchedule({rescheduling:true})}>방문 일정 변경</button>):null}
@@ -737,7 +737,7 @@ function WorkEvidence({job,schedule,submitting,onSchedule,onStartVisit,onRecordB
       <p>{BLOCKER_LABELS[blocker.code]}</p>
       {blocker.note?<p>{blocker.note}</p>:null}
       {work==="clear"?<form className={styles.form} onSubmit={event=>{event.preventDefault();onClearBlocker();}}>
-        {follow?<p>추가 방문 일정 조율을 시작합니다. 이 막힘은 해제된 것으로 기록되고, 이전 방문 기록은 그대로 남습니다.</p>:null}
+        {follow?<p>추가 방문 일정 조율을 시작해요. 이 막힘은 해제된 것으로 기록되고, 이전 방문 기록은 그대로 남아요.</p>:null}
         {noteField}
         <button type="submit" disabled={submitting}>{follow?"추가 방문 일정 조율 시작":"막힘 해제 기록"}</button>
         <button type="button" disabled={submitting} onClick={()=>onSchedule({work:null})}>돌아가기</button>
@@ -745,8 +745,8 @@ function WorkEvidence({job,schedule,submitting,onSchedule,onStartVisit,onRecordB
     </div>:null}
     {appointment&&!blocker&&!schedule.rescheduling?(work==="visit"?<div className={styles.confirm} role="group" aria-labelledby="vendor-visit-confirm">
       <h3 id="vendor-visit-confirm">방문을 시작할까요?</h3>
-      <p>방문을 시작하면 이 방문 일정은 진행된 것으로 기록되며 되돌릴 수 없습니다.</p>
-      {appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?<p>세입자가 출입에 동의한 시간 안에서만 시작할 수 있습니다. 동의한 시간이 지나면 방문을 시작할 수 없습니다. 이 경우 관리자에게 문의해 주세요.</p>:null}
+      <p>방문을 시작하면 이 방문 일정은 진행된 것으로 기록되며 되돌릴 수 없어요.</p>
+      {appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?<p>세입자가 출입에 동의한 시간 안에서만 시작할 수 있어요. 동의한 시간이 지나면 방문을 시작할 수 없어요. 이 경우 관리자에게 문의해 주세요.</p>:null}
       <button type="button" disabled={submitting} onClick={onStartVisit}>방문 시작 기록</button>
       <button type="button" disabled={submitting} onClick={()=>onSchedule({work:null})}>돌아가기</button>
     </div>:work===null?<button type="button" disabled={submitting} onClick={()=>onSchedule({work:"visit"})}>방문 시작</button>:null):null}
@@ -760,9 +760,9 @@ function WorkEvidence({job,schedule,submitting,onSchedule,onStartVisit,onRecordB
       </fieldset>
       {noteField}
       {followUpChosen?<div className={styles.confirm} role="group" aria-label="추가 방문 필요 확인">
-        <p>추가 방문 필요를 기록하면, 이 막힘을 해제할 때 추가 방문 일정 조율이 시작되고 추가 방문을 마치기 전에는 작업 보고를 할 수 없습니다.</p>
-        <label className={styles.choice}><input type="checkbox" checked={schedule.followUpAck} onChange={event=>onSchedule({followUpAck:event.target.checked})}/><span>추가 방문이 필요함을 확인했습니다</span></label>
-      </div>:<p>막힘은 현재 진행 상태 위에 표시되며, 방문 일정과 기록은 바뀌지 않습니다.</p>}
+        <p>추가 방문 필요를 기록하면, 이 막힘을 해제할 때 추가 방문 일정 조율이 시작되고 추가 방문을 마치기 전에는 작업 보고를 할 수 없어요.</p>
+        <label className={styles.choice}><input type="checkbox" checked={schedule.followUpAck} onChange={event=>onSchedule({followUpAck:event.target.checked})}/><span>추가 방문이 필요함을 확인했어요</span></label>
+      </div>:<p>막힘은 현재 진행 상태 위에 표시되며, 방문 일정과 기록은 바뀌지 않아요.</p>}
       <button type="submit" disabled={submitting||!chosen||(followUpChosen&&!schedule.followUpAck)}>막힘 기록하기</button>
       <button type="button" disabled={submitting} onClick={()=>onSchedule({work:null,blockerCode:null,note:""})}>돌아가기</button>
     </form>:work===null?<button type="button" disabled={submitting} onClick={()=>onSchedule({work:"record",blockerCode:null,followUpAck:false,note:""})}>막힘 기록</button>:null):null}
@@ -773,8 +773,8 @@ function WorkEvidence({job,schedule,submitting,onSchedule,onStartVisit,onRecordB
 function ReportedView({job}:{job:VendorJobDto}){
   const report=job.currentReport;
   return <div role="group" aria-labelledby="vendor-reported">
-    <h3 id="vendor-reported">작업 보고를 제출했습니다</h3>
-    <p>관리자가 확인하고 있습니다. 확인이 끝날 때까지 보고 내용을 바꿀 수 없습니다.</p>
+    <h3 id="vendor-reported">작업 보고를 제출했어요</h3>
+    <p>관리자가 확인하고 있어요. 확인이 끝날 때까지 보고 내용을 바꿀 수 없어요.</p>
     {report?<dl className={styles.facts}>
       <dt>작업 내용 요약</dt><dd>{report.workSummary}</dd>
       {report.componentOrPartNote?<><dt>사용한 부품·자재</dt><dd>{report.componentOrPartNote}</dd></>:null}
@@ -798,13 +798,13 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
     ...(acknowledged?[]:["현재 작업 요청 내용을 확인했다고 표시해 주세요."]),
   ];
   if(completion.status==="uncertain"&&completion.sent)return <div className={styles.confirm} role="group" aria-label="작업 보고 결과 확인">
-    <p role="alert">작업 보고 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.</p>
+    <p role="alert">작업 보고 결과를 확인하지 못했어요. 새 요청을 만들지 않고 같은 요청으로 결과를 확인해요.</p>
     <button type="button" onClick={onRetryReport}>같은 요청으로 결과 확인</button>
   </div>;
   return <form className={styles.form} aria-labelledby="vendor-completion" onSubmit={event=>{event.preventDefault();onCompletion({confirming:true});}}>
     <h3 id="vendor-completion">{job.correctionRequest?"작업 보고 수정":"작업 보고"}</h3>
     {job.correctionRequest?<p>관리자 수정 요청: {job.correctionRequest.reason}</p>:null}
-    <p>작업 보고는 맡은 작업을 마쳤다는 업체의 보고입니다. 관리자가 내용을 확인합니다.</p>
+    <p>작업 보고는 맡은 작업을 마쳤다는 업체의 보고예요. 관리자가 내용을 확인해요.</p>
     {completion.notice?<p role="alert">{completion.notice}</p>:null}
     <fieldset disabled={busy}>
       <legend>작업 사진 (선택, 최대 5장 포함)</legend>
@@ -813,7 +813,7 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
           onChange={event=>{const files=Array.from(event.target.files??[]);event.target.value="";if(files.length)onPickPhotos(files);}}/>
       </label>
       {completion.uploadStatus==="uncertain"?<div role="group" aria-label="사진 업로드 결과 확인">
-        <p role="alert">사진 업로드 결과를 확인하지 못했습니다. 새 요청을 만들지 않고 같은 요청으로 결과를 확인합니다.</p>
+        <p role="alert">사진 업로드 결과를 확인하지 못했어요. 새 요청을 만들지 않고 같은 요청으로 결과를 확인해요.</p>
         <button type="button" onClick={onRetryUpload}>같은 요청으로 사진 업로드 다시 확인</button>
       </div>:null}
       {completion.uploads.map((item,index)=><div key={item.photoId}>
@@ -837,11 +837,11 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
       <textarea aria-label="사용한 부품·자재" maxLength={500} value={completion.note} disabled={busy} onChange={event=>onCompletion({note:event.target.value})}/>
     </label>
     <label className={styles.choice}><input type="checkbox" checked={acknowledged} disabled={busy} onChange={event=>onCompletion({ackPacketId:event.target.checked?job.currentPacket!.id:null})}/>
-      <span>현재 작업 요청 내용({job.currentPacket.revision}번째 게시본)을 확인했습니다</span></label>
+      <span>현재 작업 요청 내용({job.currentPacket.revision}번째 게시본)을 확인했어요</span></label>
     {/* A change that makes the report incomplete during the confirm step shows the missing list again instead of a silently disabled button. */}
     {completion.confirming&&ready?<div className={styles.confirm} role="group" aria-labelledby="vendor-completion-confirm">
       <h3 id="vendor-completion-confirm">작업 보고를 제출할까요?</h3>
-      <p>작업 보고를 제출하면 관리자가 확인할 때까지 수정할 수 없습니다.</p>
+      <p>작업 보고를 제출하면 관리자가 확인할 때까지 수정할 수 없어요.</p>
       <button type="button" disabled={busy||!ready} onClick={onSubmitReport}>작업 보고 제출하기</button>
       <button type="button" disabled={busy} onClick={()=>onCompletion({confirming:false})}>돌아가기</button>
     </div>:<>
@@ -856,7 +856,7 @@ function CompletionForm({job,completion:held,completionPhotoPath,onCompletion,on
 
 function Packet({job,photoPath}:{job:VendorJobDto;photoPath:(id:string)=>string}){
   const packet=job.currentPacket;
-  if(!packet)return <section className={styles.card} aria-labelledby="vendor-packet"><h2 id="vendor-packet">업체 전달 내용</h2><p>아직 게시된 업체 전달 내용이 없습니다.</p></section>;
+  if(!packet)return <section className={styles.card} aria-labelledby="vendor-packet"><h2 id="vendor-packet">업체 전달 내용</h2><p>아직 게시된 업체 전달 내용이 없어요.</p></section>;
   return <section className={styles.card} aria-labelledby="vendor-packet">
     <h2 id="vendor-packet">업체 전달 내용</h2>
     <dl className={styles.facts}>

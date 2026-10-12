@@ -19,7 +19,7 @@ test('T12-B01 mounted Manager issue survives own refresh; browser redeem is not 
       expect(await v.page.locator('#vendor-current-task').evaluate(e => Boolean(e.closest('section')?.nextElementSibling?.querySelector('#vendor-packet'))), 'task before packet').toBe(true);
       await keyboardClick(v.page, '작업 수락'); expect((await job(v.context)).status).toBe('ACTIVE');
       const reuse = await browser.newContext({ baseURL: fixture.origin });
-      try { const p = await reuse.newPage(); await safeGoto(p, link, 'reused capability'); await expect(p.getByRole('heading', { name: '작업 화면을 열 수 없습니다', exact: true })).toBeVisible(); await expect(p.getByRole('button', { name: '작업 수락', exact: true })).toHaveCount(0); } finally { await reuse.close(); }
+      try { const p = await reuse.newPage(); await safeGoto(p, link, 'reused capability'); await expect(p.getByRole('heading', { name: '작업 화면을 열 수 없어요', exact: true })).toBeVisible(); await expect(p.getByRole('button', { name: '작업 수락', exact: true })).toHaveCount(0); } finally { await reuse.close(); }
     } finally { await v.close(); }
     await click(m.page, '업체 연결 상태 다시 확인'); expect(await m.page.getByLabel('직접 전달할 보안 링크', { exact: true }).count()).toBe(0);
     await expect(m.page.getByRole('button', { name: '보안 링크 재발급', exact: true })).toBeVisible();
@@ -58,7 +58,7 @@ test('T12-B03 preauthorization starts OFF, explicit selected consent links conta
     await expect(consent).toBeVisible(); expect(await consent.getByRole('checkbox').isChecked()).toBe(false);
     await expect(t.page.getByRole('button', { name: '선택한 시간 동의 확인', exact: true })).toBeDisabled();
     await consent.getByRole('checkbox').check(); await keyboardClick(t.page, '선택한 시간 동의 확인');
-    const confirmation = t.page.getByRole('group', { name: '출입 동의 확인', exact: true }); await expect(confirmation.getByText('선택한 시간에만 세입자 없이 출입할 수 있습니다. 다른 시간에는 동의가 적용되지 않습니다.', { exact: true })).toBeVisible();
+    const confirmation = t.page.getByRole('group', { name: '출입 동의 확인', exact: true }); await expect(confirmation.getByText('선택한 시간에만 세입자 없이 출입할 수 있어요. 다른 시간에는 동의가 적용되지 않아요.', { exact: true })).toBeVisible();
     await keyboardClick(t.page, '동의하기'); await v.page.reload(); await v.page.getByRole('radio', { name: /오전 11:00.*오후 1:00/ }).check();
     await interval(v.page, '동의된 시간 안의 방문 시간', '11:30', '12:30'); await keyboardClick(v.page, '동의된 시간 안에서 방문 확정');
     const j = await job(v.context); expect(j.appointment.confirmationMode).toBe('PREAUTHORIZED_ENTRY');
@@ -96,8 +96,8 @@ test('T12-B05 browser Decline and scheduling-aware Withdraw terminate access and
   for (const mode of ['decline', 'withdraw']) {
     const c = await provision(fixture), v = await vendorContext(browser, fixture, c.link);
     try {
-      if (mode === 'decline') { await click(v.page, '작업 거절'); await v.page.getByRole('radio', { name: '일정·인력 여유가 없음', exact: true }).check(); await click(v.page, '거절 내용 확인'); await keyboardClick(v.page, '거절하기'); await expect(v.page.getByRole('heading', { name: '작업 요청을 거절했습니다', exact: true })).toBeVisible(); }
-      else { await click(v.page, '작업 수락'); const before = await scheduled(fixture, v.context, c.ticketId); await v.page.reload(); await click(v.page, '작업 철회'); await click(v.page, '철회 내용 확인'); await keyboardClick(v.page, '철회하기'); await expect(v.page.getByRole('heading', { name: '작업을 철회했습니다', exact: true })).toBeVisible(); expect((await admin.query('SELECT status FROM vendor_handoff.appointment WHERE id=$1', [before.appointment.id])).rows[0].status).toBe('CANCELLED'); }
+      if (mode === 'decline') { await click(v.page, '작업 거절'); await v.page.getByRole('radio', { name: '일정·인력 여유가 없음', exact: true }).check(); await click(v.page, '거절 내용 확인'); await keyboardClick(v.page, '거절하기'); await expect(v.page.getByRole('heading', { name: '작업 요청을 거절했어요', exact: true })).toBeVisible(); }
+      else { await click(v.page, '작업 수락'); const before = await scheduled(fixture, v.context, c.ticketId); await v.page.reload(); await click(v.page, '작업 철회'); await click(v.page, '철회 내용 확인'); await keyboardClick(v.page, '철회하기'); await expect(v.page.getByRole('heading', { name: '작업을 철회했어요', exact: true })).toBeVisible(); expect((await admin.query('SELECT status FROM vendor_handoff.appointment WHERE id=$1', [before.appointment.id])).rows[0].status).toBe('CANCELLED'); }
       expect((await v.context.request.get('/api/v2/vendor/job')).status()).toBe(401); const m = await core(fixture, 'manager', `manager/tickets/${c.ticketId}/vendor-handoff`); expect(m.assignment.endReason).toBe(mode === 'decline' ? 'DECLINED' : 'WITHDRAWN');
     } finally { await v.close(); }
   }
@@ -110,9 +110,9 @@ test('T12-B06 issue response loss reconciles unrecoverable raw link and requires
     let posts = 0;
     await routeOnce(m.page, '**/api/v2/core/manager/vendor-assignments/*/link/reissue', async route => { posts++; await route.fetch(); await route.abort('failed'); });
     await m.page.getByRole('button', { name: '보안 링크 재발급', exact: true }).focus(); await m.page.keyboard.press('Enter'); await expect(m.page.getByRole('button', { name: '같은 요청으로 발급 결과 확인', exact: true })).toBeVisible();
-    await keyboardClick(m.page, '같은 요청으로 발급 결과 확인'); await expect(m.page.getByText('발급 기록을 확인했습니다. 원래 링크는 다시 표시할 수 없습니다.', { exact: true })).toBeVisible();
+    await keyboardClick(m.page, '같은 요청으로 발급 결과 확인'); await expect(m.page.getByText('발급 기록을 확인했어요. 원래 링크는 다시 표시할 수 없어요.', { exact: true })).toBeVisible();
     expect(await m.page.getByLabel('직접 전달할 보안 링크', { exact: true }).count()).toBe(0); expect(posts).toBe(1); await forbiddenCopy(m.page);
-    await keyboardClick(m.page, '보안 링크 재발급'); await expect(m.page.getByText('보안 링크를 발급했습니다. 업체에 직접 전달하세요.', { exact: true })).toBeVisible(); expect(await m.page.getByLabel('직접 전달할 보안 링크', { exact: true }).count()).toBe(1);
+    await keyboardClick(m.page, '보안 링크 재발급'); await expect(m.page.getByText('보안 링크를 발급했어요. 업체에 직접 전달하세요.', { exact: true })).toBeVisible(); expect(await m.page.getByLabel('직접 전달할 보안 링크', { exact: true }).count()).toBe(1);
   } finally { await m.close(); }
 });
 
@@ -144,7 +144,7 @@ test('T12-B02 resident UI schedules immutable visits, blocker FOLLOW_UP, photo-l
     await v.page.reload(); await keyboardClick(v.page, '방문 시작'); await keyboardClick(v.page, '방문 시작 기록'); expect((await job(v.context)).appointment.status).toBe('OCCURRED');
     await click(v.page, '막힘 기록'); await v.page.getByRole('radio', { name: '부품 필요', exact: true }).check(); await click(v.page, '막힘 기록하기');
     expect((await job(v.context)).activeBlocker.code).toBe('PARTS_REQUIRED'); await click(v.page, '막힘 해제'); await click(v.page, '막힘 해제 기록'); expect((await job(v.context)).activeBlocker).toBeNull();
-    await click(v.page, '막힘 기록'); await v.page.getByRole('radio', { name: '추가 방문 필요', exact: true }).check(); await v.page.getByRole('checkbox', { name: '추가 방문이 필요함을 확인했습니다', exact: true }).check(); await click(v.page, '막힘 기록하기');
+    await click(v.page, '막힘 기록'); await v.page.getByRole('radio', { name: '추가 방문 필요', exact: true }).check(); await v.page.getByRole('checkbox', { name: '추가 방문이 필요함을 확인했어요', exact: true }).check(); await click(v.page, '막힘 기록하기');
     await click(v.page, '추가 방문 일정 잡기'); await click(v.page, '추가 방문 일정 조율 시작');
     j = await job(v.context); expect(j.currentRound.purpose).toBe('FOLLOW_UP');
     const occurred = (await admin.query('SELECT status,start_at,end_at FROM vendor_handoff.appointment WHERE id=$1', [firstId])).rows[0]; expect(occurred.status).toBe('OCCURRED');
@@ -181,8 +181,8 @@ test('T12-B02 resident UI schedules immutable visits, blocker FOLLOW_UP, photo-l
     await expect(v.page.getByRole('group',{name:'작업 보고 결과 확인',exact:true})).toBeVisible();expect(reportRecoveryOrder).toEqual(['POST']);reportRecoveryOrder.length=0;
     // Recovery is observed until authoritative state renders, and again until the Vendor page is next driven for the correction.
     await keyboardClick(v.page,'같은 요청으로 결과 확인');
-    await expect(v.page.getByRole('heading', { name: '작업 보고를 제출했습니다', exact: true })).toBeVisible();expect(reportRecoveryOrder).toEqual(['GET']);expect(reportPosts).toBe(1);
-    expect(await v.page.getByRole('group', { name: '작업 보고를 제출했습니다', exact: true }).evaluate(e => /success|green/i.test(e.className)), 'report uses neutral/primary treatment').toBe(false); await forbiddenCopy(v.page);
+    await expect(v.page.getByRole('heading', { name: '작업 보고를 제출했어요', exact: true })).toBeVisible();expect(reportRecoveryOrder).toEqual(['GET']);expect(reportPosts).toBe(1);
+    expect(await v.page.getByRole('group', { name: '작업 보고를 제출했어요', exact: true }).evaluate(e => /success|green/i.test(e.className)), 'report uses neutral/primary treatment').toBe(false); await forbiddenCopy(v.page);
     for (const name of ['방문 시작', '막힘 기록', '작업 철회', '방문 시간 제안하기']) await expect(v.page.getByRole('button', { name, exact: true })).toHaveCount(0);
     const initial = await job(v.context); expect(initial.phase).toBe('COMPLETION_REPORTED'); expect((await core(fixture, 'manager', `tickets/${c.ticketId}`)).workStatus).toBe('IN_PROGRESS');
     await openTicket(manager.page, c.ticketId, true); await click(manager.page, '보고 수정 요청'); await manager.page.getByLabel('수정 요청 사유', { exact: true }).fill('Task12 synthetic correction'); await click(manager.page, '확인한 내용 저장');
@@ -212,7 +212,7 @@ test('T12-B02 resident UI schedules immutable visits, blocker FOLLOW_UP, photo-l
     const fact = manager.page.getByRole('region', { name: '호실 정비 사실 기록', exact: true });
     await expect(fact).toBeVisible(); expect(await fact.getByLabel('정비 부품·위치 명칭').inputValue()).toBe('');
     await fact.getByLabel('정비 작업 종류').selectOption('REPAIR'); await fact.getByLabel('정비 부품·위치 명칭').fill('Task12 independent synthetic component'); await keyboardClick(manager.page, '정비 사실 저장');
-    await expect(fact.getByText('정비 사실 요청의 저장을 확인했습니다.', { exact: true })).toBeVisible();
+    await expect(fact.getByText('정비 사실 요청의 저장을 확인했어요.', { exact: true })).toBeVisible();
     await openTicket(tenant.page, c.ticketId); await click(tenant.page, '다시 문제가 생겼어요');
     await expect(tenant.page.getByLabel('문제 설명', { exact: true })).toHaveValue(''); await tenant.page.getByLabel('문제 설명', { exact: true }).fill('Task12 fresh recurrence symptom');
     const made = tenant.page.waitForResponse(r => r.url().endsWith('/follow-up') && r.request().method() === 'POST'); await keyboardClick(tenant.page, '접수하기'); const fresh = await made; expect(fresh.status()).toBe(201); const newId = (await fresh.json()).ticket.ticketId; expect(newId === c.ticketId).toBe(false);
@@ -233,9 +233,9 @@ test('T12-B08 live security headers, methods, query rejection and deterministic 
     const lifetime = (await admin.query("SELECT extract(epoch FROM expires_at-created_at)::int seconds FROM vendor_handoff.vendor_session WHERE assignment_id=$1", [c.assignmentId])).rows; expect(lifetime[0].seconds).toBe(7 * 86400);
     // Deterministic boundary fixture: expiry at current DB clock, no application clock override.
     await admin.query("UPDATE vendor_handoff.vendor_session SET created_at=clock_timestamp()-interval '7 days',expires_at=clock_timestamp() WHERE assignment_id=$1", [c.assignmentId]);
-    expect((await v.context.request.get('/api/v2/vendor/job')).status()).toBe(401); await v.page.reload(); await expect(v.page.getByRole('heading', { name: '작업 화면을 열 수 없습니다', exact: true })).toBeVisible();
+    expect((await v.context.request.get('/api/v2/vendor/job')).status()).toBe(401); await v.page.reload(); await expect(v.page.getByRole('heading', { name: '작업 화면을 열 수 없어요', exact: true })).toBeVisible();
     const expired = await provision(fixture); await admin.query("UPDATE vendor_handoff.vendor_capability SET issued_at=clock_timestamp()-interval '72 hours',expires_at=clock_timestamp() WHERE assignment_id=$1", [expired.assignmentId]);
-    const ctx = await browser.newContext({ baseURL: fixture.origin }); try { const p = await ctx.newPage(); await safeGoto(p, expired.link, 'expired capability boundary'); await expect(p.getByRole('heading', { name: '작업 화면을 열 수 없습니다', exact: true })).toBeVisible(); } finally { await ctx.close(); }
+    const ctx = await browser.newContext({ baseURL: fixture.origin }); try { const p = await ctx.newPage(); await safeGoto(p, expired.link, 'expired capability boundary'); await expect(p.getByRole('heading', { name: '작업 화면을 열 수 없어요', exact: true })).toBeVisible(); } finally { await ctx.close(); }
   } finally { await v.close(); }
 });
 
@@ -288,7 +288,7 @@ for (const mode of ['REVOKE', 'REASSIGN'] as const) test(`T12-B10 Manager ${mode
     let j = await job(v.context); j = await vendorPost(v.context, fixture.origin, 'blockers', { clientRequestId: randomUUID(), expectedAssignmentVersion: j.assignmentVersion, expectedPacketRevisionId: c.packetId, blockerCode: 'FOLLOW_UP_VISIT_REQUIRED', operationalNote: null });
     await vendorPost(v.context, fixture.origin, `blockers/${j.activeBlocker.id}/clear`, { clientRequestId: randomUUID(), expectedAssignmentVersion: j.assignmentVersion, expectedPacketRevisionId: c.packetId, operationalNote: null });
     const future = await scheduled(fixture, v.context, c.ticketId);
-    await openTicket(m.page, c.ticketId, true); await keyboardClick(m.page, '보안 링크 재발급'); await expect(m.page.getByText('보안 링크를 발급했습니다. 업체에 직접 전달하세요.', { exact: true })).toBeVisible(); expect(await m.page.getByLabel('직접 전달할 보안 링크', { exact: true }).count()).toBe(1);
+    await openTicket(m.page, c.ticketId, true); await keyboardClick(m.page, '보안 링크 재발급'); await expect(m.page.getByText('보안 링크를 발급했어요. 업체에 직접 전달하세요.', { exact: true })).toBeVisible(); expect(await m.page.getByLabel('직접 전달할 보안 링크', { exact: true }).count()).toBe(1);
     if (mode === 'REVOKE') await keyboardClick(m.page, '업체 접근 철회');
     else { await click(m.page, '업체 재배정'); await m.page.getByLabel('새 업체 표시 이름', { exact: true }).fill('Task12 replacement Vendor'); await keyboardClick(m.page, '확인한 내용 저장'); }
     expect(await m.page.getByLabel('직접 전달할 보안 링크', { exact: true }).count()).toBe(0); expect((await v.context.request.get('/api/v2/vendor/job')).status()).toBe(401);
