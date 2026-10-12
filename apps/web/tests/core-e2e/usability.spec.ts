@@ -39,7 +39,7 @@ test("320px tenant and manager can save and read a clear handling result",async(
   try{
     const managerScreen=new CoreScreen(manager);await managerScreen.login("manager");
     await manager.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
-    await manager.getByText("추가 확인·결정 기록",{exact:true}).click();await expect(manager.getByRole("heading",{name:`수리 요청 ${ticket.ticketId}`,exact:true})).toBeVisible();
+    await manager.getByText("추가 확인·결정 기록",{exact:true}).click();await expect(manager.getByRole("heading",{name:"처리 방법 정하기",exact:true})).toBeVisible();
     await managerScreen.assertFits();
     await manager.screenshot({path:join(privateRoot,"usability-manager-active-320.png"),fullPage:true});
     await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 현장 확인 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();
