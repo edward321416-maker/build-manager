@@ -3,7 +3,7 @@
 // Requires the pinned Node, Docker and a production Web build (npm run build:web). Synthetic data only; the pages load the
 // Pretendard font from cdn.jsdelivr.net and nothing else leaves this machine. The container and the private state folder
 // the fixture writes are removed at the end, on failure and on Ctrl+C.
-// Checks (the first five came from operator feedback recorded in the rules, §18):
+// Checks (all but tap and coverage came from operator feedback recorded in the rules, §18):
 //   edge-box   text closer than 6px to a box edge that is visible (background or border on that side)
 //   edge-view  text closer than 16px to the left or right of the viewport
 //   top        first text closer than 10px to the top of the page
@@ -12,6 +12,9 @@
 //   tap        a button, link, field or summary smaller than 50x50px (rules §5); for a checkbox, a radio or a visually
 //              hidden input its visible label is measured (added after the PR 122 end review found 60x45px photo
 //              buttons). The one exception: up to 767px the /core top menu links need only 40px height (rules §16).
+//   center     text not in the middle of its button, link, tab, summary, option label or status label: the space above
+//              and below differs by 2px or more, or, in a box with a visible fill or border holding one line, the space
+//              left and right does (rules §4). List rows, summary rows and the 1024px+ left menu start at the left.
 //   coverage   a requested engine did not start, or a screen that should exist could not be reached
 // Exit code 1 when any finding remains, so it can gate a design change.
 import { createRequire } from "node:module";
@@ -52,7 +55,7 @@ function inspect() {
     let a = el.parentElement, under = "rgb(255, 255, 255)";
     while (a) { const c = getComputedStyle(a).backgroundColor; if (!transparent(c)) { under = c; break; } a = a.parentElement; }
     if (!transparent(cs.backgroundColor) && cs.backgroundColor !== under) ["left", "right", "top", "bottom"].forEach(s => sides.add(s));
-    for (const s of ["Top", "Right", "Bottom", "Left"]) if (parseFloat(cs["border" + s + "Width"]) > 0 && cs["border" + s + "Style"] !== "none") sides.add(s.toLowerCase());
+    for (const s of ["Top", "Right", "Bottom", "Left"]) if (parseFloat(cs["border" + s + "Width"]) > 0 && cs["border" + s + "Style"] !== "none" && !transparent(cs["border" + s + "Color"])) sides.add(s.toLowerCase());
     if (el.tagName === "FIELDSET") sides.delete("top"); // the legend sits on the top border by design
     return sides;
   };
@@ -104,6 +107,30 @@ function inspect() {
   for (const el of taps) {
     const r = el.getBoundingClientRect(), minHeight = phoneMenu(el) ? 40 : 50;
     if (r.width < 49.5 || r.height < minHeight - .5) result.push({ check: "tap", where: label(el), detail: `${Math.round(r.width)}x${Math.round(r.height)}px, needs 50x${minHeight}` });
+  }
+  // Operator request 2026-10-13 (rules §4): text sits in the middle of its box. The content is the text, icons, images,
+  // visible inputs and inner boxes such as a status label inside a button. A text line counts at its full line height,
+  // which is what CSS centres; browsers report only the glyph area, and Chromium and WebKit report it differently.
+  const contentRect = el => {
+    const u = { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity };
+    const add = (r, line = 0) => { if (r.width <= 0 || r.height <= 0) return; const pad = Math.max(0, (line - r.height) / 2); u.left = Math.min(u.left, r.left); u.right = Math.max(u.right, r.right); u.top = Math.min(u.top, r.top - pad); u.bottom = Math.max(u.bottom, r.bottom + pad); };
+    const visit = node => { for (const c of node.childNodes) {
+      if (c.nodeType === 3) { if (c.textContent.trim()) { const line = parseFloat(getComputedStyle(c.parentElement).lineHeight) || 0; rects(c).forEach(r => add(r, line)); } continue; }
+      if (c.nodeType !== 1 || hiddenText(c)) continue;
+      if (c.matches("img, svg, canvas, video, input") || visibleSides(c).size) { add(c.getBoundingClientRect()); continue; }
+      visit(c);
+    } };
+    visit(el); return u.left === Infinity ? null : u;
+  };
+  // List rows, summary rows and the 1024px+ left menu start at the left, so only their top and bottom are compared.
+  const leftStart = el => el.matches("summary, li > button") || (innerWidth >= 1024 && el.matches(".core-account nav a, .core-account .core-logout"));
+  for (const el of new Set([...taps, ...document.querySelectorAll("[class*='badge'], span[data-work-state], span[data-intake-state]")])) {
+    if (hiddenText(el) || el.matches("select, textarea, input")) continue;
+    const c = contentRect(el); if (!c) continue;
+    const r = el.getBoundingClientRect(), cs = getComputedStyle(el), gap = { top: c.top - r.top, bottom: r.bottom - c.bottom, left: c.left - r.left, right: r.right - c.right };
+    const oneLine = c.bottom - c.top < 2 * (parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.25);
+    const pairs = [["top", "bottom"], ...(oneLine && !leftStart(el) && visibleSides(el).size ? [["left", "right"]] : [])];
+    for (const [a, b] of pairs) if (Math.abs(gap[a] - gap[b]) >= 2) result.push({ check: "center", where: label(el), detail: `${a} ${Math.round(gap[a])}px, ${b} ${Math.round(gap[b])}px` });
   }
   if (document.documentElement.scrollWidth > vw) result.push({ check: "hscroll", where: "page", detail: `${document.documentElement.scrollWidth}px wide in ${vw}px` });
   return result;
