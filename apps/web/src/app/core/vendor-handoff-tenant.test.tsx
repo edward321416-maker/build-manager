@@ -99,7 +99,7 @@ describe("Tenant Vendor scheduling task zone",()=>{
     const f=fake(scheduled);
     await mount(f.client);
     const appointment=host.querySelector("[data-current-appointment]")!;
-    expect(appointment.textContent).toContain("10월 7일(수) 오후 2:00–3:00");
+    expect(appointment.textContent).toContain("10월 7일 (수) 오후 2:00–3:00");
     expect(zone()?.contains(appointment)??false).toBe(false);
     expect(page().includes("합성 업체")).toBe(false);
   });
@@ -121,10 +121,10 @@ describe("Tenant Vendor scheduling task zone",()=>{
     await mount(f.client);
     expect(Array.from(host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')).every(x=>!x.checked)).toBe(true);
     expect(f.vendorHandoff.authorizeEntry).not.toHaveBeenCalled();
-    await check("10월 7일(수) 오후 2:00–4:00");
+    await check("10월 7일 (수) 오후 2:00–4:00");
     await click("선택한 시간 동의 확인");
     expect(page()).toContain("선택한 시간에만 세입자 없이 출입할 수 있습니다");
-    expect(page()).toContain("10월 7일(수) 오후 2:00–4:00");
+    expect(page()).toContain("10월 7일 (수) 오후 2:00–4:00");
     expect(f.vendorHandoff.authorizeEntry).not.toHaveBeenCalled();
     await click("동의하기");
     expect(f.vendorHandoff.authorizeEntry.mock.calls[0][1]).toMatchObject({availabilitySubmissionId:subId,selectedWindowIds:[w1],expectedRoundVersion:2});
@@ -140,11 +140,11 @@ describe("Tenant Vendor scheduling task zone",()=>{
     const proposal={id:propId,slots:[{id:s1,startAt:"2026-10-06T01:00:00Z",endAt:"2026-10-06T02:00:00Z"},{id:s2,startAt:"2026-10-07T05:00:00Z",endAt:"2026-10-07T06:00:00Z"}],createdAt:"2026-10-06T00:30:00Z"};
     const f=fake(dto({availability,proposal}));
     await mount(f.client);
-    expect(page().includes("10월 6일(화) 오전 10:00–11:00")).toBe(false);
-    await check("10월 7일(수) 오후 2:00–3:00");
+    expect(page().includes("10월 6일 (화) 오전 10:00–11:00")).toBe(false);
+    await check("10월 7일 (수) 오후 2:00–3:00");
     await click("이 시간으로 확정");
     expect(f.vendorHandoff.confirmSlot.mock.calls[0][1]).toMatchObject({proposalId:propId,selectedSlotId:s2,expectedRoundVersion:2});
-    expect(host.querySelector("[data-current-appointment]")?.textContent).toContain("10월 7일(수) 오후 2:00–3:00");
+    expect(host.querySelector("[data-current-appointment]")?.textContent).toContain("10월 7일 (수) 오후 2:00–3:00");
   });
   it("asks for new availability when every proposed slot has expired",async()=>{
     const proposal={id:propId,slots:[{id:s1,startAt:"2026-10-06T01:00:00Z",endAt:"2026-10-06T02:00:00Z"}],createdAt:"2026-10-06T00:30:00Z"};
@@ -207,19 +207,19 @@ describe("Task6 review remediation (Tenant)",()=>{
     const f=fake(preauth(),{readScheduling:async()=>++reads===1?preauth():replaced,
       authorizeEntry:async()=>{if(conflict){conflict=false;throw http(409,"STATE_CONFLICT");}return replaced;}});
     await mount(f.client);
-    await check("10월 7일(수) 오후 2:00–4:00");
+    await check("10월 7일 (수) 오후 2:00–4:00");
     await click("선택한 시간 동의 확인");
-    expect(confirmGroup()).toContain("10월 7일(수) 오후 2:00–4:00");
-    expect(confirmGroup().includes("10월 8일(목)")).toBe(false);
+    expect(confirmGroup()).toContain("10월 7일 (수) 오후 2:00–4:00");
+    expect(confirmGroup().includes("10월 8일 (목)")).toBe(false);
     expect(confirmGroup()).toContain("따로 다시 확인을 요청하지 않습니다");
     await click("동의하기");
     expect(page()).toContain("최신 일정을 확인해 주세요");
     expect(Array.from(host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')).every(x=>!x.checked)).toBe(true);
     expect(button("선택한 시간 동의 확인")?.disabled).toBe(true);
-    await check("10월 9일(금) 오전 10:00–오후 12:00");
+    await check("10월 9일 (금) 오전 10:00–오후 12:00");
     await click("선택한 시간 동의 확인");
-    expect(confirmGroup()).toContain("10월 9일(금) 오전 10:00–오후 12:00");
-    expect(confirmGroup().includes("10월 7일(수)")).toBe(false);
+    expect(confirmGroup()).toContain("10월 9일 (금) 오전 10:00–오후 12:00");
+    expect(confirmGroup().includes("10월 7일 (수)")).toBe(false);
     await click("동의하기");
     expect(f.vendorHandoff.authorizeEntry.mock.calls[1][1]).toMatchObject({availabilitySubmissionId:subB,selectedWindowIds:[w3]});
   });
@@ -230,9 +230,9 @@ describe("Task6 review remediation (Tenant)",()=>{
     const f=fake(dto({availability,proposal}),{readScheduling:async()=>++reads===1?dto({availability,proposal}):dto({availability,proposal:newer}),
       confirmSlot:async()=>{throw http(409,"STATE_CONFLICT");}});
     await mount(f.client);
-    await check("10월 7일(수) 오후 2:00–3:00");
+    await check("10월 7일 (수) 오후 2:00–3:00");
     await click("이 시간으로 확정");
-    expect(page()).toContain("10월 8일(목) 오후 2:00–3:00");
+    expect(page()).toContain("10월 8일 (목) 오후 2:00–3:00");
     expect(button("이 시간으로 확정")?.disabled).toBe(true);
   });
   it("asks for new availability when every submitted window has passed and promises no containment (M2)",async()=>{
@@ -273,7 +273,7 @@ describe("Task6 review remediation (Tenant)",()=>{
     await click("방문 일정 변경");
     await click("일정 변경하기");
     await click("최신 일정 다시 불러오기");
-    expect(page()).toContain("10월 8일(목) 오후 2:00–3:00");
+    expect(page()).toContain("10월 8일 (목) 오후 2:00–3:00");
     expect(page().includes("기존 방문 일정은 취소되고")).toBe(false);
     expect(button("방문 일정 변경")).toBeDefined();
   });
@@ -320,8 +320,8 @@ describe("WC-M02 Tenant uncertainty",()=>{
     const f=fake(initial,{readScheduling:async()=>{order.push("GET");reads++;if(reads>1&&outcome==="failed")throw network();return reads>1&&outcome==="changed"?{...initial,packetRevisionId:w2}:initial;},[method]:async()=>{order.push("POST");if(++attempts===1)throw network();return dto({availability});}});
     await mount(f.client);
     if(family==="availability"){await type('input[type="date"]',"2026-10-10");await type('input[type="time"]',"10:00",0);await type('input[type="time"]',"12:00",1);await click("가능한 시간 보내기");}
-    if(family==="consent"){await check("10월 7일(수) 오후 2:00–4:00");await click("선택한 시간 동의 확인");await click("동의하기");}
-    if(family==="confirm"){await check("10월 7일(수) 오후 2:00–3:00");await click("이 시간으로 확정");}
+    if(family==="consent"){await check("10월 7일 (수) 오후 2:00–4:00");await click("선택한 시간 동의 확인");await click("동의하기");}
+    if(family==="confirm"){await check("10월 7일 (수) 오후 2:00–3:00");await click("이 시간으로 확정");}
     if(family==="reschedule"){await click("방문 일정 변경");await click("일정 변경하기");}
     expect(page()).toContain("결과를 확인하지 못했습니다");order.length=0;
     await click("같은 요청으로 결과 확인");
