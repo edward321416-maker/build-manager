@@ -38,3 +38,12 @@
 ## 2026-10-10 — Security update
 
 - Redeployed the hosted demo with Next.js 16.3.8 and sharp 0.35.5 (PR #97), fixing the published Next.js and sharp advisories that Dependabot reported. Demo data and settings were kept.
+- Closed the unused Next.js image optimizer route `/_next/image` (PR #106). The hosted demo was redeployed from main, which also brought the tenant intake completion from PR #100. The rollback procedure was rehearsed first and is now in `deploy/vm/README.md`.
+
+## 2026-10-11 — Vendor screen fixes
+
+- Redeployed the hosted demo from main `53428c7` with the Vendor job screen fixes from PR #111 (uploaded work photos go into the report by default, a disabled report button lists what is still missing, and a Tenant's available time can be copied into a proposal) and the lockfile-only tooling update from PR #110. The archive of the previous image was kept on the VM for rollback.
+
+## 2026-10-12 — Photos as required evidence
+
+- Redeployed the hosted demo from main `39e372a` with P1b (PR #116 and #117): after the questions a tenant names one of the ticket's own photos as each required evidence, or sends without one, so a complete request reaches review with a recommended route, and the manager sees which photo was named. Migration 0024 was applied when the new image started. This was the first deploy with `deploy/vm/redeploy.sh`; the archive of the previous image was kept on the VM for rollback.

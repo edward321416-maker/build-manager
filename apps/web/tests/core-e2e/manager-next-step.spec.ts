@@ -1,0 +1,141 @@
+import { test,expect,type APIRequestContext,type Locator,type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { routeOnce } from "../routes";
+
+const privateRoot=join(homedir(),".build-manager-rc1-private");
+const codes=async()=>JSON.parse(await readFile(join(privateRoot,"access-codes.json"),"utf8")) as Record<string,string>;
+async function login(page:Page,who:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill((await codes())[who]);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();}
+const zone=(page:Page)=>page.getByRole("region",{name:"다음 할 일",exact:true});
+async function inView(page:Page,target:Locator){const box=await target.boundingBox();expect(box).not.toBeNull();expect(box!.y).toBeGreaterThanOrEqual(-1);expect(box!.y).toBeLessThan(page.viewportSize()!.height);}
+/** Creates a tenant request; with `submit`, answers every question and submits it. */
+async function tenantRequest(request:APIRequestContext,issueType:"LEAK"|"HEATING",rawUserText:string,submit:boolean){
+  const headers={Authorization:`Bearer ${(await codes()).tenant}`};
+  const unit=(await (await request.get("/api/v2/core/units",{headers})).json())[0].id;
+  const r=await request.post("/api/v2/core/tickets",{headers,data:{unitId:unit,issueType,rawUserText}});expect(r.status()).toBe(201);
+  const t=await r.json();return submit?submitRequest(request,t.ticketId):t;
+}
+/** Answers every remaining question of a tenant request and submits it. */
+async function submitRequest(request:APIRequestContext,ticketId:string){
+  const headers={Authorization:`Bearer ${(await codes()).tenant}`};
+  const post=async(path:string,data:unknown)=>{const r=await request.post(`/api/v2/core/tickets/${ticketId}${path}`,{headers,data});expect(r.status()).toBe(200);return r.json();};
+  let t=await (await request.get(`/api/v2/core/tickets/${ticketId}`,{headers})).json();
+  for(let i=0;i<15&&t.detail.activeQuestion;i++){const q=t.detail.activeQuestion;t=await post("/answers",{questionId:q.questionId,answer:q.responseType==="YES_NO"?false:q.responseType==="SINGLE_SELECT"?q.options[0].value:"합성 답변"});}
+  return post("/finalize",{});
+}
+
+// Menu audit F-04/F-05/F-06: the manager sees the next step by state at the top, and its button opens the folded section.
+test("manager next step leads from the route decision through handling to the maintenance fact at 390px",async({request,page})=>{
+  const draft=await tenantRequest(request,"LEAK","합성 다음 할 일 제출 전",false),t=await tenantRequest(request,"HEATING","합성 다음 할 일 흐름",true);
+  await page.setViewportSize({width:390,height:844});await login(page,"manager");
+  // Queue rows name only the intake step that the screen's ticket list can prove.
+  const row=(id:string)=>page.locator(`[data-ticket-id="${id}"]`);
+  await expect(row(draft.ticketId).locator('[data-work-state="DRAFT"]')).toHaveText("제출 전");
+  await expect(row(t.ticketId)).toContainText("처리 방법 결정 필요");
+  await row(t.ticketId).locator("[data-open-ticket]").click();
+  await expect(zone(page)).toContainText("처리 방법을 정해 주세요.");
+  await zone(page).getByRole("button",{name:"처리 방법 정하기",exact:true}).click();
+  const decision=page.locator("#ticket-decision");
+  await expect(decision).toHaveJSProperty("open",true);await expect(decision.locator("summary")).toBeFocused();await inView(page,decision);
+  await decision.getByLabel("직접 지정할 경로").selectOption({label:"관리사무소"});await decision.getByLabel("지정 사유").fill("합성 관리사무소 처리");
+  await decision.getByRole("button",{name:"경로 직접 지정",exact:true}).click();
+  // The decision refreshes the step without reopening the request; the row is checked beside the request at 1440px below.
+  await expect(zone(page)).toContainText("처리를 시작하면 기록해 주세요.");
+  await zone(page).getByRole("button",{name:"처리 기록 열기",exact:true}).click();
+  // The handling jump lands in the record field itself, which a screen reader names.
+  const handling=page.locator("#ticket-handling"),record=handling.getByLabel("처리 기록",{exact:true});await expect(record).toBeFocused();await inView(page,handling);
+  await record.fill("합성 관리사무소 점검 시작");await handling.getByRole("button",{name:"처리 시작 기록",exact:true}).click();
+  await expect(zone(page)).toContainText("처리를 마치면 완료를 기록해 주세요.");
+  await zone(page).getByRole("button",{name:"처리 기록 열기",exact:true}).click();await expect(record).toBeFocused();
+  await record.fill("합성 관리사무소 점검 완료");
+  const complete=handling.getByRole("button",{name:"처리 완료 기록",exact:true});await expect(complete).toBeEnabled();await complete.click();
+  await expect(zone(page)).toContainText("호실 정비 사실을 남겨 주세요.");
+  await zone(page).getByRole("button",{name:"정비 사실 기록하기",exact:true}).click();
+  const fact=page.locator("#maintenance-fact");await expect(fact).toBeFocused();await inView(page,fact);
+  await fact.getByLabel("정비 작업 종류").selectOption({label:"점검"});await fact.getByRole("button",{name:"정비 사실 저장",exact:true}).click();
+  await expect(zone(page)).toHaveCount(0);
+});
+
+// Menu audit F-20 and the embedded decision screen. Soft checks, so one run reports every broken part.
+test("업무 정보 brings the panel content into view and the decision section keeps one main landmark at 390px",async({request,page})=>{
+  const t=await tenantRequest(request,"LEAK","합성 업무 정보 이동",true);
+  await page.setViewportSize({width:390,height:844});await login(page,"manager");
+  await page.locator(`[data-ticket-id="${t.ticketId}"] [data-open-ticket]`).click();await expect(zone(page)).toContainText("처리 방법을 정해 주세요.");
+  await page.getByRole("button",{name:"업무 정보",exact:true}).click();
+  const panel=page.getByRole("complementary",{name:"관리자 업무 정보"});await expect(panel).toBeVisible();
+  await expect.soft(page.locator("#ticket-inspector > summary")).toBeFocused();
+  // Before, only the panel heading reached the screen, at its lower part, and the content stayed below it.
+  await expect.soft(async()=>expect((await panel.boundingBox())!.y).toBeLessThan(page.viewportSize()!.height/2)).toPass({timeout:5000});
+  await zone(page).getByRole("button",{name:"처리 방법 정하기",exact:true}).click();
+  const decision=page.locator("#ticket-decision");await expect(decision.locator("summary")).toBeFocused();
+  // Inside /core the page already has its main landmark and its own way back to the list.
+  await expect.soft(page.getByRole("main")).toHaveCount(1);
+  await expect.soft(decision.getByRole("link",{name:"← 접수 목록"})).toHaveCount(0);
+});
+
+// A route correction keeps the OVERRIDDEN status, yet the request must be read again. At 1440px the queue row sits
+// beside the request, so its hint has to follow the decision as well.
+test("a route decision and its correction refresh the request, its history and its queue row at 1440px",async({request,page})=>{
+  const t=await tenantRequest(request,"HEATING","합성 경로 수정",true);
+  await page.setViewportSize({width:1440,height:900});await login(page,"manager");
+  const row=page.locator(`[data-ticket-id="${t.ticketId}"]`);await expect(row).toContainText("처리 방법 결정 필요");
+  await row.locator("[data-open-ticket]").click();await expect(zone(page)).toContainText("처리 방법을 정해 주세요.");
+  await zone(page).getByRole("button",{name:"처리 방법 정하기",exact:true}).click();
+  const decision=page.locator("#ticket-decision"),route=decision.getByLabel("직접 지정할 경로");
+  const decisions=page.getByRole("region",{name:"진행 이력",exact:true}).getByText("추천 경로 결정");
+  const decide=async(label:string,reason:string)=>{await route.selectOption({label});await decision.getByLabel("지정 사유").fill(reason);await decision.getByRole("button",{name:"경로 직접 지정",exact:true}).click();};
+  await decide("관리사무소","합성 관리사무소 처리");
+  await expect(zone(page)).toContainText("처리를 시작하면 기록해 주세요.");await expect(decisions).toHaveCount(1);
+  await expect(row).not.toContainText("처리 방법 결정 필요");
+  const other=(await route.locator("option").allTextContents()).find(label=>label&&label!=="관리사무소");expect(other).toBeTruthy();
+  await decide(other!,"합성 경로 수정");
+  await expect(decisions).toHaveCount(2);
+});
+
+// Opening a request re-reads the ticket list, so the other rows catch up with the queue; the list read is best effort.
+test("opening a request brings the other rows up to date, and a failed list read does not block it, at 1440px",async({request,page})=>{
+  const a=await tenantRequest(request,"LEAK","합성 목록 갱신 A",true),b=await tenantRequest(request,"HEATING","합성 목록 갱신 B",false);
+  await page.setViewportSize({width:1440,height:900});await login(page,"manager");
+  const row=(id:string)=>page.locator(`[data-ticket-id="${id}"]`);
+  await expect(row(b.ticketId).locator('[data-work-state="DRAFT"]')).toHaveText("제출 전");
+  // The tenant submits B after the manager's list was loaded; opening A also brings B's row up to date.
+  await submitRequest(request,b.ticketId);
+  await row(a.ticketId).locator("[data-open-ticket]").click();await expect(page.getByTestId("ticket-heading")).toContainText("누수");
+  await expect(row(b.ticketId)).toContainText("처리 방법 결정 필요");
+  await routeOnce(page,"**/api/v2/core/tickets",route=>route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:{code:"DEPENDENCY_UNAVAILABLE",message:"합성 목록 읽기 실패"}})}));
+  await row(b.ticketId).locator("[data-open-ticket]").click();
+  await expect(page.getByTestId("ticket-heading")).toContainText("난방");await expect(zone(page)).toContainText("처리 방법을 정해 주세요.");
+});
+
+// The outcome card's follow-up button opens a request through the same list re-read as the queue.
+test("opening a request from its outcome card brings the other rows up to date at 1440px",async({request,page})=>{
+  const source=await tenantRequest(request,"LEAK","합성 결과 카드 원본",true),b=await tenantRequest(request,"HEATING","합성 결과 카드 목록 갱신",false);
+  const manager={Authorization:`Bearer ${(await codes()).manager}`},tenant={Authorization:`Bearer ${(await codes()).tenant}`};
+  const post=async(path:string,headers:Record<string,string>,data:unknown,status:number)=>{const r=await request.post(`/api/v2/core/tickets/${source.ticketId}${path}`,{headers,data});expect(r.status()).toBe(status);};
+  await post("/handling",manager,{status:"IN_PROGRESS",message:"합성 처리 시작"},200);await post("/handling",manager,{status:"COMPLETED",message:"합성 처리 완료"},200);
+  await post("/follow-up",tenant,{clientRequestId:randomUUID(),claimKind:"UNRESOLVED",issueType:"LEAK",rawUserText:"합성 결과 카드 후속 접수"},201);
+  await page.setViewportSize({width:1440,height:900});await login(page,"manager");
+  const row=(id:string)=>page.locator(`[data-ticket-id="${id}"]`);
+  await expect(row(b.ticketId).locator('[data-work-state="DRAFT"]')).toHaveText("제출 전");
+  await row(source.ticketId).locator("[data-open-ticket]").click();
+  const followUp=page.getByRole("button",{name:"후속 접수 보기",exact:true});await expect(followUp).toBeVisible();
+  // The tenant submits B after the screen read the list; only the follow-up button's open can bring B's row up to date.
+  await submitRequest(request,b.ticketId);
+  await followUp.click();await expect(page.getByRole("button",{name:"이전 완료 접수 보기",exact:true})).toBeVisible();
+  await expect(row(b.ticketId)).toContainText("처리 방법 결정 필요");
+});
+
+// A list read that loses access must still stop the open, so no request stays selected behind the sign-in form.
+test("an access loss on the list read opens nothing, even after signing in again, at 1440px",async({request,page})=>{
+  const t=await tenantRequest(request,"LEAK","합성 목록 읽기 접근 만료",true);
+  await page.setViewportSize({width:1440,height:900});await login(page,"manager");
+  await routeOnce(page,"**/api/v2/core/tickets",route=>route.fulfill({status:401,contentType:"application/json",body:JSON.stringify({error:{code:"UNAUTHENTICATED",message:"합성 세션 만료"}})}));
+  const read=page.waitForResponse(r=>r.url().endsWith(`/api/v2/core/tickets/${t.ticketId}`)&&r.request().method()==="GET");
+  await page.locator(`[data-ticket-id="${t.ticketId}"] [data-open-ticket]`).click();await read;
+  await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(page.getByText("불러오는 중…")).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"← 목록으로",exact:true})).toHaveCount(0);
+  await page.getByLabel("개발 접근 코드").fill((await codes()).manager);await page.getByRole("button",{name:"들어가기",exact:true}).click();
+  await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();await expect(page.getByTestId("ticket-heading")).toHaveCount(0);
+});

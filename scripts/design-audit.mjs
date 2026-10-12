@@ -24,6 +24,19 @@ const engineArg = process.argv.indexOf("--engines");
 const engines = (engineArg > 0 ? process.argv[engineArg + 1] : "chromium,webkit").split(",");
 mkdirSync(out, { recursive: true });
 const playwright = createRequire(join(root, "package.json"))("@playwright/test");
+const sharp = createRequire(join(root, "package.json"))("sharp");
+// Generated, non-personal input for the evidence step's photo tiles; never presented as a real-site photo.
+const syntheticPhoto = () => sharp(Buffer.from('<svg width="480" height="360" xmlns="http://www.w3.org/2000/svg"><rect width="480" height="360" fill="#edf3ef"/><path d="M60 90H240V200H420" fill="none" stroke="#718e94" stroke-width="36"/><text x="24" y="340" font-size="17" fill="#244b43">SYNTHETIC AUDIT SAMPLE</text></svg>')).png().toBuffer();
+// Answers the open question with a safe answer (never 예, which would escalate a safety question) and waits for the save.
+async function answerNext(page, zone, ticketId) {
+  const no = zone.getByTestId("answer-no"), text = zone.getByLabel("답변", { exact: true });
+  const answered = page.waitForResponse(r => r.url().endsWith(`/${ticketId}/answers`) && r.request().method() === "POST");
+  if (await no.isVisible()) await no.click();
+  else if (await text.isVisible()) { await text.fill("오늘 아침"); await zone.getByTestId("answer-text-submit").click(); }
+  else await zone.locator("[data-testid^='answer-']:not([data-testid='answer-yes']):not([data-testid='answer-no']):not([data-testid='answer-text-submit'])").first().click();
+  await answered;
+  for (let wait = 0; wait < 50 && await zone.getByTestId("refresh").isDisabled(); wait++) await page.waitForTimeout(100);
+}
 const findings = [], shots = [];
 const missing = (screen, detail) => findings.push({ check: "coverage", screen, where: "audit", detail });
 
@@ -103,7 +116,7 @@ try {
   if (interrupted) { await cleanup(); process.exit(130); }
   server = await dev.startVendorHandoffServer(prepared.state);
   const origin = prepared.state.origin, phones = [320, 375, 390, 430], wide = [768, 1280, 1440];
-  let ticketCreated = false;
+  let ticketCreated = false, baseTicket = null, evidenceTicket = null;
   for (const engine of engines) {
     let browser;
     try { browser = await playwright[engine].launch(); } catch { missing(engine, `${engine} did not start: npx playwright install ${engine}`); continue; }
@@ -126,17 +139,44 @@ try {
       for (const width of widths) { const m = await page(width, "manager"); await audit(m, `${engine}-${width}-manager-empty`); await m.context().close(); }
       const t = await page(390, "tenant");
       await t.getByLabel("문제 설명").fill("거실 보일러가 켜지지 않아요. 온수도 미지근해요.");
+      const created = t.waitForResponse(r => r.url().endsWith("/api/v2/core/tickets") && r.request().method() === "POST").catch(() => null);
       await t.getByRole("button", { name: "접수하기", exact: true }).click();
-      try { await t.getByText("접수 내용을 저장했어요", { exact: false }).first().waitFor({ timeout: 20000 }); ticketCreated = true; }
+      try { await t.getByText("접수 내용을 저장했어요", { exact: false }).first().waitFor({ timeout: 20000 }); ticketCreated = true; baseTicket = (await (await created)?.json())?.ticketId ?? null; }
       catch { missing(`${engine}-390-tenant`, "the synthetic ticket was not saved, so screens with data cannot be checked"); }
       await t.context().close();
+      // P1b: a leak with one stored photo, answered up to the evidence step, so its photo tiles are checked too.
+      if (ticketCreated) {
+        const e = await page(390, "tenant");
+        try {
+          await e.getByRole("radio", { name: "누수", exact: true }).check();
+          await e.getByLabel("문제 설명").fill("주방 천장에서 물이 떨어져요.");
+          await e.getByLabel("참고 사진 선택", { exact: true }).setInputFiles({ name: "synthetic.png", mimeType: "image/png", buffer: await syntheticPhoto() });
+          const leak = e.waitForResponse(r => r.url().endsWith("/api/v2/core/tickets") && r.request().method() === "POST");
+          await e.getByRole("button", { name: "접수하기", exact: true }).click();
+          const ticketId = (await (await leak).json()).ticketId;
+          const zone = e.getByRole("region", { name: "지금 할 일: 추가 확인", exact: true }), choose = zone.getByRole("button", { name: "이 사진으로 정하기", exact: true });
+          await zone.locator("form").first().waitFor({ timeout: 20000 });
+          for (let i = 0; i < 12 && !(await choose.isVisible()); i++) await answerNext(e, zone, ticketId);
+          await choose.waitFor({ timeout: 20000 }); evidenceTicket = ticketId;
+        } catch { missing(`${engine}-390-tenant-evidence`, "the evidence step could not be reached"); }
+        await e.context().close();
+      }
     }
     if (!ticketCreated) { await browser.close(); continue; }
     for (const width of widths) {
       const t = await page(width, "tenant"); await audit(t, `${engine}-${width}-tenant-intake`);
-      const open = t.locator("[data-open-ticket]").first();
+      const open = t.locator(baseTicket ? `[data-ticket-id="${baseTicket}"] [data-open-ticket]` : "[data-open-ticket]").first();
       if (await open.count()) { await open.click(); await audit(t, `${engine}-${width}-tenant-ticket`); } else missing(`${engine}-${width}-tenant-ticket`, "no ticket row to open");
       await t.context().close();
+      if (evidenceTicket) {
+        const e = await page(width, "tenant");
+        try {
+          await e.locator(`[data-ticket-id="${evidenceTicket}"] [data-open-ticket]`).click({ timeout: 20000 });
+          await e.getByRole("radio", { name: "사진 1", exact: true }).waitFor({ timeout: 20000 });
+          await audit(e, `${engine}-${width}-tenant-evidence`);
+        } catch { missing(`${engine}-${width}-tenant-evidence`, "the evidence step with its photo tile did not show"); }
+        await e.context().close();
+      }
       const m = await page(width, "manager");
       const row = m.locator("[data-open-ticket]").first();
       try { await row.waitFor({ timeout: 20000 }); } catch { /* reported below */ }

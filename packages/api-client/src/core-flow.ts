@@ -1,5 +1,5 @@
-import { CoreSessionSchema,CoreUnitsSchema,CoreTicketSchema,CoreTicketsSchema,CoreLoginSchema,CoreCreateSchema,CoreHandlingSchema,
-  TenantTicketStatusDtoSchema,LandlordTicketDetailDtoSchema,type CoreCreateRequest,type CoreHandlingRequest,type CoreTicketDto,type CoreSessionDto,type CoreUnitDto } from "@build-manager/api-contracts";
+import { CoreSessionSchema,CoreUnitsSchema,CoreTicketSchema,CoreTicketsSchema,CoreLoginSchema,CoreCreateSchema,CoreHandlingSchema,CorePhotoEvidenceRequestSchema,
+  TenantTicketStatusDtoSchema,LandlordTicketDetailDtoSchema,type CoreCreateRequest,type CoreHandlingRequest,type CorePhotoEvidenceRequest,type CoreTicketDto,type CoreSessionDto,type CoreUnitDto } from "@build-manager/api-contracts";
 import type { ApiClient } from "./client";
 import { sendRequest,type FetchLike } from "./http";
 import { corePhotos } from "./core-photos";
@@ -31,6 +31,8 @@ export function createCoreFlowClient(options:{baseUrl:string;accessCode?:string;
   };
   return {
     protocol,read,...corePhotos(options),
+    /** P1b: names one of the ticket's own photos as the evidence its protocol asks for. */
+    submitPhotoEvidence:async (id:string,body:CorePhotoEvidenceRequest)=>TenantTicketStatusDtoSchema.parse((await mutate(id,"/evidence",CorePhotoEvidenceRequestSchema.parse(body))).detail),
     manager:coreManagerWork(fetcher,options.baseUrl),
     communication:coreTicketCommunication(fetcher,options.baseUrl),
     outcome:coreTicketOutcome(fetcher,options.baseUrl),

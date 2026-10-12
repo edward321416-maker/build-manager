@@ -3,7 +3,12 @@ import {
   getActiveQuestions,
   type RuleValues,
 } from "../protocol/evaluate-questions";
-import type { Protocol, ProtocolQuestion, RuleField } from "../protocol/types";
+import type {
+  EvidenceRequirement,
+  Protocol,
+  ProtocolQuestion,
+  RuleField,
+} from "../protocol/types";
 import type { SafetyResult } from "../safety/evaluate-safety";
 import type {
   Answer,
@@ -193,4 +198,32 @@ export function evaluateEvidence(input: EvidenceEvaluationInput): EvidenceState 
   }
 
   return "COMPLETE";
+}
+
+/**
+ * The evidence the protocol asks for with these answers, read the way
+ * {@link evaluateEvidence} reads them: each question's first answer, with a
+ * blank one left out. Screens and the photo evidence action use it, so they
+ * never ask for or accept evidence the gate would not consider active. The
+ * gate keeps its own loop unchanged; tests pin the two together.
+ */
+export function activeEvidenceRequirements(
+  protocol: Protocol,
+  answers: readonly Answer[],
+): EvidenceRequirement[] {
+  const values: RuleValues = {};
+  for (const [questionId, submitted] of groupAnswers(answers)) {
+    const firstValue = submitted[0]!.value;
+    if (!isMissingAnswer(firstValue)) {
+      values[`answer.${questionId}` as RuleField] = firstValue as
+        | string
+        | boolean;
+    }
+  }
+
+  return protocol.evidence.filter(
+    (requirement) =>
+      requirement.showWhen === undefined ||
+      evaluateRuleExpression(requirement.showWhen, values),
+  );
 }

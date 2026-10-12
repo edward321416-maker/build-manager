@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TenantTicketStatusDtoSchema,LandlordTicketDetailDtoSchema } from "./ticket";
+import { SyntheticEvidenceTypeSchema } from "./question";
 
 export const CoreLoginSchema=z.object({accessCode:z.string().regex(/^[a-f0-9]{64}$/)}).strict();
 export const CoreSessionSchema=z.object({role:z.enum(["TENANT","ORG_ADMIN","PROPERTY_STAFF"]),synthetic:z.literal(true)}).strict();
@@ -21,6 +22,9 @@ export type CoreUnitDto=z.infer<typeof CoreUnitSchema>;
 export type CoreTicketDto=z.infer<typeof CoreTicketSchema>;
 export type CoreCreateRequest=z.infer<typeof CoreCreateSchema>;
 export type CoreHandlingRequest=z.infer<typeof CoreHandlingSchema>;
+/** P1b: names one of the ticket's own photos as the evidence its protocol asks for; the server builds the storage reference. */
+export const CorePhotoEvidenceRequestSchema=z.object({evidenceType:SyntheticEvidenceTypeSchema,photoId:z.string().uuid()}).strict();
+export type CorePhotoEvidenceRequest=z.infer<typeof CorePhotoEvidenceRequestSchema>;
 
 export const CORE_PHOTO_MAX_BYTES=5*1024*1024;
 export const CORE_PHOTO_MAX_PIXELS=20_000_000;

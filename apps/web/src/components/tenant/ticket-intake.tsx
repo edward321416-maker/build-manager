@@ -48,12 +48,26 @@ function readAnswer(
   return submitter?.value ?? null;
 }
 
-export function TicketIntake({ ticketId, client, coreFlow=false, onStatusChange }: {
+/**
+ * Core flow only (P1b): the embedding screen renders the step that names a photo as the first outstanding evidence.
+ * Returning null keeps the intake's own "수리 요청 제출" in its place.
+ */
+export type EvidenceStepRenderer = (step: {
+  ticket: TenantTicketStatusDto;
+  requirement: SyntheticEvidenceRequirementDto;
+  busy: boolean;
+  /** Runs the screen's evidence request like any other intake action and shows the status it returns. */
+  choose: (submit: () => Promise<TenantTicketStatusDto>) => void;
+  submitWithout: () => void;
+}) => React.ReactNode;
+
+export function TicketIntake({ ticketId, client, coreFlow=false, onStatusChange, evidenceStep }: {
   ticketId: string;
   client?: ReturnType<typeof createBrowserApiClient>;
   coreFlow?: boolean;
   /** Called with each status the server returns, so an embedding screen can refresh its own summary. */
   onStatusChange?: (status: TenantTicketStatusDto["status"]) => void;
+  evidenceStep?: EvidenceStepRenderer;
 }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [busy, setBusy] = useState(false);
@@ -153,6 +167,17 @@ export function TicketIntake({ ticketId, client, coreFlow=false, onStatusChange 
 
   const ticket = state.kind === "ready" ? state.ticket : null;
   const stage = ticket === null ? null : intakeStage(ticket);
+  const evidenceView =
+    ticket !== null && coreFlow && stage === "EVIDENCE" && evidenceStep
+      ? evidenceStep({
+          ticket,
+          requirement: outstandingEvidence(ticket)[0]!,
+          busy,
+          choose: (submit) => void runAction(() => submit()),
+          submitWithout: () =>
+            void runAction((client) => client.finalizeTicket(ticketId)),
+        })
+      : null;
   // Inside /core the page already has its own main landmark and back button.
   const Root = coreFlow ? "section" : "main";
 
@@ -255,8 +280,11 @@ export function TicketIntake({ ticketId, client, coreFlow=false, onStatusChange 
             </form>
           ) : null}
 
-          {coreFlow && stage === "EVIDENCE" ? <p>위 참고 사진은 필수 증빙 판정과 별개입니다. 현재 정보로 제출하면 관리자가 부족한 정보를 확인합니다.</p> : null}
-          {stage === "READY_TO_FINALIZE" || (coreFlow && stage === "EVIDENCE") ? (
+          {evidenceView}
+          {stage === "READY_TO_FINALIZE" ||
+          (coreFlow &&
+            stage === "EVIDENCE" &&
+            (evidenceView === null || evidenceView === undefined)) ? (
             <section className="finalize-stage">
               <h2>제출할 준비가 되었습니다</h2>
               <p className="passport-note">

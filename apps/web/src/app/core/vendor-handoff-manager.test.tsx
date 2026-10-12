@@ -24,6 +24,12 @@ it("offers fresh handoff only for approved safe external routes and unfinished r
   for(const t of [{...ticket,workStatus:"COMPLETED"},{...ticket,detail:{...ticket.detail,status:"SAFETY_ESCALATED"}},{...ticket,detail:{...ticket.detail,repairPacket:{safetyEscalated:true}}},{...ticket,detail:{...ticket.detail,decision:{type:"OVERRIDE",routeCode:"MANAGEMENT_OFFICE"}}},{...ticket,detail:{...ticket.detail,decision:null}}] as CoreTicketDto[]){expect(vendorHandoffEligible(t)).toBe(false);expect(view({ticket:t,handoff:{...handoff,assignment:null}}).includes("작업 요청 준비")).toBe(false);}
   expect(view({handoff:{...handoff,assignment:null}})).toContain("작업 요청 준비");
 });
+it("explains the Vendor route prerequisite only where a route can still be chosen",()=>{
+  const prerequisite="업체에 보내려면 먼저 처리 방법을",undecided={...ticket,workStatus:"OPEN",detail:{...ticket.detail,status:"READY_FOR_REVIEW",decision:null}} as unknown as CoreTicketDto;
+  expect(view({ticket:undecided,handoff:{...handoff,assignment:null}})).toContain(prerequisite);
+  // Safety-escalated requests get no route choice, and an eligible request has nothing to explain.
+  for(const t of [{...undecided,detail:{...undecided.detail,status:"SAFETY_ESCALATED"}},{...undecided,detail:{...undecided.detail,repairPacket:{safetyEscalated:true}}},ticket])expect(view({ticket:t as unknown as CoreTicketDto,handoff:{...handoff,assignment:null}})).not.toContain(prerequisite);
+});
 it("previews real canonical fields and selected detail provenance before publishing PREPARING",()=>{
   const html=view({preview:true,draft:{...base.draft,sharedDetailKeys:["leak.active"],allowedPhotoIds:["photo-1"]},photoPreviews:[{photoId:"photo-1",url:"blob:synthetic-preview"}]});
   for(const text of ["합성 정식 주소","합성 호실","합성 건물","합성 업체","합성 누수 점검","현재 누수","세입자 설명","업체 전달 내용 게시","선택한 원본 사진"])expect(html).toContain(text);

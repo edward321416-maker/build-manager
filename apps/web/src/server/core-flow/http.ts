@@ -1,7 +1,7 @@
 import { createHash,randomUUID } from "node:crypto";
 import { B1Error,CoreFlowError,isApplicationError,performCoreAction,type CoreRecord,type CoreSession,type CoreAction } from "@build-manager/application";
-import { CoreAccessSchema,CoreSessionSchema,CoreUnitsSchema,CoreTicketSchema,CoreTicketsSchema,CoreCreateSchema,CoreHandlingSchema,CoreLoginSchema,SubmitTenantAnswerRequestSchema,DecisionRequestSchema,FinalizeTicketRequestSchema } from "@build-manager/api-contracts";
-import { presentTenantTicket,presentLandlordTicket } from "../http/presenters";
+import { CoreAccessSchema,CoreSessionSchema,CoreUnitsSchema,CoreTicketSchema,CoreTicketsSchema,CoreCreateSchema,CoreHandlingSchema,CoreLoginSchema,CorePhotoEvidenceRequestSchema,SubmitTenantAnswerRequestSchema,DecisionRequestSchema,FinalizeTicketRequestSchema } from "@build-manager/api-contracts";
+import { presentTenantTicket,presentLandlordTicket,toDomainEvidenceType } from "../http/presenters";
 import { parseRouteCode } from "../http/route-code";
 import { getCoreFlowContainer,type CoreHTTPDependencies } from "./container";
 import { handlePhotoRequest,PhotoRequestError } from "./photos";
@@ -185,6 +185,8 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
         switch(segments[2]){
           case "answers":{const a=parse(SubmitTenantAnswerRequestSchema,input);action={type:"ANSWER",ticketId:id,questionId:a.questionId,value:a.answer};break;}
           case "finalize":parse(FinalizeTicketRequestSchema,input);action={type:"FINALIZE",ticketId:id};break;
+          // P1b: the tenant names one of this ticket's photos as required evidence; the server builds the storage reference.
+          case "evidence":{const a=parse(CorePhotoEvidenceRequestSchema,input);action={type:"EVIDENCE",ticketId:id,evidenceType:toDomainEvidenceType(a.evidenceType),photoId:a.photoId};break;}
           case "handling":action={type:"HANDLING",ticketId:id,...parse(CoreHandlingSchema,input)};break;
           case "decision":{
             const a=parse(DecisionRequestSchema,input);

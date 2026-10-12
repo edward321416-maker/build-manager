@@ -30,6 +30,8 @@ export const SyntheticEvidenceRequirementDtoSchema = z
     label: z.string().trim().min(1),
     required: z.boolean(),
     demoFixtureId: z.string().trim().min(1),
+    /** The protocol's photo instruction, shown as is on the Core evidence step (P1b). */
+    instruction: z.string().trim().min(1).optional(),
   })
   .strict();
 export type SyntheticEvidenceRequirementDto = z.infer<

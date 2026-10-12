@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
     // Standalone Vendor page: the raw capability lives only in the URL fragment of this response.
     {source:"/vendor/job",headers:[{key:"Cache-Control",value:"no-store"},{key:"Referrer-Policy",value:"no-referrer"},{key:"X-Content-Type-Options",value:"nosniff"},{key:"X-Frame-Options",value:"DENY"},{key:"Content-Security-Policy",value:"frame-ancestors 'none'"}]},
   ];},
+  // Every <Image> is already unoptimized. This closes /_next/image (404) so the server never fetches
+  // or resizes images on a visitor's behalf.
+  images: { unoptimized: true },
   transpilePackages: [
     "@build-manager/domain",
     "@build-manager/application",
