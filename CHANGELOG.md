@@ -47,3 +47,7 @@
 ## 2026-10-12 — Photos as required evidence
 
 - Redeployed the hosted demo from main `39e372a` with P1b (PR #116 and #117): after the questions a tenant names one of the ticket's own photos as each required evidence, or sends without one, so a complete request reaches review with a recommended route, and the manager sees which photo was named. Migration 0024 was applied when the new image started. This was the first deploy with `deploy/vm/redeploy.sh`; the archive of the previous image was kept on the VM for rollback.
+
+## 2026-10-12 — Manager next step and /core design cleanup
+
+- Redeployed the hosted demo from main `309b0b7` with the manager's next step from PR #121 (a 다음 할 일 zone in each request, queue rows that show what still needs the manager, and a Vendor section that explains what it needs first) and the remaining `/core` design items from PR #122 (4:3 photo thumbnails without a box, the caption style for times and counts, the 248px left menu from 1024px, and maintenance history as list rows). No migration was added. The archive of the previous image was kept on the VM for rollback.
