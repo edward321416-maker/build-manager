@@ -50,4 +50,4 @@
 
 ## 2026-10-12 — Manager next step and /core design cleanup
 
-- Redeployed the hosted demo from main `309b0b7` with the manager's next step from PR #121 (a 다음 할 일 zone in each request, queue rows that show what still needs the manager, and a Vendor section that explains what it needs first) and the remaining `/core` design items from PR #122 (4:3 photo thumbnails without a box, the caption style for times and counts, the 248px left menu from 1024px, and maintenance history as list rows). No migration was added. The archive of the previous image was kept on the VM for rollback.
+- Redeployed the hosted demo from main `309b0b7` with the manager's next step from PR #121 (a 다음 할 일 zone in each request, queue rows that name the open intake step, and a Vendor section that explains what it needs first) and the remaining `/core` design items from PR #122 (4:3 photo thumbnails without a box, the caption style for times and counts, the 248px left menu from 1024px, and maintenance history as list rows). No migration was added. The archive of the previous image was kept on the VM for rollback.
