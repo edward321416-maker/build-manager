@@ -54,7 +54,7 @@ async function check(label:string){
   const input=Array.from(host.querySelectorAll<HTMLInputElement>('input[type="checkbox"],input[type="radio"]')).find(x=>x.closest("label")?.textContent?.includes(label));
   expect(Boolean(input),label).toBe(true);await act(async()=>{input!.click();});
 }
-const forbidden=["상시 출입 허용","언제든 출입 허용","자동 출입 허용","알림을 보냈습니다","수리 완료","업체 완료"];
+const forbidden=["상시 출입 허용","언제든 출입 허용","자동 출입 허용","알림을 보냈","수리 완료","업체 완료"];
 
 describe("Task10 mounted Tenant outcome after Vendor closeout",()=>{
   async function closedOutcome(initial:CoreTicketOutcome["kind"]="UNCONFIRMED",followUpTicketId:string|null=null){
@@ -241,7 +241,7 @@ describe("Task6 review remediation (Tenant)",()=>{
     await mount(f.client);
     expect(zone()?.textContent).toContain("보낸 가능한 시간이 모두 지났어요");
     expect(button("가능한 시간 보내기")).toBeDefined();
-    expect(page().includes("정하고 있습니다")).toBe(false);
+    expect(page().includes("정하고 있")).toBe(false);
   });
   it("uses neutral copy after availability and warns that a live proposal is discarded on resubmission (M2)",async()=>{
     const proposal={id:propId,slots:[{id:s2,startAt:"2026-10-07T05:00:00Z",endAt:"2026-10-07T06:00:00Z"}],createdAt:"2026-10-06T00:30:00Z"};

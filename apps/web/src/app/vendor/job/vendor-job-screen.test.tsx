@@ -150,7 +150,7 @@ describe("fragment redemption",()=>{
     await mount(client,`#${tokenB}`);
     expect(window.location.hash).toBe("");
     expect(page()).toContain("관리자에게 새 링크를 요청해 주세요");
-    expect(page().includes("알림을 보냈습니다")||page().includes("링크 복구")).toBe(false);
+    expect(page().includes("알림을 보냈")||page().includes("링크 복구")).toBe(false);
     expect(window.sessionStorage.length).toBe(0);
     expect(tokenFree()).toBe(true);
   });
@@ -1103,7 +1103,7 @@ describe("Task8 review remediation (Vendor screen)",()=>{
     const client=fakeClient({redeem:opened(visited())});
     await mount(client,`#${tokenB}`,now);
     expect(page()).toContain("작업 보고");
-    for(const phrase of ["완료 보고","처리가 마무리됩니다","업체 완료","수리 완료"])expect(page().includes(phrase),phrase).toBe(false);
+    for(const phrase of ["완료 보고","처리가 마무리","업체 완료","수리 완료"])expect(page().includes(phrase),phrase).toBe(false);
   });
   it("reconciles an unknown report outcome with the same request identity (L5)",async()=>{
     let fail=true;

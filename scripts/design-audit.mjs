@@ -200,7 +200,7 @@ try {
       try { await row.waitFor({ timeout: 20000 }); } catch { /* reported below */ }
       await audit(m, `${engine}-${width}-manager-queue`);
       await m.getByRole("combobox", { name: "긴급도 필터" }).selectOption("URGENT");
-      try { await m.getByText("선택한 조건의 업무가 없습니다", { exact: false }).waitFor({ timeout: 10000 }); await audit(m, `${engine}-${width}-manager-filter-empty`); }
+      try { await m.getByText("선택한 조건의 업무가 없어요", { exact: false }).waitFor({ timeout: 10000 }); await audit(m, `${engine}-${width}-manager-filter-empty`); }
       catch { missing(`${engine}-${width}-manager-filter-empty`, "the no-result filter message did not appear"); }
       await m.getByRole("combobox", { name: "긴급도 필터" }).selectOption("ALL");
       if (await row.count()) { await row.click(); await audit(m, `${engine}-${width}-manager-detail`); } else missing(`${engine}-${width}-manager-detail`, "no ticket row to open");
