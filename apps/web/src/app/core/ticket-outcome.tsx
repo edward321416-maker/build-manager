@@ -3,6 +3,7 @@ import { useCallback,useEffect,useRef,useState,useSyncExternalStore } from "reac
 import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
 import type { CoreTicketDto,CoreTicketOutcome } from "@build-manager/api-contracts";
 import { clearOutcomeRecovery,readOutcomeRecoveries,saveOutcomeRecovery,outcomeRecoveryEvent,type OutcomeRecovery } from "./outcome-recovery";
+import { DateTime } from "../../components/date-time";
 import styles from "./ticket-outcome.module.css";
 
 const subscribe=(notify:()=>void)=>{window.addEventListener(outcomeRecoveryEvent,notify);window.addEventListener("storage",notify);return()=>{window.removeEventListener(outcomeRecoveryEvent,notify);window.removeEventListener("storage",notify);};};
@@ -40,7 +41,7 @@ export function OutcomeRecoveryPanel({client,onOpen}:{client:CoreFlowClient;onOp
 }
 export function OutcomeSummary({outcome,tenant}:{outcome:CoreTicketOutcome;tenant:boolean}){
  return <><p className={styles.status}>{(tenant?tenantLabels:outcomeLabels)[outcome.kind]}</p>
- {outcome.assertedAt?<p className={styles.meta}><time dateTime={outcome.assertedAt}>{new Date(outcome.assertedAt).toLocaleString()}</time></p>:null}
+ {outcome.assertedAt?<p className={styles.meta}><DateTime at={outcome.assertedAt}/></p>:null}
  <p className={styles.hint}>{tenant?"관리자의 처리 완료 기록과 별도로 남긴 확인입니다.":"관리자의 처리 완료 기록과 별도로 남긴 세입자 응답입니다."} 객관적인 수리 검증이나 재발 확정 판정을 뜻하지 않습니다.</p></>;
 }
 type OutcomeViewProps={completed:boolean;tenant:boolean;outcome:CoreTicketOutcome|null;source:string|null;loading:boolean;error:string;busy:boolean;uncertain:boolean;onRefresh():void;onConfirm():void;onFollowUp(kind:FollowUpKind):void;onOpen(id:string):void};

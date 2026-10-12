@@ -4,6 +4,7 @@ import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
 import { CORE_PHOTO_MAX_BYTES,type CorePhotoDto,type TenantTicketStatusDto } from "@build-manager/api-contracts";
 import { PhotoSelectionSurface } from "../app/core/ui/core-display";
 import { evidenceNamesByPhoto } from "../app/core/ui/evidence-names";
+import { DateTime } from "./date-time";
 
 type Named=TenantTicketStatusDto["submittedEvidence"];
 
@@ -51,7 +52,7 @@ function LoadedGallery({client,ticketId,compact,named,retry}:{client:CoreFlowCli
   useEffect(()=>{if(zoom)dialog.current?.showModal();else dialog.current?.close();},[zoom]);
   return <section className="core-photos" aria-label={compact?"이력의 첨부 사진":"사진"}>
     {!compact?<h2>사진</h2>:null}
-    {loading?<p>사진 불러오는 중…</p>:error?<p role="alert">사진을 불러오지 못했습니다. <button type="button" onClick={retry}>사진 다시 불러오기</button></p>:!photos.length?(!compact?<p>저장된 사진이 없습니다. 글만으로도 접수할 수 있습니다.</p>:null):<div className="photo-grid">{photos.map(({photo,url},i)=><figure key={photo.photoId}><button type="button" aria-label={`저장된 사진 ${i+1} 확대`} onClick={()=>setZoom(url)}><img src={url} alt={`접수 참고 사진 ${i+1}`} /></button>{!compact?<figcaption>사진 {i+1} · <time dateTime={photo.createdAt}>{new Date(photo.createdAt).toLocaleString("ko-KR")}</time>{names.has(photo.photoId)?<span className="photo-evidence">{names.get(photo.photoId)!.join(", ")}</span>:null}</figcaption>:null}</figure>)}</div>}
+    {loading?<p>사진 불러오는 중…</p>:error?<p role="alert">사진을 불러오지 못했습니다. <button type="button" onClick={retry}>사진 다시 불러오기</button></p>:!photos.length?(!compact?<p>저장된 사진이 없습니다. 글만으로도 접수할 수 있습니다.</p>:null):<div className="photo-grid">{photos.map(({photo,url},i)=><figure key={photo.photoId}><button type="button" aria-label={`저장된 사진 ${i+1} 확대`} onClick={()=>setZoom(url)}><img src={url} alt={`접수 참고 사진 ${i+1}`} /></button>{!compact?<figcaption>사진 {i+1} · <DateTime at={photo.createdAt}/>{names.has(photo.photoId)?<span className="photo-evidence">{names.get(photo.photoId)!.join(", ")}</span>:null}</figcaption>:null}</figure>)}</div>}
     <dialog ref={dialog} className="photo-dialog" onClose={()=>setZoom(null)} aria-label="첨부 사진 확대"
       onKeyDown={event=>{if(event.key==="Tab"){event.preventDefault();event.currentTarget.querySelector<HTMLButtonElement>("button")?.focus();}}}>
       <button type="button" onClick={()=>setZoom(null)}>사진 닫기</button>{zoom?<img src={zoom} alt="확대한 접수 참고 사진" />:null}</dialog>

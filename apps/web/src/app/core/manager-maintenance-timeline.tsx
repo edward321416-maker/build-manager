@@ -2,11 +2,11 @@
 import { useCallback,useEffect,useRef,useState } from "react";
 import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
 import { CoreMaintenanceFactCreateSchema,CoreMaintenanceFactCorrectionSchema,type CoreMaintenanceFactCreate,type CoreMaintenanceFactCorrection,type CoreTicketDto,type CoreMaintenanceActionKind,type CoreMaintenanceCorrectionReason,type CoreMaintenanceFactDetail,type CoreUnitMaintenanceFact,type CoreUnitDto } from "@build-manager/api-contracts";
+import { DateTime } from "../../components/date-time";
 import styles from "./manager-maintenance-timeline.module.css";
 const actionLabels:Record<CoreMaintenanceActionKind,string>={INSPECTION:"점검",REPAIR:"수리",PART_REPLACEMENT:"부품 교체",ADJUSTMENT:"조정",OTHER:"기타"};
 const reasonLabels:Record<CoreMaintenanceCorrectionReason,string>={ACTION_CLASSIFICATION:"작업 분류 정정",COMPONENT_LABEL:"부품·위치 명칭 정정",OTHER:"기타 정정"};
 const outcomeLabels:Record<CoreUnitMaintenanceFact["tenantOutcome"],string>={UNCONFIRMED:"세입자 응답 미확인",RESOLVED:"세입자가 해결됐다고 응답",UNRESOLVED:"세입자가 아직 문제가 있다고 응답",RECURRENCE_CLAIM:"세입자가 다시 문제가 생겼다고 응답"};
-const dateText=(value:string)=>new Date(value).toLocaleString("ko-KR");
 export type EditorViewProps={completed:boolean;detail:CoreMaintenanceFactDetail|null;loading:boolean;error:string;notice:string;busy:boolean;editing:boolean;uncertain:boolean;reviewRequired:boolean;action:CoreMaintenanceActionKind;label:string;reason:CoreMaintenanceCorrectionReason;onAction(v:CoreMaintenanceActionKind):void;onLabel(v:string):void;onReason(v:CoreMaintenanceCorrectionReason):void;onSubmit():void;onEdit():void;onRefresh():void;onRetry():void;onReview():void;onOpenTicket(id:string):void;onViewUnit(id:string):void};
 export function MaintenanceEditorView(p:EditorViewProps){
  if(!p.completed)return null;
@@ -16,7 +16,7 @@ export function MaintenanceEditorView(p:EditorViewProps){
   {p.loading?<p role="status">정비 사실 불러오는 중…</p>:null}{p.error?<p role="alert">{p.error}</p>:null}{p.notice?<p role="status">{p.notice}</p>:null}
   <button disabled={p.busy||p.loading} onClick={p.onRefresh}>정비 사실 다시 불러오기</button>
   {!p.loading&&current?<><MaintenanceFactCard fact={current} onOpenTicket={p.onOpenTicket}/><div className={styles.actions}><button onClick={()=>p.onViewUnit(current.unitId)}>호실 이력에서 보기</button>{!p.editing&&!p.uncertain?<button onClick={p.onEdit}>정정 기록 추가</button>:null}</div>
-   <details><summary>정정 이력 · {current.correctionCount}회</summary><ol className={styles.revisions}>{p.detail!.revisions.map(r=><li key={r.factId}>{r.current?"현재 기록":"이전 기록"} · {actionLabels[r.actionKind]} · {r.componentLabel??"명칭 미기록"}<p><time dateTime={r.recordedAt}>{dateText(r.recordedAt)}</time>{r.correctionReason?` · ${reasonLabels[r.correctionReason]}`:" · 최초 기록"}</p></li>)}</ol></details>
+   <details><summary>정정 이력 · {current.correctionCount}회</summary><ol className={styles.revisions}>{p.detail!.revisions.map(r=><li key={r.factId}>{r.current?"현재 기록":"이전 기록"} · {actionLabels[r.actionKind]} · {r.componentLabel??"명칭 미기록"}<p><DateTime at={r.recordedAt}/>{r.correctionReason?` · ${reasonLabels[r.correctionReason]}`:" · 최초 기록"}</p></li>)}</ol></details>
   </>:null}
   {p.uncertain?<div role="status"><p>서버에 표시된 값만으로 이 요청의 성공을 확정하지 않습니다. 입력은 이 화면에만 보관됩니다.</p><button disabled={p.busy||p.loading} onClick={p.onRetry}>같은 요청으로 저장 확인</button></div>:null}
   {!p.loading&&form?<form onSubmit={e=>{e.preventDefault();p.onSubmit();}}>
@@ -34,7 +34,7 @@ export function MaintenanceEditorView(p:EditorViewProps){
 export function MaintenanceFactCard({fact,onOpenTicket}:{fact:CoreUnitMaintenanceFact;onOpenTicket(id:string):void}){
  return <article className={styles.fact} data-fact-id={fact.factId}>
   <h3>{fact.issueType==="HEATING"?"난방":"누수"} · {actionLabels[fact.actionKind]}</h3><p className={styles.component}>{fact.componentLabel??"부품·위치 명칭 미기록"}</p>
-  <p>{fact.buildingName} · {fact.unitLabel}</p><dl><div><dt>관리자 처리 완료 기록</dt><dd><time dateTime={fact.sourceCompletedAt}>{dateText(fact.sourceCompletedAt)}</time></dd></div><div><dt>사실 기록</dt><dd><time dateTime={fact.recordedAt}>{dateText(fact.recordedAt)}</time></dd></div></dl>
+  <p>{fact.buildingName} · {fact.unitLabel}</p><dl><div><dt>관리자 처리 완료 기록</dt><dd><DateTime at={fact.sourceCompletedAt}/></dd></div><div><dt>사실 기록</dt><dd><DateTime at={fact.recordedAt}/></dd></div></dl>
   {fact.corrected?<p>정정 {fact.correctionCount}회 · 현재 기록</p>:null}<p>{outcomeLabels[fact.tenantOutcome]}</p>
   <div className={styles.actions}><button onClick={()=>onOpenTicket(fact.sourceTicketId)}>근거 접수 보기</button>
    {fact.previousTicketId?<button onClick={()=>onOpenTicket(fact.previousTicketId!)}>이전 완료 접수에서 이어진 건</button>:null}

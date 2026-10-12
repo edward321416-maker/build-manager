@@ -21,8 +21,9 @@ import { createRequestFence,sendFollowUp } from "./follow-up-request";
 import { VendorHandoffManager,ManagerDirectCompletionGate } from "./vendor-handoff-manager";
 import { managerNextStep,type ManagerStepTarget } from "./manager-next-step";
 import { VendorHandoffTenant } from "./vendor-handoff-tenant";
+import { historyLines } from "./history-lines";
+import { DateTime } from "../../components/date-time";
 
-const eventLabels:Record<string,string>={CREATED:"접수 내용 저장",ANSWERED:"답변 저장",EVIDENCE:"증빙 사진 지정",FINALIZED:"수리 요청 제출",MORE_INFO:"추가 확인 요청",DECISION:"처리 방법 결정",HANDLING:"처리 기록"};
 type IntakeState=CoreTicketDto["detail"]["status"];
 // Intake steps that still wait on the tenant stay open above the record instead of collapsed at the bottom.
 const openIntakeStates:IntakeState[]=["IN_PROGRESS","NEEDS_MORE_INFO","SAFETY_ESCALATED"];
@@ -250,7 +251,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
         </>:null}
         </div>
 
-        <section className={styles.history} aria-label="진행 이력"><h2>진행 이력</h2>{selected.events.map(event=><p key={event.id}><time dateTime={event.at}>{new Date(event.at).toLocaleString("ko-KR")}</time> · {event.actorRole==="TENANT"?"세입자":"관리자"} · {eventLabels[event.kind]??"접수 정보 변경"}{event.message?` · ${event.message}`:""}</p>)}</section></TicketCommunication>
+        <section className={styles.history} aria-label="진행 이력"><h2>진행 이력</h2>{historyLines(selected.events).map(line=><p key={line.id}><DateTime at={line.at}/> {line.actor} · {line.label}{line.message?` · ${line.message}`:""}</p>)}</section></TicketCommunication>
           <details className={styles.technicalDetails}><summary>접수 세부 정보</summary><p className={styles.ticketId}>접수번호 {selected.ticketId}</p></details>
         {selected.workStatus==="COMPLETED"?<p>관리자의 완료 기록을 확인했습니다. 목록에서 이력을 다시 볼 수 있습니다.</p>:session.role==="TENANT"&&tenantIntakeOpen(selected)?null:<details id={session.role==="TENANT"?undefined:"ticket-decision"} className={styles.protocolDetails}><summary>{session.role==="TENANT"?"추가 확인":"추가 확인·결정 기록"}</summary>{session.role==="TENANT"?<TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} evidenceStep={evidenceStep}/>:<TicketReview key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} onDecided={onDecided}/>}</details>}
         </div>

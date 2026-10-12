@@ -1,5 +1,5 @@
 import type { CoreTicketDto } from "@build-manager/api-contracts";
-import { INTAKE_STATUS_NAMES, WORK_STATUS_NAMES } from "../../../components/status-names";
+import { INTAKE_STATUS_NAMES, WORK_STATUS_NAMES, sentIntakeStatus } from "../../../components/status-names";
 import styles from "../core-design.module.css";
 
 export function WorkStatusBadge({ status }: { status: CoreTicketDto["workStatus"] }) {
@@ -14,12 +14,11 @@ type IntakeTicket = {
 
 /**
  * Every tenant answer resets the server status to IN_PROGRESS, also while the tenant answers a manager's
- * more-info request after an earlier submission. A FINALIZED event tells the two apart, so a request that
- * was already sent is never shown as unsubmitted again.
+ * more-info request after an earlier submission. Here a FINALIZED event tells the two apart; the shared rule in
+ * `sentIntakeStatus` keeps a request that was already sent from ever reading as unsubmitted again.
  */
 export function intakeDisplayStatus(ticket: IntakeTicket): CoreTicketDto["detail"]["status"] {
-  const resubmitting = ticket.detail.status === "IN_PROGRESS" && Boolean(ticket.events?.some(event => event.kind === "FINALIZED"));
-  return resubmitting ? "NEEDS_MORE_INFO" : ticket.detail.status;
+  return sentIntakeStatus(ticket.detail.status, Boolean(ticket.events?.some(event => event.kind === "FINALIZED")));
 }
 
 /** A request the tenant has saved but never submitted: nothing has reached the manager's decision yet. */
