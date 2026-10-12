@@ -16,8 +16,9 @@ const sources = (dir: string): string[] => readdirSync(dir).flatMap(name => {
 const scanned = [
   ...sources(join(src, "app/core")),
   ...sources(join(src, "app/vendor/job")),
-  ...["components/core-photos.tsx", "components/landlord/ticket-review.tsx", "components/landlord/views.tsx", "components/tenant/views.tsx",
-    "components/tenant/ticket-intake.tsx", "components/vendor-interval-fields.tsx", "lib/browser-api-client.ts"].map(path => join(src, path)),
+  ...["components/core-photos.tsx", "components/landlord/ticket-review.tsx", "components/landlord/views.tsx", "components/landlord/logic.ts",
+    "components/tenant/views.tsx", "components/tenant/ticket-intake.tsx", "components/vendor-interval-fields.tsx", "components/status-names.ts",
+    "components/date-time.tsx", "lib/browser-api-client.ts", "lib/date-text.ts", "lib/vendor-blocker.ts", "lib/vendor-time.ts"].map(path => join(src, path)),
   ...["http.ts", "core-photos.ts", "vendor-job.ts"].map(path => join(apiClient, path)),
 ];
 const demoOnly: Record<string, string[]> = {
@@ -38,12 +39,12 @@ const demoOnly: Record<string, string[]> = {
   ],
 };
 const normalized = (text: string) => text.replace(/\s+/g, " ");
-const formal = (text: string) => [...text.matchAll(/[가-힣]+(?:니다|니까)/g)].map(match => match[0]);
+const formal = (text: string) => [...text.matchAll(/[가-힣]+(?:니다|니까|십시오)/g)].map(match => match[0]);
 const key = (path: string) => relative(src, path).replaceAll("\\", "/");
 
 describe("해요체 on /core, the pieces it embeds and the Vendor job screen", () => {
   it("finds the formal endings it guards against", () => {
-    expect(formal("사진을 저장했습니다. 다시 확인하시겠습니까?")).toEqual(["저장했습니다", "확인하시겠습니까"]);
+    expect(formal("사진을 저장했습니다. 다시 확인하시겠습니까? 새로고침하십시오.")).toEqual(["저장했습니다", "확인하시겠습니까", "새로고침하십시오"]);
     expect(formal("사진을 저장했어요. 다시 확인해 주세요.")).toEqual([]);
   });
 

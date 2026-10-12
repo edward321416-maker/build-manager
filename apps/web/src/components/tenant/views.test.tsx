@@ -297,6 +297,7 @@ describe("tenant status panel", () => {
 
     for (const landlordOnly of [
       "추천 처리 방법",
+      "추천할 처리 방법",
       "관리사무소",
       "routeCode",
       "provenance",
