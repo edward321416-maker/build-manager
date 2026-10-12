@@ -3,12 +3,15 @@
 // Requires the pinned Node, Docker and a production Web build (npm run build:web). Synthetic data only; the pages load the
 // Pretendard font from cdn.jsdelivr.net and nothing else leaves this machine. The container and the private state folder
 // the fixture writes are removed at the end, on failure and on Ctrl+C.
-// Checks (each one came from operator feedback recorded in the rules, §18):
+// Checks (the first five came from operator feedback recorded in the rules, §18):
 //   edge-box   text closer than 6px to a box edge that is visible (background or border on that side)
 //   edge-view  text closer than 16px to the left or right of the viewport
 //   top        first text closer than 10px to the top of the page
 //   clipped    select, button or input text that does not fit its box
 //   hscroll    the page scrolls sideways
+//   tap        a button, link, field or summary smaller than 50x50px (rules §5); for a checkbox, a radio or a visually
+//              hidden input its visible label is measured (added after the PR 122 end review found 60x45px photo
+//              buttons). The one exception: up to 767px the /core top menu links need only 40px height (rules §16).
 //   coverage   a requested engine did not start, or a screen that should exist could not be reached
 // Exit code 1 when any finding remains, so it can gate a design change.
 import { createRequire } from "node:module";
@@ -86,6 +89,21 @@ function inspect() {
     const text = el.tagName === "SELECT" ? (el.options[el.selectedIndex]?.text ?? "") : el.tagName === "INPUT" ? el.value : "";
     if (text) { ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; if (ctx.measureText(text).width > avail + 1) result.push({ check: "clipped", where: label(el), detail: `text ${Math.round(ctx.measureText(text).width)}px in ${Math.round(avail)}px` }); }
     else if (el.scrollWidth > el.clientWidth + 1) result.push({ check: "clipped", where: label(el), detail: `content ${el.scrollWidth}px in ${el.clientWidth}px` });
+  }
+  // A checkbox, a radio or a visually hidden input is pressed through its label, so a visible label is measured instead.
+  // Without one the control itself is measured, so an unlabelled 20px checkbox is still reported.
+  const taps = new Set();
+  for (const el of document.querySelectorAll("button, a[href], select, textarea, summary, input:not([type=hidden]), [role=button], [role=tab]")) {
+    const viaLabel = el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio" || hiddenText(el)) ? [...(el.labels ?? [])].find(l => !hiddenText(l)) : null;
+    const target = viaLabel ?? el;
+    if (!hiddenText(target)) taps.add(target);
+  }
+  // Operator decision 2026-10-12 (rules §16): up to 767px the /core top menu links stay 40px tall until the bottom tab
+  // bar replaces them, so there their height only has to reach 40px.
+  const phoneMenu = el => innerWidth <= 767 && el.matches(".core-account nav a");
+  for (const el of taps) {
+    const r = el.getBoundingClientRect(), minHeight = phoneMenu(el) ? 40 : 50;
+    if (r.width < 49.5 || r.height < minHeight - .5) result.push({ check: "tap", where: label(el), detail: `${Math.round(r.width)}x${Math.round(r.height)}px, needs 50x${minHeight}` });
   }
   if (document.documentElement.scrollWidth > vw) result.push({ check: "hscroll", where: "page", detail: `${document.documentElement.scrollWidth}px wide in ${vw}px` });
   return result;
