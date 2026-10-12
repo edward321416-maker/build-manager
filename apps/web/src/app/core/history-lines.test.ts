@@ -10,7 +10,8 @@ describe("history lines", () => {
   it("folds consecutive answers by the same person into one line with a count and the last time", () => {
     const answers = Array.from({ length: 8 }, () => event("ANSWERED"));
     const lines = historyLines([event("CREATED"), ...answers, event("FINALIZED")]);
-    expect(lines.map(line => line.label)).toEqual(["접수 내용 저장", "질문 답변 8건", "수리 요청 제출"]);
+    // The count is saves, not distinct questions (a changed answer is another save), so the label says 저장.
+    expect(lines.map(line => line.label)).toEqual(["접수 내용 저장", "답변 저장 8건", "수리 요청 제출"]);
     expect(lines[1]).toMatchObject({ actor: "세입자", at: answers[7].at, id: answers[7].id });
   });
 
@@ -20,7 +21,7 @@ describe("history lines", () => {
       event("MORE_INFO", "MANAGER", "합성 질문 하나"), event("MORE_INFO", "MANAGER", "합성 질문 둘"),
     ]);
     expect(lines.map(line => `${line.actor} · ${line.label}${line.message ? ` · ${line.message}` : ""}`)).toEqual([
-      "세입자 · 질문 답변", "관리자 · 질문 답변", "세입자 · 질문 답변",
+      "세입자 · 답변 저장", "관리자 · 답변 저장", "세입자 · 답변 저장",
       "관리자 · 추가 확인 요청 · 합성 질문 하나", "관리자 · 추가 확인 요청 · 합성 질문 둘",
     ]);
   });

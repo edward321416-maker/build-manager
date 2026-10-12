@@ -3,10 +3,9 @@
  * Korea observes no daylight saving time, so a fixed +09:00 offset is exact and host/browser time zones never apply.
  * Validation always compares absolute instants, never formatted strings.
  */
-import { clockText,dateText,meridiem } from "./date-text";
+import { WEEKDAYS,clockText,dateText,meridiem,timeText } from "./date-text";
 
 const OFFSET_MS=9*3_600_000;
-const WEEKDAYS="일월화수목금토";
 
 export type VendorInterval={startAt:string;endAt:string};
 type SeoulParts={year:number;month:number;day:number;weekday:string;hour:number;minute:number};
@@ -26,7 +25,7 @@ function seoul(value:string|Date):SeoulParts{
 /** `10월 7일 (수) 오후 2:00`; another Seoul year reads `2027년 1월 3일 오후 2:00`, without the weekday. */
 export function formatVendorInstant(at:string,now:Date=new Date()):string{
   const p=seoul(at);
-  return `${dateText(p,seoul(now).year)} ${meridiem(p)} ${clockText(p)}`;
+  return `${dateText(p,seoul(now).year)} ${timeText(p)}`;
 }
 
 /**

@@ -36,8 +36,20 @@ describe("date text (design rules section 14)", () => {
     expect(clockParts("2026-10-07T15:05:00Z", "Asia/Seoul")).toEqual({ year: 2026, month: 10, day: 8, weekday: "목", hour: 0, minute: 5 });
   });
 
-  it("refuses an instant it cannot read", () => {
+  it("refuses an instant it cannot read, but formatting shows the raw text instead of throwing during render", () => {
     expect(() => clockParts("not a date")).toThrow(RangeError);
+    expect(formatDateTime("not a date", { ...seoul, now })).toBe("not a date");
+  });
+
+  it("reads a server time slightly ahead of this clock as 방금, not as a full date", () => {
+    expect(formatDateTime("2026-10-12T05:00:05Z", { ...seoul, now })).toBe("방금");
+    expect(formatDateTime("2026-10-12T05:01:30Z", { ...seoul, now })).toBe("10월 12일 (월) 오후 2:01");
+  });
+
+  it("works out the weekday from the date itself", () => {
+    // 2027-01-01 is a Friday, 2026-02-28 a Saturday.
+    expect(clockParts("2027-01-01T03:00:00Z", "Asia/Seoul").weekday).toBe("금");
+    expect(clockParts("2026-02-28T03:00:00Z", "Asia/Seoul").weekday).toBe("토");
   });
 
   it("is the only way the web shows a date: no screen falls back to the browser's default format", () => {
