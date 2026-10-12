@@ -50,6 +50,7 @@
 **Files:** Create `app/core/history-lines.ts`, `app/core/history-lines.test.ts`. Modify `core-screen.tsx`, `app/core/ui/work-status-badge.tsx`
 
 - [ ] `historyLines(events)`: 같은 사람·같은 종류·메시지 없음이 이어지면 한 줄, `{이름} {n}건`, 시각은 마지막 기록. 이름: 접수 내용 저장, 질문 답변, 증빙 사진 지정, 수리 요청 제출, 추가 확인 요청, 처리 방법 결정, 처리 기록, 그 밖은 접수 정보 변경. 시험: 이어진 답변 8건 → 한 줄, 사람이 바뀌면 끊김, 메시지가 있으면 따로, 순서 유지
+  - 구현 중 바뀐 것(설계 문서에 기록): 답변과 증빙 사진 지정만 묶고 결정은 묶지 않음, 이름은 `질문 답변` 대신 `답변 저장`
 - [ ] `intakeDisplayStatus`가 `sentIntakeStatus`를 쓴다(묶음 1 차이 재리뷰 Nit). 기존 시험 통과 확인
 - [ ] 커밋 `fix(web): group repeated history lines and keep one sent-request rule`
 

@@ -1,7 +1,7 @@
 /**
  * Korean date and time text in the design rules section 14 format, one place for every web screen.
- * Without a `timeZone` the browser's zone applies, as on /core so far; Vendor surfaces keep their fixed Seoul time
- * in vendor-time.ts and only borrow the text shapes from here.
+ * Without a `timeZone` the browser's zone applies, as on /core so far. Vendor handoff times are Seoul times: ranges
+ * through vendor-time.ts, which borrows the text shapes from here, and instants through `<DateTime timeZone="Asia/Seoul">`.
  */
 export type ClockParts = { year: number; month: number; day: number; weekday: string; hour: number; minute: number };
 

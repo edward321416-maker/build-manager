@@ -5,15 +5,16 @@ import { ApiClientError,type CoreVendorHandoffClient,type CoreFlowClient } from 
 import styles from "./vendor-handoff.module.css";
 import Image from "next/image";
 import { formatVendorInterval } from "../../lib/vendor-time";
+import { absoluteDateTime } from "../../lib/date-text";
 import { DateTime } from "../../components/date-time";
-// Vendor handoff times are Seoul times on every surface (lib/vendor-time.ts).
-const SEOUL="Asia/Seoul";
 import { BLOCKER_LABELS,OMISSION_LABELS,WAITING_LABELS } from "../../lib/vendor-blocker";
 import { ACCESS_POLICY_NAMES,SHARED_DETAIL_SOURCE_NAMES,buildingValueName } from "../../components/status-names";
+// Vendor handoff times are Seoul times on every surface (lib/vendor-time.ts).
+const SEOUL="Asia/Seoul";
 export type VendorPacketDraft={vendorLabel:string;workSummary:string;sharedDetailKeys:string[];allowedPhotoIds:string[];accessPolicy:VendorAccessPolicy;accessInstruction:string};
 type PendingLinkRequest={kind:"ISSUE"|"REISSUE";assignmentId:string;input:Parameters<CoreVendorHandoffClient["issueLink"]>[1]};
 type ManagerAction="CLOSEOUT"|"CORRECTION"|"MORE_WORK"|"REASSIGN";
-export type VendorHandoffViewProps={action?:ManagerAction|null;actionText?:string;onAction?:(action:ManagerAction|null)=>void;onActionText?:(text:string)=>void;onSubmitAction?:()=>void;communicationVersion?:number;ticket:CoreTicketDto;handoff:ManagerVendorHandoffDto|null;loading:boolean;busy:boolean;error:string;validationError?:string;notice:string;uncertain:boolean;pendingLink?:PendingLinkRequest|null;linkUnavailable:boolean;immediateLink:string|null;preview:boolean;draft:VendorPacketDraft;photoPreviews:{photoId:string;url:string}[];onDraft:(draft:VendorPacketDraft)=>void;onPreview:()=>void;onCreate:()=>void;onPublish:()=>void;onIssue:()=>void;onReissue:()=>void;onReconcileLink?:()=>void;onRevoke:()=>void;onRefresh:()=>void;onReview:()=>void;now?:Date;rescheduleReview?:boolean;onRescheduleReview?:(open:boolean)=>void;onReschedule?:()=>void;reportPhotos?:{photoId:string;url:string}[];historyReportId?:string|null;onHistoryReport?:(id:string|null)=>void};
+export type VendorHandoffViewProps={action?:ManagerAction|null;actionText?:string;onAction?:(action:ManagerAction|null)=>void;onActionText?:(text:string)=>void;onSubmitAction?:()=>void;communicationVersion?:number;ticket:CoreTicketDto;handoff:ManagerVendorHandoffDto|null;loading:boolean;busy:boolean;error:string;validationError?:string;notice:string;uncertain:boolean;pendingLink?:PendingLinkRequest|null;linkUnavailable:boolean;immediateLink:string|null;preview:boolean;draft:VendorPacketDraft;photoPreviews:{photoId:string;url:string}[];onDraft:(draft:VendorPacketDraft)=>void;onPreview:()=>void;onCreate:()=>void;onPublish:()=>void;onIssue:()=>void;onReissue:()=>void;onReconcileLink?:()=>void;onRevoke:()=>void;onRefresh:()=>void;onReview:()=>void;now?:Date;/** The live clock; report and packet times read it on every minute's re-render instead of the render-time `now`. */clock?:()=>Date;rescheduleReview?:boolean;onRescheduleReview?:(open:boolean)=>void;onReschedule?:()=>void;reportPhotos?:{photoId:string;url:string}[];historyReportId?:string|null;onHistoryReport?:(id:string|null)=>void};
 export function vendorHandoffEligible(ticket:CoreTicketDto):boolean{
   if(ticket.workStatus==="COMPLETED"||!("decision" in ticket.detail)||ticket.detail.status==="SAFETY_ESCALATED"||ticket.detail.repairPacket?.safetyEscalated)return false;
   const detail=ticket.detail,decision=detail.decision;
@@ -88,7 +89,7 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     </div>:null}
     {p.handoff?.currentReport?<section className={styles.preview} aria-label="업체 작업 보고">
       <h3>업체 작업 보고 · {p.handoff.currentReport.revision}차</h3>
-      <p><DateTime at={p.handoff.currentReport.submittedAt} now={p.now} timeZone={SEOUL}/> 제출{p.handoff.phase==="COMPLETION_REPORTED"?" · 관리자 확인 대기":""}</p>
+      <p><DateTime at={p.handoff.currentReport.submittedAt} now={p.clock??p.now} timeZone={SEOUL}/> 제출{p.handoff.phase==="COMPLETION_REPORTED"?" · 관리자 확인 대기":""}</p>
       <p>{p.handoff.currentReport.workSummary}</p>
       {p.handoff.currentReport.componentOrPartNote?<p>사용한 부품·자재: {p.handoff.currentReport.componentOrPartNote}</p>:null}
       {p.handoff.currentReport.photoOmissionReason?<p>보고 사진 없음 · {OMISSION_LABELS[p.handoff.currentReport.photoOmissionReason]}</p>
@@ -150,7 +151,7 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
       <summary>전달 내용과 작업 보고 이력 · 읽기 전용</summary>
       <p>이력 조회는 현재 업체나 보고에 대한 처리 대상을 바꾸지 않습니다.</p>
       {p.handoff.packetHistory.map(revision=><details key={revision.id}>
-        <summary>{revision.vendorLabel} · 전달 내용 {revision.revision}차 · <DateTime at={revision.publishedAt} now={p.now} timeZone={SEOUL}/></summary>
+        <summary>{revision.vendorLabel} · 전달 내용 {revision.revision}차 · <DateTime at={revision.publishedAt} now={p.clock??p.now} timeZone={SEOUL}/></summary>
         <dl><dt>접수번호</dt><dd>{revision.jobReference}</dd><dt>건물</dt><dd>{revision.buildingName}</dd><dt>주소</dt><dd>{revision.serviceAddress}</dd><dt>호실</dt><dd>{revision.unitLabel}</dd><dt>작업 설명</dt><dd>{revision.workSummary}</dd></dl>
         {revision.sharedDetails.map(detail=><p key={detail.key}>{detail.label}: {buildingValueName(detail.key,detail.value)} · {SHARED_DETAIL_SOURCE_NAMES[detail.sourceType]}</p>)}
         {revision.safetyNotice.map((notice,index)=><p key={index}>{notice}</p>)}
@@ -159,7 +160,7 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
       </details>)}
       <label>이전 작업 보고<select aria-label="이전 작업 보고" value={historyReport?.id??""} onChange={e=>p.onHistoryReport?.(e.target.value||null)}>
         <option value="">조회할 보고 선택</option>{p.handoff.reportHistory.filter(report=>report.id!==p.handoff?.currentReport?.id).map(report=><option key={report.id} value={report.id}>
-          {p.handoff?.packetHistory.find(packet=>packet.assignmentId===report.assignmentId)?.vendorLabel??"업체"} · 보고 {report.revision}차 · <DateTime at={report.submittedAt} now={p.now} timeZone={SEOUL}/>
+          {p.handoff?.packetHistory.find(packet=>packet.assignmentId===report.assignmentId)?.vendorLabel??"업체"} · 보고 {report.revision}차 · {absoluteDateTime(report.submittedAt,{now:at,timeZone:SEOUL})}
         </option>)}
       </select></label>
       {historyReport?<section aria-label="이전 작업 보고 내용"><h3>이전 작업 보고 · {historyReport.revision}차</h3><p>{historyReport.workSummary}</p>
@@ -304,5 +305,5 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
     void mutate(action,()=>client.vendorHandoff.closeout(id,parsed.data));
   };
   return <VendorHandoffManagerView action={action} actionText={actionText} onAction={value=>{setIntent(value&&handoff?.assignment?{kind:value,assignmentId:handoff.assignment.id,assignmentVersion:handoff.assignment.version,reportId:handoff.currentReport?.id??null,communicationVersion,clientRequestId:crypto.randomUUID()}:null);setActionText("");setValidationError("");}} onActionText={setActionText} onSubmitAction={submitAction} communicationVersion={communicationVersion} ticket={ticket} handoff={handoff} loading={loading} busy={busy} error={error} validationError={validationError} notice={notice} uncertain={uncertain} pendingLink={pendingLink} linkUnavailable={linkUnavailable} immediateLink={immediateLink} preview={preview} draft={draft} photoPreviews={photoPreviews} onDraft={value=>{setDraft(value);setPreview(false);setValidationError("");}} onPreview={()=>setPreview(true)} onCreate={create} onPublish={publish} onIssue={()=>link(false)} onReissue={()=>link(true)} onReconcileLink={()=>{if(pendingLink)recoverLink(pendingLink);}} onRevoke={revoke} onRefresh={()=>void refresh()} onReview={()=>{setUncertain(false);setNotice("");}}
-    now={now()} rescheduleReview={rescheduleReview} onRescheduleReview={setRescheduleReview} onReschedule={reschedule} reportPhotos={reportPhotos} historyReportId={historyReportId} onHistoryReport={setHistoryReportId}/>;
+    now={now()} clock={now} rescheduleReview={rescheduleReview} onRescheduleReview={setRescheduleReview} onReschedule={reschedule} reportPhotos={reportPhotos} historyReportId={historyReportId} onHistoryReport={setHistoryReportId}/>;
 }

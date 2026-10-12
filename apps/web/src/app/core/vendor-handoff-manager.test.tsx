@@ -123,6 +123,23 @@ it("names a report sent minutes ago in relative time, like the request history b
   const html=view({handoff:reported(),now:new Date("2026-10-07T05:05:00Z")});
   expect(html).toContain('title="10월 7일 (수) 오후 2:00">5분 전</time> 제출');
 });
+it("keeps a report's relative time moving while the page stays open, and lists earlier reports as plain text",async()=>{
+  vi.useFakeTimers({toFake:["Date","setInterval","clearInterval"]});vi.setSystemTime(new Date("2026-10-07T05:05:00Z"));
+  task10Host=document.createElement("div");document.body.append(task10Host);task10Root=createRoot(task10Host);
+  const earlier={...report,id:"earlier",revision:1,submittedAt:"2026-10-07T04:00:00Z"},current={...report,revision:2};
+  const handoffWithHistory={...reported(),currentReport:current,reportHistory:[earlier,current]};
+  try{
+    // Like the loaded manager: a Date taken at the parent's render plus the live clock function. Only the clock may drive times.
+    await act(async()=>task10Root!.render(<VendorHandoffManagerView {...base} handoff={handoffWithHistory} now={new Date()} clock={()=>new Date()}/>));
+    expect(task10Host.textContent).toContain("5분 전 제출");
+    await act(async()=>{vi.advanceTimersByTime(2*60*60_000);});
+    expect(task10Host.textContent).toContain("10월 7일 (수) 오후 2:00 제출");
+    // An <option> may hold text only, so earlier reports are listed with their date and time as plain text.
+    const option=task10Host.querySelector('select[aria-label="이전 작업 보고"] option[value="earlier"]')!;
+    expect(option.children).toHaveLength(0);
+    expect(option.textContent).toContain("보고 1차 · 10월 7일 (수) 오후 1:00");
+  }finally{vi.useRealTimers();}
+});
 it("shows the Vendor completion report with only its selected photos while awaiting the Manager (Task8)",()=>{
   const html=view({handoff:reported(),reportPhotos:[{photoId:"photo-1",url:"blob:synthetic-report"}],now:new Date("2026-10-07T06:00:00Z")});
   for(const text of ["업체 작업 보고 · 1차","10월 7일 (수) 오후 2:00</time> 제출","관리자 확인 대기","합성 배관 교체","사용한 부품·자재: 합성 밸브"])expect(html).toContain(text);

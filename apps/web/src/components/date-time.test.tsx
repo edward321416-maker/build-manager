@@ -34,12 +34,16 @@ describe("DateTime", () => {
     vi.setSystemTime(now);
     const host = document.createElement("div"); document.body.append(host);
     const root = createRoot(host);
-    await act(async () => { root.render(<DateTime at="2026-10-12T04:59:40Z" timeZone="Asia/Seoul" />); });
-    expect(host.textContent).toBe("방금");
-    await act(async () => { vi.advanceTimersByTime(3 * 60_000); });
-    expect(host.textContent).toBe("3분 전");
-    await act(async () => { vi.advanceTimersByTime(60 * 60_000); });
-    expect(host.textContent).toBe("10월 12일 (월) 오후 1:59");
-    await act(async () => root.unmount()); host.remove();
+    try {
+      await act(async () => { root.render(<DateTime at="2026-10-12T04:59:40Z" timeZone="Asia/Seoul" />); });
+      expect(host.textContent).toBe("방금");
+      await act(async () => { vi.advanceTimersByTime(3 * 60_000); });
+      expect(host.textContent).toBe("3분 전");
+      await act(async () => { vi.advanceTimersByTime(60 * 60_000); });
+      expect(host.textContent).toBe("10월 12일 (월) 오후 1:59");
+    } finally {
+      // Unmounting stops the shared timer, so a failed assertion cannot leave a fake interval behind.
+      await act(async () => root.unmount()); host.remove();
+    }
   });
 });
