@@ -49,13 +49,14 @@ const styles = StyleSheet.create({
   heading: { color: "#172B3A", fontSize: 24, lineHeight: 32, fontWeight: "700", flexShrink: 1 },
   inverse: { color: "#FFFFFF" },
   muted: { color: "#526275" },
-  button: { minHeight: 48, borderWidth: 1, borderColor: "#7A8897", borderRadius: 8, padding: 12, justifyContent: "center", backgroundColor: "#FFFFFF" },
-  buttonText: { color: "#172B3A", fontSize: 16, lineHeight: 24, fontWeight: "600", flexShrink: 1 },
+  // Text in the middle of the box both ways (design rules §4).
+  button: { minHeight: 48, borderWidth: 1, borderColor: "#7A8897", borderRadius: 8, padding: 12, justifyContent: "center", alignItems: "center", backgroundColor: "#FFFFFF" },
+  buttonText: { color: "#172B3A", fontSize: 16, lineHeight: 24, fontWeight: "600", flexShrink: 1, textAlign: "center" },
   selected: { borderColor: "#245CB2", backgroundColor: "#EFF6FF", borderWidth: 2 },
   primary: { backgroundColor: "#245CB2", borderColor: "#245CB2" },
   disabled: { backgroundColor: "#E9EDF2", borderColor: "#7A8897" },
   error: { color: "#B42318", backgroundColor: "#FEF3F2", padding: 16, borderRadius: 8 },
-  badge: { alignSelf: "flex-start", flexShrink: 1, color: "#526275", backgroundColor: "#E9EDF2", fontSize: 14, lineHeight: 21, fontWeight: "600", paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12 },
+  badge: { alignSelf: "flex-start", flexShrink: 1, textAlign: "center", color: "#526275", backgroundColor: "#E9EDF2", fontSize: 14, lineHeight: 21, fontWeight: "600", paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12 },
   progress: { color: "#1D4ED8", backgroundColor: "#EFF6FF" },
   completed: { color: "#166534", backgroundColor: "#DCFCE7" },
 });

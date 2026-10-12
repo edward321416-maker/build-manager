@@ -139,9 +139,11 @@ const styles = StyleSheet.create({
   stateText: { color: "#426057", fontSize: 15, lineHeight: 22 },
   errorText: { color: "#8a2d20", fontSize: 15, lineHeight: 22 },
   heading: { color: "#17322b", fontSize: 20, fontWeight: "800" },
+  // Text in the middle of the box both ways (design rules §4).
   button: {
     minHeight: 48,
     justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: "#c9c1ad",
     borderRadius: 10,
@@ -151,5 +153,5 @@ const styles = StyleSheet.create({
   },
   buttonSelected: { borderColor: "#7b4c2f", backgroundColor: "#f7efe2" },
   buttonDisabled: { opacity: 0.5 },
-  buttonLabel: { color: "#17322b", fontSize: 16, fontWeight: "600" },
+  buttonLabel: { color: "#17322b", fontSize: 16, fontWeight: "600", textAlign: "center" },
 });
