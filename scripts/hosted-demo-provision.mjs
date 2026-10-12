@@ -7,7 +7,7 @@
 //     private file for the hosting provider's variables. Prints no values.
 //   ensure
 //     Idempotent, run before each deploy with those variables: on an empty database it creates the runtime
-//     roles, applies migrations 0001-0023, seeds synthetic accounts/buildings only and binds the demo
+//     roles, applies migrations 0001-0024, seeds synthetic accounts/buildings only and binds the demo
 //     subjects; afterwards it applies outstanding migrations and re-asserts role passwords. Prints no secrets.
 //
 // Database transport: loopback (single-host deployment such as deploy/vm), a private provider network host

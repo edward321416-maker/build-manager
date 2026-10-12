@@ -62,6 +62,16 @@ export const FollowUpOptionsDtoSchema = z
   .strict();
 export type FollowUpOptionsDto = z.infer<typeof FollowUpOptionsDtoSchema>;
 
+const SubmittedSyntheticEvidenceDtoSchema = z
+  .object({
+    evidenceId: z.string().trim().min(1),
+    evidenceType: SyntheticEvidenceTypeSchema,
+    label: z.string().trim().min(1),
+    /** Present when the tenant named one of the ticket's own Core photos (P1b). */
+    photoId: z.string().uuid().optional(),
+  })
+  .strict();
+
 export const LandlordTicketDetailDtoSchema = z
   .object({
     ticketId: z.string().trim().min(1),
@@ -74,6 +84,11 @@ export const LandlordTicketDetailDtoSchema = z
     repairPacket: LandlordRepairPacketDtoSchema.nullable(),
     decision: DecisionRequestSchema.nullable(),
     followUpOptions: FollowUpOptionsDtoSchema,
+    /**
+     * What the tenant supplied, so the manager can see which photo was named as which evidence (P1b).
+     * The server always sends it; optional so older landlord fixtures and screens stay valid.
+     */
+    submittedEvidence: z.array(SubmittedSyntheticEvidenceDtoSchema).optional(),
   })
   .strict();
 export type LandlordTicketDetailDto = z.infer<
@@ -82,14 +97,6 @@ export type LandlordTicketDetailDto = z.infer<
 
 export const LandlordTicketListSchema = z.array(LandlordTicketDetailDtoSchema);
 export type LandlordTicketList = z.infer<typeof LandlordTicketListSchema>;
-
-const SubmittedSyntheticEvidenceDtoSchema = z
-  .object({
-    evidenceId: z.string().trim().min(1),
-    evidenceType: SyntheticEvidenceTypeSchema,
-    label: z.string().trim().min(1),
-  })
-  .strict();
 
 const TenantRepairPacketDtoSchema = z
   .object({

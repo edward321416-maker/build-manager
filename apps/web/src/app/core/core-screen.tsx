@@ -3,7 +3,9 @@
 import { createCoreFlowClient,ApiClientError } from "@build-manager/api-client";
 import { CoreCreateFollowUpSchema,type CoreCreateFollowUp,type CoreSessionDto,type CoreTicketDto,type CoreUnitDto,type ManagerVendorHandoffDto } from "@build-manager/api-contracts";
 import { useCallback,useEffect,useMemo,useRef,useState } from "react";
-import { TicketIntake } from "../../components/tenant/ticket-intake";
+import { TicketIntake,type EvidenceStepRenderer } from "../../components/tenant/ticket-intake";
+import { PhotoEvidenceStep } from "./photo-evidence-step";
+import { evidenceStage } from "./evidence-stage";
 import { TicketReview } from "../../components/landlord/ticket-review";
 import { PhotoPicker,PhotoGallery,photoError,type PendingPhoto } from "../../components/core-photos";
 import { DraftBadge,intakeDisplayStatus,isIntakeDraft,WorkStatusBadge } from "./ui/work-status-badge";
@@ -20,17 +22,17 @@ import { VendorHandoffManager,ManagerDirectCompletionGate } from "./vendor-hando
 import { managerNextStep,type ManagerStepTarget } from "./manager-next-step";
 import { VendorHandoffTenant } from "./vendor-handoff-tenant";
 
-const eventLabels:Record<string,string>={CREATED:"접수 내용 저장",ANSWERED:"답변 저장",FINALIZED:"수리 요청 제출",MORE_INFO:"추가 확인 요청",DECISION:"추천 경로 결정",HANDLING:"처리 기록"};
+const eventLabels:Record<string,string>={CREATED:"접수 내용 저장",ANSWERED:"답변 저장",EVIDENCE:"증빙 사진 지정",FINALIZED:"수리 요청 제출",MORE_INFO:"추가 확인 요청",DECISION:"추천 경로 결정",HANDLING:"처리 기록"};
 type IntakeState=CoreTicketDto["detail"]["status"];
 // Intake steps that still wait on the tenant stay open above the record instead of collapsed at the bottom.
 const openIntakeStates:IntakeState[]=["IN_PROGRESS","NEEDS_MORE_INFO","SAFETY_ESCALATED"];
 const tenantIntakeOpen=(t:CoreTicketDto)=>t.workStatus==="OPEN"&&openIntakeStates.includes(intakeDisplayStatus(t));
-const intakeTaskMessage=(status:IntakeState)=>status==="NEEDS_MORE_INFO"?"답한 뒤 다시 제출해 주세요.":status==="SAFETY_ESCALATED"?"아래 안내를 먼저 확인해 주세요.":"질문에 모두 답하면 '수리 요청 제출' 버튼이 나와요.";
+const intakeTaskMessage=(status:IntakeState)=>status==="NEEDS_MORE_INFO"?"답한 뒤 다시 제출해 주세요.":status==="SAFETY_ESCALATED"?"아래 안내를 먼저 확인해 주세요.":"질문에 답하고 필요한 사진을 고르면 '수리 요청 제출' 버튼이 나와요.";
 function progressMessage(t:CoreTicketDto,tenant:boolean){
   if(t.workStatus==="COMPLETED")return "관리자가 완료로 기록했습니다.";
   if(t.workStatus==="IN_PROGRESS")return tenant?"관리자가 확인하고 있어요.":"처리 중이에요.";
   switch(intakeDisplayStatus(t)){
-    case "IN_PROGRESS":return tenant?"아직 보내지 않았어요. 아래 질문에 답하고 '수리 요청 제출'을 눌러야 관리자에게 전달돼요.":"세입자가 아직 질문에 답하는 중이에요.";
+    case "IN_PROGRESS":return tenant?"아직 보내지 않았어요. 아래 할 일을 마치고 '수리 요청 제출'을 눌러야 관리자에게 전달돼요.":"세입자가 아직 질문에 답하는 중이에요.";
     case "NEEDS_MORE_INFO":return tenant?"관리자가 추가 확인을 요청했어요. 아래 질문에 답해 주세요.":"세입자의 추가 답변을 기다리고 있어요.";
     case "SAFETY_ESCALATED":return tenant?"안전 확인이 필요해요.":"안전 확인이 필요한 접수예요.";
     case "PARTIAL":return tenant?"관리자에게 보냈어요. 부족한 정보가 있으면 관리자가 다시 물어볼 거예요.":"세입자가 제출했어요. 필수 정보가 부족해요.";
@@ -59,6 +61,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
   const [issue,setIssue]=useState<"HEATING"|"LEAK">("HEATING"),[text,setText]=useState(""),[message,setMessage]=useState("");
   const [busy,setBusy]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState(""),[revision,setRevision]=useState(0);
   const [pending,setPending]=useState<PendingPhoto[]>([]),[photoMessage,setPhotoMessage]=useState("");
+  // Photos stored by the intake's evidence step: reloads the photo list without remounting the intake (keyed by revision).
+  const [photoRevision,setPhotoRevision]=useState(0);
   const [communicationVersion,setCommunicationVersion]=useState<{ticketId:string;version:number}|null>(null);
   const [managerHandoff,setManagerHandoff]=useState<ManagerVendorHandoffDto|null>(null);
   const onManagerHandoff=useCallback((value:ManagerVendorHandoffDto|null)=>setManagerHandoff(value),[]);
@@ -136,6 +140,22 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
     // reader names: the decision section's title, the named Vendor and fact sections, or the handling record field.
     requestAnimationFrame(()=>requestAnimationFrame(()=>{const section=document.getElementById(id);section?.scrollIntoView({block:"start"});
       const focus=target==="decision"?section?.querySelector("summary"):target==="handling"?section?.querySelector("textarea"):section;focus?.focus({preventScroll:true});}));
+  };
+  // Naming a photo keeps the status, so onIntakeStatus does not re-read: refresh the summary for the photo names and the
+  // history. Only the latest read lands (same sequence as onIntakeStatus); after a failed read the next one catches up.
+  const rereadSelected=(id:string)=>{const seq=++intakeRead.current;void client.read(id).then(ticket=>{if(seq===intakeRead.current)setSelected(current=>current?.ticketId===ticket.ticketId?ticket:current);},()=>undefined);};
+  // P1b: the intake's evidence stage (evidenceStage). A request never sent names one of this ticket's photos, and an upload
+  // there refreshes only the photo list. A request sent without its photos stays as sent (spec D5): it says what happened
+  // and offers neither the photo step nor a second submission. A sent request reopened another way keeps the intake's own
+  // "수리 요청 제출" (null). The intake's own ticket decides at once, before this screen re-reads its events.
+  const sentOnRecord=Boolean(selected?.events.some(event=>event.kind==="FINALIZED"));
+  const evidenceStep:EvidenceStepRenderer|undefined=!selected?undefined:step=>{
+    const view=evidenceStage(step.ticket,sentOnRecord);
+    if(view==="SUBMIT")return null;
+    if(view==="SENT")return <p>필요한 사진 없이 보냈어요. 관리자가 확인한 뒤 다시 물어볼 수 있어요.</p>;
+    return <PhotoEvidenceStep key={`${selected.ticketId}-${step.requirement.evidenceType}`} client={client} ticketId={selected.ticketId} requirement={step.requirement} named={step.ticket.submittedEvidence} revision={revision} busy={step.busy||busy}
+      onChoose={photoId=>step.choose(async()=>{const status=await client.submitPhotoEvidence(selected.ticketId,{evidenceType:step.requirement.evidenceType,photoId});rereadSelected(selected.ticketId);return status;})}
+      onSubmitWithout={step.submitWithout} onPhotosChanged={()=>setPhotoRevision(r=>r+1)}/>;
   };
   const restore=async()=>{
     try{const s=await client.session(),u=await client.units(),t=await client.tickets();setSession(s);setUnits(u);setUnit(u[0]?.id??"");setTickets(t);}
@@ -218,9 +238,9 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
         <TicketCommunication key={selected.ticketId} client={client} ticketId={selected.ticketId} tenant={session.role==="TENANT"} revision={revision} completed={selected.workStatus==="COMPLETED"} onVersion={setCommunicationVersion}>
         {/* Tenant-only children render right after the conversation's own to-do, so a pending reply stays first. */}
         {/* Keyed on the shown state, not on photo revisions, so uploads right after 접수하기 do not remount the questions. */}
-        {session.role==="TENANT"&&tenantIntakeOpen(selected)?<TaskZone tenant label="지금 할 일: 추가 확인" message={intakeTaskMessage(intakeDisplayStatus(selected))}><TicketIntake key={`${selected.ticketId}-${intakeDisplayStatus(selected)}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus}/></TaskZone>:null}
+        {session.role==="TENANT"&&tenantIntakeOpen(selected)?<TaskZone tenant label="지금 할 일: 추가 확인" message={intakeTaskMessage(intakeDisplayStatus(selected))}><TicketIntake key={`${selected.ticketId}-${intakeDisplayStatus(selected)}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} evidenceStep={evidenceStep}/></TaskZone>:null}
         <div className={styles.photoArea}>
-        <PhotoGallery client={client} ticketId={selected.ticketId} revision={revision} />
+        <PhotoGallery client={client} ticketId={selected.ticketId} revision={`${revision}-${photoRevision}`} named={selected.detail.submittedEvidence??[]} />
         {session.role==="TENANT"?<>
           {selected.workStatus!=="COMPLETED"||pending.length?<PhotoPicker files={pending} onChange={setPending} disabled={busy||selected.workStatus==="COMPLETED"} />:null}
           {selected.workStatus==="COMPLETED"&&pending.length?<button disabled={busy} onClick={()=>setPending([])}>미전송 사진 선택 취소</button>:null}
@@ -231,7 +251,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
 
         <section className={styles.history} aria-label="진행 이력"><h2>진행 이력</h2>{selected.events.map(event=><p key={event.id}><time dateTime={event.at}>{new Date(event.at).toLocaleString("ko-KR")}</time> · {event.actorRole==="TENANT"?"세입자":"관리자"} · {eventLabels[event.kind]??"접수 정보 변경"}{event.message?` · ${event.message}`:""}</p>)}</section></TicketCommunication>
           <details className={styles.technicalDetails}><summary>접수 세부 정보</summary><p className={styles.ticketId}>접수번호 {selected.ticketId}</p></details>
-        {selected.workStatus==="COMPLETED"?<p>관리자의 완료 기록을 확인했습니다. 목록에서 이력을 다시 볼 수 있습니다.</p>:session.role==="TENANT"&&tenantIntakeOpen(selected)?null:<details id={session.role==="TENANT"?undefined:"ticket-decision"} className={styles.protocolDetails}><summary>{session.role==="TENANT"?"추가 확인":"추가 확인·결정 기록"}</summary>{session.role==="TENANT"?<TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus}/>:<TicketReview key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} onDecided={onDecided}/>}</details>}
+        {selected.workStatus==="COMPLETED"?<p>관리자의 완료 기록을 확인했습니다. 목록에서 이력을 다시 볼 수 있습니다.</p>:session.role==="TENANT"&&tenantIntakeOpen(selected)?null:<details id={session.role==="TENANT"?undefined:"ticket-decision"} className={styles.protocolDetails}><summary>{session.role==="TENANT"?"추가 확인":"추가 확인·결정 기록"}</summary>{session.role==="TENANT"?<TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} evidenceStep={evidenceStep}/>:<TicketReview key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} onDecided={onDecided}/>}</details>}
         </div>
         {session.role!=="TENANT"?<ManagerInspector expanded={inspectorExpanded} onExpandedChange={setInspectorExpanded}><div className={styles.actionRail}>
         <ManagerWorkDetail key={selected.ticketId} client={client} ticket={selected} revision={revision}/>

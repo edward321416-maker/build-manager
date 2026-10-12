@@ -177,6 +177,10 @@ describe("public API contracts", () => {
     expect(schema("TenantTicketStatusDtoSchema").safeParse(tenantStatus).success).toBe(
       true,
     );
+    // P1b: evidence the tenant named from a Core photo carries that photo's ID; nothing else may stand in for it.
+    const named = { evidenceId: "evidence-1", evidenceType: "LEAK_LOCATION", label: "누수 부위 사진", photoId: "0b6f7d1e-2c3a-4d5e-8f90-1a2b3c4d5e6f" };
+    expect(schema("TenantTicketStatusDtoSchema").safeParse({ ...tenantStatus, submittedEvidence: [named] }).success).toBe(true);
+    expect(schema("TenantTicketStatusDtoSchema").safeParse({ ...tenantStatus, submittedEvidence: [{ ...named, photoId: "core-photo:x" }] }).success).toBe(false);
     expect(
       schema("TenantTicketStatusDtoSchema").safeParse({
         ...tenantStatus,
@@ -809,5 +813,47 @@ describe("landlord follow-up options", () => {
     expect(schema("FollowUpOptionsDtoSchema").safeParse({ questions: [] }).success).toBe(
       false,
     );
+  });
+});
+
+describe("core photo evidence request", () => {
+  // P1b: the browser names a public evidence type and one photo ID; the server builds every storage reference itself.
+  const request = { evidenceType: "LEAK_LOCATION", photoId: "0b6f7d1e-2c3a-4d5e-8f90-1a2b3c4d5e6f" };
+
+  it("accepts a public evidence type with one photo ID", () => {
+    expect(schema("CorePhotoEvidenceRequestSchema").safeParse(request).success).toBe(true);
+  });
+
+  it.each([
+    { name: "a storage reference instead of a photo ID", body: { ...request, photoId: "core-photo:0b6f7d1e-2c3a-4d5e-8f90-1a2b3c4d5e6f" } },
+    { name: "a domain evidence type", body: { ...request, evidenceType: "LEAK_AREA_PHOTO" } },
+    { name: "a fixture ID", body: { ...request, fixtureId: "demo-fixture-leak" } },
+    { name: "no photo", body: { evidenceType: "LEAK_LOCATION" } },
+  ])("rejects $name", ({ body }) => {
+    expect(schema("CorePhotoEvidenceRequestSchema").safeParse(body).success).toBe(false);
+  });
+});
+
+describe("P1b evidence screens", () => {
+  const requirement = { evidenceType: "LEAK_LOCATION", label: "DEMO 누수 위치 이미지", required: true, demoFixtureId: "demo-leak-location" };
+  const photoId = "0b6f7d1e-2c3a-4d5e-8f90-1a2b3c4d5e6f";
+
+  it("lets a requirement carry the protocol's photo instruction, never a blank one", () => {
+    const requirementSchema = schema("SyntheticEvidenceRequirementDtoSchema");
+    expect(requirementSchema.safeParse({ ...requirement, instruction: "안전한 거리에서 누수 부위와 주변 위치가 함께 보이도록 촬영해 주세요." }).success).toBe(true);
+    expect(requirementSchema.safeParse(requirement).success).toBe(true);
+    expect(requirementSchema.safeParse({ ...requirement, instruction: "  " }).success).toBe(false);
+  });
+
+  it("gives the manager the evidence the tenant named, with the chosen photo", () => {
+    const detailSchema = schema("LandlordTicketDetailDtoSchema");
+    const detail = {
+      ticketId: "ticket-a", building: passport, issueType: "LEAK", protocol: "LEAK_V1", status: "READY_FOR_REVIEW", evidenceStatus: "COMPLETE",
+      activeQuestion: null, repairPacket: null, decision: null, followUpOptions: { questions: [], evidence: [] },
+      submittedEvidence: [{ evidenceId: "evidence-1", evidenceType: "LEAK_LOCATION", label: "DEMO 누수 위치 이미지", photoId }],
+    };
+    expect(detailSchema.safeParse(detail).success).toBe(true);
+    expect(detailSchema.safeParse({ ...detail, submittedEvidence: [{ ...detail.submittedEvidence[0], photoId: `core-photo:${photoId}` }] }).success).toBe(false);
+    expect(detailSchema.safeParse({ ...detail, submittedEvidence: [{ ...detail.submittedEvidence[0], evidenceType: "LEAK_AREA_PHOTO" }] }).success).toBe(false);
   });
 });
