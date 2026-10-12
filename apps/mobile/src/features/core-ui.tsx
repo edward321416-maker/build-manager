@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: "#245CB2", borderColor: "#245CB2" },
   disabled: { backgroundColor: "#E9EDF2", borderColor: "#7A8897" },
   error: { color: "#B42318", backgroundColor: "#FEF3F2", padding: 16, borderRadius: 8 },
-  badge: { alignSelf: "flex-start", flexShrink: 1, color: "#526275", backgroundColor: "#E9EDF2", fontSize: 14, lineHeight: 21, fontWeight: "600", paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12 },
+  badge: { alignSelf: "flex-start", flexShrink: 1, textAlign: "center", color: "#526275", backgroundColor: "#E9EDF2", fontSize: 14, lineHeight: 21, fontWeight: "600", paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12 },
   progress: { color: "#1D4ED8", backgroundColor: "#EFF6FF" },
   completed: { color: "#166534", backgroundColor: "#DCFCE7" },
 });

@@ -13,8 +13,9 @@
 //              hidden input its visible label is measured (added after the PR 122 end review found 60x45px photo
 //              buttons). The one exception: up to 767px the /core top menu links need only 40px height (rules §16).
 //   center     text not in the middle of its button, link, tab, summary, option label or status label: the space above
-//              and below differs by 2px or more, or, in a box with a visible fill or border holding one line, the space
-//              left and right does (rules §4). List rows, summary rows and the 1024px+ left menu start at the left.
+//              and below differs by 2px or more, or, in a box with a visible fill or border, the space left and right of
+//              any line does (rules §4). Rows read from the left (summary, request list rows, checkbox and radio rows,
+//              the side-column left menu) are compared only top and bottom.
 //   coverage   a requested engine did not start, or a screen that should exist could not be reached
 // Exit code 1 when any finding remains, so it can gate a design change.
 import { createRequire } from "node:module";
@@ -48,9 +49,12 @@ const missing = (screen, detail) => findings.push({ check: "coverage", screen, w
 
 function inspect() {
   document.querySelectorAll("details:not([open])").forEach(d => d.setAttribute("open", ""));
-  const transparent = c => c === "rgba(0, 0, 0, 0)" || c === "transparent";
-  const hiddenText = el => { for (let a = el; a && a !== document.body; a = a.parentElement) { const cs = getComputedStyle(a); if (cs.visibility === "hidden" || cs.display === "none" || cs.opacity === "0" || cs.clipPath.includes("inset(50%)")) return true; if (cs.display === "contents") continue; const r = a.getBoundingClientRect(); if (r.width <= 1 || r.height <= 1) return true; } return false; };
-  const visibleSides = el => {
+  // Any colour with zero alpha is transparent, not only rgba(0, 0, 0, 0).
+  const transparent = c => c === "transparent" || /^rgba\(.*,\s*0\)$/.test(c) || /\/\s*0\)$/.test(c);
+  // The page does not change during one inspection, so per-element answers are cached.
+  const memo = f => { const seen = new Map(); return el => { if (!seen.has(el)) seen.set(el, f(el)); return seen.get(el); }; };
+  const hiddenText = memo(el => { for (let a = el; a && a !== document.body; a = a.parentElement) { const cs = getComputedStyle(a); if (cs.visibility === "hidden" || cs.display === "none" || cs.opacity === "0" || cs.clipPath.includes("inset(50%)")) return true; if (cs.display === "contents") continue; const r = a.getBoundingClientRect(); if (r.width <= 1 || r.height <= 1) return true; } return false; });
+  const visibleSides = memo(el => {
     const cs = getComputedStyle(el), sides = new Set();
     let a = el.parentElement, under = "rgb(255, 255, 255)";
     while (a) { const c = getComputedStyle(a).backgroundColor; if (!transparent(c)) { under = c; break; } a = a.parentElement; }
@@ -58,7 +62,7 @@ function inspect() {
     for (const s of ["Top", "Right", "Bottom", "Left"]) if (parseFloat(cs["border" + s + "Width"]) > 0 && cs["border" + s + "Style"] !== "none" && !transparent(cs["border" + s + "Color"])) sides.add(s.toLowerCase());
     if (el.tagName === "FIELDSET") sides.delete("top"); // the legend sits on the top border by design
     return sides;
-  };
+  });
   const rects = node => { const r = document.createRange(); r.selectNodeContents(node); return [...r.getClientRects()].filter(x => x.width > 0); };
   const label = el => el.tagName.toLowerCase() + (el.getAttribute("aria-label") ? `[${el.getAttribute("aria-label")}]` : "") + " \"" + (el.innerText || el.value || "").replace(/\s+/g, " ").trim().slice(0, 30) + "\"";
   const result = [];
@@ -109,34 +113,52 @@ function inspect() {
     if (r.width < 49.5 || r.height < minHeight - .5) result.push({ check: "tap", where: label(el), detail: `${Math.round(r.width)}x${Math.round(r.height)}px, needs 50x${minHeight}` });
   }
   // Operator request 2026-10-13 (rules §4): text sits in the middle of its box. The content is the text, icons, images,
-  // visible inputs and inner boxes such as a status label inside a button. A text line counts at its full line height,
-  // which is what CSS centres; browsers report only the glyph area, and Chromium and WebKit report it differently.
-  const contentRect = el => {
-    const u = { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity };
-    const add = (r, line = 0) => { if (r.width <= 0 || r.height <= 0) return; const pad = Math.max(0, (line - r.height) / 2); u.left = Math.min(u.left, r.left); u.right = Math.max(u.right, r.right); u.top = Math.min(u.top, r.top - pad); u.bottom = Math.max(u.bottom, r.bottom + pad); };
+  // visible inputs and inner boxes such as a status label inside a button; positioned decorations (absolute, fixed) are
+  // not, and ::before/::after content cannot be measured, nor can the label of an <input> button (none on these
+  // screens). A text line counts at its full line height, which is what
+  // CSS centres; browsers report only the glyph area, and Chromium and WebKit report it differently.
+  const contentRects = el => {
+    const out = [];
     const visit = node => { for (const c of node.childNodes) {
-      if (c.nodeType === 3) { if (c.textContent.trim()) { const line = parseFloat(getComputedStyle(c.parentElement).lineHeight) || 0; rects(c).forEach(r => add(r, line)); } continue; }
+      if (c.nodeType === 3) {
+        if (!c.textContent.trim()) continue;
+        const cs = getComputedStyle(c.parentElement), line = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
+        for (const r of rects(c)) { const pad = Math.max(0, (line - r.height) / 2); out.push({ left: r.left, right: r.right, top: r.top - pad, bottom: r.bottom + pad }); }
+        continue;
+      }
       if (c.nodeType !== 1 || hiddenText(c)) continue;
-      if (c.matches("img, svg, canvas, video, input") || visibleSides(c).size) { add(c.getBoundingClientRect()); continue; }
+      const cs = getComputedStyle(c);
+      if (cs.position === "absolute" || cs.position === "fixed") continue;
+      if (cs.display !== "contents" && (c.matches("img, svg, canvas, video, input") || visibleSides(c).size)) { const r = c.getBoundingClientRect(); if (r.width > 0 && r.height > 0) out.push(r); continue; }
       visit(c);
     } };
-    visit(el); return u.left === Infinity ? null : u;
+    visit(el); return out;
   };
-  // List rows, summary rows and the 1024px+ left menu start at the left, so only their top and bottom are compared.
-  const leftStart = el => el.matches("summary, li > button") || (innerWidth >= 1024 && el.matches(".core-account nav a, .core-account .core-logout"));
-  for (const el of new Set([...taps, ...document.querySelectorAll("[class*='badge'], span[data-work-state], span[data-intake-state]")])) {
+  const union = rs => rs.reduce((u, r) => ({ left: Math.min(u.left, r.left), right: Math.max(u.right, r.right), top: Math.min(u.top, r.top), bottom: Math.max(u.bottom, r.bottom) }), { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity });
+  // Pieces that overlap by more than half of the lower one sit on the same line.
+  const lines = rs => { const ls = []; for (const r of [...rs].sort((a, b) => a.top - b.top)) { const i = ls.findIndex(l => Math.min(l.bottom, r.bottom) - Math.max(l.top, r.top) > Math.min(l.bottom - l.top, r.bottom - r.top) / 2); if (i < 0) ls.push(union([r])); else ls[i] = union([ls[i], r]); } return ls; };
+  // Gaps are measured inside the borders, where CSS centres the content, so an underline border is not counted as space.
+  const inner = el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el), b = s => parseFloat(cs["border" + s + "Width"]) || 0; return { left: r.left + b("Left"), right: r.right - b("Right"), top: r.top + b("Top"), bottom: r.bottom - b("Bottom") }; };
+  // Rows read from the left compare only top and bottom: summary rows, list rows that open a request (rules §8.5),
+  // checkbox and radio rows (§8.4) and the left menu, which is the account column once it sticks to the side.
+  const leftStart = el => el.matches("summary, [data-open-ticket], .field-check label") || (el.matches(".core-account nav a, .core-account .core-logout") && getComputedStyle(el.closest(".core-account")).position === "sticky");
+  const badge = el => [...el.classList].some(c => /(^|__)badge$/i.test(c) || /[a-z]Badge$/.test(c)) || el.matches("span[data-work-state], span[data-intake-state]");
+  for (const el of new Set([...taps, ...[...document.querySelectorAll("body *")].filter(badge)])) {
     if (hiddenText(el) || el.matches("select, textarea, input")) continue;
-    const c = contentRect(el); if (!c) continue;
-    const r = el.getBoundingClientRect(), cs = getComputedStyle(el), gap = { top: c.top - r.top, bottom: r.bottom - c.bottom, left: c.left - r.left, right: r.right - c.right };
-    const oneLine = c.bottom - c.top < 2 * (parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.25);
-    const pairs = [["top", "bottom"], ...(oneLine && !leftStart(el) && visibleSides(el).size ? [["left", "right"]] : [])];
-    for (const [a, b] of pairs) if (Math.abs(gap[a] - gap[b]) >= 2) result.push({ check: "center", where: label(el), detail: `${a} ${Math.round(gap[a])}px, ${b} ${Math.round(gap[b])}px` });
+    const rs = contentRects(el); if (!rs.length) continue;
+    const box = inner(el), c = union(rs), pairs = [[c.top - box.top, box.bottom - c.bottom, "top", "bottom"]];
+    // Every line of a one-name box is centred on its own, so a wrapped label is checked line by line.
+    if (!leftStart(el) && visibleSides(el).size) pairs.push(...lines(rs).map(l => [l.left - box.left, box.right - l.right, "left", "right"]));
+    const off = pairs.find(([a, b]) => Math.abs(a - b) >= 2);
+    if (off) result.push({ check: "center", where: label(el), detail: `${off[2]} ${Math.round(off[0])}px, ${off[3]} ${Math.round(off[1])}px` });
   }
   if (document.documentElement.scrollWidth > vw) result.push({ check: "hscroll", where: "page", detail: `${document.documentElement.scrollWidth}px wide in ${vw}px` });
   return result;
 }
 
 async function audit(page, name) {
+  // The pointer stays on the last control clicked; move it off so no hover fill changes what is measured.
+  await page.mouse.move(0, 0);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(500);
   const file = join(out, name + ".png");

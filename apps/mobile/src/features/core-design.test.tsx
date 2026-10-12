@@ -3,11 +3,20 @@ import { StyleSheet } from "react-native";
 import { ActionButton as DemoActionButton } from "../components/ui";
 import { ActionButton, CoreText, CoreWorkStatus, Screen } from "./core-ui";
 
-it.each([["core", ActionButton], ["demo", DemoActionButton]])("puts the %s button label in the middle of its box both ways", async (_name, Button) => {
-  await render(<Button label="접수하기" onPress={() => {}}/>);
+it.each([
+  ["core", ActionButton, {}], ["core selected", ActionButton, { selected: true }], ["core primary", ActionButton, { primary: true }],
+  ["core disabled", ActionButton, { disabled: true }], ["demo", DemoActionButton, {}], ["demo selected", DemoActionButton, { selected: true }],
+  ["demo disabled", DemoActionButton, { disabled: true }],
+] as const)("puts the %s button label in the middle of its box both ways", async (_name, Button, variant) => {
+  await render(<Button label="접수하기" onPress={() => {}} {...variant}/>);
   const box = StyleSheet.flatten(screen.getByRole("button", { name: "접수하기" }).props.style);
   expect(box).toMatchObject({ justifyContent: "center", alignItems: "center" });
-  expect(StyleSheet.flatten(screen.getByText("접수하기").props.style)).toMatchObject({ textAlign: "center" });
+  expect(StyleSheet.flatten(screen.getByText(/접수하기$/).props.style)).toMatchObject({ textAlign: "center" });
+});
+
+it("centres a status label that wraps", async () => {
+  await render(<CoreWorkStatus status="COMPLETED"/>);
+  expect(StyleSheet.flatten(screen.getByTestId("work-status").props.style)).toMatchObject({ textAlign: "center" });
 });
 
 it("keeps scroll, full long labels, selected state and disabled actions accessible", async () => {
