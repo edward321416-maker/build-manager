@@ -334,7 +334,7 @@ button:disabled {
 .core-flow .core-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .core-flow .core-actions button { flex: 1 1 auto; }
 .core-flow .field-check { display: flex; }
-.core-flow .field-check label { min-height: 2.75rem; align-content: center; flex: 1; }
+.core-flow .field-check label { min-height: 3.125rem; align-content: center; flex: 1; }
 .core-flow .core-result { padding: 1rem; border: 1px solid #c9c1ad; border-radius: .5rem; background: #fffdf7; }
 .core-flow .core-result p + p { margin-top: .5rem; }
 .core-flow .core-work-status { font-size: 1.2rem; font-weight: 700; }

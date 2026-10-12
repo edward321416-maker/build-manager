@@ -111,6 +111,8 @@
 .root :global(.invitation-confirm) { align-items: center; gap: .625rem; min-height: 3.125rem; margin-block: .625rem; }
 .root :global(.core-join) { max-width: 40rem; margin: auto; min-height: 100vh; padding: 1.875rem 1.25rem; }
 .root :global(.core-join) > p:last-child { padding-top: 1.25rem; border-top: 1px solid var(--color-border); }
+/* The way back is a text button, so it gets a 50px tall box like a button (rules §5, §8.1). */
+.root :global(.core-join) > p:last-child > a { display: inline-flex; align-items: center; min-height: 3.125rem; }
 .root :global(.core-result) > button + button { margin: .625rem 0 0 .625rem; }
 .root :is(:global(.tenant-page),:global(.landlord-page)) { color: var(--color-text); background: transparent; margin-block: 1.25rem; }
 .root :is(:global(.field-card),:global(.ticket-card),:global(.section-card),:global(.decision-panel),:global(.passport-note),:global(.action-note)) { background: var(--color-surface); color: var(--color-text); border-color: var(--color-border); border-radius: .625rem; box-shadow: none; }
@@ -152,9 +154,9 @@
 .root :global(.core-account) > * + * { margin-top: 0; }
 .root :global(.core-account h1) { display: none; }
 .root :global(.core-account label) { min-width: 0; font-size: .9375rem; line-height: 1.25rem; }
-.root :global(.core-account .core-logout) { min-height: 2.5rem; padding: .3125rem .625rem; border-color: transparent; background: transparent; font-weight: 400; }
+.root :global(.core-account .core-logout) { min-height: 3.125rem; padding: .3125rem .625rem; border-color: transparent; background: transparent; font-weight: 400; }
 .root :global(.core-account nav) { grid-column: 1 / -1; gap: .625rem; }
-.root :global(.core-account nav a) { min-height: 2.5rem; padding: .3125rem .625rem; font-weight: 500; }
+.root :global(.core-account nav a) { min-height: 3.125rem; padding: .3125rem .625rem; font-weight: 500; }
 .root :global(.core-account nav a[aria-current="page"]) { color: var(--color-primary); background: var(--color-fill-selected); text-decoration: underline; }
 .root :global(.core-account p),.root :global(.core-account [role="alert"]),.root :global(.core-account a.primary-button) { grid-column: 1 / -1; }
 .root :global(.core-account form) { display: none; }
@@ -165,14 +167,14 @@
 .root :global(.core-flow) > :global(form.core-demo-entry), .root :global(form.core-demo-entry) { margin: .625rem 0 0; }
 .root :global(form.core-demo-entry:last-of-type) { margin-bottom: 1.25rem; }
 .root :global(.core-environment) { padding: .625rem 1.25rem; }
-.root :global(.core-environment details summary) { min-height: 2.5rem; }
+.root :global(.core-environment details summary) { min-height: 3.125rem; }
 .managerWorkspace { background: var(--color-page); }
 .queuePane { padding: 1.25rem; }
 .managerWorkspace[data-detail="true"] > .queuePane { display: none; padding: 0; }
 .selectedPane { background: var(--color-surface); }
 .selectedPane > * + * { margin-top: 0; }
 .detailToolbar { display: flex; align-items: center; justify-content: space-between; gap: .625rem; min-height: 3.75rem; padding: .625rem 1.25rem; border-bottom: 1px solid var(--color-border); }
-.root .detailToolbar button { min-height: 2.5rem; padding: .3125rem .625rem; border-color: transparent; }
+.root .detailToolbar button { min-height: 3.125rem; padding: .3125rem .625rem; border-color: transparent; }
 .detailGrid { display: block; padding: 1.25rem; }
 .detailGrid > * + * { margin-top: 1.875rem; }
 /* 10px under the summary: the 30px section gap still separates it, and the status labels' padding keeps the tenant's task action above the fold at 390x844. */
@@ -227,12 +229,11 @@
 .root :global(.invitation-card) .requestMetadata { background: var(--color-fill-subtle); padding: .9375rem; border: 1px solid var(--color-border); border-radius: .625rem; }
 .root :global(.page-shell.core-flow.core-join) { max-width: 40rem; margin: auto; min-height: 100vh; padding: 1.875rem 1.25rem; }
 .managerWorkspace[data-detail="true"] .queuePane > section { border: 0; border-radius: 0; }
-@media (max-width: 640px) {
-  .root .heading button,.root .detailToolbar button,.root :global(.core-account .core-logout),.root button[aria-label="대화 새로고침"] { min-height: 3.125rem; }
-}
 @media (max-width: 1023px) {
   .root :global(.core-b1-shell .core-account) { padding-block: 0; row-gap: 0; }
   .root :global(.core-account nav) { min-height: 3.125rem; align-items: center; flex-wrap: nowrap; }
+  /* A short menu link such as "접수" still gets a 50px wide target (rules §5), with its label centred. */
+  .root :global(.core-account nav a) { min-width: 3.125rem; justify-content: center; }
   .root :global(.core-org-label) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
 /* Only intake previews are compact; ticket detail and stored photos retain their layout. */
