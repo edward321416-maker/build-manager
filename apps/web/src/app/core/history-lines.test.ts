@@ -25,6 +25,11 @@ describe("history lines", () => {
     ]);
   });
 
+  it("folds only repeated intake saves, so a decision and its correction stay two lines", () => {
+    const lines = historyLines([event("EVIDENCE"), event("EVIDENCE"), event("DECISION", "MANAGER"), event("DECISION", "MANAGER")]);
+    expect(lines.map(line => line.label)).toEqual(["증빙 사진 지정 2건", "처리 방법 결정", "처리 방법 결정"]);
+  });
+
   it("names every kind, with one name for both kinds of decision and a fallback for new kinds", () => {
     const lines = historyLines([event("EVIDENCE"), event("DECISION", "MANAGER"), event("HANDLING", "MANAGER", "합성 기록"), event("SOMETHING_NEW")]);
     expect(lines.map(line => line.label)).toEqual(["증빙 사진 지정", "처리 방법 결정", "처리 기록", "접수 정보 변경"]);
