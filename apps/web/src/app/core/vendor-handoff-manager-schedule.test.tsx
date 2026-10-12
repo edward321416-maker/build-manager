@@ -103,9 +103,10 @@ it("Task9 closeout keeps authored text empty, sends current report/communication
   await act(async()=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!.call(textarea,"관리자가 확인한 합성 결과");textarea.dispatchEvent(new Event("input",{bubbles:true}));});
   await click("확인한 내용 저장");
   expect(closeout.mock.calls[0][1]).toMatchObject({expectedAssignmentVersion:4,expectedCompletionReportId:reportId,expectedCommunicationVersion:9,message:"관리자가 확인한 합성 결과"});
-  expect(page().includes("COMPLETED / ENDED/CLOSED")).toBe(false);
+  expect(page().includes("처리 완료 · 업체 접근 종료")).toBe(false);
   readHandoff.mockResolvedValue(closed);await act(async()=>release(closed));
-  expect(page()).toContain("COMPLETED / ENDED/CLOSED");
+  expect(page()).toContain("처리 완료 · 업체 접근 종료");
+  expect(page().includes("ENDED/CLOSED")).toBe(false);
 });
 
 it("Task9 unknown closeout cannot claim completion if authoritative readback is still ACTIVE",async()=>{
@@ -115,7 +116,7 @@ it("Task9 unknown closeout cannot claim completion if authoritative readback is 
   await act(async()=>root!.render(<VendorHandoffManager client={client} ticket={ticket} communicationVersion={0} revision={0} onHandoff={()=>{}} onChanged={()=>{}} now={now}/>));
   await click("처리 완료 기록");const area=host.querySelector<HTMLTextAreaElement>('form[aria-label="업체 요청 검토"] textarea')!;
   await act(async()=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!.call(area,"합성 관리자 설명");area.dispatchEvent(new Event("input",{bubbles:true}));});
-  await click("확인한 내용 저장");expect(page()).toContain("저장 결과를 확정하지 못했습니다");expect(page().includes("COMPLETED / ENDED/CLOSED")).toBe(false);
+  await click("확인한 내용 저장");expect(page()).toContain("저장 결과를 확정하지 못했습니다");expect(page().includes("처리 완료 · 업체 접근 종료")).toBe(false);
 });
 
 
