@@ -47,7 +47,7 @@
 - 실패부터: main 상태에서 `npx expo install --check`가 다섯 패키지를 맞지 않는다고 보고했습니다. 고친 뒤 Expo Doctor는 21/21 통과합니다.
 - AC17: 위 부정 시험(다른 버전, 다른 무결성 값, 다른 의존성 범위, 설치 스크립트 표시, 지운 항목, 목록 밖 항목 변화, 바꾼 기록, 줄인 기록, 매니페스트의 다른 글자·중복 키)
 - DEV-06(코드·모바일): `test:shared`, `test:web`, `test:mobile`, `lint`, `typecheck`, `build:web`, `check:deps`, `verify_repository.py --history`
-- DEV-04: `test:postgres`와 화면 시험은 CI가 정확한 head에서 돌립니다(`postgres-integration`, `web-e2e`). 로컬에서는 돌리지 않습니다(NOT_RUN). 바뀐 패키지가 웹과 DB 경로에 없기 때문입니다.
+- DEV-04: `test:postgres`는 로컬에서도 돌립니다. 화면 시험은 CI가 정확한 head에서 돌리고(`web-e2e`), 로컬에서는 돌리지 않습니다(NOT_RUN). 바뀐 패키지가 웹 경로에 없기 때문입니다.
 - `npm audit --omit=dev`: main과 같은 수인지 확인합니다.
 - `npm ci` 뒤 `package.json`, `package-lock.json`, `apps/mobile/package.json`, `apps/mobile/app.json`이 바뀌지 않는지 확인합니다.
 
