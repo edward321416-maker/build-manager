@@ -29,7 +29,7 @@ export function isIntakeDraft(ticket: IntakeTicket): boolean {
 
 /** One label for both roles, so the same state keeps the same name everywhere (design rules 8.7). */
 export function DraftBadge() {
-  return <span className={styles.badge} data-work-state="DRAFT">제출 전</span>;
+  return <span className={styles.badge} data-work-state="DRAFT">{INTAKE_STATUS_NAMES.IN_PROGRESS}</span>;
 }
 
 // Intake names stay independent of the manager's handling record.

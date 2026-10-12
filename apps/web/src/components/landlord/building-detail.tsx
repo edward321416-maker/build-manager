@@ -1,9 +1,11 @@
 "use client";
 
-import type {
-  BuildingPassportDto,
-  HeatingType,
-  ManagementMode,
+import {
+  HeatingTypeSchema,
+  ManagementModeSchema,
+  type BuildingPassportDto,
+  type HeatingType,
+  type ManagementMode,
 } from "@build-manager/api-contracts";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -11,7 +13,7 @@ import {
   createBrowserApiClient,
   describeApiError,
 } from "@/lib/browser-api-client";
-import { buildingValueName } from "../status-names";
+import { HEATING_TYPE_NAMES, MANAGEMENT_MODE_NAMES, buildingFieldName } from "../status-names";
 import { BuildingPassportPanel, DemoBanner, StateMessage } from "./views";
 
 type LoadState =
@@ -19,11 +21,12 @@ type LoadState =
   | { kind: "error"; message: string }
   | { kind: "ready"; passport: BuildingPassportDto };
 
+// Built from the contract's values and the typed name tables, so a new value can neither be missed nor go unnamed.
 const MANAGEMENT_MODES: ReadonlyArray<{ value: ManagementMode; label: string }> =
-  (["OWNER_DIRECT", "MANAGEMENT_OFFICE"] as const).map((value) => ({ value, label: buildingValueName("managementMode", value) }));
+  ManagementModeSchema.options.map((value) => ({ value, label: MANAGEMENT_MODE_NAMES[value] }));
 
 const HEATING_TYPES: ReadonlyArray<{ value: HeatingType; label: string }> =
-  (["INDIVIDUAL", "CENTRAL_SHARED"] as const).map((value) => ({ value, label: buildingValueName("heatingType", value) }));
+  HeatingTypeSchema.options.map((value) => ({ value, label: HEATING_TYPE_NAMES[value] }));
 
 export function BuildingDetail({ buildingId }: { buildingId: string }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
@@ -118,7 +121,7 @@ export function BuildingDetail({ buildingId }: { buildingId: string }) {
           <BuildingPassportPanel passport={state.passport} />
 
           <section aria-labelledby="verify-heading" className="verify-context">
-            <h3 id="verify-heading">임대인 정보 확인</h3>
+            <h3 id="verify-heading">건물 정보 확인</h3>
             <p className="passport-note">
               여기서 확인한 항목만 수리 경로 판단에 사용됩니다.
             </p>
@@ -170,7 +173,7 @@ export function BuildingDetail({ buildingId }: { buildingId: string }) {
                     setOwnerSuppliedBoiler(event.target.checked)
                   }
                 />
-                <label htmlFor="ownerSuppliedBoiler">임대인이 공급한 보일러</label>
+                <label htmlFor="ownerSuppliedBoiler">{buildingFieldName("ownerSuppliedBoiler")}</label>
               </div>
 
               <button type="submit" disabled={saving}>

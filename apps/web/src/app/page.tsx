@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { parseApplicationMode } from '../runtime/application-mode';
 import { demoEntryMode } from '../runtime/demo-entry-mode';
+import { WORK_STATUS_NAMES } from "../components/status-names";
 import styles from "./home.module.css";
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ function ExampleTicket() {
       <figcaption id="example-ticket-caption" className={styles.caption}>예시 접수 한 건 · 체험용 데이터</figcaption>
       <div className={styles.ticketHead}>
         <p className={styles.unit}>101동 1203호 · 난방</p>
-        <span className={styles.status} data-state="progress">처리중</span>
+        <span className={styles.status} data-state="progress">{WORK_STATUS_NAMES.IN_PROGRESS}</span>
       </div>
       <p className={styles.quote}>거실 보일러가 켜지지 않아요. 온수도 미지근해요.</p>
       <ol className={styles.timeline} aria-label="처리 과정">

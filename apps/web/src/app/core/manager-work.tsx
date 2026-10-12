@@ -3,6 +3,7 @@ import { useCallback,useEffect,useState } from "react";
 import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
 import { CoreManagerWorkUpdateSchema,CoreManagerInternalNoteCreateSchema,type CoreManagerWorkItem,type CoreManagerInternalNote,type CoreTicketDto,type CoreUnitDto } from "@build-manager/api-contracts";
 import { DraftBadge,IntakeBadge,WorkStatusBadge } from "./ui/work-status-badge";
+import { WORK_STATUS_NAMES } from "../../components/status-names";
 import { compareManagerWork,isOverdue,priorityLabels } from "./manager-work-order";
 import { managerRowHint } from "./manager-next-step";
 import styles from "./manager-work.module.css";
@@ -28,7 +29,7 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selected
     <div className={styles.title}><div><h2>접수 목록</h2><p>미완료 · 기한 지남 · 긴급도 순</p></div>{error||conversation.error?<button disabled={loading||disabled} onClick={()=>{setLoading(true);setRefresh(v=>v+1);}}>업무함 다시 불러오기</button>:null}</div>
     <div className={styles.filters}>
       <label>호실<select aria-label="건물·호실" value={unit} onChange={e=>setUnit(e.target.value)}><option value="">모든 호실</option>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>
-      <label>상태<select aria-label="처리 상태" value={status} onChange={e=>setStatus(e.target.value)}><option value="ALL">전체</option><option value="OPEN">접수</option><option value="IN_PROGRESS">처리중</option><option value="COMPLETED">완료</option></select></label>
+      <label>상태<select aria-label="처리 상태" value={status} onChange={e=>setStatus(e.target.value)}><option value="ALL">전체</option>{Object.entries(WORK_STATUS_NAMES).map(([value,name])=><option key={value} value={value}>{name}</option>)}</select></label>
       <label>긴급도<select aria-label="긴급도 필터" value={priority} onChange={e=>setPriority(e.target.value)}><option value="ALL">전체</option><option value="URGENT">긴급</option><option value="HIGH">높음</option><option value="NORMAL">보통</option></select></label>
       <p className={styles.count} aria-live="polite">{visible.length}건 표시</p>
     </div>

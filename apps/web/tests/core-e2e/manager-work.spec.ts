@@ -53,6 +53,8 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   await expect.poll(()=>queue.locator("li[data-ticket-id]").evaluateAll((rows,ids)=>rows.map(x=>x.getAttribute("data-ticket-id")).filter(id=>ids.includes(id!)),tickets)).toEqual(tickets);
   await expect(queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`)).toContainText("기한 지남");
   await queue.getByRole("combobox",{name:"긴급도 필터",exact:true}).selectOption("URGENT");await expect(queue.locator(`[data-ticket-id="${tickets[1]}"] [data-open-ticket]`)).toHaveCount(0);await expect(queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`)).toBeVisible();
+  // P3: the filter names each work state as the row badges do.
+  await expect(queue.getByRole("combobox",{name:"처리 상태",exact:true}).locator("option")).toHaveText(["전체","접수됨","처리 중","처리 완료"]);
   await queue.getByRole("combobox",{name:"처리 상태",exact:true}).selectOption("COMPLETED");await expect(queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`)).toHaveCount(0);
   await queue.getByRole("combobox",{name:"처리 상태",exact:true}).selectOption("ALL");await queue.getByRole("combobox",{name:"긴급도 필터",exact:true}).selectOption("ALL");
   await expect(queue.locator(`li[data-ticket-id="${tickets[2]}"]`)).toHaveAttribute("data-work-state","COMPLETED");
