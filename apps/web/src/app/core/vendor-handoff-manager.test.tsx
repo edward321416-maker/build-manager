@@ -52,17 +52,17 @@ it("shows coded building values and the access policy by name in the choice, the
   expect(html).not.toContain("재실");
 });
 it("starts with every source photo unchecked and makes selection explicit",()=>{
-  const html=view();expect(html).toContain("공유할 원본 사진 선택");expect(html.includes("checked=")).toBe(false);expect(html).toContain("사진은 선택한 것만 업체에 공개됩니다");
+  const html=view();expect(html).toContain("공유할 원본 사진 선택");expect(html.includes("checked=")).toBe(false);expect(html).toContain("사진은 선택한 것만 업체에 공개돼요");
 });
 it("keeps access policy separate from exact-window Tenant entry consent",()=>{
-  const html=view({draft:{...base.draft,accessPolicy:"TENANT_PREAUTHORIZATION_ALLOWED"},preview:true});expect(html).toContain("출입 정책은 세입자 동의가 아닙니다");expect(html).toContain("세입자가 별도로 선택한 시간에 동의해야 합니다");expect(html.includes("동의 완료")).toBe(false);
+  const html=view({draft:{...base.draft,accessPolicy:"TENANT_PREAUTHORIZATION_ALLOWED"},preview:true});expect(html).toContain("출입 정책은 세입자 동의가 아니에요");expect(html).toContain("세입자가 별도로 선택한 시간에 동의해야 해요");expect(html.includes("동의 완료")).toBe(false);
 });
 it("blocks publication without canonical address or available preview candidates",()=>{
   for(const h of [{...handoff,packetSource:{...source,serviceAddress:null}},{...handoff,packetSource:undefined}]){const html=view({handoff:h,preview:true});expect(html).toContain("disabled");expect(html.includes("주소 확인 필요")||html.includes("전달 후보를 다시 불러오세요")).toBe(true);}
 });
 it("offers explicit Reissue after response-loss reconciliation without a retry or invented link",()=>{
   const offered={...handoff,assignment:{...handoff.assignment!,status:"OFFERED" as const},currentPacket:{id:"packet"} as NonNullable<ManagerVendorHandoffDto["currentPacket"]>};
-  const html=view({handoff:offered,uncertain:true,linkUnavailable:true});expect(html).toContain("원래 링크는 다시 표시할 수 없습니다");expect(html).toContain("보안 링크 재발급");expect(html.includes("자동 재시도")).toBe(false);expect(html.includes("보안 링크 발급</button>")).toBe(false);
+  const html=view({handoff:offered,uncertain:true,linkUnavailable:true});expect(html).toContain("원래 링크는 다시 표시할 수 없어요");expect(html).toContain("보안 링크 재발급");expect(html.includes("자동 재시도")).toBe(false);expect(html.includes("보안 링크 발급</button>")).toBe(false);
 });
 it("never offers Reissue before authoritative OFFERED/ACTIVE or for ENDED",()=>{
   for(const status of ["PREPARING","ENDED"] as const){const html=view({handoff:{...handoff,assignment:{...handoff.assignment!,status,endReason:status==="ENDED"?"REVOKED":null}},uncertain:true,linkUnavailable:true});expect(html.includes("보안 링크 재발급")).toBe(false);}

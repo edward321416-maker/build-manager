@@ -80,7 +80,7 @@ test("uncommitted uncertainty remains unconfirmed after refresh and requires an 
   const s=await setup(request);await login(page,s.codes.tenant,s.id);let writes=0;
   await routeOnce(page,`**/tickets/${s.id}/communication/messages`,async route=>{writes++;await route.abort("failed");});
   await conversation(page).getByLabel("공개 대화 내용").fill("합성 미저장 요청");await conversation(page).getByRole("button",{name:"추가 문의 보내기",exact:true}).click();await expect(conversation(page).getByRole("button",{name:"저장 여부 확인",exact:true})).toBeEnabled();
-  await page.reload();await open(page,s.id);await conversation(page).getByRole("button",{name:"저장 여부 확인",exact:true}).click();await expect(conversation(page).getByRole("alert")).toContainText("저장 기록을 찾지 못했습니다");expect((await s.read()).messages).toEqual([]);expect(writes).toBe(1);
+  await page.reload();await open(page,s.id);await conversation(page).getByRole("button",{name:"저장 여부 확인",exact:true}).click();await expect(conversation(page).getByRole("alert")).toContainText("저장 기록을 찾지 못했어요");expect((await s.read()).messages).toEqual([]);expect(writes).toBe(1);
   await expect(conversation(page).getByRole("button",{name:"추가 문의 보내기",exact:true})).toBeDisabled();await conversation(page).getByRole("button",{name:"확인 후 새 메시지 작성",exact:true}).click();expect(await metadata(page)).toEqual([]);await expect(conversation(page).getByLabel("공개 대화 내용")).toHaveValue("");
 });
 

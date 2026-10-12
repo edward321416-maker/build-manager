@@ -28,7 +28,7 @@ const error=(page:Page)=>page.getByRole("region",{name:"호실 연결",exact:tru
 test("UI invitation -> zero-org SDK request -> manager approval -> unit/photo -> manager handling -> tenant reconnect at1280/390",async({browser})=>{
  const f=await setup(browser);try{
   const {link,invitation}=await create(f.page),tenant=await f.tenant.context.newPage();await tenant.setViewportSize({width:390,height:844});
-  await tenant.goto("/core");await expect(tenant.getByText("연결된 소속·호실이 없습니다.",{exact:false})).toBeVisible();
+  await tenant.goto("/core");await expect(tenant.getByText("연결된 소속·호실이 없어요.",{exact:false})).toBeVisible();
   const calls:string[]=[];tenant.on("request",r=>{if(r.url().includes("/onboarding/"))calls.push(r.method()+" "+new URL(r.url()).pathname);});
   await openInvitation(tenant,link);await expect(tenant.getByRole("button",{name:"초대 내용 확인"})).toBeVisible();expect(calls.filter(x=>x.startsWith("POST"))).toEqual([]);
   expect(await tenant.evaluate(()=>({hash:location.hash,local:localStorage.length,session:sessionStorage.length}))).toEqual({hash:"",local:0,session:0});
@@ -54,7 +54,7 @@ test("create and claim lost responses recover by reading status without duplicat
   await f.page.route("**/onboarding/create",async route=>{await route.fetch();await route.abort("failed");});await f.page.getByRole("button",{name:"초대 링크 만들기",exact:true}).click();await expect(error(f.page)).toBeVisible();await expect(f.page.getByRole("button",{name:"초대 링크 만들기",exact:true})).toBeDisabled();
   await f.page.unroute("**/onboarding/create");await f.page.getByRole("button",{name:"연결 상태 새로고침",exact:true}).click();const card=f.page.getByRole("article",{name:"합성 초대 테스트 호실 초대"});await card.getByRole("button",{name:"초대 취소",exact:true}).click();await expect(card.getByText("초대 취소",{exact:true})).toBeVisible();
   const {link,invitation}=await create(f.page),t=await f.tenant.context.newPage();await openInvitation(t,link);await t.getByRole("button",{name:"초대 내용 확인"}).click();
-  await t.route("**/onboarding/claim",async route=>{await route.fetch();await route.abort("failed");});await t.getByRole("button",{name:"연결 요청 보내기"}).click();await expect(t.getByRole("alert").filter({hasText:"응답을 확인하지 못했습니다."})).toBeVisible();await expect(t.getByRole("button",{name:"연결 요청 보내기"})).toBeDisabled();
+  await t.route("**/onboarding/claim",async route=>{await route.fetch();await route.abort("failed");});await t.getByRole("button",{name:"연결 요청 보내기"}).click();await expect(t.getByRole("alert").filter({hasText:"응답을 확인하지 못했어요."})).toBeVisible();await expect(t.getByRole("button",{name:"연결 요청 보내기"})).toBeDisabled();
   await t.getByRole("button",{name:"요청 상태 확인"}).click();await expect(t.getByText("관리자 확인 대기",{exact:true})).toBeVisible();
   expect((await f.manager.admin.query("SELECT count(*)::int n FROM core_onboarding.invitation WHERE id=$1 AND applicant_id IS NOT NULL",[invitation.invitationId])).rows[0].n).toBe(1);
  }finally{await f.close();}
@@ -63,7 +63,7 @@ test("clipboard denial explains recovery without exposing or recreating the toke
  const f=await setup(browser);try{
   const {link}=await create(f.page);
   await f.page.evaluate(()=>Object.defineProperty(navigator,"clipboard",{configurable:true,value:{writeText:async()=>{throw new DOMException("Permission denied","NotAllowedError");}}}));
-  await f.page.getByRole("button",{name:"초대 링크 복사",exact:true}).click();await expect(error(f.page)).toContainText("브라우저가 복사를 허용하지 않았습니다.");
+  await f.page.getByRole("button",{name:"초대 링크 복사",exact:true}).click();await expect(error(f.page)).toContainText("브라우저가 복사를 허용하지 않았어요.");
   expect(await f.page.locator("body").innerText()).not.toContain(new URL(link).hash.slice(1));
   expect((await f.manager.admin.query("SELECT count(*)::int n FROM core_onboarding.invitation WHERE unit_id=$1",[f.unit])).rows[0].n).toBe(1);
  }finally{await f.close();}

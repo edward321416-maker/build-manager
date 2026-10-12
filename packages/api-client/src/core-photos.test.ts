@@ -11,7 +11,7 @@ it("uses a raw bounded photo body and bearer header, never JSON/base64 or URL cr
 it("preserves cookie mode, validates metadata and sanitizes rejected responses without retry",async()=>{
   const transport=vi.fn<typeof fetch>().mockResolvedValueOnce(Response.json([photo])).mockResolvedValueOnce(new Response("private response",{status:403})).mockResolvedValueOnce(Response.json({privateInput:"not retained"}));
   const c=createCoreFlowClient({baseUrl:"",photoFetchImpl:transport});expect(await c.photos(id)).toEqual([photo]);expect(new Headers(transport.mock.calls[0][1]?.headers).has("authorization")).toBe(false);
-  await expect(c.readPhoto(photo)).rejects.toMatchObject({status:403,message:"사진 요청을 처리하지 못했습니다."});await expect(c.photos(id)).rejects.toMatchObject({code:"INVALID_RESPONSE"});expect(transport).toHaveBeenCalledTimes(3);
+  await expect(c.readPhoto(photo)).rejects.toMatchObject({status:403,message:"사진 요청을 처리하지 못했어요."});await expect(c.photos(id)).rejects.toMatchObject({code:"INVALID_RESPONSE"});expect(transport).toHaveBeenCalledTimes(3);
 });
 it("checks protected binary MIME and exact size",async()=>{
   const transport=vi.fn<typeof fetch>().mockResolvedValueOnce(new Response("abc",{headers:{"Content-Type":"image/png"}})).mockResolvedValueOnce(new Response("abc",{headers:{"Content-Type":"text/html"}})).mockResolvedValueOnce(new Response("a",{headers:{"Content-Type":"image/png"}}));

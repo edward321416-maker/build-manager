@@ -12,13 +12,13 @@ export function MaintenanceEditorView(p:EditorViewProps){
  if(!p.completed)return null;
  const current=p.detail?.current,form=Boolean(p.detail)&&(!current||p.editing||p.uncertain);
  return <section id="maintenance-fact" tabIndex={-1} className={styles.editor} aria-label="호실 정비 사실 기록"><h2>호실 정비 사실 기록</h2>
-  <p className={styles.hint}>세입자 대화나 내부메모가 아니라, 호실에 남길 최소한의 정비 사실만 기록하세요. 객관적인 수리 검증을 뜻하지 않습니다.</p>
+  <p className={styles.hint}>세입자 대화나 내부메모가 아니라, 호실에 남길 최소한의 정비 사실만 기록하세요. 객관적인 수리 검증을 뜻하지 않아요.</p>
   {p.loading?<p role="status">정비 사실 불러오는 중…</p>:null}{p.error?<p role="alert">{p.error}</p>:null}{p.notice?<p role="status">{p.notice}</p>:null}
   <button disabled={p.busy||p.loading} onClick={p.onRefresh}>정비 사실 다시 불러오기</button>
   {!p.loading&&current?<><MaintenanceFactCard fact={current} onOpenTicket={p.onOpenTicket}/><div className={styles.actions}><button onClick={()=>p.onViewUnit(current.unitId)}>호실 이력에서 보기</button>{!p.editing&&!p.uncertain?<button onClick={p.onEdit}>정정 기록 추가</button>:null}</div>
    <details><summary>정정 이력 · {current.correctionCount}회</summary><ol className={styles.revisions}>{p.detail!.revisions.map(r=><li key={r.factId}>{r.current?"현재 기록":"이전 기록"} · {actionLabels[r.actionKind]} · {r.componentLabel??"명칭 미기록"}<p><DateTime at={r.recordedAt}/>{r.correctionReason?` · ${reasonLabels[r.correctionReason]}`:" · 최초 기록"}</p></li>)}</ol></details>
   </>:null}
-  {p.uncertain?<div role="status"><p>서버에 표시된 값만으로 이 요청의 성공을 확정하지 않습니다. 입력은 이 화면에만 보관됩니다.</p><button disabled={p.busy||p.loading} onClick={p.onRetry}>같은 요청으로 저장 확인</button></div>:null}
+  {p.uncertain?<div role="status"><p>서버에 표시된 값만으로 이 요청의 성공을 확정하지 않아요. 입력은 이 화면에만 보관돼요.</p><button disabled={p.busy||p.loading} onClick={p.onRetry}>같은 요청으로 저장 확인</button></div>:null}
   {!p.loading&&form?<form onSubmit={e=>{e.preventDefault();p.onSubmit();}}>
    <fieldset disabled={p.busy||p.uncertain||p.reviewRequired} className={styles.fields}>
     <label>작업 종류<select aria-label="정비 작업 종류" value={p.action} onChange={e=>p.onAction(e.target.value as CoreMaintenanceActionKind)}>{Object.entries(actionLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
@@ -28,7 +28,7 @@ export function MaintenanceEditorView(p:EditorViewProps){
     <button type="submit" disabled={Boolean(current&&current.actionKind===p.action&&current.componentLabel===(p.label.trim()||null))}>{current?"정정 기록 저장":"정비 사실 저장"}</button>
    </fieldset>
   </form>:null}
-  {p.reviewRequired?<button disabled={p.busy||p.loading||!p.detail} onClick={p.onReview}>최신 기록을 확인했습니다</button>:null}
+  {p.reviewRequired?<button disabled={p.busy||p.loading||!p.detail} onClick={p.onReview}>최신 기록을 확인했어요</button>:null}
  </section>;
 }
 export function MaintenanceFactCard({fact,onOpenTicket}:{fact:CoreUnitMaintenanceFact;onOpenTicket(id:string):void}){
@@ -42,9 +42,9 @@ export function MaintenanceFactCard({fact,onOpenTicket}:{fact:CoreUnitMaintenanc
  </article>;
 }
 export function MaintenanceTimelineView({units,unitId,items,loading,error,disabled,onUnit,onRefresh,onOpenTicket}:{units:CoreUnitDto[];unitId:string;items:CoreUnitMaintenanceFact[];loading:boolean;error:string;disabled:boolean;onUnit(id:string):void;onRefresh():void;onOpenTicket(id:string):void}){
- return <section className={styles.timeline} aria-label="호실 정비 이력"><div className={styles.heading}><div><h2>호실 정비 이력</h2><p>완료 접수에서 관리자가 따로 기록한 사실입니다. 원본 완료 시각 순으로 최근 100건까지 표시합니다.</p></div><button disabled={disabled||loading||!unitId} onClick={onRefresh}>이력 다시 불러오기</button></div>
+ return <section className={styles.timeline} aria-label="호실 정비 이력"><div className={styles.heading}><div><h2>호실 정비 이력</h2><p>완료 접수에서 관리자가 따로 기록한 사실이에요. 원본 완료 시각 순으로 최근 100건까지 표시해요.</p></div><button disabled={disabled||loading||!unitId} onClick={onRefresh}>이력 다시 불러오기</button></div>
   <label>건물·호실<select aria-label="정비 이력 건물·호실" disabled={disabled||!units.length} value={unitId} onChange={e=>onUnit(e.target.value)}>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>
-  {!units.length?<p>접근 가능한 호실이 없습니다. 배정 상태를 확인하고 새로고침해 주세요.</p>:loading?<p role="status">호실 정비 이력 불러오는 중…</p>:error?<p role="alert">{error}</p>:items.length===0?<div className={styles.empty}><h3>아직 기록된 정비 사실이 없습니다.</h3><p>완료된 접수에서 관리자가 정비 사실을 남기면 이곳에 표시됩니다. 완료 접수만으로 자동 기록되지 않습니다.</p></div>:<div className={styles.cards}>{items.map(f=><MaintenanceFactCard key={f.factId} fact={f} onOpenTicket={onOpenTicket}/>)}</div>}
+  {!units.length?<p>접근 가능한 호실이 없어요. 배정 상태를 확인하고 새로고침해 주세요.</p>:loading?<p role="status">호실 정비 이력 불러오는 중…</p>:error?<p role="alert">{error}</p>:items.length===0?<div className={styles.empty}><h3>아직 기록된 정비 사실이 없어요.</h3><p>완료된 접수에서 관리자가 정비 사실을 남기면 이곳에 표시돼요. 완료 접수만으로 자동 기록되지 않아요.</p></div>:<div className={styles.cards}>{items.map(f=><MaintenanceFactCard key={f.factId} fact={f} onOpenTicket={onOpenTicket}/>)}</div>}
  </section>;
 }
 type EditorProps={client:CoreFlowClient;ticket:CoreTicketDto;revision:number;onOpenTicket(id:string):void;onChanged():void;onViewUnit?(id:string):void;
@@ -63,20 +63,20 @@ function CompletedFactEditor({client,ticket,revision,onOpenTicket,onChanged,onVi
  const load=useCallback(async()=>{
   const g=++generation.current;setLoading(true);
   try{const value=await client.maintenance.readForTicket(ticket.ticketId);if(alive.current&&g===generation.current){setDetail(value);
-   if(correctionBase.current&&value.current?.factId!==correctionBase.current&&!attempt.current){setReviewRequired(true);setError("다른 기록이 먼저 저장되었습니다. 입력은 유지했습니다. 최신 기록을 확인한 뒤 다시 제출해 주세요.");}
+   if(correctionBase.current&&value.current?.factId!==correctionBase.current&&!attempt.current){setReviewRequired(true);setError("다른 기록이 먼저 저장됐어요. 입력은 유지했어요. 최신 기록을 확인한 뒤 다시 제출해 주세요.");}
    return value;}}
-  catch{if(alive.current&&g===generation.current){setDetail(null);setError("정비 사실을 불러오지 못했습니다. 현재 접근 권한과 연결을 확인해 주세요.");}}
+  catch{if(alive.current&&g===generation.current){setDetail(null);setError("정비 사실을 불러오지 못했어요. 현재 접근 권한과 연결을 확인해 주세요.");}}
   finally{if(alive.current&&g===generation.current)setLoading(false);}
  },[client,ticket.ticketId]);
  useEffect(()=>{alive.current=true;let live=true;const fence=generation;void Promise.resolve().then(()=>{if(live)void load();});return()=>{live=false;alive.current=false;fence.current++;};},[load,revision]);
  const send=async(request:Attempt)=>{
   if(sending.current)return;sending.current=true;attempt.current=request;setBusy(true);setError("");setNotice("");
   try{if(request.kind==="CREATE")await client.maintenance.create(request.id,request.input);else await client.maintenance.correct(request.id,request.input);
-   if(!alive.current)return;attempt.current=null;correctionBase.current=null;setUncertain(false);setReviewRequired(false);setEditing(false);await load();if(alive.current){setNotice("정비 사실 요청의 저장을 확인했습니다.");onChanged();}
+   if(!alive.current)return;attempt.current=null;correctionBase.current=null;setUncertain(false);setReviewRequired(false);setEditing(false);await load();if(alive.current){setNotice("정비 사실 요청의 저장을 확인했어요.");onChanged();}
   }catch(e){if(!alive.current)return;const status=e instanceof ApiClientError?e.status:undefined;
-   if(status===409){attempt.current=null;setUncertain(false);setEditing(true);setReviewRequired(true);await load();if(alive.current)setError("다른 기록이 먼저 저장되었습니다. 입력은 유지했습니다. 최신 기록을 확인한 뒤 다시 제출해 주세요.");}
-   else if(status&&[400,401,403,404].includes(status)){attempt.current=null;setUncertain(false);if(status!==400)setDetail(null);setError("저장할 수 없습니다. 입력과 현재 접근 권한을 확인해 주세요.");}
-   else{setUncertain(true);await load();if(alive.current)setError("저장 응답을 받지 못했습니다. 서버 기록을 확인하고 같은 요청으로 저장 확인을 눌러 주세요.");}
+   if(status===409){attempt.current=null;setUncertain(false);setEditing(true);setReviewRequired(true);await load();if(alive.current)setError("다른 기록이 먼저 저장됐어요. 입력은 유지했어요. 최신 기록을 확인한 뒤 다시 제출해 주세요.");}
+   else if(status&&[400,401,403,404].includes(status)){attempt.current=null;setUncertain(false);if(status!==400)setDetail(null);setError("저장할 수 없어요. 입력과 현재 접근 권한을 확인해 주세요.");}
+   else{setUncertain(true);await load();if(alive.current)setError("저장 응답을 받지 못했어요. 서버 기록을 확인하고 같은 요청으로 저장 확인을 눌러 주세요.");}
   }finally{sending.current=false;if(alive.current)setBusy(false);}
  };
  const submit=()=>{
@@ -93,6 +93,6 @@ function CompletedFactEditor({client,ticket,revision,onOpenTicket,onChanged,onVi
 export function ManagerMaintenanceTimeline({client,units,revision,disabled,onOpenTicket,initialUnit}:{client:CoreFlowClient;units:CoreUnitDto[];revision:number;disabled:boolean;onOpenTicket(id:string):void;initialUnit?:string}){
  const [selected,setSelected]=useState(initialUnit??units[0]?.id??""),[items,setItems]=useState<CoreUnitMaintenanceFact[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(""),[refresh,setRefresh]=useState(0);
  const unitId=units.some(u=>u.id===selected)?selected:(units[0]?.id??"");
- useEffect(()=>{let live=true;void Promise.resolve().then(async()=>{if(!live)return;setLoading(true);setItems([]);setError("");try{const rows=unitId?await client.maintenance.listUnit(unitId):[];if(live)setItems(rows);}catch{if(live){setItems([]);setError("이력을 불러오지 못했습니다. 현재 배정과 연결을 확인하고 다시 불러와 주세요.");}}finally{if(live)setLoading(false);}});return()=>{live=false;};},[client,unitId,revision,refresh]);
+ useEffect(()=>{let live=true;void Promise.resolve().then(async()=>{if(!live)return;setLoading(true);setItems([]);setError("");try{const rows=unitId?await client.maintenance.listUnit(unitId):[];if(live)setItems(rows);}catch{if(live){setItems([]);setError("이력을 불러오지 못했어요. 현재 배정과 연결을 확인하고 다시 불러와 주세요.");}}finally{if(live)setLoading(false);}});return()=>{live=false;};},[client,unitId,revision,refresh]);
  return <MaintenanceTimelineView units={units} unitId={unitId} items={items} loading={loading} error={error} disabled={disabled} onUnit={id=>{setLoading(true);setItems([]);setSelected(id);}} onRefresh={()=>{setLoading(true);setItems([]);setRefresh(v=>v+1);}} onOpenTicket={onOpenTicket}/>;
 }

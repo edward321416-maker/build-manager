@@ -36,9 +36,9 @@ export type ApiRequest<T> = {
   schema: ResponseSchema<T>;
 };
 
-const NETWORK_ERROR_MESSAGE = "API 요청을 전송하지 못했습니다.";
-const HTTP_ERROR_MESSAGE = "API 요청이 실패했습니다.";
-const INVALID_RESPONSE_MESSAGE = "API 응답 형식이 올바르지 않습니다.";
+const NETWORK_ERROR_MESSAGE = "요청을 보내지 못했어요.";
+const HTTP_ERROR_MESSAGE = "요청이 실패했어요.";
+const INVALID_RESPONSE_MESSAGE = "응답 형식이 올바르지 않아요.";
 
 export function encodePathSegment(value: string): string {
   return encodeURIComponent(value);

@@ -45,7 +45,7 @@ describe("onboarding panel sections by role", () => {
     const text = await mount(true);
     expect(text).toContain("입주 연결");
     expect(text).not.toContain("내 연결 요청");
-    expect(text).not.toContain("아직 신청한 연결이 없습니다");
+    expect(text).not.toContain("아직 신청한 연결이 없어요");
   });
 
   it("still shows a manager their own connection request and its confirmation number", async () => {
@@ -58,6 +58,6 @@ describe("onboarding panel sections by role", () => {
   it("keeps the own-request section and its empty guidance for a person who is not a manager", () => {
     const html = renderToStaticMarkup(<OnboardingPanel csrf="synthetic-csrf" manager={false} onRefreshAccess={noop} onDenied={noop} />);
     expect(html).toContain("내 연결 요청");
-    expect(html).toContain("아직 신청한 연결이 없습니다");
+    expect(html).toContain("아직 신청한 연결이 없어요");
   });
 });

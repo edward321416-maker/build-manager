@@ -43,9 +43,9 @@ test("320px tenant and manager can save and read a clear handling result",async(
     await managerScreen.assertFits();
     await manager.screenshot({path:join(privateRoot,"usability-manager-active-320.png"),fullPage:true});
     await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 현장 확인 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();
-    await expect(manager.getByRole("status").filter({hasText:"처리 시작 기록을 저장했습니다"})).toHaveText("처리 시작 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.");
+    await expect(manager.getByRole("status").filter({hasText:"처리 시작 기록을 저장했어요"})).toHaveText("처리 시작 기록을 저장했어요. 세입자도 새로고침하면 확인할 수 있어요.");
     await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 누수 조치 결과 확인");await manager.getByRole("button",{name:"처리 완료 기록",exact:true}).click();
-    await expect(manager.getByRole("status").filter({hasText:"처리 완료 기록을 저장했습니다"})).toHaveText("처리 완료 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.");await managerScreen.assertFits();
+    await expect(manager.getByRole("status").filter({hasText:"처리 완료 기록을 저장했어요"})).toHaveText("처리 완료 기록을 저장했어요. 세입자도 새로고침하면 확인할 수 있어요.");await managerScreen.assertFits();
     await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();
     await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     await expect(page.getByRole("region",{name:"진행 이력"})).toContainText("합성 누수 조치 결과 확인");await tenant.assertFits();
@@ -109,26 +109,26 @@ test("load failure offers a read-only retry and empty lists explain the next act
   let releaseSession!:()=>void;const pendingSession=new Promise<void>(resolve=>{releaseSession=resolve;});
   await page.route("**/api/v2/core/session",async route=>{await pendingSession;await route.abort();});await page.goto("/core");
   await expect(page.getByLabel("개발 접근 코드")).toBeDisabled();releaseSession();
-  await expect(alerts(page)).toContainText("내용을 불러오지 못했습니다");
+  await expect(alerts(page)).toContainText("내용을 불러오지 못했어요");
   await page.unroute("**/api/v2/core/session");await page.getByRole("button",{name:"다시 불러오기",exact:true}).click();
   await expect(alerts(page)).toHaveCount(0);
   // Controlled empty/error responses exercise UI recovery, not persistence or authorization.
   await page.route("**/api/v2/core/tickets",route=>route.request().method()==="GET"?route.fulfill({json:[]}):route.continue());
   await new CoreScreen(page).login("tenant");
-  await expect(page.getByText("선택한 호실의 접수 내역이 없습니다. 위의 문제 접수에서 첫 내용을 남겨 주세요.",{exact:true})).toBeVisible();
+  await expect(page.getByText("선택한 호실의 접수 내역이 없어요. 위의 문제 접수에서 첫 내용을 남겨 주세요.",{exact:true})).toBeVisible();
   await page.screenshot({path:join(privateRoot,"usability-empty-320.png"),fullPage:true});
   await page.getByLabel("문제 설명").fill("연결 실패에도 유지할 합성 입력");
   let submissions=0;
   await page.route("**/api/v2/core/tickets",route=>{if(route.request().method()==="POST"){submissions++;return route.abort();}return route.fulfill({json:[]});});
   await page.getByRole("button",{name:"접수하기",exact:true}).click();
-  await expect(alerts(page)).toContainText("저장 결과를 확인하지 못했습니다");
+  await expect(alerts(page)).toContainText("저장 결과를 확인하지 못했어요");
   await expect(page.getByLabel("문제 설명")).toHaveValue("연결 실패에도 유지할 합성 입력");
   await page.screenshot({path:join(privateRoot,"usability-save-error-320.png"),fullPage:true});
   await page.getByRole("button",{name:"다시 불러오기",exact:true}).click();
   await expect(alerts(page)).toHaveCount(0);expect(submissions).toBe(1);
   await page.route("**/api/v2/core/units",route=>route.fulfill({json:[]}));
   await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();
-  await expect(page.getByText("접근 가능한 호실이 없습니다. 관리자에게 소속·호실 배정을 확인한 뒤 새로고침을 눌러 주세요.",{exact:true})).toBeVisible();
+  await expect(page.getByText("접근 가능한 호실이 없어요. 관리자에게 소속·호실 배정을 확인한 뒤 새로고침을 눌러 주세요.",{exact:true})).toBeVisible();
   await expect(page.getByRole("button",{name:"접수하기",exact:true})).toHaveCount(0);
 });
 
@@ -138,7 +138,7 @@ test("a missing session during a nested ticket action clears protected content a
   await expect(page.getByRole("region",{name:"지금 할 일: 추가 확인",exact:true}).getByTestId("refresh")).toBeVisible();
   await context.clearCookies(); // Real server401 after browser loses its session, without revoking a shared fixture code.
   await page.getByTestId("refresh").click();
-  await expect(alerts(page)).toContainText("접속이 만료되었거나 코드가 유효하지 않습니다");
+  await expect(alerts(page)).toContainText("접속이 만료되었거나 코드가 유효하지 않아요");
   await expect(page.getByLabel("개발 접근 코드")).toBeVisible();
   await expect(page.getByTestId("ticket-heading")).toHaveCount(0);
   await page.screenshot({path:join(privateRoot,"usability-session-ended-320.png"),fullPage:true});

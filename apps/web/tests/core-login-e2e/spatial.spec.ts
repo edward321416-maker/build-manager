@@ -30,7 +30,7 @@ test("task ownership, persistent inspector and mobile collapse preserve the publ
     const sent=t.waitForResponse(r=>r.url().endsWith("/communication/messages")&&r.request().method()==="POST");await t.keyboard.press("Enter");expect((await sent).status()).toBe(201);await expect(task(t)).toHaveCount(0);
     await openConversation(t);await expect(t.getByRole("listitem").filter({hasText:"합성 세입자 답변입니다."})).toBeVisible();
     const m=await manager.context.newPage();await m.setViewportSize({width:1440,height:900});await m.goto("/core");await m.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();
-    await expect(task(m)).toBeVisible();await expect(task(m)).toContainText("세입자 답변이 도착했습니다.");
+    await expect(task(m)).toBeVisible();await expect(task(m)).toContainText("세입자 답변이 도착했어요.");
     const queue=m.getByRole("region",{name:"관리 업무함",exact:true}),inspector=m.getByRole("complementary",{name:"관리자 업무 정보"});
     await expect(inspector).toBeVisible();expect((await queue.boundingBox())!.width+1).toBe(380);
     const publicBox=(await m.getByRole("region",{name:"접수 요약",exact:true}).boundingBox())!,privateBox=(await inspector.boundingBox())!;

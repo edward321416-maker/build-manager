@@ -286,7 +286,7 @@ export function TicketIntake({ ticketId, client, coreFlow=false, onStatusChange,
             stage === "EVIDENCE" &&
             (evidenceView === null || evidenceView === undefined)) ? (
             <section className="finalize-stage">
-              <h2>제출할 준비가 되었습니다</h2>
+              <h2>제출할 준비가 됐어요</h2>
               <p className="passport-note">
                 제출한 뒤 필요한 정보가 더 있으면 관리자가 추가로 요청할 수 있어요.
               </p>

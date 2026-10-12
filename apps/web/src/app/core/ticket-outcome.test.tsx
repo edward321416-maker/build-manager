@@ -5,7 +5,7 @@ import type { CoreTicketDto } from "@build-manager/api-contracts";
 import { OutcomeSummary,outcomeLabels,OutcomeView,freshFollowUp,FollowUpContext } from "./ticket-outcome";
 it("labels tenant assertions separately from managerial completion and objective verification",()=>{
  for(const kind of ["UNCONFIRMED","RESOLVED","UNRESOLVED","RECURRENCE_CLAIM"] as const){
-  const html=renderToStaticMarkup(<OutcomeSummary tenant={false} outcome={{ticketId:"synthetic",kind,assertedAt:null,followUpTicketId:null}}/>);expect(html).toContain(outcomeLabels[kind]);expect(html).toContain("세입자 응답");expect(html).toContain("뜻하지 않습니다");
+  const html=renderToStaticMarkup(<OutcomeSummary tenant={false} outcome={{ticketId:"synthetic",kind,assertedAt:null,followUpTicketId:null}}/>);expect(html).toContain(outcomeLabels[kind]);expect(html).toContain("세입자 응답");expect(html).toContain("뜻하지 않아요");
  }
  expect(outcomeLabels.RECURRENCE_CLAIM).not.toContain("재발 확인");
 });
@@ -28,12 +28,12 @@ it("keeps manager and uncertain views read-only and the target relation neutral"
 it("starts follow-up context with location and editable issue only, never source content",()=>{
  const ticket={ticketId:"source",unitId:"unit",detail:{issueType:"LEAK",rawUserText:"old private body",answers:["old answer"]},photos:["old photo"],events:["old conversation"]} as unknown as CoreTicketDto;
  expect(freshFollowUp(ticket,"UNRESOLVED")).toEqual({sourceTicketId:"source",unitId:"unit",issueType:"LEAK",claimKind:"UNRESOLVED"});
- const html=renderToStaticMarkup(<FollowUpContext kind="RECURRENCE_CLAIM"/>);expect(html).toContain("이전 완료 접수에서 이어서 새로 접수합니다.");expect(html).not.toContain("old");
+ const html=renderToStaticMarkup(<FollowUpContext kind="RECURRENCE_CLAIM"/>);expect(html).toContain("이전 완료 접수에서 이어서 새로 접수해요.");expect(html).not.toContain("old");
 });
 it("uses separate tenant and manager wording for each assertion",()=>{
- const expected={RESOLVED:"해결됐다고 알려주셨어요.",UNRESOLVED:"아직 문제가 있다고 알려 새 접수를 만들었습니다.",RECURRENCE_CLAIM:"다시 문제가 생겼다고 알려 새 접수를 만들었습니다."};
+ const expected={RESOLVED:"해결됐다고 알려주셨어요.",UNRESOLVED:"아직 문제가 있다고 알려 새 접수를 만들었어요.",RECURRENCE_CLAIM:"다시 문제가 생겼다고 알려 새 접수를 만들었어요."};
  for(const [kind,label] of Object.entries(expected)){
   const html=renderToStaticMarkup(<OutcomeSummary tenant outcome={{ticketId:"synthetic",kind:kind as keyof typeof expected,assertedAt:null,followUpTicketId:null}}/>);
-  expect(html).toContain(label);expect(html).toContain("관리자의 처리 완료 기록과 별도로 남긴 확인입니다.");
+  expect(html).toContain(label);expect(html).toContain("관리자의 처리 완료 기록과 별도로 남긴 확인이에요.");
  }
 });

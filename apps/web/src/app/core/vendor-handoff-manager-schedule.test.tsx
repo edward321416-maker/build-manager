@@ -51,8 +51,8 @@ it("keeps an unknown reschedule outcome uncertain instead of claiming success",a
   await click("방문 일정 변경");
   await click("일정 변경하기");
   expect(s.reschedule).toHaveBeenCalledTimes(1);
-  expect(page()).toContain("저장 결과를 확정하지 못했습니다");
-  expect(page().includes("방문 일정 변경을 기록했습니다")).toBe(false);
+  expect(page()).toContain("저장 결과를 확정하지 못했어요");
+  expect(page().includes("방문 일정 변경을 기록했어요")).toBe(false);
 });
 it("labels the dismiss action without implying cancellation and resets an open confirmation on refresh (review L2, L3)",async()=>{
   const s=await mount(scheduled());
@@ -116,7 +116,7 @@ it("Task9 unknown closeout cannot claim completion if authoritative readback is 
   await act(async()=>root!.render(<VendorHandoffManager client={client} ticket={ticket} communicationVersion={0} revision={0} onHandoff={()=>{}} onChanged={()=>{}} now={now}/>));
   await click("처리 완료 기록");const area=host.querySelector<HTMLTextAreaElement>('form[aria-label="업체 요청 검토"] textarea')!;
   await act(async()=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!.call(area,"합성 관리자 설명");area.dispatchEvent(new Event("input",{bubbles:true}));});
-  await click("확인한 내용 저장");expect(page()).toContain("저장 결과를 확정하지 못했습니다");expect(page().includes("처리 완료 · 업체 접근 종료")).toBe(false);
+  await click("확인한 내용 저장");expect(page()).toContain("저장 결과를 확정하지 못했어요");expect(page().includes("처리 완료 · 업체 접근 종료")).toBe(false);
 });
 
 
@@ -148,7 +148,7 @@ it("T9-M02 committed-response-lost reassign cannot target the replacement after 
   s.reassign.mockRejectedValue(new Error("synthetic response loss"));
   s.readHandoff.mockResolvedValue(scheduled({assignment:{id:"replacement",status:"ACTIVE",version:8,vendorLabel:"새 업체",endReason:null}}));
   await click("확인한 내용 저장");expect(s.reassign).toHaveBeenCalledTimes(1);
-  await click("최신 상태와 입력을 검토했습니다");expect(actionForm()).toBeNull();expect(s.reassign).toHaveBeenCalledTimes(1);
+  await click("최신 상태와 입력을 검토했어요");expect(actionForm()).toBeNull();expect(s.reassign).toHaveBeenCalledTimes(1);
 });
 it("T9-M02 refreshed current report requires a new explicit disposition review",async()=>{
   const s=await actionHarness(reviewedReport());await click("보고 수정 요청");await actionText("이전 보고 수정 사유");
