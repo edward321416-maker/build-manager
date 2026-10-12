@@ -30,7 +30,6 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   await queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();await openInspector(page);
   const detail=page.getByRole("region",{name:"업무 관리",exact:true});await expect(detail.getByRole("combobox",{name:"긴급도",exact:true})).toBeEnabled();
   await detail.getByRole("combobox",{name:"긴급도",exact:true}).selectOption("URGENT");await detail.getByLabel("담당자",{exact:true}).fill("합성 내부 담당 A");
-  // Browser input is explicitly local wall time; the server stores an offset timestamp.
   // The due date is entered in Seoul time whatever the browser's zone (CI browsers run in UTC), so fill the Seoul wall time.
   const localPast=new Date(Date.parse(duePast)+9*3_600_000).toISOString().slice(0,16);
   await detail.getByLabel("처리 예정",{exact:true}).fill(localPast);await detail.getByRole("button",{name:"저장",exact:true}).click();await expect(detail.getByText("업무 정보를 저장했습니다.",{exact:true})).toBeVisible();
@@ -50,6 +49,9 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   await fit(page);
   await page.screenshot({path:join(evidence,"manager-detail-desktop.png"),fullPage:true});
   await page.reload();await page.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();await openInspector(page);await expect(detail.getByText(memo,{exact:true})).toBeVisible();await expect(detail.getByLabel("담당자",{exact:true})).toHaveValue("합성 내부 담당 A");
+  // The saved instant is the Seoul wall time that was typed, to the minute; a browser-zone reading would be 9 hours off on CI.
+  const savedDue=await queue.locator(`[data-ticket-id="${tickets[0]}"] time`).getAttribute("dateTime");expect(Date.parse(savedDue!)).toBe(Math.floor(Date.parse(duePast)/60_000)*60_000);
+  await expect(detail.getByLabel("처리 예정",{exact:true})).toHaveValue(localPast);
   await page.getByRole("button",{name:"← 목록으로",exact:true}).click();
   await expect.poll(()=>queue.locator("li[data-ticket-id]").evaluateAll((rows,ids)=>rows.map(x=>x.getAttribute("data-ticket-id")).filter(id=>ids.includes(id!)),tickets)).toEqual(tickets);
   await expect(queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`)).toContainText("기한 지남");

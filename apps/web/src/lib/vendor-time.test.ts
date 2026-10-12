@@ -1,5 +1,5 @@
 import { describe,expect,it } from "vitest";
-import { formatVendorInstant,formatVendorInterval,instantToSeoulInput,instantToSeoulLocal,intervalWithin,seoulInputToInstant,seoulLocalToInstant } from "./vendor-time";
+import { formatVendorInterval,intervalWithin } from "./vendor-time";
 
 const now=new Date("2026-10-06T03:00:00Z");
 
@@ -18,7 +18,6 @@ describe("formatVendorInterval (Asia/Seoul, Korean)",()=>{
   });
   it("includes the year and drops the weekday for a different-year date (design rules section 14)",()=>{
     expect(formatVendorInterval("2027-01-03T13:00:00Z","2027-01-03T13:30:00Z",now)).toBe("2027년 1월 3일 오후 10:00–10:30");
-    expect(formatVendorInstant("2027-01-03T14:00:00Z",now)).toBe("2027년 1월 3일 오후 11:00");
   });
   it("decides the current year at the Seoul New Year boundary, not UTC",()=>{
     const seoulNewYear=new Date("2026-12-31T15:30:00Z");
@@ -45,27 +44,4 @@ describe("absolute containment",()=>{
     expect(intervalWithin({startAt:"2026-10-07T06:00:00Z",endAt:"2026-10-07T06:00:00Z"},window)).toBe(false);
   });
 });
-
-describe("Seoul wall-clock entry",()=>{
-  it("converts Seoul calendar date and time to an absolute instant independent of the host zone",()=>{
-    expect(seoulLocalToInstant("2026-10-07","14:00")).toBe("2026-10-07T05:00:00.000Z");
-    expect(seoulLocalToInstant("2027-01-01","00:30")).toBe("2026-12-31T15:30:00.000Z");
-  });
-  it.each([["2026-02-30","10:00"],["2026-13-01","10:00"],["2026-10-07","24:00"],["2026-10-07","9:5"],["","10:00"],["2026-10-07T10:00","10:00"]])("rejects an impossible or malformed entry %s %s",(date,time)=>{
-    expect(seoulLocalToInstant(date,time)).toBeNull();
-  });
-  it("turns an instant back into the Seoul date and time it was entered as, across midnight and the new year",()=>{
-    expect(instantToSeoulLocal("2026-10-07T05:00:00.000Z")).toEqual({date:"2026-10-07",time:"14:00"});
-    expect(instantToSeoulLocal("2026-10-07T15:00:00Z")).toEqual({date:"2026-10-08",time:"00:00"});
-    expect(instantToSeoulLocal("2026-12-31T15:30:00Z")).toEqual({date:"2027-01-01",time:"00:30"});
-    const {date,time}=instantToSeoulLocal("2026-10-07T05:00:00.000Z");
-    expect(seoulLocalToInstant(date,time)).toBe("2026-10-07T05:00:00.000Z");
-  });
-  it("fills and reads a datetime-local input in Seoul time, as the manager's due date does",()=>{
-    expect(instantToSeoulInput("2026-10-07T15:00:00Z")).toBe("2026-10-08T00:00");
-    expect(seoulInputToInstant("2026-10-08T00:00")).toBe("2026-10-07T15:00:00.000Z");
-    expect(seoulInputToInstant("2026-10-08T00:00:00")).toBe("2026-10-07T15:00:00.000Z");
-    expect(seoulInputToInstant("2026-02-30T10:00")).toBeNull();
-    expect(seoulInputToInstant("")).toBeNull();
-  });
-});
+// Seoul wall-clock entry (instantToSeoulLocal, seoulLocalToInstant and the input helpers) is tested in date-text.test.ts.
