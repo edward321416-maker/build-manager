@@ -25,8 +25,20 @@ type LoadState =
   | { kind: "error"; message: string }
   | { kind: "ready"; ticket: LandlordTicketDetailDto };
 
-export function TicketReview({ ticketId, client, coreFlow=false }: { ticketId: string; client?: ReturnType<typeof createBrowserApiClient>; coreFlow?: boolean }) {
+export function TicketReview({ ticketId, client, coreFlow=false, onStatusChange, onDecided }: {
+  ticketId: string;
+  client?: ReturnType<typeof createBrowserApiClient>;
+  coreFlow?: boolean;
+  /** Called with each status the server returns, so an embedding screen can refresh after a decision. */
+  onStatusChange?: (status: LandlordTicketDetailDto["status"]) => void;
+  /** Called after every action the server accepted, including a route correction that keeps the status. */
+  onDecided?: (status: LandlordTicketDetailDto["status"]) => void;
+}) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  const loadedStatus = state.kind === "ready" ? state.ticket.status : null;
+  useEffect(() => {
+    if (loadedStatus !== null) onStatusChange?.(loadedStatus);
+  }, [loadedStatus, onStatusChange]);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<RouteCode | "">("");
@@ -92,6 +104,7 @@ export function TicketReview({ ticketId, client, coreFlow=false }: { ticketId: s
       const ticket = await action(client ?? createBrowserApiClient());
       setState({ kind: "ready", ticket });
       setSelectedRoute(overrideOptions(ticket)[0]?.routeCode ?? "");
+      onDecided?.(ticket.status);
     } catch (error) {
       setActionError(describeApiError(error));
     } finally {
@@ -99,12 +112,17 @@ export function TicketReview({ ticketId, client, coreFlow=false }: { ticketId: s
     }
   };
 
+  // Inside /core the page already has its own main landmark and back button.
+  const Root = coreFlow ? "section" : "main";
+
   return (
-    <main className="landlord-page">
+    <Root className="landlord-page">
       {coreFlow ? null : <DemoBanner />}
-      <p>
-        <Link href={coreFlow ? "/core" : "/demo/landlord"}>{coreFlow ? "← 접수 목록" : "← 임대인 데모 홈"}</Link>
-      </p>
+      {coreFlow ? null : (
+        <p>
+          <Link href="/demo/landlord">← 임대인 데모 홈</Link>
+        </p>
+      )}
 
       {state.kind === "loading" ? <StateMessage kind="loading" /> : null}
 
@@ -318,6 +336,6 @@ export function TicketReview({ ticketId, client, coreFlow=false }: { ticketId: s
           </section>
         </>
       ) : null}
-    </main>
+    </Root>
   );
 }

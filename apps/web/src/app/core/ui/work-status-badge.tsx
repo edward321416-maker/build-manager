@@ -46,3 +46,8 @@ const intakeLabels = {
 export function IntakeStatus({ status }: { status: CoreTicketDto["detail"]["status"] }) {
   return <p className={styles.intakeStatus} data-intake-state={status}>접수 상태: {intakeLabels[status]}</p>;
 }
+
+/** The same intake label as a compact row badge, so a queue row and the request use one name per state. */
+export function IntakeBadge({ status }: { status: CoreTicketDto["detail"]["status"] }) {
+  return <span className={styles.badge} data-intake-state={status}>{intakeLabels[status]}</span>;
+}
