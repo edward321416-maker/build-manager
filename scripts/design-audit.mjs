@@ -94,8 +94,8 @@ function inspect() {
   // Without one the control itself is measured, so an unlabelled 20px checkbox is still reported.
   const taps = new Set();
   for (const el of document.querySelectorAll("button, a[href], select, textarea, summary, input:not([type=hidden]), [role=button], [role=tab]")) {
-    const viaLabel = el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio" || hiddenText(el)) ? el.labels?.[0] : null;
-    const target = viaLabel && !hiddenText(viaLabel) ? viaLabel : el;
+    const viaLabel = el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio" || hiddenText(el)) ? [...(el.labels ?? [])].find(l => !hiddenText(l)) : null;
+    const target = viaLabel ?? el;
     if (!hiddenText(target)) taps.add(target);
   }
   // Operator decision 2026-10-12 (rules §16): up to 767px the /core top menu links stay 40px tall until the bottom tab
