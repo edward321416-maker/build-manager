@@ -56,6 +56,24 @@ function projectToolingAdvisories20261010(lock:DependencyLock,fixtureSource:stri
     lock.packages[entry.path]=structuredClone(entry.before);
   }
 }
+// Operator decision 2026-10-13 after Expo's 2026-10-12 SDK 57 patch releases failed Expo Doctor on every PR: expo 57.0.28,
+// @expo/ui 57.0.23, expo-router 57.0.26 and expo-splash-screen 57.0.10 inside their ranges, jest-expo pinned to 57.0.6.
+// The reviewed fixture holds every lock entry that update changed (none were added or removed); reverse exactly those.
+const expoPatch20261013Fixture="tests/architecture/expo-sdk57-patch-20261013-lock.json";
+const expoPatch20261013Paths=["apps/mobile",...["@expo/cli","@expo/config/node_modules/semver","@expo/devcert","@expo/fingerprint","@expo/fingerprint/node_modules/balanced-match","@expo/fingerprint/node_modules/minimatch","@expo/fingerprint/node_modules/semver","@expo/inline-modules","@expo/local-build-cache-provider","@expo/prebuild-config","@expo/ui","@expo/ws-tunnel","@expo/xcpretty","arg","babel-plugin-react-native-web","babel-preset-expo","expo","expo-modules-autolinking","expo-modules-core","expo-modules-jsi","expo-router","expo-splash-screen","jest-expo","resolve-workspace-root"].map(name=>`node_modules/${name}`)];
+function projectExpoSdk57Patch20261013(lock:DependencyLock,fixtureSource:string) {
+  expect(sha256(fixtureSource),"reviewed Expo 2026-10-13 patch fixture").toBe("c94db6a89c6cb6a454c950b201314e6516f5d19583f594995250519478b65f98");
+  const fixture=JSON.parse(fixtureSource) as {path:string;before:Record<string,unknown>;successorSha256:string}[];
+  expect(fixture.map(entry=>entry.path)).toEqual(expoPatch20261013Paths);
+  for(const entry of fixture) {
+    expect(lock.packages[entry.path],entry.path).toBeDefined();
+    expect(sha256(JSON.stringify(lock.packages[entry.path])),entry.path).toBe(entry.successorSha256);
+    lock.packages[entry.path]=structuredClone(entry.before);
+  }
+}
+function projectExpoSdk57Patch20261013Manifest(manifest:{devDependencies:Record<string,string>}) {
+  expect(manifest.devDependencies["jest-expo"],"jest-expo").toBe("57.0.6");manifest.devDependencies["jest-expo"]="57.0.5";
+}
 function projectSecurityUpdateManifest(manifest:{dependencies:Record<string,string>;devDependencies:Record<string,string>}) {
   for(const [section,name,successor,original] of [["dependencies","next","16.3.8","16.3.4"],["devDependencies","eslint-config-next","16.3.8","16.3.4"],["dependencies","sharp","0.35.5","0.35.4"]] as const) {
     expect(manifest[section][name],name).toBe(successor);manifest[section][name]=original;
@@ -151,6 +169,10 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
       const manifest=JSON.parse(canonical);projectTask12Scripts(manifest,task12RootScripts);
       canonical=JSON.stringify(manifest,null,2)+"\n";
     }
+    if(path==="apps/mobile/package.json"){
+      const manifest=JSON.parse(canonical);projectExpoSdk57Patch20261013Manifest(manifest);
+      canonical=JSON.stringify(manifest,null,2)+"\n";
+    }
     // The operator's RC1 photo directive explicitly permits only this existing
     // codec as a pinned direct dependency. Reverse that exact additive delta,
     // then retain every original B5 hash and all other dependency bytes.
@@ -163,8 +185,9 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
     }
     if(path==="package-lock.json"){
       const lock=JSON.parse(canonical);
-      // Reverse only the reviewed tooling advisory, SDK57 patch and security update entries,
+      // Reverse only the reviewed SDK57 patch, tooling advisory and security update entries, newest first,
       // then the original Sharp directive. Every untouched entry and original frozen hash remains.
+      projectExpoSdk57Patch20261013(lock,(await readFile(expoPatch20261013Fixture,"utf8")).replaceAll("\r\n","\n"));
       projectToolingAdvisories20261010(lock,(await readFile(toolingAdvisoriesFixture,"utf8")).replaceAll("\r\n","\n"));
       projectExpoSdk57Patch(lock,(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n"));
       projectSecurityUpdate20261010(lock,(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n"));
@@ -188,21 +211,22 @@ it("AC17 exact Expo SDK57 projection rejects package, fixture and unrelated lock
   const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
   const security=(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n");
   const tooling=(await readFile(toolingAdvisoriesFixture,"utf8")).replaceAll("\r\n","\n");
+  const expo20261013=(await readFile(expoPatch20261013Fixture,"utf8")).replaceAll("\r\n","\n");
   const inventory=(candidate:DependencyLock,source=fixture,securitySource=security)=>{
-    projectToolingAdvisories20261010(candidate,tooling);
+    projectExpoSdk57Patch20261013(candidate,expo20261013);projectToolingAdvisories20261010(candidate,tooling);
     projectExpoSdk57Patch(candidate,source);projectSecurityUpdate20261010(candidate,securitySource);projectSharpLock(candidate);
     expect(sha256(JSON.stringify(candidate,null,2)+"\n")).toBe(frozen["package-lock.json"]);
   };
   inventory(structuredClone(lock));
   for(const mutate of [
-    (candidate:DependencyLock)=>{candidate.packages["node_modules/expo"].version="57.0.28";},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/expo"].version="57.0.29";},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/ui"].integrity="sha512-unreviewed";},
     (candidate:DependencyLock)=>{(candidate.packages["node_modules/expo"].dependencies as Record<string,string>)["expo-constants"]="*";},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/cli"].hasInstallScript=true;},
     (candidate:DependencyLock)=>{delete candidate.packages["node_modules/expo-linking"];},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/unreviewed"]={version:"1.0.0"};},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/typescript"].version="0.0.0";},
-    (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/devcert"].version="1.2.2";},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/devcert"].version="1.2.3";},
   ]) {
     const candidate=structuredClone(lock);mutate(candidate);
     expect(()=>inventory(candidate)).toThrow();
@@ -212,13 +236,44 @@ it("AC17 exact Expo SDK57 projection rejects package, fixture and unrelated lock
   const removedFixture=JSON.parse(fixture);removedFixture.pop();
   expect(()=>inventory(structuredClone(lock),JSON.stringify(removedFixture,null,2)+"\n")).toThrow();
 });
+it("AC17 Expo 2026-10-13 patch projection rejects an unreviewed version, a tampered fixture, a dropped entry and a moved pin",async()=>{
+  const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock;
+  const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
+  const security=(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n");
+  const tooling=(await readFile(toolingAdvisoriesFixture,"utf8")).replaceAll("\r\n","\n");
+  const expo20261013=(await readFile(expoPatch20261013Fixture,"utf8")).replaceAll("\r\n","\n");
+  const inventory=(candidate:DependencyLock,source=expo20261013)=>{
+    projectExpoSdk57Patch20261013(candidate,source);projectToolingAdvisories20261010(candidate,tooling);
+    projectExpoSdk57Patch(candidate,fixture);projectSecurityUpdate20261010(candidate,security);projectSharpLock(candidate);
+    expect(sha256(JSON.stringify(candidate,null,2)+"\n")).toBe(frozen["package-lock.json"]);
+  };
+  inventory(structuredClone(lock));
+  for(const mutate of [
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/jest-expo"].version="57.0.7";},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/expo-splash-screen"].integrity="sha512-unreviewed";},
+    (candidate:DependencyLock)=>{(candidate.packages["apps/mobile"].devDependencies as Record<string,string>)["jest-expo"]="57.0.7";},
+    (candidate:DependencyLock)=>{delete candidate.packages["node_modules/resolve-workspace-root"];},
+  ]) {
+    const candidate=structuredClone(lock);mutate(candidate);
+    expect(()=>inventory(candidate)).toThrow();
+  }
+  const changedFixture=JSON.parse(expo20261013);changedFixture[0].before.version="0.0.1";
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(changedFixture,null,2)+"\n")).toThrow();
+  const removedFixture=JSON.parse(expo20261013);removedFixture.pop();
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(removedFixture,null,2)+"\n")).toThrow();
+  const manifest=JSON.parse(await readFile("apps/mobile/package.json","utf8"));
+  projectExpoSdk57Patch20261013Manifest(structuredClone(manifest));
+  manifest.devDependencies["jest-expo"]="57.0.7";
+  expect(()=>projectExpoSdk57Patch20261013Manifest(manifest)).toThrow();
+});
 it("AC17 security update projection rejects an unreviewed version, a tampered fixture and a dropped entry",async()=>{
   const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock;
   const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
   const security=(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n");
   const tooling=(await readFile(toolingAdvisoriesFixture,"utf8")).replaceAll("\r\n","\n");
+  const expo20261013=(await readFile(expoPatch20261013Fixture,"utf8")).replaceAll("\r\n","\n");
   const inventory=(candidate:DependencyLock,securitySource=security)=>{
-    projectToolingAdvisories20261010(candidate,tooling);
+    projectExpoSdk57Patch20261013(candidate,expo20261013);projectToolingAdvisories20261010(candidate,tooling);
     projectExpoSdk57Patch(candidate,fixture);projectSecurityUpdate20261010(candidate,securitySource);projectSharpLock(candidate);
     expect(sha256(JSON.stringify(candidate,null,2)+"\n")).toBe(frozen["package-lock.json"]);
   };
@@ -241,8 +296,9 @@ it("AC17 tooling advisories projection rejects an unreviewed version, unrelated 
   const fixture=(await readFile(expoPatchFixture,"utf8")).replaceAll("\r\n","\n");
   const security=(await readFile(securityUpdateFixture,"utf8")).replaceAll("\r\n","\n");
   const tooling=(await readFile(toolingAdvisoriesFixture,"utf8")).replaceAll("\r\n","\n");
+  const expo20261013=(await readFile(expoPatch20261013Fixture,"utf8")).replaceAll("\r\n","\n");
   const inventory=(candidate:DependencyLock,toolingSource=tooling)=>{
-    projectToolingAdvisories20261010(candidate,toolingSource);
+    projectExpoSdk57Patch20261013(candidate,expo20261013);projectToolingAdvisories20261010(candidate,toolingSource);
     projectExpoSdk57Patch(candidate,fixture);projectSecurityUpdate20261010(candidate,security);projectSharpLock(candidate);
     expect(sha256(JSON.stringify(candidate,null,2)+"\n")).toBe(frozen["package-lock.json"]);
   };
