@@ -13,6 +13,7 @@ import {
   Screen,
   SectionHeading,
 } from "../../components/ui";
+import { color, radius, size, space, text } from "../../design/tokens";
 import { describeMobileError } from "../../lib/errors";
 
 type LoadState =
@@ -148,6 +149,7 @@ export function TenantHome({
             multiline
             onChangeText={setRawUserText}
             placeholder="예: 난방이 안 돼요"
+            placeholderTextColor={color.textSecondary}
             style={styles.input}
             testID="raw-user-text"
             value={rawUserText}
@@ -167,21 +169,24 @@ export function TenantHome({
   );
 }
 
+// Design rules v1 values (src/design/tokens.ts).
 const styles = StyleSheet.create({
-  header: { gap: 6 },
-  title: { color: "#17322b", fontSize: 26, fontWeight: "800" },
-  tagline: { color: "#426057", fontSize: 16 },
-  taglineSub: { color: "#6b7f78", fontSize: 14 },
-  group: { gap: 8 },
+  header: { gap: space.s1 },
+  title: { ...text.title, color: color.text },
+  tagline: { ...text.body, color: color.textSecondary },
+  taglineSub: { ...text.caption, color: color.textSecondary },
+  group: { gap: space.s2 },
+  // A multi-line input is at least 120 tall (rules §8.2).
   input: {
-    minHeight: 96,
+    minHeight: size.multiline,
     borderWidth: 1,
-    borderColor: "#c9c1ad",
-    borderRadius: 10,
-    backgroundColor: "#fffdf7",
-    padding: 12,
-    color: "#17322b",
-    fontSize: 16,
+    borderColor: color.borderControl,
+    borderRadius: radius.control,
+    backgroundColor: color.surface,
+    paddingVertical: space.s2,
+    paddingHorizontal: space.s3,
+    ...text.body,
+    color: color.text,
     textAlignVertical: "top",
   },
 });

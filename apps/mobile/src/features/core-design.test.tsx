@@ -1,7 +1,60 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
-import { ActionButton as DemoActionButton } from "../components/ui";
-import { ActionButton, CoreText, CoreWorkStatus, Screen } from "./core-ui";
+import { ActionButton as DemoActionButton, ErrorState } from "../components/ui";
+import { color, inputText, status, text } from "../design/tokens";
+import { ActionButton, CoreText, CoreWorkStatus, Screen, coreInputStyle, coreMultilineInputStyle, corePlaceholderColor } from "./core-ui";
+
+// Design rules v1 colours on the shared buttons and status labels (§2.2–§2.4, §8.7).
+it.each([["core", ActionButton], ["demo", DemoActionButton]] as const)("draws the %s button in the rules' colours, disabled without transparency", async (_name, Button) => {
+  const view = await render(<Button label="접수하기" onPress={() => {}}/>);
+  const box = () => StyleSheet.flatten(screen.getByRole("button", { name: "접수하기" }).props.style);
+  const label = () => StyleSheet.flatten(screen.getByText(/접수하기$/).props.style);
+  expect(box()).toMatchObject({ backgroundColor: color.surface, borderColor: color.borderStrong });
+  expect(label()).toMatchObject({ ...text.label, color: color.text });
+  await view.rerender(<Button label="접수하기" selected onPress={() => {}}/>);
+  expect(box()).toMatchObject({ backgroundColor: color.primarySoft, borderColor: color.primary, borderWidth: 2 });
+  await view.rerender(<Button label="접수하기" disabled onPress={() => {}}/>);
+  expect(box()).toMatchObject({ backgroundColor: color.fillSubtle, borderColor: color.border });
+  expect(box().opacity).toBeUndefined();
+  expect(label()).toMatchObject({ color: color.textSecondary });
+});
+
+it.each([["core", ActionButton], ["demo", DemoActionButton]] as const)("draws an unselected %s choice as a tile with the control edge and 15/15 padding", async (_name, Button) => {
+  const view = await render(<Button label="난방" selected={false} onPress={() => {}}/>);
+  const box = () => StyleSheet.flatten(screen.getByRole("button", { name: "난방" }).props.style);
+  expect(box()).toMatchObject({ borderColor: color.borderControl, paddingVertical: 15, paddingHorizontal: 15 });
+  const outer = (style: ReturnType<typeof box>) => [Number(style.borderWidth) + Number(style.paddingVertical), Number(style.borderWidth) + Number(style.paddingHorizontal)];
+  const unselected = outer(box());
+  // Choosing the tile keeps edge + padding the same, so nothing below it moves.
+  await view.rerender(<Button label="난방" selected onPress={() => {}}/>);
+  expect(outer(box())).toEqual(unselected);
+  await view.rerender(<Button label="난방" selected={false} disabled onPress={() => {}}/>);
+  expect(box()).toMatchObject({ borderColor: color.border, backgroundColor: color.fillSubtle });
+});
+
+it("keeps the error notice's 15 padding on every side and its danger edge", async () => {
+  await render(<ErrorState message="연결을 확인해 주세요." onRetry={() => {}}/>);
+  expect(StyleSheet.flatten(screen.getByTestId("error").props.style))
+    .toMatchObject({ backgroundColor: color.dangerSoft, borderColor: color.danger, borderWidth: 1, paddingVertical: 15, paddingHorizontal: 15 });
+});
+
+it("gives single-line inputs no line height, multi-line inputs 120 and placeholders the secondary colour", () => {
+  expect(StyleSheet.flatten(coreInputStyle)).toMatchObject({ ...inputText, minHeight: 48, borderColor: color.borderControl });
+  expect("lineHeight" in StyleSheet.flatten(coreInputStyle)).toBe(false);
+  expect(StyleSheet.flatten(coreMultilineInputStyle)).toMatchObject({ ...text.body, minHeight: 120, textAlignVertical: "top" });
+  expect(corePlaceholderColor).toBe(color.textSecondary);
+});
+
+it("fills the core primary button with the brand blue and inverse text", async () => {
+  await render(<ActionButton label="접수하기" primary onPress={() => {}}/>);
+  expect(StyleSheet.flatten(screen.getByRole("button", { name: "접수하기" }).props.style)).toMatchObject({ backgroundColor: color.primary });
+  expect(StyleSheet.flatten(screen.getByText("접수하기").props.style)).toMatchObject({ color: color.textInverse });
+});
+
+it.each([["OPEN", status.neutral], ["IN_PROGRESS", status.progress], ["COMPLETED", status.done]] as const)("shows %s in its status colour pair", async (work, pair) => {
+  await render(<CoreWorkStatus status={work}/>);
+  expect(StyleSheet.flatten(screen.getByTestId("work-status").props.style)).toMatchObject({ ...pair, ...text.label, borderRadius: 5 });
+});
 
 it.each([
   ["core", ActionButton, {}], ["core selected", ActionButton, { selected: true }], ["core primary", ActionButton, { primary: true }],

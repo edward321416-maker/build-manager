@@ -7,7 +7,8 @@ import type {
   TenantTicketStatusDto,
 } from "@build-manager/api-contracts";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { ScrollView } from "react-native";
+import { ScrollView, StyleSheet } from "react-native";
+import { color } from "../../design/tokens";
 import { TenantTicket } from "./tenant-ticket";
 
 // Resolve Screen's lazy native module during collection. Cold transforms still
@@ -278,6 +279,9 @@ describe("tenant ticket — safety", () => {
     await renderTicket(client);
 
     expect(await screen.findByTestId("safety-notice")).toBeTruthy();
+    // Design rules §6.1/§8.11: the safety warning is a soft danger box with a 1px danger edge.
+    expect(StyleSheet.flatten(screen.getByTestId("safety-notice").props.style))
+      .toMatchObject({ backgroundColor: color.dangerSoft, borderColor: color.danger, borderWidth: 1 });
     expect(screen.queryByTestId("answer-yes")).toBeNull();
     expect(screen.queryByTestId("submit-BOILER_DISPLAY")).toBeNull();
     expect(screen.queryByTestId("finalize")).toBeNull();

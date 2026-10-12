@@ -3,7 +3,7 @@ import type { CoreSessionDto,CoreTicketDto,CoreUnitDto } from "@build-manager/ap
 import { useCallback,useState } from "react";
 import { TextInput,View } from "react-native";
 import { useRouter } from "expo-router";
-import { Screen,ActionButton,SectionHeading,CoreText as Text,CoreHeader,CoreWorkStatus,coreInputStyle } from "../features/core-ui";
+import { Screen,ActionButton,SectionHeading,ScreenTitle,CoreText as Text,CoreHeader,CoreWorkStatus,coreInputStyle,coreMultilineInputStyle,corePlaceholderColor,coreCaptionStyle } from "../features/core-ui";
 import { resolveMobileApiBaseUrl } from "../lib/api-config";
 import { TenantTicket } from "../features/tenant/tenant-ticket";
 import { TicketReview } from "../features/landlord/ticket-review";
@@ -22,12 +22,12 @@ export default function CoreFlowScreen(){
   const run=async(action:()=>Promise<void>)=>{setBusy(true);setError("");try{await action();}catch(e){if(e instanceof ApiClientError && (e.status===401||e.status===403)){setSession(null);setClient(null);setSelected(null);setDetails(false);setTickets([]);setUnits([]);}else if(e instanceof ApiClientError && e.status===404){setSelected(null);setDetails(false);}setError("처리하지 못했습니다. 서버 주소·입력·접근 권한·연결을 확인하세요.");}finally{setBusy(false);}};
   if(details&&selected&&client&&session)return <View style={{flex:1}}><ActionButton label="← 처리 이력으로" onPress={()=>{setDetails(false);void run(async()=>setSelected(await client.read(selected.ticketId)));}} />{session.role==="TENANT"?<TenantTicket client={client.protocol} ticketId={selected.ticketId} coreFlow />:<TicketReview client={client.protocol} ticketId={selected.ticketId} onBack={()=>setDetails(false)} coreFlow />}</View>;
   return <Screen>
-    <CoreHeader><SectionHeading inverse>우리 집 수리 접수</SectionHeading>
-    <Text style={{color:"#D8E3F0",fontSize:14,lineHeight:21}}>RC1 합성 개발 계정 전용 · 사진 업로드·실제 로그인·업체 출동·알림 미지원</Text></CoreHeader>
+    <CoreHeader><ScreenTitle>우리 집 수리 접수</ScreenTitle>
+    <Text style={coreCaptionStyle}>RC1 합성 개발 계정 전용 · 사진 업로드·실제 로그인·업체 출동·알림 미지원</Text></CoreHeader>
     <ActionButton label="← 앱 홈" onPress={()=>router.back()} />
     {error?<Text accessibilityRole="alert">{error}</Text>:null}{busy?<Text>불러오는 중…</Text>:null}
     {!session||!client?<>
-      <TextInput accessibilityLabel="개발 접근 코드" placeholder="개발 접근 코드" secureTextEntry autoCapitalize="none" autoCorrect={false} value={code} onChangeText={setCode} style={styles.input} />
+      <TextInput accessibilityLabel="개발 접근 코드" placeholder="개발 접근 코드" placeholderTextColor={corePlaceholderColor} secureTextEntry autoCapitalize="none" autoCorrect={false} value={code} onChangeText={setCode} style={styles.input} />
       <ActionButton label="들어가기" disabled={busy||!/^[a-f0-9]{64}$/.test(code)} onPress={()=>void run(async()=>{const c=createCoreFlowClient({baseUrl:resolveMobileApiBaseUrl(process.env.EXPO_PUBLIC_API_URL),accessCode:code});const s=await c.session(),u=await c.units(),t=await c.tickets();setClient(c);setSession(s);setUnits(u);setUnit(u[0]?.id??"");setTickets(t);setCode("");})} />
       <Text>개발 환경에서 발급한 계정별 코드가 필요합니다. 앱 재진입 때 다시 입력합니다. 접수 이력은 서버에 보존됩니다.</Text>
     </>:<>
@@ -39,7 +39,7 @@ export default function CoreFlowScreen(){
         <SectionHeading>접수 상세</SectionHeading><CoreWorkStatus status={selected.workStatus}/>
         <CorePhotos key={`${selected.ticketId}-${photoRevision}`} client={client} ticketId={selected.ticketId} onDenied={photoDenied} />
         {session.role!=="TENANT"&&selected.workStatus!=="COMPLETED"?<>
-          <TextInput accessibilityLabel="처리 기록" placeholder="처리 기록" multiline maxLength={2000} value={message} onChangeText={setMessage} style={styles.input} />
+          <TextInput accessibilityLabel="처리 기록" placeholder="처리 기록" placeholderTextColor={corePlaceholderColor} multiline maxLength={2000} value={message} onChangeText={setMessage} style={styles.multiline} />
           <ActionButton label={selected.workStatus==="OPEN"?"처리 시작 기록":"처리 완료 기록"} disabled={busy||!message.trim()} onPress={()=>void run(async()=>{setSelected(await client.handling(selected.ticketId,{status:selected.workStatus==="OPEN"?"IN_PROGRESS":"COMPLETED",message}));setMessage("");})} />
           <Text>담당자가 확인한 사실을 기록하세요. 자동 출동이나 수리 검증을 뜻하지 않습니다.</Text>
         </>:null}
@@ -50,7 +50,7 @@ export default function CoreFlowScreen(){
         {units.map(u=><ActionButton key={u.id} label={`${u.buildingName} · ${u.label}`} selected={u.id===unit} onPress={()=>setUnit(u.id)} />)}
         {session.role==="TENANT"&&unit?<>
           <SectionHeading>문제 접수</SectionHeading><ActionButton label="난방" selected={issue==="HEATING"} onPress={()=>setIssue("HEATING")} /><ActionButton label="누수" selected={issue==="LEAK"} onPress={()=>setIssue("LEAK")} />
-          <TextInput accessibilityLabel="문제 설명" placeholder="문제 설명" multiline maxLength={2000} value={text} onChangeText={setText} style={styles.input} />
+          <TextInput accessibilityLabel="문제 설명" placeholder="문제 설명" placeholderTextColor={corePlaceholderColor} multiline maxLength={2000} value={text} onChangeText={setText} style={styles.multiline} />
           <ActionButton label="접수하기" disabled={busy||!text.trim()} onPress={()=>void run(async()=>{setSelected(await client.create({unitId:unit,issueType:issue,rawUserText:text}));setText("");})} />
         </>:null}
         <SectionHeading>호실별 접수 이력</SectionHeading>{tickets.filter(t=>t.unitId===unit).length===0?<Text>아직 접수 내역이 없습니다.</Text>:null}
@@ -59,4 +59,4 @@ export default function CoreFlowScreen(){
     </>}
   </Screen>;
 }
-const styles={input:coreInputStyle};
+const styles={input:coreInputStyle,multiline:coreMultilineInputStyle};
