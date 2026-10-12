@@ -498,14 +498,14 @@ build-manager의 모든 화면(웹, 앱, 소개 페이지)은 이 문서를 따�
   - `apps/web/src/components/tenant`의 `TicketIntake`와 `apps/web/src/components/landlord`의 `TicketReview`는 `/core`도 쓰므로 그때도 남깁니다.
   - `/demo/layout.tsx`는 B1 인수 기록(FROZEN)에 있어서, 지울 때는 고위험 절차를 따릅니다.
 - 내비게이션(2026-10-10 규칙 추가, P2·P3와 알림 목록 다음에 만듦)
-  - `/core`는 휴대폰 폭에서 위쪽 메뉴를 쓰고, 넓은 화면 왼쪽 메뉴 위에 로그아웃과 소속 선택이 있습니다.
+  - `/core`는 1023px 이하에서 위쪽 메뉴를 쓰고(규칙은 768px부터 왼쪽 메뉴), 1024px 이상 왼쪽 메뉴 위에 로그아웃과 소속 선택이 있습니다.
   - 모바일 앱에는 하단 탭바가 없습니다.
   - Tabler 아이콘은 아직 설치하지 않았습니다. 웹은 `@tabler/icons-react`, 앱은 `@tabler/icons-react-native`와 `react-native-svg`를 쓰며, 추가하기 전에 REF-06 평가를 합니다.
 - 모바일 앱 기본 컴포넌트: `apps/mobile/src/features/core-ui.tsx`의 남색 헤더(`#17283B`), Tailwind 기본값과 같은 상태색(`#1D4ED8`, `#DCFCE7` 등), 자간 없음, `apps/mobile/src/components/ui.tsx`.
 - `/core`에 남은 것
   - 합쇼체("~습니다") 안내 문구. P3와 함께 해요체로 바꿉니다.
   - 날짜·시간이 브라우저 기본 형식(예: "2026. 10. 10. 오후 9:13:33")으로 나와 [14절](#14-표기-형식) 형식과 다릅니다.
-  - 사진 썸네일, 보조 정보의 `caption` 스타일, 왼쪽 메뉴 248px, 호실 정비 이력의 목록 행은 2026-10-10에 옮겼습니다.
+  - 사진 썸네일, 보조 정보의 `caption` 스타일, 1024px 이상 왼쪽 메뉴 너비 248px, 호실 정비 이력의 목록 행은 2026-10-12에 옮겼습니다(PR #122). 768~1023px의 왼쪽 메뉴는 위 내비게이션 항목과 함께 만듭니다.
 
 ## 17. 규칙을 바꾸는 방법
 

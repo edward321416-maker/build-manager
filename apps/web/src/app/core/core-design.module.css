@@ -211,7 +211,8 @@
 .root .submitZone button { width: 100%; min-height: 3.125rem; }
 .root .ticketList > li { padding-block: .3125rem; }
 .root .ticketRow { background: transparent; }
-.root .ticketList :global(.photo-grid) { grid-template-columns: repeat(auto-fill,3.75rem); }
+/* 75px columns keep the 4:3 photo button 56px tall, above the 50px tap minimum (rules §5). */
+.root .ticketList :global(.photo-grid) { grid-template-columns: repeat(auto-fill,4.6875rem); }
 .root .ticketList :global(.photo-grid figure) { margin: .3125rem 0; }
 .root :global(.page-shell.core-flow.core-onboarding) { padding: 1.25rem; border: 0; }
 .root :global(.core-onboarding) .heading { margin: -1.25rem -1.25rem 1.25rem; }
@@ -240,7 +241,7 @@
 .root :global(.core-photos[data-compact="true"] .photo-grid) { grid-template-columns: repeat(3,minmax(0,1fr)); gap: .625rem; margin-top: .625rem; }
 .root :global(.core-photos[data-compact="true"] .photo-grid figure) { min-width: 0; margin: 0; }
 .root :global(.core-photos[data-compact="true"] .photo-grid img) { aspect-ratio: 4 / 3; }
-.root :global(.core-photos[data-compact="true"] .photo-grid button) { width: 100%; padding: 0; }
+.root :global(.core-photos[data-compact="true"] .photo-grid button) { width: 100%; padding: .3125rem; }
 /* P1b evidence step: photo tiles (rules §8.3, §8.12), one primary button (§8.1), the rest secondary or text (§3.4). */
 .evidenceStep > * + * { margin-top: .625rem; }
 /* Two tiles a row on phones and three on wider screens (§8.3, §5: at most 3 photos a row). The 7rem floor grows with
