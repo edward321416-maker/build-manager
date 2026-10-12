@@ -251,7 +251,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
         </>:null}
         </div>
 
-        <section className={styles.history} aria-label="진행 이력"><h2>진행 이력</h2>{historyLines(selected.events).map(line=><p key={line.id}><DateTime at={line.at}/> · {line.actor} · {line.label}{line.message?` · ${line.message}`:""}</p>)}</section></TicketCommunication>
+        <section className={styles.history} aria-label="진행 이력"><h2>진행 이력</h2>{historyLines(selected.events).map(line=><p key={line.id}><DateTime at={line.at}/> {line.actor} · {line.label}{line.message?` · ${line.message}`:""}</p>)}</section></TicketCommunication>
           <details className={styles.technicalDetails}><summary>접수 세부 정보</summary><p className={styles.ticketId}>접수번호 {selected.ticketId}</p></details>
         {selected.workStatus==="COMPLETED"?<p>관리자의 완료 기록을 확인했습니다. 목록에서 이력을 다시 볼 수 있습니다.</p>:session.role==="TENANT"&&tenantIntakeOpen(selected)?null:<details id={session.role==="TENANT"?undefined:"ticket-decision"} className={styles.protocolDetails}><summary>{session.role==="TENANT"?"추가 확인":"추가 확인·결정 기록"}</summary>{session.role==="TENANT"?<TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} evidenceStep={evidenceStep}/>:<TicketReview key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} onDecided={onDecided}/>}</details>}
         </div>

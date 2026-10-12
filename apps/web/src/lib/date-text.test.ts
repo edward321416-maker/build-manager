@@ -1,5 +1,12 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { clockParts, formatDateTime } from "./date-text";
+
+const source = fileURLToPath(new URL("..", import.meta.url));
+const screenFiles = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
+  entry.isDirectory() ? screenFiles(join(dir, entry.name)) : /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [join(dir, entry.name)] : []);
 
 const seoul = { timeZone: "Asia/Seoul" };
 // 2026-10-12 14:00 in Seoul.
@@ -31,5 +38,10 @@ describe("date text (design rules section 14)", () => {
 
   it("refuses an instant it cannot read", () => {
     expect(() => clockParts("not a date")).toThrow(RangeError);
+  });
+
+  it("is the only way the web shows a date: no screen falls back to the browser's default format", () => {
+    const offenders = screenFiles(source).filter(file => /toLocale(Date|Time)?String\(/.test(readFileSync(file, "utf8")));
+    expect(offenders).toEqual([]);
   });
 });
