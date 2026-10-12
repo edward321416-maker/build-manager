@@ -117,6 +117,8 @@ function inspect() {
   // not, and ::before/::after content cannot be measured, nor can the label of an <input> button (none on these
   // screens). A text line counts at its full line height, which is what
   // CSS centres; browsers report only the glyph area, and Chromium and WebKit report it differently.
+  const badge = el => [...el.classList].some(c => /(^|__)badge$/i.test(c) || /[a-z]Badge$/.test(c)) || el.matches("span[data-work-state], span[data-intake-state]");
+  const visibleText = el => { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n = w.nextNode(); n; n = w.nextNode()) if (n.textContent.trim() && !hiddenText(n.parentElement)) return true; return false; };
   const contentRects = el => {
     const out = [];
     const visit = node => { for (const c of node.childNodes) {
@@ -128,8 +130,9 @@ function inspect() {
       }
       if (c.nodeType !== 1 || hiddenText(c)) continue;
       const cs = getComputedStyle(c);
-      // A positioned piece without text is a decoration (an unread dot); positioned text still counts.
-      if ((cs.position === "absolute" || cs.position === "fixed") && !c.textContent.trim()) continue;
+      // A positioned count badge, a piece hidden from screen readers or one without visible text sits over the control
+      // (an unread count, a dot); a positioned label still counts.
+      if ((cs.position === "absolute" || cs.position === "fixed") && (badge(c) || c.closest("[aria-hidden=true]") || !visibleText(c))) continue;
       if (cs.display !== "contents" && (c.matches("img, svg, canvas, video, input") || visibleSides(c).size)) { const r = c.getBoundingClientRect(); if (r.width > 0 && r.height > 0) out.push(r); continue; }
       visit(c);
     } };
@@ -137,21 +140,20 @@ function inspect() {
   };
   const union = rs => rs.reduce((u, r) => ({ left: Math.min(u.left, r.left), right: Math.max(u.right, r.right), top: Math.min(u.top, r.top), bottom: Math.max(u.bottom, r.bottom) }), { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity });
   // Lines come from the text alone: a piece joins a line when its middle lies inside that line's first piece, so lines
-  // never grow into each other. An icon, image or inner box then widens every line it sits beside; without text, each
-  // such piece is a line of its own.
+  // never grow into each other. An icon, image or inner box widens every line it sits beside; one that sits beside no
+  // line (a picture above a caption) is a line of its own.
   const lines = rs => {
-    const text = rs.filter(r => r.text), boxes = rs.filter(r => !r.text);
-    if (!text.length) return boxes.map(r => union([r]));
-    const ls = [];
+    const text = rs.filter(r => r.text), boxes = rs.filter(r => !r.text), placed = new Set(), ls = [];
     for (const r of [...text].sort((a, b) => a.top - b.top)) { const mid = (r.top + r.bottom) / 2, l = ls.find(l => mid > l.band.top && mid < l.band.bottom); if (l) l.pieces.push(r); else ls.push({ band: r, pieces: [r] }); }
-    return ls.map(l => union([...l.pieces, ...boxes.filter(b => Math.min(b.bottom, l.band.bottom) - Math.max(b.top, l.band.top) > (l.band.bottom - l.band.top) / 2)]));
+    const beside = (b, band) => Math.min(b.bottom, band.bottom) - Math.max(b.top, band.top) > (band.bottom - band.top) / 2;
+    return [...ls.map(l => { const bs = boxes.filter(b => beside(b, l.band)); bs.forEach(b => placed.add(b)); return union([...l.pieces, ...bs]); }), ...boxes.filter(b => !placed.has(b)).map(b => union([b]))];
   };
   // Gaps are measured inside the borders, where CSS centres the content, so an underline border is not counted as space.
   const inner = el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el), b = s => parseFloat(cs["border" + s + "Width"]) || 0; return { left: r.left + b("Left"), right: r.right - b("Right"), top: r.top + b("Top"), bottom: r.bottom - b("Bottom") }; };
   // Rows read from the left compare only top and bottom: summary rows, list rows that open a request (rules §8.5),
-  // checkbox and radio rows (§8.4) and the left menu, which is the account column once it sticks to the side.
-  const leftStart = el => el.matches("summary, [data-open-ticket], .field-check label, label:has(input[type=checkbox])") ||(el.matches(".core-account nav a, .core-account .core-logout") && getComputedStyle(el.closest(".core-account")).position === "sticky");
-  const badge = el => [...el.classList].some(c => /(^|__)badge$/i.test(c) || /[a-z]Badge$/.test(c)) || el.matches("span[data-work-state], span[data-intake-state]");
+  // checkbox and radio rows (§8.4) and the left menu, which is the account column once it sticks to the side. A
+  // selection tile (§8.3) is marked data-tile and is centred both ways like a button.
+  const leftStart = el => el.matches("summary, [data-open-ticket], .field-check label, label:has(input[type=checkbox], input[type=radio]):not([data-tile])") || (el.matches(".core-account nav a, .core-account .core-logout") && getComputedStyle(el.closest(".core-account")).position === "sticky");
   for (const el of new Set([...taps, ...[...document.querySelectorAll("body *")].filter(badge)])) {
     if (hiddenText(el) || el.matches("select, textarea, input")) continue;
     const rs = contentRects(el); if (!rs.length) continue;
