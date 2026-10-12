@@ -57,7 +57,7 @@ export function ManagerWorkDetail({client,ticket,revision}:{client:CoreFlowClien
   const fail=async(e:unknown)=>{
     if(e instanceof ApiClientError&&e.status===409){
       try{apply(await client.manager.read(ticket.ticketId));setError("다른 변경이 먼저 저장되었거나 처리가 완료되었습니다. 최신 업무 정보를 불러왔습니다. 확인한 뒤 다시 입력해 주세요.");}catch{setError("최신 상태를 확인하지 못했습니다. 최신 정보을 눌러 주세요.");setUncertain(true);}
-    }else{setError("저장 결과를 확인하지 못했습니다. 중복 저장하지 말고 최신 정보으로 저장된 내용을 먼저 확인해 주세요.");setUncertain(true);}
+    }else{setError("저장 결과를 확인하지 못했습니다. 중복 저장하지 말고 최신 정보로 저장된 내용을 먼저 확인해 주세요.");setUncertain(true);}
   };
   return <section aria-label="업무 관리" className={styles.detail}>
     <div className={styles.title}><div><p>관리자 전용 · 세입자에게 전달되지 않아요.</p></div><button disabled={busy} onClick={()=>void refresh()}>최신 정보</button></div>
@@ -70,7 +70,7 @@ export function ManagerWorkDetail({client,ticket,revision}:{client:CoreFlowClien
         <label>처리 예정<input type="datetime-local" value={due} onChange={e=>setDue(e.target.value)} /></label>
         <button type="submit">저장</button>
       </fieldset>
-      <p className={styles.help}>예정 시각은 이 브라우저의 시간대 기준입니다. 담당자은 실제 담당자 확인이나 접근 권한을 부여하지 않습니다.</p>
+      <p className={styles.help}>예정 시각은 이 브라우저의 시간대 기준입니다. 담당자는 실제 담당자 확인이나 접근 권한을 부여하지 않습니다.</p>
     </form>
     <section aria-label="내부 메모" className={styles.notes}><h3>내부 메모</h3>
       <form onSubmit={e=>{e.preventDefault();const input=CoreManagerInternalNoteCreateSchema.safeParse({body});if(!input.success){setError("내부 메모는 공백을 제외한 1~2000자로 입력해 주세요. 제어 문자는 사용할 수 없습니다.");return;}setBusy(true);setError("");setNotice("");void client.manager.appendNote(ticket.ticketId,input.data.body).then(note=>{setNotes(current=>[note,...current]);setBody("");setNotice("내부 메모를 저장했습니다. 세입자에게 공개되지 않습니다.");}).catch(fail).finally(()=>setBusy(false));}}>
