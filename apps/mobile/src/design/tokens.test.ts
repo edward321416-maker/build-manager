@@ -42,6 +42,25 @@ describe("design tokens in mobile source", () => {
     const offenders = sources.filter((file) => pattern.test(readFileSync(file, "utf8"))).map((file) => relative(SOURCE_ROOT, file));
     expect(offenders).toEqual([]);
   });
+
+  // Every TextInput element in the source, as written (a JSX tag up to its self-closing end).
+  const inputs = sources.flatMap((file) => [...readFileSync(file, "utf8").matchAll(/<TextInput\b[\s\S]*?\/>/g)]
+    .map((match) => ({ file: relative(SOURCE_ROOT, file), tag: match[0] })));
+
+  it("finds the app's text inputs", () => {
+    expect(inputs.length).toBeGreaterThan(5);
+  });
+
+  it("gives every input with a placeholder the secondary placeholder colour (§2.1)", () => {
+    const offenders = inputs.filter(({ tag }) => /\splaceholder=/.test(tag) && !/\splaceholderTextColor=/.test(tag)).map(({ file }) => file);
+    expect(offenders).toEqual([]);
+  });
+
+  it("gives the core flow's multi-line inputs the 120-tall style (§8.2)", () => {
+    const multiline = inputs.filter(({ file, tag }) => /app[\\/]core\.tsx$/.test(file) && /\smultiline\b/.test(tag));
+    expect(multiline.length).toBeGreaterThan(0);
+    expect(multiline.filter(({ tag }) => !/style=\{styles\.multiline\}/.test(tag))).toEqual([]);
+  });
 });
 
 describe("token values follow design rules v1", () => {

@@ -167,8 +167,15 @@ const styles = StyleSheet.create({
   },
   // A choice (a button that can be selected) is a tile: control-coloured edge, 15/15 padding (§2.1, §4, §8.3).
   buttonTile: { borderColor: color.borderControl, paddingVertical: space.s3, paddingHorizontal: space.s3 },
-  // Selected: 2px primary edge on the soft primary fill, with the ✓ in the label (§2.4).
-  buttonSelected: { borderColor: color.primary, backgroundColor: color.primarySoft, borderWidth: 2 },
+  // Selected: 2px primary edge on the soft primary fill, with the ✓ in the label (§2.4). The padding gives back the
+  // extra 1px of edge (2 + 14 = 1 + 15), so choosing a tile does not move the content below it.
+  buttonSelected: {
+    borderColor: color.primary,
+    backgroundColor: color.primarySoft,
+    borderWidth: 2,
+    paddingVertical: space.s3 - 1,
+    paddingHorizontal: space.s3 - 1,
+  },
   // Disabled: a subtle fill and secondary text, never transparency (§2.4, §6.5).
   buttonDisabled: { backgroundColor: color.fillSubtle, borderColor: color.border },
   buttonLabel: { ...text.label, color: color.text, textAlign: "center" },

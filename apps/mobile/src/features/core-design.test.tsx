@@ -20,9 +20,16 @@ it.each([["core", ActionButton], ["demo", DemoActionButton]] as const)("draws th
 });
 
 it.each([["core", ActionButton], ["demo", DemoActionButton]] as const)("draws an unselected %s choice as a tile with the control edge and 15/15 padding", async (_name, Button) => {
-  await render(<Button label="난방" selected={false} onPress={() => {}}/>);
-  expect(StyleSheet.flatten(screen.getByRole("button", { name: "난방" }).props.style))
-    .toMatchObject({ borderColor: color.borderControl, paddingVertical: 15, paddingHorizontal: 15 });
+  const view = await render(<Button label="난방" selected={false} onPress={() => {}}/>);
+  const box = () => StyleSheet.flatten(screen.getByRole("button", { name: "난방" }).props.style);
+  expect(box()).toMatchObject({ borderColor: color.borderControl, paddingVertical: 15, paddingHorizontal: 15 });
+  const outer = (style: ReturnType<typeof box>) => [Number(style.borderWidth) + Number(style.paddingVertical), Number(style.borderWidth) + Number(style.paddingHorizontal)];
+  const unselected = outer(box());
+  // Choosing the tile keeps edge + padding the same, so nothing below it moves.
+  await view.rerender(<Button label="난방" selected onPress={() => {}}/>);
+  expect(outer(box())).toEqual(unselected);
+  await view.rerender(<Button label="난방" selected={false} disabled onPress={() => {}}/>);
+  expect(box()).toMatchObject({ borderColor: color.border, backgroundColor: color.fillSubtle });
 });
 
 it("keeps the error notice's 15 padding on every side and its danger edge", async () => {
