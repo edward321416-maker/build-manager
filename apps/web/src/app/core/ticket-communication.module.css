@@ -1,7 +1,9 @@
 .conversation { min-width: 0; background: var(--color-surface); overflow-wrap: anywhere; }
 .conversation > * + * { margin-top: 1.875rem; }
 .heading { display: flex; align-items: center; justify-content: space-between; gap: .625rem; }
-.heading p,.composer > p,.meta { color: var(--color-text-readable); font-size: .9375rem; line-height: 1.25rem; }
+.heading p,.composer > p { color: var(--color-text-readable); font-size: .9375rem; line-height: 1.25rem; }
+/* Author and time of a message are optional detail in the caption style (rules §3.2). */
+.meta { color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; }
 .heading button { min-height: 2.5rem; padding: .3125rem; border-color: transparent; }
 .badge { display: inline-block; color: var(--color-text); padding: .3125rem 0; font-size: .9375rem; line-height: 1.25rem; font-weight: 600; max-width: 100%; }
 .thread { border-top: 1px solid var(--color-border); padding-top: .625rem; }
