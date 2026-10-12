@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
-import { ActionButton as DemoActionButton } from "../components/ui";
-import { color, status, text } from "../design/tokens";
-import { ActionButton, CoreText, CoreWorkStatus, Screen } from "./core-ui";
+import { ActionButton as DemoActionButton, ErrorState } from "../components/ui";
+import { color, inputText, status, text } from "../design/tokens";
+import { ActionButton, CoreText, CoreWorkStatus, Screen, coreInputStyle, coreMultilineInputStyle, corePlaceholderColor } from "./core-ui";
 
 // Design rules v1 colours on the shared buttons and status labels (§2.2–§2.4, §8.7).
 it.each([["core", ActionButton], ["demo", DemoActionButton]] as const)("draws the %s button in the rules' colours, disabled without transparency", async (_name, Button) => {
@@ -17,6 +17,25 @@ it.each([["core", ActionButton], ["demo", DemoActionButton]] as const)("draws th
   expect(box()).toMatchObject({ backgroundColor: color.fillSubtle, borderColor: color.border });
   expect(box().opacity).toBeUndefined();
   expect(label()).toMatchObject({ color: color.textSecondary });
+});
+
+it.each([["core", ActionButton], ["demo", DemoActionButton]] as const)("draws an unselected %s choice as a tile with the control edge and 15/15 padding", async (_name, Button) => {
+  await render(<Button label="난방" selected={false} onPress={() => {}}/>);
+  expect(StyleSheet.flatten(screen.getByRole("button", { name: "난방" }).props.style))
+    .toMatchObject({ borderColor: color.borderControl, paddingVertical: 15, paddingHorizontal: 15 });
+});
+
+it("keeps the error notice's 15 padding on every side and its danger edge", async () => {
+  await render(<ErrorState message="연결을 확인해 주세요." onRetry={() => {}}/>);
+  expect(StyleSheet.flatten(screen.getByTestId("error").props.style))
+    .toMatchObject({ backgroundColor: color.dangerSoft, borderColor: color.danger, borderWidth: 1, paddingVertical: 15, paddingHorizontal: 15 });
+});
+
+it("gives single-line inputs no line height, multi-line inputs 120 and placeholders the secondary colour", () => {
+  expect(StyleSheet.flatten(coreInputStyle)).toMatchObject({ ...inputText, minHeight: 48, borderColor: color.borderControl });
+  expect("lineHeight" in StyleSheet.flatten(coreInputStyle)).toBe(false);
+  expect(StyleSheet.flatten(coreMultilineInputStyle)).toMatchObject({ ...text.body, minHeight: 120, textAlignVertical: "top" });
+  expect(corePlaceholderColor).toBe(color.textSecondary);
 });
 
 it("fills the core primary button with the brand blue and inverse text", async () => {

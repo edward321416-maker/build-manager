@@ -13,7 +13,7 @@ import {
   Screen,
   SectionHeading,
 } from "../../components/ui";
-import { color, radius, space, text } from "../../design/tokens";
+import { color, radius, size, space, text } from "../../design/tokens";
 import { describeMobileError } from "../../lib/errors";
 
 type LoadState =
@@ -149,6 +149,7 @@ export function TenantHome({
             multiline
             onChangeText={setRawUserText}
             placeholder="예: 난방이 안 돼요"
+            placeholderTextColor={color.textSecondary}
             style={styles.input}
             testID="raw-user-text"
             value={rawUserText}
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
   group: { gap: space.s2 },
   // A multi-line input is at least 120 tall (rules §8.2).
   input: {
-    minHeight: 120,
+    minHeight: size.multiline,
     borderWidth: 1,
     borderColor: color.borderControl,
     borderRadius: radius.control,

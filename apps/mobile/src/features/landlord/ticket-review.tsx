@@ -14,7 +14,7 @@ import {
   Screen,
   SectionHeading,
 } from "../../components/ui";
-import { color, radius, size, space, text } from "../../design/tokens";
+import { color, inputText, radius, size, space, text } from "../../design/tokens";
 import { describeMobileError } from "../../lib/errors";
 import {
   canApprove,
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     gap: space.s2,
   },
   group: { gap: space.s2 },
-  body: { ...text.body, color: color.textSecondary },
+  body: { ...text.body, color: color.text },
   rowLabel: { ...text.label, color: color.text },
   recommendation: { ...text.heading, color: color.text },
   input: {
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.control,
     backgroundColor: color.surface,
     paddingHorizontal: space.s3,
-    ...text.body,
+    ...inputText,
     color: color.text,
   },
 });

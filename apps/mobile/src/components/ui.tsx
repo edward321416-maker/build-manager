@@ -102,6 +102,7 @@ export function ActionButton({
       onPress={onPress}
       style={[
         styles.button,
+        selected !== undefined && styles.buttonTile,
         selected === true && styles.buttonSelected,
         disabled && styles.buttonDisabled,
       ]}
@@ -141,12 +142,14 @@ const styles = StyleSheet.create({
   state: { gap: space.s2, paddingVertical: space.s2 },
   stateText: { ...text.body, color: color.textSecondary },
   // Error notice: soft danger fill and 1px danger edge; the message stays in a readable text colour (§8.11).
+  // Per-side padding, so it wins over `state`'s 10 vertical padding (notice boxes are 15/15, §4).
   errorBox: {
     backgroundColor: color.dangerSoft,
     borderWidth: 1,
     borderColor: color.danger,
     borderRadius: radius.control,
-    padding: space.s3,
+    paddingVertical: space.s3,
+    paddingHorizontal: space.s3,
   },
   errorText: { ...text.body, color: color.text },
   heading: { ...text.heading, color: color.text },
@@ -162,6 +165,8 @@ const styles = StyleSheet.create({
     paddingVertical: space.s2,
     backgroundColor: color.surface,
   },
+  // A choice (a button that can be selected) is a tile: control-coloured edge, 15/15 padding (§2.1, §4, §8.3).
+  buttonTile: { borderColor: color.borderControl, paddingVertical: space.s3, paddingHorizontal: space.s3 },
   // Selected: 2px primary edge on the soft primary fill, with the ✓ in the label (§2.4).
   buttonSelected: { borderColor: color.primary, backgroundColor: color.primarySoft, borderWidth: 2 },
   // Disabled: a subtle fill and secondary text, never transparency (§2.4, §6.5).

@@ -147,5 +147,5 @@ const styles = StyleSheet.create({
   title: { ...text.title, color: color.text },
   tagline: { ...text.body, color: color.textSecondary },
   group: { gap: space.s2 },
-  body: { ...text.body, color: color.textSecondary },
+  body: { ...text.body, color: color.text },
 });

@@ -14,7 +14,7 @@ import {
   Screen,
   SectionHeading,
 } from "../../components/ui";
-import { color, radius, size, space, text } from "../../design/tokens";
+import { color, inputText, radius, size, space, text } from "../../design/tokens";
 import { describeMobileError } from "../../lib/errors";
 import { intakeStage, moreInfoFulfilled, outstandingEvidence } from "./logic";
 
@@ -109,7 +109,7 @@ function QuestionCard({
 
 function SafetyNotice() {
   return (
-    <View accessibilityRole="alert" style={styles.card} testID="safety-notice">
+    <View accessibilityRole="alert" style={[styles.card, styles.safety]} testID="safety-notice">
       <SectionHeading>안전 확인이 필요합니다</SectionHeading>
       <Text style={styles.body}>
         신고 내용에서 위험 신호가 확인되어 일반 절차를 중단했습니다.
@@ -332,7 +332,7 @@ export function TenantTicket({
             />
           ) : null}
 
-          {coreFlow && stage === "EVIDENCE" ? <Text>사진 업로드는 아직 지원하지 않습니다. 현재 정보로 제출하면 관리자가 부족한 정보를 확인합니다.</Text> : null}
+          {coreFlow && stage === "EVIDENCE" ? <Text style={styles.body}>사진 업로드는 아직 지원하지 않습니다. 현재 정보로 제출하면 관리자가 부족한 정보를 확인합니다.</Text> : null}
           {stage === "READY_TO_FINALIZE" || (coreFlow && stage === "EVIDENCE") ? (
             <View style={styles.card}>
               <SectionHeading>제출할 준비가 되었습니다</SectionHeading>
@@ -402,8 +402,10 @@ const styles = StyleSheet.create({
     padding: space.s3,
     gap: space.s2,
   },
+  // A safety warning: the soft danger fill and a 1px danger edge, with the status text in the heading (§6.1, §8.11).
+  safety: { backgroundColor: color.dangerSoft, borderColor: color.danger },
   group: { gap: space.s2 },
-  body: { ...text.body, color: color.textSecondary },
+  body: { ...text.body, color: color.text },
   bodyStrong: { ...text.label, color: color.text },
   input: {
     minHeight: size.target,
@@ -412,7 +414,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.control,
     backgroundColor: color.surface,
     paddingHorizontal: space.s3,
-    ...text.body,
+    ...inputText,
     color: color.text,
   },
 });

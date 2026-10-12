@@ -38,9 +38,15 @@ export const text = {
   caption: { fontSize: 13, lineHeight: 18, fontWeight: "400", letterSpacing: 0 },
 } as const;
 
+/**
+ * Single-line inputs use the body style without its line height: on iOS a line height on a single-line TextInput
+ * can push the text and cursor down inside the box.
+ */
+export const inputText = { fontSize: 16, fontWeight: "400", letterSpacing: -0.2 } as const;
+
 export const space = { s1: 5, s2: 10, s3: 15, s4: 20, s5: 25, s6: 30, s8: 40, s10: 50 } as const;
 
 export const radius = { small: 5, control: 10, group: 15, sheet: 20 } as const;
 
-/** Buttons, inputs and other targets are at least 48 tall in the app (§5). */
-export const size = { target: 48 } as const;
+/** Buttons, inputs and other targets are at least 48 tall in the app (§5); multi-line inputs at least 120 (§8.2). */
+export const size = { target: 48, multiline: 120 } as const;

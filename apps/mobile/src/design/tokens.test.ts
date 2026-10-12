@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { color, status, text } from "./tokens";
+import { color, inputText, radius, size, space, status, text } from "./tokens";
 
 /**
  * Design rules v1 for the app (§2, §3.2, §16): every screen takes its colours and text styles from tokens.ts,
@@ -46,20 +46,38 @@ describe("design tokens in mobile source", () => {
 
 describe("token values follow design rules v1", () => {
   it("uses the rules' colours", () => {
-    expect(color).toMatchObject({
+    expect(color).toEqual({
       page: "#F2F2F7", surface: "#FFFFFF", text: "#202632", textSecondary: "#636771", textInverse: "#FFFFFF",
-      borderControl: "#868B95", primary: "#0064FF", danger: "#FF3B30",
+      border: "rgba(32,38,50,0.12)", borderStrong: "rgba(32,38,50,0.20)", borderControl: "#868B95",
+      fillSubtle: "rgba(32,38,50,0.04)", primary: "#0064FF", primarySoft: "rgba(0,100,255,0.08)",
+      danger: "#FF3B30", dangerSoft: "rgba(255,59,48,0.08)",
     });
-    expect(status.progress).toEqual({ color: "#0056D8", backgroundColor: "#EEF4FF" });
-    expect(status.done).toEqual({ color: "#17754F", backgroundColor: "#E7F5EE" });
-    expect(status.neutral).toEqual({ color: color.textSecondary, backgroundColor: color.fillSubtle });
+    expect(status).toEqual({
+      urgent: { color: "#C8231A", backgroundColor: "#FFF0EF" },
+      waiting: { color: "#9A5B00", backgroundColor: "#FFF3DC" },
+      progress: { color: "#0056D8", backgroundColor: "#EEF4FF" },
+      done: { color: "#17754F", backgroundColor: "#E7F5EE" },
+      neutral: { color: color.textSecondary, backgroundColor: color.fillSubtle },
+    });
+  });
+
+  it("uses the rules' spacing, corners and sizes", () => {
+    expect(space).toEqual({ s1: 5, s2: 10, s3: 15, s4: 20, s5: 25, s6: 30, s8: 40, s10: 50 });
+    expect(radius).toEqual({ small: 5, control: 10, group: 15, sheet: 20 });
+    expect(size).toEqual({ target: 48, multiline: 120 });
   });
 
   it("uses the app text styles, weights 400/600/700 only and no positive letter spacing", () => {
-    expect(text.title).toEqual({ fontSize: 24, lineHeight: 32, fontWeight: "700", letterSpacing: -0.5 });
-    expect(text.heading).toEqual({ fontSize: 20, lineHeight: 28, fontWeight: "600", letterSpacing: -0.4 });
-    expect(text.body).toEqual({ fontSize: 16, lineHeight: 24, fontWeight: "400", letterSpacing: -0.2 });
-    expect(text.caption).toEqual({ fontSize: 13, lineHeight: 18, fontWeight: "400", letterSpacing: 0 });
+    expect(text).toEqual({
+      title: { fontSize: 24, lineHeight: 32, fontWeight: "700", letterSpacing: -0.5 },
+      heading: { fontSize: 20, lineHeight: 28, fontWeight: "600", letterSpacing: -0.4 },
+      subheading: { fontSize: 16, lineHeight: 24, fontWeight: "600", letterSpacing: -0.2 },
+      body: { fontSize: 16, lineHeight: 24, fontWeight: "400", letterSpacing: -0.2 },
+      label: { fontSize: 16, lineHeight: 24, fontWeight: "600", letterSpacing: -0.2 },
+      caption: { fontSize: 13, lineHeight: 18, fontWeight: "400", letterSpacing: 0 },
+    });
+    const { lineHeight: _bodyLine, ...bodyWithoutLine } = text.body;
+    expect(inputText).toEqual(bodyWithoutLine);
     for (const style of Object.values(text)) {
       expect(["400", "600", "700"]).toContain(style.fontWeight);
       expect(style.letterSpacing).toBeLessThanOrEqual(0);

@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   },
   row: { gap: space.s1 },
   rowLabel: { ...text.label, color: color.text },
-  rowValue: { ...text.body, color: color.textSecondary },
+  rowValue: { ...text.body, color: color.text },
   rowTag: { ...text.caption, color: color.textSecondary },
   group: { gap: space.s2 },
 });

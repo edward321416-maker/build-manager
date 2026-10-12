@@ -514,7 +514,12 @@ build-manager의 모든 화면(웹, 앱, 소개 페이지)은 이 문서를 따�
   - Tabler 아이콘은 아직 설치하지 않았습니다. 웹은 `@tabler/icons-react`, 앱은 `@tabler/icons-react-native`와 `react-native-svg`를 쓰며, 추가하기 전에 REF-06 평가를 합니다.
 - 모바일 앱
   - 색과 글자 스타일은 2026-10-13에 이 규칙의 값으로 옮겼습니다. 값은 `apps/mobile/src/design/tokens.ts` 한 곳에 있고, `src/design/tokens.test.ts`가 다른 파일의 색·글자 크기·굵기·자간 직접 지정을 막습니다.
-  - 남은 것: 하단 탭바(위 내비게이션 항목), 앱 문구의 합쇼체와 영문 'DEMO MODE' 표시, 누름 상태(`primary-hover`, 98%)와 움직임 토큰.
+  - 남은 것
+    - 하단 탭바(위 내비게이션 항목)와 안전 영역 처리
+    - 앱 문구: 합쇼체, 영문 'DEMO MODE'·'BUILDING-AWARE REPAIR ROUTER' 표시
+    - 접수 흐름의 개발 접근 코드 칸에는 보이는 라벨 없이 안내 글자만 있습니다([8.2](#82-입력칸)).
+    - 누름 상태(`primary-hover`, 98%)와 움직임 토큰
+    - `apps/mobile/app.json`의 `userInterfaceStyle`이 `automatic`이라, 휴대폰이 다크 모드면 상태 막대·키보드 같은 시스템 부분만 어두워집니다(2절은 밝은 화면만).
 - `/core`에 남은 것
   - 합쇼체("~습니다") 안내 문구. P3와 함께 해요체로 바꿉니다.
   - 날짜·시간은 2026-10-12에 [14절](#14-표기-형식) 형식으로 옮겼습니다(P3 묶음 2, `apps/web/src/lib/date-text.ts`). 업체 화면의 요일 괄호 앞 띄어쓰기도 함께 맞췄습니다.

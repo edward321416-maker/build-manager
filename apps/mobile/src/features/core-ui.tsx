@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, type TextProps, View } from "react-native";
 import type { CoreTicketDto } from "@build-manager/api-contracts";
-import { color, radius, size, space, status, text } from "../design/tokens";
+import { color, inputText, radius, size, space, status, text } from "../design/tokens";
 
 /** Local presentation primitives on design rules v1 values (src/design/tokens.ts). */
 export function Screen({ children }: { children: ReactNode }) {
@@ -31,7 +31,7 @@ export function ActionButton({ label, onPress, disabled = false, testID, selecte
   return <Pressable accessibilityRole="button" accessibilityLabel={label}
     accessibilityState={{ disabled, ...(selected === undefined ? {} : { selected }) }}
     disabled={disabled} onPress={onPress} testID={testID}
-    style={[styles.button, selected === true && styles.selected, primary && styles.primary, disabled && styles.disabled]}>
+    style={[styles.button, selected !== undefined && styles.tile, selected === true && styles.selected, primary && styles.primary, disabled && styles.disabled]}>
     <Text style={[styles.buttonText, primary && styles.inverse, disabled && styles.disabledText]}>{selected === true ? `✓ ${label}` : label}</Text>
   </Pressable>;
 }
@@ -41,11 +41,15 @@ export function CoreWorkStatus({ status: work }: { status: CoreTicketDto["workSt
   return <Text testID="work-status" style={[styles.badge, work === "IN_PROGRESS" && styles.progress, work === "COMPLETED" && styles.completed]}>{labels[work]}</Text>;
 }
 
-export const coreInputStyle = StyleSheet.create({ input: {
+const inputBox = {
   borderWidth: 1, borderColor: color.borderControl, borderRadius: radius.control,
-  paddingVertical: space.s2, paddingHorizontal: space.s3, minHeight: size.target,
-  ...text.body, color: color.text, backgroundColor: color.surface, textAlignVertical: "top",
-} }).input;
+  paddingVertical: space.s2, paddingHorizontal: space.s3, color: color.text, backgroundColor: color.surface,
+} as const;
+export const coreInputStyle = StyleSheet.create({ input: { ...inputBox, ...inputText, minHeight: size.target, textAlignVertical: "center" } }).input;
+/** Multi-line inputs start at 120 tall and keep the body line height (rules §8.2). */
+export const coreMultilineInputStyle = StyleSheet.create({ input: { ...inputBox, ...text.body, minHeight: size.multiline, textAlignVertical: "top" } }).input;
+/** Placeholder text is secondary text, never the platform's faint default (rules §2.1). */
+export const corePlaceholderColor = color.textSecondary;
 
 /** Optional detail under a heading: the caption style in the secondary text colour (rules §3.2). */
 export const coreCaptionStyle = StyleSheet.create({ caption: { ...text.caption, color: color.textSecondary } }).caption;
@@ -64,6 +68,8 @@ const styles = StyleSheet.create({
     paddingVertical: space.s2, paddingHorizontal: space.s4, justifyContent: "center", alignItems: "center", backgroundColor: color.surface,
   },
   buttonText: { ...text.label, color: color.text, flexShrink: 1, textAlign: "center" },
+  // A choice (a button that can be selected) is a tile: control-coloured edge, 15/15 padding (§2.1, §4, §8.3).
+  tile: { borderColor: color.borderControl, paddingVertical: space.s3, paddingHorizontal: space.s3 },
   // Selected: 2px primary edge on the soft primary fill, with the ✓ in the label (§2.4).
   selected: { borderColor: color.primary, backgroundColor: color.primarySoft, borderWidth: 2 },
   primary: { backgroundColor: color.primary, borderColor: color.primary },
