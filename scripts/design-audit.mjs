@@ -10,7 +10,8 @@
 //   clipped    select, button or input text that does not fit its box
 //   hscroll    the page scrolls sideways
 //   tap        a button, link, field or summary smaller than 50x50px (rules §5); for a checkbox, a radio or a hidden
-//              file input its label is measured (added after the PR 122 end review found 60x45px photo buttons)
+//              file input its label is measured (added after the PR 122 end review found 60x45px photo buttons).
+//              The one exception is the height of the /core top menu links up to 767px (rules §16).
 //   coverage   a requested engine did not start, or a screen that should exist could not be reached
 // Exit code 1 when any finding remains, so it can gate a design change.
 import { createRequire } from "node:module";
@@ -95,9 +96,12 @@ function inspect() {
     const target = el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio" || hiddenText(el)) ? el.labels?.[0] : el;
     if (target && !hiddenText(target)) taps.add(target);
   }
+  // Operator decision 2026-10-12 (rules §16): up to 767px the /core top menu links stay 40px tall until the bottom tab
+  // bar replaces them, so only their width is checked there.
+  const phoneMenu = el => innerWidth <= 767 && el.matches(".core-account nav a");
   for (const el of taps) {
     const r = el.getBoundingClientRect();
-    if (r.width < 49.5 || r.height < 49.5) result.push({ check: "tap", where: label(el), detail: `${Math.round(r.width)}x${Math.round(r.height)}px, needs 50x50` });
+    if (r.width < 49.5 || (r.height < 49.5 && !phoneMenu(el))) result.push({ check: "tap", where: label(el), detail: `${Math.round(r.width)}x${Math.round(r.height)}px, needs 50x50` });
   }
   if (document.documentElement.scrollWidth > vw) result.push({ check: "hscroll", where: "page", detail: `${document.documentElement.scrollWidth}px wide in ${vw}px` });
   return result;

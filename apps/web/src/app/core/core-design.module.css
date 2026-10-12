@@ -315,9 +315,14 @@
 @media (max-width: 1023px) {
   /* 10px top inset; the divider is drawn inside the bar so the bar is no taller than its inset and controls. */
   .root :global(.core-b1-shell .core-account) { padding-top: .625rem; border-bottom: 0; box-shadow: inset 0 -1px 0 var(--color-border); }
-  /* The menu row is as tall as its 40px links (their hit area is unchanged), so the inset does not push the
-     tenant's task action below a 390x844 screen (core-login-e2e/spatial.spec.ts). */
+  /* The menu row is as tall as its links, so the inset does not push the tenant's task action below a 390x844
+     screen (core-login-e2e/spatial.spec.ts). */
   .root :global(.core-account nav) { min-height: 0; }
+}
+/* Phones keep 40px tall menu links until the bottom tab bar replaces this menu: 50px would push the tenant's task
+   action below a 390x844 screen (rules §16, operator decision 2026-10-12). Their width stays at least 50px. */
+@media (max-width: 767px) {
+  .root :global(.core-account nav a) { min-height: 2.5rem; }
 }
 /* Signed out: one centred block with its own title instead of the account sidebar. */
 .root :global(.core-b1-shell[data-phase="login"]) { grid-template-columns: minmax(0,1fr); }
