@@ -41,7 +41,7 @@
         "typescript": "~6.0.3"
       }
     },
-    "successorSha256": "26e5948e6f0c027a4193e04acc18da31455bfe3af73f64b2d2f96ef938b05072"
+    "successorSha256": "698264af1e51754807535a085cb58c7a01e4d0ccb4cb52f51bc3ec3061c72007"
   },
   {
     "path": "node_modules/@expo/cli",
@@ -678,6 +678,28 @@
       }
     },
     "successorSha256": "e57c478a8391e3ff0ddab3dcc4effc6e54245a9bde1400adf6ff71b9c799fe2c"
+  },
+  {
+    "path": "node_modules/react-native-web",
+    "before": {
+      "version": "0.21.2",
+      "license": "MIT",
+      "dependencies": {
+        "@babel/runtime": "^7.18.6",
+        "@react-native/normalize-colors": "^0.74.1",
+        "fbjs": "^3.0.4",
+        "inline-style-prefixer": "^7.0.1",
+        "memoize-one": "^6.0.0",
+        "nullthrows": "^1.1.1",
+        "postcss-value-parser": "^4.2.0",
+        "styleq": "^0.1.3"
+      },
+      "peerDependencies": {
+        "react": "^18.0.0 || ^19.0.0",
+        "react-dom": "^18.0.0 || ^19.0.0"
+      }
+    },
+    "successorSha256": "5d56467c65bdcedebe66329ebf74bdce829166b3e95f8abe9ae659986ddb71cb"
   },
   {
     "path": "node_modules/resolve-workspace-root",
