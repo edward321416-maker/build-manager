@@ -40,7 +40,7 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   let saved=workSave();await detail.getByLabel("담당자",{exact:true}).fill("합성 내부 담당 B");await detail.getByRole("button",{name:"저장",exact:true}).click();
   expect(Date.parse((await (await saved).json()).dueAt)).toBe(Date.parse(dueFuture));
   saved=workSave();
-  await detail.getByRole("combobox",{name:"긴급도",exact:true}).selectOption("URGENT");await detail.getByLabel("담당자",{exact:true}).fill("합성 내부 담당 A");await detail.getByLabel("처리 예정",{exact:true}).fill(localPast);await detail.getByRole("button",{name:"저장",exact:true}).click();expect((await saved).status()).toBe(200);await expect(detail.getByText("업무 정보를 저장했습니다.",{exact:true})).toBeVisible();
+  await detail.getByRole("combobox",{name:"긴급도",exact:true}).selectOption("URGENT");await detail.getByLabel("담당자",{exact:true}).fill("합성 내부 담당 A");await detail.getByLabel("처리 예정",{exact:true}).fill(localPast);await detail.getByRole("button",{name:"저장",exact:true}).click();const finalSave=await saved;expect(finalSave.status()).toBe(200);const finalVersion=(await finalSave.json()).version;await expect(detail.getByText("업무 정보를 저장했습니다.",{exact:true})).toBeVisible();
   const memo="합성 내부 전용 점검 순서\n세입자에게 공개하지 않는 업무 메모";
   await detail.getByLabel("내부 메모 입력",{exact:true}).fill(memo);await detail.getByRole("button",{name:"내부 메모 추가",exact:true}).click();await expect(detail.getByText(memo,{exact:true})).toBeVisible();
   await expect(page.getByRole("region",{name:"사진",exact:true}).getByRole("img")).toHaveCount(1);
@@ -83,5 +83,5 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
     await fit(tenant);await tenant.screenshot({path:join(evidence,"tenant-private-fields-absent-390.png"),fullPage:true});
   }finally{await tenantContext.close();}
   await page.getByRole("button",{name:"← 목록으로",exact:true}).click();await queue.locator(`[data-ticket-id="${tickets[1]}"] [data-open-ticket]`).click();await openInspector(page);await page.getByLabel("처리 기록",{exact:true}).fill("합성 점검 결과의 관리자 완료 기록");await page.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");await expect(detail.getByRole("button",{name:"저장",exact:true})).toBeDisabled();await expect(detail.getByRole("button",{name:"내부 메모 추가",exact:true})).toBeDisabled();
-  await writeFile(join(evidence,"restart-target.private.json"),JSON.stringify({ticketId:tickets[0],tickets,memo,assigneeLabel:"합성 내부 담당 A",version:4}),{flag:"w"});
+  await writeFile(join(evidence,"restart-target.private.json"),JSON.stringify({ticketId:tickets[0],tickets,memo,assigneeLabel:"합성 내부 담당 A",version:finalVersion}),{flag:"w"});
 });
