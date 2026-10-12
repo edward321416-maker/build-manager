@@ -101,7 +101,7 @@ describe("fragment redemption",()=>{
     expect(window.location.hash).toBe("");
     expect(window.location.pathname).toBe("/vendor/job");
     expect(client.session).not.toHaveBeenCalled();
-    for(const text of ["합성 업체 B","합성 주소 B","101호","합성 누수 점검 B","세입자 입력","건물 확인","링크를 연 것만으로 작업을 수락한 것은 아닙니다"])expect(page()).toContain(text);
+    for(const text of ["합성 업체 B","합성 주소 B","101호","합성 누수 점검 B","세입자 입력","건물 확인","링크를 연 것만으로 작업을 수락한 것은 아니에요"])expect(page()).toContain(text);
     expect(page().indexOf("지금 할 일")).toBeLessThan(page().indexOf("업체 전달 내용"));
     expect(host.querySelector(`img[src="/api/v2/vendor/job/source-photos/${photoB}"]`)).not.toBeNull();
     expect(tokenFree()).toBe(true);
@@ -110,7 +110,7 @@ describe("fragment redemption",()=>{
   it("keeps the fragment and exact request identity through an unknown redeem outcome, including reload",async()=>{
     const client=fakeClient({redeem:vi.fn(async()=>{throw network();})});
     await mount(client,`#${tokenB}`);
-    expect(page()).toContain("연결 결과를 확인하지 못했습니다");
+    expect(page()).toContain("연결 결과를 확인하지 못했어요");
     expect(window.location.hash).toBe(`#${tokenB}`);
     const first=client.redeem.mock.calls[0][1].clientRequestId;
     await click("같은 링크 요청으로 다시 확인");
@@ -183,15 +183,15 @@ describe("stale CSRF and transient reads",()=>{
     expect(calls.length).toBe(2);
     expect(calls[0][0]===csrf&&calls[1][0]===csrf2).toBe(true);
     expect(calls[1][1].clientRequestId).toBe(calls[0][1].clientRequestId);
-    expect(page()).toContain("이 기기에서 작업 화면을 닫았습니다");
+    expect(page()).toContain("이 기기에서 작업 화면을 닫았어요");
   });
   it("never reports a logout while the session is still live",async()=>{
     const client=fakeClient({logout:vi.fn(async()=>{throw http(403,"FORBIDDEN");}),session:vi.fn(async()=>fresh)});
     await mount(client,`#${tokenB}`);
     await click("이 기기에서 나가기");
     expect(client.logout).toHaveBeenCalledTimes(2);
-    expect(page().includes("이 기기에서 작업 화면을 닫았습니다")).toBe(false);
-    expect(page()).toContain("나가기를 완료하지 못했습니다");
+    expect(page().includes("이 기기에서 작업 화면을 닫았어요")).toBe(false);
+    expect(page()).toContain("나가기를 완료하지 못했어요");
   });
   it("confirms a 401 logout against the session before showing the logged-out state",async()=>{
     let live=true;
@@ -199,10 +199,10 @@ describe("stale CSRF and transient reads",()=>{
     await mount(client,`#${tokenB}`);
     await click("이 기기에서 나가기");
     expect(client.session).toHaveBeenCalledTimes(1);
-    expect(page().includes("이 기기에서 작업 화면을 닫았습니다")).toBe(false);
+    expect(page().includes("이 기기에서 작업 화면을 닫았어요")).toBe(false);
     live=false;
     await click("이 기기에서 나가기");
-    expect(page()).toContain("이 기기에서 작업 화면을 닫았습니다");
+    expect(page()).toContain("이 기기에서 작업 화면을 닫았어요");
   });
   it("refreshes a stale CSRF once for decline with the same request identity",async()=>{
     let stale=true;
@@ -217,13 +217,13 @@ describe("stale CSRF and transient reads",()=>{
     expect(calls.length).toBe(2);
     expect(calls[1][0]===csrf2).toBe(true);
     expect(calls[1][1].clientRequestId).toBe(calls[0][1].clientRequestId);
-    expect(page()).toContain("작업 요청을 거절했습니다");
+    expect(page()).toContain("작업 요청을 거절했어요");
   });
   it("shows a transient load failure as retryable instead of a dead link",async()=>{
     let fail=true;
     const client=fakeClient({session:vi.fn(async()=>{if(fail)throw network();return {assignmentId:assignmentA,expiresAt,csrf};})});
     await mount(client);
-    expect(page()).toContain("작업 화면을 불러오지 못했습니다");
+    expect(page()).toContain("작업 화면을 불러오지 못했어요");
     expect(page().includes("새 링크를 요청")).toBe(false);
     fail=false;
     await click("다시 불러오기");
@@ -240,11 +240,11 @@ describe("stale CSRF and transient reads",()=>{
     await act(async()=>{radio.click();});
     await click("거절 내용 확인");
     await click("거절하기");
-    expect(page()).toContain("거절 결과를 확인하지 못했습니다");
+    expect(page()).toContain("거절 결과를 확인하지 못했어요");
     await act(async()=>{window.history.pushState(null,"",`/vendor/job#${tokenC}`);window.dispatchEvent(new Event("hashchange"));});
     await flush();
     expect(page()).toContain("합성 업체 A");
-    expect(page().includes("거절 결과를 확인하지 못했습니다")).toBe(false);
+    expect(page().includes("거절 결과를 확인하지 못했어요")).toBe(false);
     expect(page().includes("이 작업 요청을 거절할까요?")).toBe(false);
     expect(button("같은 요청으로 결과 확인")).toBeUndefined();
     expect(button("작업 거절")).toBeDefined();
@@ -273,7 +273,7 @@ describe("Task5 accept and withdraw",()=>{
     expect(client.accept.mock.calls[0][0]===csrf).toBe(true);
     expect(client.accept.mock.calls[0][1]).toMatchObject({expectedAssignmentVersion:3,expectedPacketRevisionId:packetB});
     expect(page()).toContain("방문 일정 조율");
-    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있습니다");
+    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있어요");
     expect(button("작업 수락")).toBeUndefined();
     expect(button("작업 거절")).toBeUndefined();
     expect(button("작업 철회")).toBeDefined();
@@ -284,7 +284,7 @@ describe("Task5 accept and withdraw",()=>{
     const client=fakeClient({job:vi.fn(async()=>client.accept.mock.calls.length<2?job(assignmentB,"B"):active(assignmentB,"B")),accept:vi.fn(async()=>{if(fail)throw network();return active(assignmentB,"B");})});
     await mount(client,`#${tokenB}`);
     await click("작업 수락");
-    expect(page()).toContain("수락 결과를 확인하지 못했습니다");
+    expect(page()).toContain("수락 결과를 확인하지 못했어요");
     fail=false;
     await click("같은 요청으로 수락 결과 확인");
     const ids=client.accept.mock.calls.map(c=>c[1].clientRequestId);
@@ -309,7 +309,7 @@ describe("Task5 accept and withdraw",()=>{
     await click("철회하기");
     expect(client.withdraw).toHaveBeenCalledTimes(1);
     expect(client.withdraw.mock.calls[0][1]).toMatchObject({expectedAssignmentVersion:4,expectedPacketRevisionId:packetB,operationalNote:null});
-    expect(page()).toContain("작업을 철회했습니다");
+    expect(page()).toContain("작업을 철회했어요");
     expect(button("작업 철회")).toBeUndefined();
     expect(page().includes("수리 완료")||page().includes("업체 완료")).toBe(false);
   });
@@ -331,7 +331,7 @@ describe("Task5 accept and withdraw",()=>{
     await act(async()=>{finish({...job(assignmentB,"B"),status:"ENDED",endReason:"DECLINED",phase:"ENDED",assignmentVersion:4});});
     await flush();
     expect(page()).toContain("합성 업체 A");
-    expect(page().includes("작업 요청을 거절했습니다")).toBe(false);
+    expect(page().includes("작업 요청을 거절했어요")).toBe(false);
   });
 });
 
@@ -352,7 +352,7 @@ describe("decline and logout",()=>{
     const [presented,input]=client.decline.mock.calls[0];
     expect(presented===csrf).toBe(true);
     expect(input).toMatchObject({expectedAssignmentVersion:3,expectedPacketRevisionId:packetB,reason:"SKILL_MISMATCH",operationalNote:null});
-    expect(page()).toContain("작업 요청을 거절했습니다");
+    expect(page()).toContain("작업 요청을 거절했어요");
     expect(button("작업 거절")).toBeUndefined();
     expect(page().includes("수리 완료")||page().includes("업체 완료")).toBe(false);
   });
@@ -366,9 +366,9 @@ describe("decline and logout",()=>{
     const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")!.set!;
     await act(async()=>{setter.call(area,"합성메모");area.dispatchEvent(new Event("input",{bubbles:true}));});
     await click("거절 내용 확인");
-    expect(page()).toContain("메모에 사용할 수 없는 문자가 있습니다");
+    expect(page()).toContain("메모에 사용할 수 없는 문자가 있어요");
     expect(page().includes("이 작업 요청을 거절할까요?")).toBe(false);
-    expect(page().includes("결과를 확인하지 못했습니다")).toBe(false);
+    expect(page().includes("결과를 확인하지 못했어요")).toBe(false);
     const editable=host.querySelector("textarea")!;
     await act(async()=>{setter.call(editable,"합성 메모");editable.dispatchEvent(new Event("input",{bubbles:true}));});
     await click("거절 내용 확인");
@@ -382,13 +382,13 @@ describe("decline and logout",()=>{
     await mount(client,`#${tokenB}`);
     await chooseDecline();
     await click("거절하기");
-    expect(page()).toContain("거절 결과를 확인하지 못했습니다");
+    expect(page()).toContain("거절 결과를 확인하지 못했어요");
     fail=false;
     await click("같은 요청으로 결과 확인");
     const ids=client.decline.mock.calls.map(c=>c[1].clientRequestId);
     expect(ids[0]).toBe(ids[1]);
     // LOW-1: the exact replay receipt proves this request ended the assignment.
-    expect(page()).toContain("작업 요청을 거절했습니다");
+    expect(page()).toContain("작업 요청을 거절했어요");
   });
   it("reloads authoritative state after a stale decline conflict",async()=>{
     const client=fakeClient({decline:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
@@ -405,7 +405,7 @@ describe("decline and logout",()=>{
     const [presented,input]=client.logout.mock.calls[0];
     expect(presented===csrf).toBe(true);
     expect(/^[0-9a-f-]{36}$/.test(input.clientRequestId)).toBe(true);
-    expect(page()).toContain("이 기기에서 작업 화면을 닫았습니다");
+    expect(page()).toContain("이 기기에서 작업 화면을 닫았어요");
     expect(page().includes("합성 업체 B")).toBe(false);
   });
 });
@@ -429,13 +429,13 @@ describe("Task5 review remediation (screen)",()=>{
     await flush();
     expect(client.logout).toHaveBeenCalledTimes(1);
     expect(page()).toContain("합성 업체 A");
-    expect(page().includes("이 기기에서 작업 화면을 닫았습니다")).toBe(false);
+    expect(page().includes("이 기기에서 작업 화면을 닫았어요")).toBe(false);
   });
   it("attributes a pending proposal to the Vendor in the waiting copy",async()=>{
     const waiting={...active(assignmentB,"B"),waitingOn:"TENANT" as const,proposal:proposalB};
     const client=fakeClient({redeem:vi.fn(async()=>({session:{assignmentId:assignmentB,expiresAt,csrf},job:waiting}))});
     await mount(client,`#${tokenB}`,()=>new Date("2026-10-07T00:00:00Z"));
-    expect(page()).toContain("제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다");
+    expect(page()).toContain("제안한 시간 중 하나를 세입자가 고르기를 기다리고 있어요");
     expect(page().includes("세입자가 제안한 시간")).toBe(false);
   });
   it("keeps the withdraw note after a stale conflict",async()=>{
@@ -475,13 +475,13 @@ describe("Task5 review remediation (screen)",()=>{
     await click("작업 철회");
     await click("철회 내용 확인");
     await click("철회하기");
-    expect(page()).toContain("철회 결과를 확인하지 못했습니다");
+    expect(page()).toContain("철회 결과를 확인하지 못했어요");
     fail=false;
     await click("같은 요청으로 결과 확인");
     const ids=client.withdraw.mock.calls.map(c=>c[1].clientRequestId);
     expect(ids).toHaveLength(2);
     expect(ids[0]).toBe(ids[1]);
-    expect(page()).toContain("작업을 철회했습니다");
+    expect(page()).toContain("작업을 철회했어요");
   });
 });
 
@@ -516,7 +516,7 @@ describe("Task6 Vendor visit scheduling",()=>{
     const [sent,input]=client.proposeSlots.mock.calls[0];
     expect(sent).toBe(csrf);
     expect(input).toMatchObject({expectedAssignmentVersion:4,expectedRoundVersion:1,expectedPacketRevisionId:packetB,slots:[{startAt:"2026-10-10T01:00:00.000Z",endAt:"2026-10-10T02:00:00.000Z"}]});
-    expect(page()).toContain("제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다");
+    expect(page()).toContain("제안한 시간 중 하나를 세입자가 고르기를 기다리고 있어요");
     expect(page()).toContain("10월 10일 (토) 오전 10:00–11:00");
     expect(tokenFree()).toBe(true);
   });
@@ -558,13 +558,13 @@ describe("Task6 Vendor visit scheduling",()=>{
     await enter("2026-10-05","10:00","11:00");
     await click("방문 시간 제안하기");
     expect(client.proposeSlots).not.toHaveBeenCalled();
-    expect(page()).toContain("지난 시간은 선택할 수 없습니다");
+    expect(page()).toContain("지난 시간은 선택할 수 없어요");
   });
   it("hides expired proposal slots and lets the Vendor propose again when all have passed",async()=>{
     const client=fakeClient({redeem:opened(proposed([{id:slotOld,startAt:"2026-10-06T01:00:00.000Z",endAt:"2026-10-06T02:00:00.000Z"}]))});
     await mount(client,`#${tokenB}`,now);
     expect(page().includes("10월 6일 (화) 오전 10:00–11:00")).toBe(false);
-    expect(page()).toContain("제안한 시간이 모두 지났습니다");
+    expect(page()).toContain("제안한 시간이 모두 지났어요");
     expect(button("방문 시간 제안하기")).toBeDefined();
   });
   it("selects a visit time only inside an explicitly authorized window",async()=>{
@@ -577,7 +577,7 @@ describe("Task6 Vendor visit scheduling",()=>{
     const [sent,input]=client.selectPreauthorizedSlot.mock.calls[0];
     expect(sent).toBe(csrf);
     expect(input).toMatchObject({availabilitySubmissionId:subB,selectedWindowId:w1,startAt:"2026-10-07T05:30:00.000Z",endAt:"2026-10-07T06:30:00.000Z",expectedRoundVersion:1,expectedAssignmentVersion:4});
-    expect(page()).toContain("방문 일정이 확정되었습니다");
+    expect(page()).toContain("방문 일정이 확정됐어요");
   });
   it("rejects a preauthorized time that leaves the authorized window by absolute instant",async()=>{
     const client=fakeClient({redeem:opened(preauthorized())});
@@ -586,7 +586,7 @@ describe("Task6 Vendor visit scheduling",()=>{
     await enter("2026-10-07","15:30","16:30");
     await click("동의된 시간 안에서 방문 확정");
     expect(client.selectPreauthorizedSlot).not.toHaveBeenCalled();
-    expect(page()).toContain("동의된 시간 안에서만 방문 시간을 정할 수 있습니다");
+    expect(page()).toContain("동의된 시간 안에서만 방문 시간을 정할 수 있어요");
   });
   it("shows the SCHEDULED Appointment and reschedules only after an explicit confirmation",async()=>{
     const client=fakeClient({redeem:opened(scheduled())});
@@ -604,7 +604,7 @@ describe("Task6 Vendor visit scheduling",()=>{
     await mount(client,`#${tokenB}`,now);
     await enter("2026-10-10","10:00","11:00");
     await click("방문 시간 제안하기");
-    expect(page()).toContain("제안 결과를 확인하지 못했습니다");
+    expect(page()).toContain("제안 결과를 확인하지 못했어요");
     fail=false;
     await click("같은 요청으로 결과 확인");
     const ids=client.proposeSlots.mock.calls.map(c=>c[1].clientRequestId);
@@ -626,10 +626,10 @@ describe("Task6 Vendor visit scheduling",()=>{
     await enter("2026-10-10","10:00","11:00");
     await click("방문 시간 제안하기");
     await click("이 기기에서 나가기");
-    expect(page()).toContain("이 기기에서 작업 화면을 닫았습니다");
+    expect(page()).toContain("이 기기에서 작업 화면을 닫았어요");
     await act(async()=>{finish(proposed([{id:slotNew,startAt:"2026-10-10T01:00:00.000Z",endAt:"2026-10-10T02:00:00.000Z"}]));});
     await flush();
-    expect(page()).toContain("이 기기에서 작업 화면을 닫았습니다");
+    expect(page()).toContain("이 기기에서 작업 화면을 닫았어요");
     expect(page().includes("합성 업체 B")).toBe(false);
   });
   it("maps a persistent 403 to a security notice and a 400 to an input notice, keeping the draft (review L6)",async()=>{
@@ -638,7 +638,7 @@ describe("Task6 Vendor visit scheduling",()=>{
     await mount(client,`#${tokenB}`,now);
     await enter("2026-10-10","10:00","11:00");
     await click("방문 시간 제안하기");
-    expect(page()).toContain("보안 확인을 마치지 못했습니다");
+    expect(page()).toContain("보안 확인을 마치지 못했어요");
     expect(host.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe("2026-10-10");
     client.proposeSlots.mockImplementation(async()=>{throw http(400,"INVALID_INPUT");});
     await click("방문 시간 제안하기");
@@ -650,15 +650,15 @@ describe("Task6 Vendor visit scheduling",()=>{
       windows:[{id:w1,startAt:"2026-10-05T05:00:00.000Z",endAt:"2026-10-05T07:00:00.000Z"}],authorizedWindowIds:[w1]}});
     const client=fakeClient({redeem:opened(ended)});
     await mount(client,`#${tokenB}`,now);
-    expect(page()).toContain("세입자가 동의한 시간이 모두 지났습니다");
-    expect(page().includes("동의한 시간 안에서 방문 시간을 정할 차례입니다")).toBe(false);
+    expect(page()).toContain("세입자가 동의한 시간이 모두 지났어요");
+    expect(page().includes("동의한 시간 안에서 방문 시간을 정할 차례예요")).toBe(false);
     expect(button("동의된 시간 안에서 방문 확정")).toBeUndefined();
   });
   it("explains that the Vendor may propose first while the Tenant has not sent availability",async()=>{
     const client=fakeClient({redeem:opened(active(assignmentB,"B"))});
     await mount(client,`#${tokenB}`,now);
-    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있습니다");
-    expect(page()).toContain("먼저 방문 시간을 제안할 수도 있습니다");
+    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있어요");
+    expect(page()).toContain("먼저 방문 시간을 제안할 수도 있어요");
     expect(button("방문 시간 제안하기")).toBeDefined();
   });
   it("ignores a late proposal result that started before a same-tab assignment switch",async()=>{
@@ -705,12 +705,12 @@ describe("Task7 Vendor visit and blocker evidence",()=>{
     await mount(client,`#${tokenB}`,now);
     await click("방문 시작");
     expect(client.startVisit).not.toHaveBeenCalled();
-    expect(page()).toContain("되돌릴 수 없습니다");
+    expect(page()).toContain("되돌릴 수 없어요");
     await click("방문 시작 기록");
     const [sent,appointmentId,input]=client.startVisit.mock.calls[0];
     expect([sent,appointmentId]).toEqual([csrf,apptB]);
     expect(input).toMatchObject({expectedAssignmentVersion:4,expectedRoundVersion:3,expectedPacketRevisionId:packetB});
-    expect(page()).toContain("방문 작업이 진행 중입니다");
+    expect(page()).toContain("방문 작업이 진행 중이에요");
     expect(button("방문 시작")).toBeUndefined();
   });
   it("records a blocker as an overlay that keeps the Appointment and offers no visit start while blocked",async()=>{
@@ -752,11 +752,11 @@ describe("Task7 Vendor visit and blocker evidence",()=>{
     await mount(client,`#${tokenB}`,now);
     expect(button("막힘 해제")).toBeUndefined();
     await click("추가 방문 일정 잡기");
-    expect(page()).toContain("추가 방문 일정 조율을 시작합니다");
-    expect(page()).toContain("이전 방문 기록은 그대로 남습니다");
+    expect(page()).toContain("추가 방문 일정 조율을 시작해요");
+    expect(page()).toContain("이전 방문 기록은 그대로 남아요");
     await click("추가 방문 일정 조율 시작");
     expect(client.clearBlocker.mock.calls[0][1]).toBe(blockerB);
-    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있습니다");
+    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있어요");
   });
   it("reconciles an unknown blocker outcome with the same request identity",async()=>{
     let fail=true;
@@ -765,7 +765,7 @@ describe("Task7 Vendor visit and blocker evidence",()=>{
     await click("막힘 기록");
     await choose("부품 필요");
     await click("막힘 기록하기");
-    expect(page()).toContain("막힘 기록 결과를 확인하지 못했습니다");
+    expect(page()).toContain("막힘 기록 결과를 확인하지 못했어요");
     fail=false;
     await click("같은 요청으로 결과 확인");
     const ids=client.recordBlocker.mock.calls.map(c=>c[1].clientRequestId);
@@ -806,27 +806,27 @@ describe("Task7 review remediation (Vendor screen)",()=>{
   it("keeps the scheduling turn truthful while a blocker overlays waitingOn (M1)",async()=>{
     const client=fakeClient({redeem:opened({...active(assignmentB,"B"),waitingOn:"PARTS",activeBlocker:blocker("PARTS_REQUIRED")})});
     await mount(client,`#${tokenB}`,now);
-    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있습니다");
-    expect(page().includes("세입자가 가능한 시간을 알려 주었습니다")).toBe(false);
+    expect(page()).toContain("세입자가 가능한 시간을 알려 주기를 기다리고 있어요");
+    expect(page().includes("세입자가 가능한 시간을 알려 주었어요")).toBe(false);
   });
   it("explains a refused preauthorized visit start instead of claiming the request changed (M2)",async()=>{
     const job=scheduledJob({effectiveMode:"PREAUTHORIZED_ENTRY_WINDOW",appointment:preauthorizedAppointment});
     const client=fakeClient({redeem:opened(job),job:vi.fn(async()=>job),startVisit:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
     await mount(client,`#${tokenB}`,now);
     await click("방문 시작");
-    expect(page()).toContain("동의한 시간이 지나면 방문을 시작할 수 없습니다");
+    expect(page()).toContain("동의한 시간이 지나면 방문을 시작할 수 없어요");
     await click("방문 시작 기록");
     expect(page()).toContain("세입자가 출입에 동의한 시간이 아니거나 동의가 더 이상 유효하지 않아");
-    expect(page().includes("작업 요청 내용이 바뀌었습니다")).toBe(false);
+    expect(page().includes("작업 요청 내용이 바뀌었어요")).toBe(false);
   });
   it("states the follow-up consequence and requires an explicit confirmation for FOLLOW_UP_VISIT_REQUIRED (M3)",async()=>{
     const client=fakeClient({redeem:opened(visited())});
     await mount(client,`#${tokenB}`,now);
     await click("막힘 기록");
     await choose("추가 방문 필요");
-    expect(page()).toContain("추가 방문을 마치기 전에는 작업 보고를 할 수 없습니다");
+    expect(page()).toContain("추가 방문을 마치기 전에는 작업 보고를 할 수 없어요");
     expect(button("막힘 기록하기")?.disabled).toBe(true);
-    await choose("추가 방문이 필요함을 확인했습니다");
+    await choose("추가 방문이 필요함을 확인했어요");
     expect(button("막힘 기록하기")?.disabled).toBe(false);
     await choose("부품 필요");
     expect(page().includes("추가 방문을 마치기 전에는")).toBe(false);
@@ -912,11 +912,11 @@ describe("Task8 Vendor completion report",()=>{
     await toggle("1번째 게시본");
     await click("작업 보고 제출");
     expect(client.submitCompletionReport).not.toHaveBeenCalled();
-    expect(page()).toContain("관리자가 확인할 때까지 수정할 수 없습니다");
+    expect(page()).toContain("관리자가 확인할 때까지 수정할 수 없어요");
     await click("작업 보고 제출하기");
     expect(client.submitCompletionReport.mock.calls[0]).toEqual([csrf,expect.objectContaining({expectedAssignmentVersion:5,expectedPacketRevisionId:packetB,expectedAppointmentId:apptB,
       expectedCorrectionRequestId:null,supersedesReportId:null,workSummary:"합성 배관 교체",componentOrPartNote:null,completionPhotoIds:[photo1],photoOmissionReason:null})]);
-    expect(page()).toContain("작업 보고를 제출했습니다");
+    expect(page()).toContain("작업 보고를 제출했어요");
     for(const label of ["막힘 기록","작업 철회","방문 시작"])expect(button(label),label).toBeUndefined();
   });
   it("reports with one approved omission reason instead of photos",async()=>{
@@ -986,7 +986,7 @@ describe("Task8 Vendor completion report",()=>{
     await mount(client,`#${tokenB}`,now);
     const picked=file("a.png");
     await pick([picked]);
-    expect(page()).toContain("사진 업로드 결과를 확인하지 못했습니다");
+    expect(page()).toContain("사진 업로드 결과를 확인하지 못했어요");
     fail=false;
     await click("같은 요청으로 사진 업로드 다시 확인");
     const calls=client.uploadCompletionPhoto.mock.calls;
@@ -1003,7 +1003,7 @@ describe("Task8 Vendor completion report",()=>{
     await mount(client,`#${tokenB}`,now);await pick([file("a.png")]);
     await click("같은 요청으로 사진 업로드 다시 확인");
     expect(client.job).toHaveBeenCalledTimes(1);expect(client.uploadCompletionPhoto).toHaveBeenCalledTimes(1);
-    expect(page()).toContain("사진 업로드 결과를 확인하지 못했습니다");
+    expect(page()).toContain("사진 업로드 결과를 확인하지 못했어요");
   });
   it.each([{assignmentId:assignmentA},{assignmentVersion:6},{currentPacket:{...visited().currentPacket!,id:assignmentA}},{appointment:{...occurred,id:apptB.replace("1","2")}},{correctionRequest:{id:assignmentA,completionReportId:reportB,reason:"합성 정정"}}])("T11-U02 does not resend a retained upload after its authoritative context changed %s",async changes=>{
     const client=fakeClient({redeem:opened(visited()),job:async()=>visited(changes),uploadCompletionPhoto:async()=>{throw network();}});
@@ -1013,7 +1013,7 @@ describe("Task8 Vendor completion report",()=>{
   it("shows COMPLETION_REPORTED read-only without scheduling, visit, blocker or withdraw actions",async()=>{
     const client=fakeClient({redeem:opened(reported())});
     await mount(client,`#${tokenB}`,now);
-    expect(page()).toContain("작업 보고를 제출했습니다");
+    expect(page()).toContain("작업 보고를 제출했어요");
     expect(page()).toContain("합성 배관 교체");
     expect(host.querySelector('input[type="file"]')).toBeNull();
     for(const label of ["막힘 기록","작업 철회","방문 시작","방문 시간 제안하기","작업 보고 제출"])expect(button(label),label).toBeUndefined();
@@ -1091,13 +1091,13 @@ describe("Task8 review remediation (Vendor screen)",()=>{
     await mount(client,`#${tokenB}`,now);
     await pick(Array.from({length:12},(_,i)=>file(`p${i}.png`)));
     expect(client.uploadCompletionPhoto).toHaveBeenCalledTimes(10);
-    expect(page()).toContain("사진은 한 방문에 10장까지 올릴 수 있습니다");
+    expect(page()).toContain("사진은 한 방문에 10장까지 올릴 수 있어요");
     await act(async()=>root?.unmount());root=undefined;host.remove();
     const full=fakeClient({redeem:opened(visited()),job:vi.fn(async()=>visited()),uploadCompletionPhoto:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})});
     await mount(full,`#${tokenB}`,now);
     await pick([file("a.png")]);
-    expect(page()).toContain("이 방문에는 사진을 더 올릴 수 없습니다");
-    expect(page().includes("작업 요청 내용이 바뀌었습니다")).toBe(false);
+    expect(page()).toContain("이 방문에는 사진을 더 올릴 수 없어요");
+    expect(page().includes("작업 요청 내용이 바뀌었어요")).toBe(false);
   });
   it("uses the preferred work-report terms without overstating what follows (L4)",async()=>{
     const client=fakeClient({redeem:opened(visited())});
@@ -1117,12 +1117,12 @@ describe("Task8 review remediation (Vendor screen)",()=>{
     await toggle("1번째 게시본");
     await click("작업 보고 제출");
     await click("작업 보고 제출하기");
-    expect(page()).toContain("작업 보고 결과를 확인하지 못했습니다");
+    expect(page()).toContain("작업 보고 결과를 확인하지 못했어요");
     fail=false;
     await click("같은 요청으로 결과 확인");
     const ids=client.submitCompletionReport.mock.calls.map(c=>c[1].clientRequestId);
     expect(ids).toHaveLength(2);expect(ids[0]).toBe(ids[1]);
-    expect(page()).toContain("작업 보고를 제출했습니다");
+    expect(page()).toContain("작업 보고를 제출했어요");
   });
   it("offers no work report while a FOLLOW_UP round is OPEN (L5)",async()=>{
     const client=fakeClient({redeem:opened(visited({phase:"SCHEDULING",waitingOn:"TENANT",currentRound:{...confirmedRound,purpose:"FOLLOW_UP",status:"OPEN",version:1}}))});
@@ -1180,7 +1180,7 @@ describe("WC-M02 all non-upload Vendor command families",()=>{
     await input('textarea[aria-label="작업 내용 요약"]',"보존할 작업 보고 초안");
     await click("막힘 기록");await choose("PARTS_REQUIRED");await click("막힘 기록하기");
     await click("같은 요청으로 결과 확인");
-    expect(page()).toContain("이전 요청의 성공 여부는 확정하지 않습니다");
+    expect(page()).toContain("이전 요청의 성공 여부는 확정하지 않아요");
     expect(host.querySelector<HTMLTextAreaElement>('textarea[aria-label="작업 내용 요약"]')?.value).toBe("보존할 작업 보고 초안");
     expect(client.recordBlocker).toHaveBeenCalledTimes(1);
   });

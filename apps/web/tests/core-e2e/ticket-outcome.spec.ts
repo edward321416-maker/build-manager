@@ -58,7 +58,7 @@ async function frozen(id:string){
 }
 async function follow(page:Page,kind:"UNRESOLVED"|"RECURRENCE_CLAIM",body:string,photo=false){
  await card(page).getByRole("button",{name:kind==="UNRESOLVED"?"아직 문제가 있어요":"다시 문제가 생겼어요",exact:true}).click();
- await expect(page.getByText("이전 완료 접수에서 이어서 새로 접수합니다.",{exact:true})).toBeVisible();await expect(page.getByLabel("문제 설명",{exact:true})).toHaveValue("");
+ await expect(page.getByText("이전 완료 접수에서 이어서 새로 접수해요.",{exact:true})).toBeVisible();await expect(page.getByLabel("문제 설명",{exact:true})).toHaveValue("");
  await page.getByRole("radio",{name:"난방",exact:true}).check();await page.getByLabel("문제 설명",{exact:true}).fill(body);
  if(photo){await page.getByLabel("참고 사진 선택",{exact:true}).setInputFiles({name:"fresh-synthetic.png",mimeType:"image/png",buffer:await photoBytes()});await expect(page.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();}
  const response=page.waitForResponse(r=>r.url().endsWith("/follow-up")&&r.request().method()==="POST");await page.getByRole("button",{name:"접수하기",exact:true}).click();const r=await response;expect(r.status()).toBe(201);return (await r.json()).ticket.ticketId as string;
@@ -132,7 +132,7 @@ test("uncommitted response loss retries the identical payload only after receipt
  const s=await setup(request);await login(page,s.codes.tenant,s.id);const bodies:unknown[]=[];
  await page.route("**/"+s.path+"/follow-up",async route=>{if(route.request().method()!=="POST"){await route.continue();return;}bodies.push(route.request().postDataJSON());if(bodies.length===1)await route.abort("failed");else await route.continue();});
  await card(page).getByRole("button",{name:"다시 문제가 생겼어요",exact:true}).click();await page.getByLabel("문제 설명",{exact:true}).fill("같은 입력으로 다시 보내는 합성 증상");await page.getByRole("button",{name:"접수하기",exact:true}).click();await expect(page.getByLabel("문제 설명",{exact:true})).toHaveAttribute("readonly","");
- await page.getByRole("button",{name:"저장 여부 확인 · 후속 접수",exact:true}).click();await expect(page.getByRole("region",{name:"처리 결과 저장 확인",exact:true}).getByRole("alert")).toContainText("확정된 것은 아닙니다");await fit(page);
+ await page.getByRole("button",{name:"저장 여부 확인 · 후속 접수",exact:true}).click();await expect(page.getByRole("region",{name:"처리 결과 저장 확인",exact:true}).getByRole("alert")).toContainText("확정된 것은 아니에요");await fit(page);
  await page.getByRole("button",{name:"같은 후속 접수 다시 확인·전송",exact:true}).click();await expect(card(page).getByText("이전 완료 접수에서 이어진 요청",{exact:true})).toBeVisible();expect(bodies).toHaveLength(2);expect(bodies[1]).toEqual(bodies[0]);expect(await metadata(page)).toEqual([]);
 });
 

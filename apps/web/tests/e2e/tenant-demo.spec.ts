@@ -240,7 +240,7 @@ test.describe("tenant demo", () => {
     await expect(page.getByText("정보 상태: 필수 정보 부족")).toBeVisible();
 
     const content = await page.content();
-    for (const landlordOnly of ["추천 경로", "관리사무소", "관리자 검토"]) {
+    for (const landlordOnly of ["추천 처리 방법", "관리사무소", "관리자 검토"]) {
       expect(content).not.toContain(landlordOnly);
     }
   });

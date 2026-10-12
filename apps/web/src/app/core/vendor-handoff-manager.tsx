@@ -80,7 +80,7 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     {appointment?<div role="group" aria-label="방문 일정">
       <p>방문 일정 · {formatVendorInterval(appointment.startAt,appointment.endAt,at)} · {appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?"세입자가 동의한 시간 안에서 업체가 선택":"세입자 확정"}</p>
       {canReschedule?(p.rescheduleReview?<div role="group" aria-label="방문 일정 변경 확인">
-        <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 세입자와 업체가 새로 일정을 조율합니다.</p>
+        <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 세입자와 업체가 새로 일정을 조율해요.</p>
         <button type="button" disabled={blocked} onClick={p.onReschedule}>일정 변경하기</button>
         <button type="button" disabled={p.busy} onClick={()=>p.onRescheduleReview?.(false)}>돌아가기</button>
       </div>:<button type="button" disabled={blocked} onClick={()=>p.onRescheduleReview?.(true)}>방문 일정 변경</button>):null}
@@ -103,30 +103,30 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     </div>):null}
     {p.action?<form aria-label="업체 요청 검토" onSubmit={e=>{e.preventDefault();p.onSubmitAction?.();}}>
       <h3>{p.action==="CLOSEOUT"?"처리 완료 기록 확인":p.action==="CORRECTION"?"보고 수정 요청 확인":p.action==="MORE_WORK"?"추가 작업 요청 확인":"업체 재배정 확인"}</h3>
-      {p.action==="MORE_WORK"?<p>이전 보고와 방문은 보존하고 새 방문 일정을 조율합니다.</p>:<label>{p.action==="CLOSEOUT"?"관리자가 확인한 처리 내용":p.action==="CORRECTION"?"수정 요청 사유":"새 업체 표시 이름"}
+      {p.action==="MORE_WORK"?<p>이전 보고와 방문은 보존하고 새 방문 일정을 조율해요.</p>:<label>{p.action==="CLOSEOUT"?"관리자가 확인한 처리 내용":p.action==="CORRECTION"?"수정 요청 사유":"새 업체 표시 이름"}
         <textarea required maxLength={p.action==="CLOSEOUT"?2000:p.action==="CORRECTION"?500:80} value={p.actionText??""} onChange={e=>p.onActionText?.(e.target.value)}/></label>}
-      {p.action==="CLOSEOUT"?<p>이 기록으로 접수 처리를 완료하고 업체 접근을 종료합니다. 공개 문답이 바뀌면 다시 확인해야 합니다.</p>:null}
+      {p.action==="CLOSEOUT"?<p>이 기록으로 접수 처리를 완료하고 업체 접근을 종료해요. 공개 문답이 바뀌면 다시 확인해야 해요.</p>:null}
       <button disabled={blocked||(p.action!=="MORE_WORK"&&!p.actionText?.trim())||(p.action==="CLOSEOUT"&&p.communicationVersion===undefined)}>확인한 내용 저장</button>
       <button type="button" disabled={p.busy} onClick={()=>p.onAction?.(null)}>돌아가기</button>
     </form>:null}
     {p.handoff?.assignmentHistory?.length?<details><summary>업체 연결 이력</summary>{p.handoff.assignmentHistory.map(item=><div key={item.id}><p>{item.vendorLabel} · {item.endReason}</p>{item.declineReason?<p>거절 사유: {item.declineReason}</p>:null}{item.operationalNote?<p>{item.operationalNote}</p>:null}</div>)}</details>:null}
-    {p.uncertain?<p role="alert">저장 결과를 확정하지 못했습니다. 최신 상태를 먼저 확인하세요. 같은 화면 값만으로 성공을 확정하지 않습니다.</p>:null}
-    {p.linkUnavailable?<p role="status">원래 링크는 다시 표시할 수 없습니다. 최신 상태에서 허용되는 경우 보안 링크를 재발급해 직접 전달하세요.</p>:null}
+    {p.uncertain?<p role="alert">저장 결과를 확정하지 못했어요. 최신 상태를 먼저 확인하세요. 같은 화면 값만으로 성공을 확정하지 않아요.</p>:null}
+    {p.linkUnavailable?<p role="status">원래 링크는 다시 표시할 수 없어요. 최신 상태에서 허용되는 경우 보안 링크를 재발급해 직접 전달하세요.</p>:null}
     <button type="button" disabled={p.busy||p.loading} onClick={p.onRefresh}>업체 연결 상태 다시 확인</button>
     {p.pendingLink&&eligible&&assignment?.id===p.pendingLink.assignmentId&&assignment.status!=="ENDED"&&packet?<button type="button" disabled={p.busy||p.loading||Boolean(p.error)} onClick={p.onReconcileLink}>같은 요청으로 발급 결과 확인</button>:null}
-    {p.uncertain&&!p.pendingLink&&!p.linkUnavailable&&p.handoff&&!p.error?<button type="button" disabled={p.busy} onClick={p.onReview}>최신 상태와 입력을 검토했습니다</button>:null}
+    {p.uncertain&&!p.pendingLink&&!p.linkUnavailable&&p.handoff&&!p.error?<button type="button" disabled={p.busy} onClick={p.onReview}>최신 상태와 입력을 검토했어요</button>:null}
     {canPrepare?<form onSubmit={e=>{e.preventDefault();p.onCreate();}}><label>업체 표시 이름<input aria-label="업체 표시 이름" maxLength={80} required value={p.draft.vendorLabel} disabled={blocked} onChange={e=>p.onDraft({...p.draft,vendorLabel:e.target.value})}/></label><button disabled={blocked||!p.draft.vendorLabel.trim()}>작업 요청 준비</button></form>:null}
     {active&&eligible&&p.handoff?.phase!=="COMPLETION_REPORTED"?<>
       <h3>업체 전달 내용</h3>
-      {!source?<p role="alert">전달 후보를 다시 불러오세요. 게시 전 미리보기가 필요합니다.</p>:null}
+      {!source?<p role="alert">전달 후보를 다시 불러오세요. 게시 전 미리보기가 필요해요.</p>:null}
       <fieldset disabled={blocked} className={styles.editor}><legend>공개 내용 검토</legend>
         <label>작업 설명<textarea aria-label="업체 작업 설명" maxLength={1000} required value={p.draft.workSummary} onChange={e=>p.onDraft({...p.draft,workSummary:e.target.value})}/></label>
         <fieldset><legend>공유할 확인 내용 선택</legend>{source?.sharedDetails.map(detail=><label key={detail.key}><input type="checkbox" checked={p.draft.sharedDetailKeys.includes(detail.key)} onChange={e=>p.onDraft({...p.draft,sharedDetailKeys:choose(p.draft.sharedDetailKeys,detail.key,e.target.checked)})}/>{detail.label}: {buildingValueName(detail.key,detail.value)} · {SHARED_DETAIL_SOURCE_NAMES[detail.sourceType]}</label>)}</fieldset>
-        <fieldset><legend>공유할 원본 사진 선택</legend><p>사진은 선택한 것만 업체에 공개됩니다.</p>{source?.sourcePhotoIds.map((id,index)=><label key={id}><input type="checkbox" checked={p.draft.allowedPhotoIds.includes(id)} onChange={e=>p.onDraft({...p.draft,allowedPhotoIds:choose(p.draft.allowedPhotoIds,id,e.target.checked)})}/>원본 사진 {index+1}</label>)}</fieldset>
+        <fieldset><legend>공유할 원본 사진 선택</legend><p>사진은 선택한 것만 업체에 공개돼요.</p>{source?.sourcePhotoIds.map((id,index)=><label key={id}><input type="checkbox" checked={p.draft.allowedPhotoIds.includes(id)} onChange={e=>p.onDraft({...p.draft,allowedPhotoIds:choose(p.draft.allowedPhotoIds,id,e.target.checked)})}/>원본 사진 {index+1}</label>)}</fieldset>
         <label>출입 정책<select aria-label="출입 정책" value={p.draft.accessPolicy} onChange={e=>p.onDraft({...p.draft,accessPolicy:e.target.value as VendorAccessPolicy})}>{VendorAccessPolicySchema.options.map(policy=><option key={policy} value={policy}>{ACCESS_POLICY_NAMES[policy]}</option>)}</select></label>
-        <p>출입 정책은 세입자 동의가 아닙니다. 세입자가 별도로 선택한 시간에 동의해야 합니다.</p>
+        <p>출입 정책은 세입자 동의가 아니에요. 세입자가 별도로 선택한 시간에 동의해야 해요.</p>
         <label>출입 안내<textarea aria-label="출입 안내" aria-describedby="vendor-access-warning" maxLength={500} value={p.draft.accessInstruction} onChange={e=>p.onDraft({...p.draft,accessInstruction:e.target.value})}/></label>
-        <p id="vendor-access-warning">개인 연락처나 반복 사용 가능한 출입 비밀번호를 입력하지 마세요. 이 안내는 업체에 공개됩니다.</p>
+        <p id="vendor-access-warning">개인 연락처나 반복 사용 가능한 출입 비밀번호를 입력하지 마세요. 이 안내는 업체에 공개돼요.</p>
         <button type="button" disabled={!source} onClick={p.onPreview}>업체 전달 내용 미리보기</button>
       </fieldset>
       {p.preview?<section className={styles.preview} aria-label="업체 전달 내용 미리보기"><h3>게시 전 업체 화면 확인</h3>
@@ -142,12 +142,12 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     {packet?<details><summary>현재 게시된 전달 내용 · {packet.revision}차</summary><p>{packet.workSummary}</p><p>{packet.buildingName} · {packet.serviceAddress} · {packet.unitLabel}</p>{packet.sharedDetails?.map(detail=><p key={detail.key}>{detail.label}: {buildingValueName(detail.key,detail.value)} · {SHARED_DETAIL_SOURCE_NAMES[detail.sourceType]}</p>)}<p>공유 사진 {packet.allowedPhotoIds?.length??0}장 · {ACCESS_POLICY_NAMES[packet.accessPolicy]}</p></details>:null}
     {eligible&&packet&&assignment?.status==="PREPARING"&&!p.linkUnavailable?<button type="button" disabled={blocked} onClick={p.onIssue}>보안 링크 발급</button>:null}
     {canReissue&&!p.pendingLink?<button type="button" disabled={p.busy||p.loading||Boolean(p.error)} onClick={p.onReissue}>보안 링크 재발급</button>:null}
-    {p.immediateLink?<div className={styles.link}><label>직접 전달할 보안 링크<input aria-label="직접 전달할 보안 링크" readOnly value={p.immediateLink}/></label><p>이 화면의 링크를 복사해 업체에 직접 전달하세요. 새로고침하거나 다른 접수로 이동하면 다시 표시할 수 없습니다.</p></div>:null}
+    {p.immediateLink?<div className={styles.link}><label>직접 전달할 보안 링크<input aria-label="직접 전달할 보안 링크" readOnly value={p.immediateLink}/></label><p>이 화면의 링크를 복사해 업체에 직접 전달하세요. 새로고침하거나 다른 접수로 이동하면 다시 표시할 수 없어요.</p></div>:null}
     {active&&p.handoff?.phase!=="COMPLETION_REPORTED"?<button type="button" disabled={blocked} onClick={()=>p.onAction?.("REASSIGN")}>업체 재배정</button>:null}
     {active&&p.handoff?.phase!=="COMPLETION_REPORTED"?<button type="button" disabled={blocked} onClick={p.onRevoke}>업체 접근 철회</button>:null}
     {p.handoff&&(p.handoff.packetHistory.length>0||p.handoff.reportHistory.length>0)?<details className={styles.preview}>
       <summary>전달 내용과 작업 보고 이력 · 읽기 전용</summary>
-      <p>이력 조회는 현재 업체나 보고에 대한 처리 대상을 바꾸지 않습니다.</p>
+      <p>이력 조회는 현재 업체나 보고에 대한 처리 대상을 바꾸지 않아요.</p>
       {p.handoff.packetHistory.map(revision=><details key={revision.id}>
         <summary>{revision.vendorLabel} · 전달 내용 {revision.revision}차 · <DateTime at={revision.publishedAt} now={p.clock??p.now}/></summary>
         <dl><dt>접수번호</dt><dd>{revision.jobReference}</dd><dt>건물</dt><dd>{revision.buildingName}</dd><dt>주소</dt><dd>{revision.serviceAddress}</dd><dt>호실</dt><dd>{revision.unitLabel}</dd><dt>작업 설명</dt><dd>{revision.workSummary}</dd></dl>
@@ -205,7 +205,7 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
   const refresh=useCallback(async()=>{
     const current=++generation.current;setLoading(true);setImmediateLink(null);setError("");setRescheduleReview(false);onHandoff(null);
     try{const h=await client.vendorHandoff.readHandoff(ticket.ticketId);if(current===generation.current)apply(h);}
-    catch{if(current===generation.current){apply(null);setError("업체 연결 상태를 확인하지 못했습니다. 다시 불러오세요.");}}
+    catch{if(current===generation.current){apply(null);setError("업체 연결 상태를 확인하지 못했어요. 다시 불러오세요.");}}
     finally{if(current===generation.current)setLoading(false);}
   },[client,ticket.ticketId,apply,onHandoff]);
   useEffect(()=>{let live=true;void Promise.resolve().then(()=>{if(live)void refresh();});return()=>{live=false;invalidate();};},[refresh,invalidate]);
@@ -241,7 +241,7 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
           if(rejected)rememberLink(null);
           setLinkUnavailable(false);
         }
-        if(!result.handoff)setError("최신 상태를 확인하지 못했습니다. 다시 불러오세요.");
+        if(!result.handoff)setError("최신 상태를 확인하지 못했어요. 다시 불러오세요.");
         else if(result.kind==="rejected")setNotice("입력 또는 최신 상태를 확인한 뒤 명시적으로 다시 검토하세요.");
         return;
       }
@@ -252,10 +252,10 @@ function LoadedVendorHandoffManager({client,ticket,onHandoff,onChanged,communica
         const currentAuthority=Boolean(result.handoff?.currentPacket&&currentAssignment?.id===value.assignmentId&&["OFFERED","ACTIVE"].includes(currentAssignment.status));
         const link=result.handoff?resolveDeliverableLink(value,window.location.origin,result.handoff):null;
         linkAssignmentRef.current=currentAuthority?value.assignmentId:null;setImmediateLink(link);setLinkUnavailable(currentAuthority&&!link);
-        setNotice(link?"보안 링크를 발급했습니다. 업체에 직접 전달하세요.":currentAuthority?"발급 기록을 확인했습니다. 원래 링크는 다시 표시할 수 없습니다.":"발급 기록은 이전 상태입니다. 최신 업체 연결 상태를 확인하세요.");
+        setNotice(link?"보안 링크를 발급했어요. 업체에 직접 전달하세요.":currentAuthority?"발급 기록을 확인했어요. 원래 링크는 다시 표시할 수 없어요.":"발급 기록은 이전 상태예요. 최신 업체 연결 상태를 확인하세요.");
       }else{
         if(kind==="CREATE"){linkAssignmentRef.current=null;setLinkUnavailable(false);}
-        setNotice(kind==="CREATE"?"작업 요청 준비를 저장했습니다.":kind==="PUBLISH"?"업체 전달 내용을 게시했습니다.":kind==="RESCHEDULE"?"방문 일정 변경을 기록했습니다. 세입자와 업체가 새로 일정을 조율합니다.":kind==="CLOSEOUT"?"최신 처리 완료 및 업체 접근 종료 상태를 확인했습니다.":kind==="CORRECTION"?"보고 수정 요청을 기록했습니다.":kind==="MORE_WORK"?"추가 작업 요청을 기록했습니다.":kind==="REASSIGN"?"업체 재배정을 기록했습니다.":"업체 접근 철회를 기록했습니다.");
+        setNotice(kind==="CREATE"?"작업 요청 준비를 저장했어요.":kind==="PUBLISH"?"업체 전달 내용을 게시했어요.":kind==="RESCHEDULE"?"방문 일정 변경을 기록했어요. 세입자와 업체가 새로 일정을 조율해요.":kind==="CLOSEOUT"?"최신 처리 완료 및 업체 접근 종료 상태를 확인했어요.":kind==="CORRECTION"?"보고 수정 요청을 기록했어요.":kind==="MORE_WORK"?"추가 작업 요청을 기록했어요.":kind==="REASSIGN"?"업체 재배정을 기록했어요.":"업체 접근 철회를 기록했어요.");
       }
       onChanged();
     }finally{if(current===generation.current)setBusy(false);sending.current=false;}

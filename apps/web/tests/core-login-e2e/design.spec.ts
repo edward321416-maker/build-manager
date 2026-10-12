@@ -91,8 +91,8 @@ test("neutral account and white workspace reflow without remounting drafts; mana
     await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     await readable(page.getByTestId("work-status").locator("[data-work-state]"));
     await expect(page.getByText("접수 상태: 정보 부족",{exact:true})).toBeVisible();
-    await expect(page.getByText("관리자가 완료로 기록했습니다.",{exact:false})).toBeVisible();
-    const work=await page.getByTestId("work-status").boundingBox(),intake=await page.getByText("접수 상태: 정보 부족",{exact:true}).boundingBox(),explanation=await page.getByText("관리자가 완료로 기록했습니다.",{exact:false}).boundingBox();
+    await expect(page.getByText("관리자가 완료로 기록했어요.",{exact:false})).toBeVisible();
+    const work=await page.getByTestId("work-status").boundingBox(),intake=await page.getByText("접수 상태: 정보 부족",{exact:true}).boundingBox(),explanation=await page.getByText("관리자가 완료로 기록했어요.",{exact:false}).boundingBox();
     expect(work!.y+work!.height).toBeLessThanOrEqual(intake!.y);expect(intake!.y+intake!.height).toBeLessThanOrEqual(explanation!.y);
     await expect(page.getByLabel("참고 사진 선택",{exact:true})).toHaveCount(0);
     await captureLayout(page,"b1-tenant-completed");
@@ -135,13 +135,13 @@ test("zero-association requests and missing-link guidance remain reachable at 32
   await mkdir(evidence,{recursive:true});const account=await sdkSession(browser,"design-unassociated");
   try{
     const page=await account.context.newPage();await page.setViewportSize({width:320,height:844});await page.goto("/core");
-    await expect(page.getByText("연결된 소속·호실이 없습니다.",{exact:false})).toBeVisible();
+    await expect(page.getByText("연결된 소속·호실이 없어요.",{exact:false})).toBeVisible();
     await expect(page.getByRole("heading",{name:"내 연결 요청",exact:true})).toBeVisible();
     await expect(page.getByRole("button",{name:"내 소속·호실 새로고침",exact:true})).toBeEnabled();
     await expect(page.getByLabel("개발 접근 코드")).toHaveCount(0);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:join(evidence,"b1-no-association-320.png"),fullPage:true});
-    await page.goto("/core/join");await expect(page.getByText("초대 링크 정보가 없습니다.",{exact:false})).toBeVisible();
+    await page.goto("/core/join");await expect(page.getByText("초대 링크 정보가 없어요.",{exact:false})).toBeVisible();
     await readable(page.getByText("호실을 확인하고 연결을 요청하세요.",{exact:false}));
     await expect(page.getByRole("button",{name:"연결 요청 보내기",exact:true})).toHaveCount(0);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

@@ -20,7 +20,7 @@ test("320px select-preview-save, manager protected read, enlargement and new bro
   await page.getByLabel("참고 사진 선택",{exact:true}).setInputFiles([{name:"sample.png",mimeType:"image/png",buffer:await sample()},{name:"sample.jpg",mimeType:"image/jpeg",buffer:await sample("image/jpeg")}]);
   await expect(page.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();await expect(page.getByAltText("전송 전 사진 2 미리보기")).toBeVisible();await page.screenshot({path:join(privateRoot,"photo-preview-320.png"),fullPage:true});
   const response=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");await page.getByRole("button",{name:"접수하기",exact:true}).click();const t=await (await response).json();
-  await expect(saved(page).getByRole("img")).toHaveCount(2);await expect(page.getByText("사진을 저장했습니다. 관리자도 같은 사진을 확인할 수 있습니다.",{exact:true})).toBeVisible();
+  await expect(saved(page).getByRole("img")).toHaveCount(2);await expect(page.getByText("사진을 저장했어요. 관리자도 같은 사진을 확인할 수 있어요.",{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   for(const image of await saved(page).getByRole("img").all())expect(await image.evaluate((img:HTMLImageElement)=>img.complete&&img.naturalWidth>0)).toBe(true);
   await saved(page).getByRole("button",{name:"저장된 사진 1 확대"}).click();await expect(page.getByRole("dialog")).toBeVisible();await page.screenshot({path:join(privateRoot,"photo-enlarged-320.png"),fullPage:true});await page.getByRole("button",{name:"사진 닫기",exact:true}).click();
@@ -34,15 +34,15 @@ test("failed upload keeps selected file and existing ticket; lost success is rec
   await login(page);await page.getByLabel("문제 설명").fill("합성 사진 실패·응답 유실 검사");await page.getByLabel("참고 사진 선택",{exact:true}).setInputFiles({name:"sample.png",mimeType:"image/png",buffer:await sample()});
   let creates=0,uploads=0;page.on("request",r=>{if(r.method()==="POST"&&r.url().endsWith("/api/v2/core/tickets"))creates++;});
   await page.route("**/api/v2/core/tickets/*/photos",async route=>{if(route.request().method()!=="POST")return route.continue();uploads++;if(uploads===1)return route.abort();await route.fetch();await route.abort();});
-  await page.getByRole("button",{name:"접수하기",exact:true}).click();await expect(page.getByText(/사진 전송 결과를 확인하지 못했습니다/)).toBeVisible();await expect(page.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();expect(creates).toBe(1);
-  await page.getByRole("button",{name:"사진 저장",exact:true}).click();await expect(page.getByText(/사진 전송 결과를 확인하지 못했습니다/)).toBeVisible();await page.getByRole("button",{name:"저장된 사진 확인",exact:true}).click();await expect(page.getByText(/저장된 사진 1장을 확인했습니다/)).toBeVisible();await expect(page.getByAltText("전송 전 사진 1 미리보기")).toHaveCount(0);await expect(saved(page).getByRole("img")).toHaveCount(1);expect(creates).toBe(1);expect(uploads).toBe(2);
+  await page.getByRole("button",{name:"접수하기",exact:true}).click();await expect(page.getByText(/사진 전송 결과를 확인하지 못했어요/)).toBeVisible();await expect(page.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();expect(creates).toBe(1);
+  await page.getByRole("button",{name:"사진 저장",exact:true}).click();await expect(page.getByText(/사진 전송 결과를 확인하지 못했어요/)).toBeVisible();await page.getByRole("button",{name:"저장된 사진 확인",exact:true}).click();await expect(page.getByText(/저장된 사진 1장을 확인했습니다/)).toBeVisible();await expect(page.getByAltText("전송 전 사진 1 미리보기")).toHaveCount(0);await expect(saved(page).getByRole("img")).toHaveCount(1);expect(creates).toBe(1);expect(uploads).toBe(2);
   await page.getByLabel("참고 사진 선택",{exact:true}).setInputFiles({name:"pending.png",mimeType:"image/png",buffer:await sample()});await page.context().clearCookies();await page.getByRole("button",{name:"저장된 사진 확인",exact:true}).click();await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(page.getByRole("img")).toHaveCount(0);await expect(page.getByLabel("참고 사진 선택",{exact:true})).toHaveCount(0);
 });
 test("a partially saved batch shows the saved photo and retries only the remaining file",async({page})=>{
   await login(page);await page.getByLabel("문제 설명").fill("합성 두 번째 사진 연결 실패 검사");const buffer=await sample();
   await page.getByLabel("참고 사진 선택",{exact:true}).setInputFiles([{name:"first.png",mimeType:"image/png",buffer},{name:"second.png",mimeType:"image/png",buffer}]);
   let uploads=0;await page.route("**/api/v2/core/tickets/*/photos",route=>{if(route.request().method()!=="POST")return route.continue();uploads++;return uploads===2?route.abort():route.continue();});
-  await page.getByRole("button",{name:"접수하기",exact:true}).click();await expect(page.getByText(/사진 전송 결과를 확인하지 못했습니다/)).toBeVisible();await expect(saved(page).getByRole("img")).toHaveCount(1);await expect(page.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();await expect(page.getByAltText("전송 전 사진 2 미리보기")).toHaveCount(0);
+  await page.getByRole("button",{name:"접수하기",exact:true}).click();await expect(page.getByText(/사진 전송 결과를 확인하지 못했어요/)).toBeVisible();await expect(saved(page).getByRole("img")).toHaveCount(1);await expect(page.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();await expect(page.getByAltText("전송 전 사진 2 미리보기")).toHaveCount(0);
   await page.getByRole("button",{name:"사진 저장",exact:true}).click();await expect(saved(page).getByRole("img")).toHaveCount(2);await expect(page.getByAltText("전송 전 사진 1 미리보기")).toHaveCount(0);expect(uploads).toBe(3);
 });
 test("real photo endpoints enforce size, type, count, idempotency, ownership and completed state",async({request})=>{

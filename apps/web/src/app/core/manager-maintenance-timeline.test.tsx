@@ -28,10 +28,10 @@ it("shows existing append-only history and explicit correction without edit/dele
  expect(html).toContain("정정 기록 추가");expect(html).toContain("호실 이력에서 보기");expect(html).toContain("근거 접수 보기");expect(html).toContain("정정 이력");expect(html).not.toContain("삭제");expect(html).not.toContain("정비 사실 저장");
 });
 it("retains stale input visibly and requires an explicit review before another correction",()=>{
- const html=view({editing:true,detail:{current:fact,revisions:[]},reviewRequired:true,label:"내가 입력한 합성 부품"});expect(html).toContain("내가 입력한 합성 부품");expect(html).toContain("최신 기록을 확인했습니다");expect(html).toContain("정정 이유");expect(html).toContain("disabled");
+ const html=view({editing:true,detail:{current:fact,revisions:[]},reviewRequired:true,label:"내가 입력한 합성 부품"});expect(html).toContain("내가 입력한 합성 부품");expect(html).toContain("최신 기록을 확인했어요");expect(html).toContain("정정 이유");expect(html).toContain("disabled");
 });
 it("does not claim matching server values prove the uncertain request succeeded",()=>{
- const html=view({editing:true,uncertain:true,detail:{current:fact,revisions:[]},label:fact.componentLabel!});expect(html).toContain("같은 요청으로 저장 확인");expect(html).toContain("요청의 성공을 확정하지 않습니다");expect(html).not.toContain("저장했습니다");
+ const html=view({editing:true,uncertain:true,detail:{current:fact,revisions:[]},label:fact.componentLabel!});expect(html).toContain("같은 요청으로 저장 확인");expect(html).toContain("요청의 성공을 확정하지 않아요");expect(html).not.toContain("저장했어요");
 });
 it("renders component labels as text and describes tenant claims neutrally",()=>{
  const html=renderToStaticMarkup(<MaintenanceFactCard fact={{...fact,componentLabel:"<script>synthetic</script>",tenantOutcome:"RECURRENCE_CLAIM",previousTicketId:"old",followUpTicketId:"new"}} onOpenTicket={noop}/>);
@@ -40,7 +40,7 @@ it("renders component labels as text and describes tenant claims neutrally",()=>
 it("distinguishes timeline loading, empty, error and no authorized unit",()=>{
  const props={units:[{id:"unit",buildingId:"building",buildingName:"합성 건물",label:"합성 호실"}],unitId:"unit",items:[],loading:false,error:"",disabled:false,onUnit:noop,onRefresh:noop,onOpenTicket:noop};
  const html=(changes:Partial<typeof props>={})=>renderToStaticMarkup(<MaintenanceTimelineView {...props} {...changes}/>);
- expect(html()).toContain("아직 기록된 정비 사실이 없습니다.");expect(html({loading:true})).not.toContain("아직 기록된");expect(html({error:"연결 확인"})).not.toContain("아직 기록된");expect(html({error:"연결 확인"})).toContain("이력 다시 불러오기");expect(html({units:[],unitId:""})).toContain("접근 가능한 호실이 없습니다");
+ expect(html()).toContain("아직 기록된 정비 사실이 없어요.");expect(html({loading:true})).not.toContain("아직 기록된");expect(html({error:"연결 확인"})).not.toContain("아직 기록된");expect(html({error:"연결 확인"})).toContain("이력 다시 불러오기");expect(html({units:[],unitId:""})).toContain("접근 가능한 호실이 없어요");
 });
 it("keeps the supplied timeline order and only renders the approved projection fields",()=>{
  const html=renderToStaticMarkup(<MaintenanceTimelineView units={[{id:"unit",buildingId:"building",buildingName:"합성 건물",label:"합성 호실"}]} unitId="unit" items={[{...fact,componentLabel:"첫 번째 합성"},{...fact,factId:"second",componentLabel:"두 번째 합성"}]} loading={false} error="" disabled={false} onUnit={noop} onRefresh={noop} onOpenTicket={noop}/>);

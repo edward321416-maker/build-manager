@@ -30,7 +30,7 @@ const openIntakeStates:IntakeState[]=["IN_PROGRESS","NEEDS_MORE_INFO","SAFETY_ES
 const tenantIntakeOpen=(t:CoreTicketDto)=>t.workStatus==="OPEN"&&openIntakeStates.includes(intakeDisplayStatus(t));
 const intakeTaskMessage=(status:IntakeState)=>status==="NEEDS_MORE_INFO"?"답한 뒤 다시 제출해 주세요.":status==="SAFETY_ESCALATED"?"아래 안내를 먼저 확인해 주세요.":"질문에 답하고 필요한 사진을 고르면 '수리 요청 제출' 버튼이 나와요.";
 function progressMessage(t:CoreTicketDto,tenant:boolean){
-  if(t.workStatus==="COMPLETED")return "관리자가 완료로 기록했습니다.";
+  if(t.workStatus==="COMPLETED")return "관리자가 완료로 기록했어요.";
   if(t.workStatus==="IN_PROGRESS")return tenant?"관리자가 확인하고 있어요.":"처리 중이에요.";
   switch(intakeDisplayStatus(t)){
     case "IN_PROGRESS":return tenant?"아직 보내지 않았어요. 아래 할 일을 마치고 '수리 요청 제출'을 눌러야 관리자에게 전달돼요.":"세입자가 아직 제출하지 않았어요.";
@@ -41,17 +41,17 @@ function progressMessage(t:CoreTicketDto,tenant:boolean){
     default:return tenant?"관리자에게 보냈어요. 확인을 기다리고 있어요.":"세입자가 제출했어요.";
   }
 }
-const sessionMessage="접속이 만료되었거나 코드가 유효하지 않습니다. 개발 환경에서 새 코드를 발급받아 다시 들어가 주세요.";
-const accessMessage="이 계정의 접근 권한을 확인할 수 없습니다. 관리자에게 소속·호실 권한을 확인한 뒤 다시 들어가 주세요.";
+const sessionMessage="접속이 만료되었거나 코드가 유효하지 않아요. 개발 환경에서 새 코드를 발급받아 다시 들어가 주세요.";
+const accessMessage="이 계정의 접근 권한을 확인할 수 없어요. 관리자에게 소속·호실 권한을 확인한 뒤 다시 들어가 주세요.";
 function describeError(error:unknown,saving:boolean){
   if(error instanceof ApiClientError){
     if(error.status===401)return sessionMessage;
     if(error.status===403)return accessMessage;
-    if(error.status===404)return "접수 내역을 열 수 없습니다. 목록을 새로고침하고 접근 가능한 내역을 선택해 주세요.";
-    if(error.status===409)return "다른 변경이 먼저 저장되었습니다. 새로고침으로 최신 상태를 확인한 뒤 다시 진행해 주세요.";
-    if(error.status===400)return "입력 내용을 확인해 주세요. 설명이나 처리 기록에 공백만 입력할 수 없습니다.";
+    if(error.status===404)return "접수 내역을 열 수 없어요. 목록을 새로고침하고 접근 가능한 내역을 선택해 주세요.";
+    if(error.status===409)return "다른 변경이 먼저 저장됐어요. 새로고침으로 최신 상태를 확인한 뒤 다시 진행해 주세요.";
+    if(error.status===400)return "입력 내용을 확인해 주세요. 설명이나 처리 기록에 공백만 입력할 수 없어요.";
   }
-  return saving?"저장 결과를 확인하지 못했습니다. 입력은 유지했습니다. 연결을 확인하고 새로고침으로 이력을 먼저 확인해 주세요. 중복 접수를 막기 위해 바로 다시 제출하지 마세요.":"내용을 불러오지 못했습니다. 연결을 확인하고 다시 불러오기를 눌러 주세요.";
+  return saving?"저장 결과를 확인하지 못했어요. 입력은 유지했어요. 연결을 확인하고 새로고침으로 이력을 먼저 확인해 주세요. 중복 접수를 막기 위해 바로 다시 제출하지 마세요.":"내용을 불러오지 못했어요. 연결을 확인하고 다시 불러오기를 눌러 주세요.";
 }
 export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;csrf:string};onDenied?:()=>void;onLogout?:()=>void}={}){
   const [session,setSession]=useState<CoreSessionDto|null>(null),[code,setCode]=useState("");
@@ -168,10 +168,10 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
   const selectedUnit=units.find(u=>u.id===selected?.unitId);
   const upload=async(ticketId:string,files:PendingPhoto[])=>{
     setPhotoMessage("");
-    try{const stored=await client.photos(ticketId);setPending(current=>current.filter(f=>!stored.some(p=>p.uploadId===f.uploadId)));for(const file of files.filter(f=>!stored.some(p=>p.uploadId===f.uploadId))){await client.uploadPhoto(ticketId,file.uploadId,file.file);setPending(current=>current.filter(f=>f.uploadId!==file.uploadId));setRevision(r=>r+1);}setRevision(r=>r+1);if(files.length)setPhotoMessage("사진을 저장했습니다. 관리자도 같은 사진을 확인할 수 있습니다.");}
+    try{const stored=await client.photos(ticketId);setPending(current=>current.filter(f=>!stored.some(p=>p.uploadId===f.uploadId)));for(const file of files.filter(f=>!stored.some(p=>p.uploadId===f.uploadId))){await client.uploadPhoto(ticketId,file.uploadId,file.file);setPending(current=>current.filter(f=>f.uploadId!==file.uploadId));setRevision(r=>r+1);}setRevision(r=>r+1);if(files.length)setPhotoMessage("사진을 저장했어요. 관리자도 같은 사진을 확인할 수 있어요.");}
     catch(e){if(e instanceof ApiClientError&&(e.status===401||e.status===403))throw e;setPhotoMessage(photoError(e));}
   };
-  const checkPhotos=async()=>{if(!selected)return;const ticket=await client.read(selected.ticketId),photos=await client.photos(selected.ticketId);setSelected(ticket);setPending(current=>current.filter(f=>!photos.some(p=>p.uploadId===f.uploadId)));setRevision(r=>r+1);setPhotoMessage(`저장된 사진 ${photos.length}장을 확인했습니다. ${ticket.workStatus==="COMPLETED"?"처리 완료된 접수에는 사진을 추가할 수 없습니다.":"남은 미전송 사진만 다시 전송할 수 있습니다."}`);};
+  const checkPhotos=async()=>{if(!selected)return;const ticket=await client.read(selected.ticketId),photos=await client.photos(selected.ticketId);setSelected(ticket);setPending(current=>current.filter(f=>!photos.some(p=>p.uploadId===f.uploadId)));setRevision(r=>r+1);setPhotoMessage(`저장된 사진 ${photos.length}장을 확인했어요. ${ticket.workStatus==="COMPLETED"?"처리 완료된 접수에는 사진을 추가할 수 없어요.":"남은 미전송 사진만 다시 전송할 수 있어요."}`);};
   const openOutcome=(id:string)=>void run(async()=>{await openWithList(id);setFollowUp(null);setFollowAttempt(null);setText("");setMessage("");setRevision(r=>r+1);});
   const openMaintenanceTicket=(id:string)=>void run(async()=>{
     try{await openWithList(id);setManagerView("WORK_QUEUE");setFollowUp(null);setFollowAttempt(null);setText("");setMessage("");setRevision(r=>r+1);}
@@ -181,7 +181,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
   const submit=()=>{
     if(followSending.current)return;
     const parsed=followUp?CoreCreateFollowUpSchema.safeParse(followAttempt??{clientRequestId:crypto.randomUUID(),claimKind:followUp.claimKind,issueType:issue,rawUserText:text}):null;
-    if(parsed&&!parsed.success){setError("문제 설명을 확인해 주세요. 공백이나 제어 문자만으로 접수할 수 없습니다.");return;}
+    if(parsed&&!parsed.success){setError("문제 설명을 확인해 주세요. 공백이나 제어 문자만으로 접수할 수 없어요.");return;}
     followSending.current=true;
     void run(async()=>{
       const generation=accessGeneration.read();
@@ -202,7 +202,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
     <header className={styles.heading} data-testid="unit-context"><div className={styles.toolbarLeading}>{selected&&managerView==="WORK_QUEUE"?<button disabled={busy||pending.length>0} onClick={()=>void run(async()=>{setSelected(null);setPhotoMessage("");setTickets(await client.tickets());})}>← 목록으로</button>:null}<div><h1>{session?.role==="TENANT"?(selected?"접수 내용":units.find(u=>u.id===unit)?.label??"수리 접수"):session?(managerView==="MAINTENANCE"?"호실 정비 이력":"업무함"):"수리 접수"}</h1>
     {session?.role==="TENANT"&&!selected?<p>{units.find(u=>u.id===unit)?.buildingName}</p>:null}
     </div></div>
-    {!b1?<EnvironmentNote>검증용 환경으로 실제 업체 배정이나 알림은 전송되지 않습니다.</EnvironmentNote>:null}
+    {!b1?<EnvironmentNote>검증용 환경으로 실제 업체 배정이나 알림은 전송되지 않아요.</EnvironmentNote>:null}
     {session?<nav className="core-actions" aria-label="접속 및 새로고침">{selected&&session.role!=="TENANT"&&managerView==="WORK_QUEUE"?<button id="ticket-inspector-trigger" aria-controls="ticket-inspector" aria-expanded={inspectorExpanded} onClick={()=>{if(window.matchMedia("(min-width: 1120px) and (max-width: 1439px)").matches)setInspectorExpanded(value=>!value);else{setInspectorExpanded(true);/* Menu audit F-20: show the panel's content, not just its heading at the bottom edge. */requestAnimationFrame(()=>{const inspector=document.getElementById("ticket-inspector");inspector?.scrollIntoView({block:"start"});inspector?.querySelector("summary")?.focus({preventScroll:true});});}}}>업무 정보</button>:null}
         <button disabled={busy} onClick={()=>void run(refresh)}>새로고침</button>
         {!b1?<button disabled={busy} onClick={()=>{if(onLogout){clearAccess();onLogout();}else void run(async()=>{await client.logout();clearAccess();});}}>로그아웃</button>:null}
@@ -210,10 +210,10 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
     </header>
     {error?<div className="state-error" role="alert" tabIndex={-1} ref={errorPanel}><p>{error}</p><button disabled={busy} onClick={()=>void run(session?refresh:restore)}>다시 불러오기</button></div>:null}
     {busy?<p role="status">불러오는 중…</p>:notice?<p className="save-ok" role="status">{notice}</p>:null}
-    {!session?(b1?<p>내 소속·호실을 확인하고 있습니다.</p>:<form onSubmit={e=>{e.preventDefault();void login();}}>
+    {!session?(b1?<p>내 소속·호실을 확인하고 있어요.</p>:<form onSubmit={e=>{e.preventDefault();void login();}}>
       <label>개발 접근 코드 <input aria-label="개발 접근 코드" type="password" disabled={busy} value={code} onChange={e=>setCode(e.target.value)} autoComplete="off" /></label>
       <button className={styles.primary} disabled={busy||!/^[a-f0-9]{64}$/.test(code)}>들어가기</button>
-      <p>개발 환경에서 발급한 계정별 코드를 사용하세요. 코드가 만료되면 새 코드를 발급받아 다시 들어오세요. 역할과 호실은 서버에서 확인합니다.</p>
+      <p>개발 환경에서 발급한 계정별 코드를 사용하세요. 코드가 만료되면 새 코드를 발급받아 다시 들어오세요. 역할과 호실은 서버에서 확인해요.</p>
     </form>):<>
 
       {session.role==="TENANT"?<OutcomeRecoveryPanel client={client} onOpen={openOutcome}/>:null}
@@ -253,22 +253,22 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
 
         <section className={styles.history} aria-label="진행 이력"><h2>진행 이력</h2>{historyLines(selected.events).map(line=><p key={line.id}><DateTime at={line.at}/> {line.actor} · {line.label}{line.message?` · ${line.message}`:""}</p>)}</section></TicketCommunication>
           <details className={styles.technicalDetails}><summary>접수 세부 정보</summary><p className={styles.ticketId}>접수번호 {selected.ticketId}</p></details>
-        {selected.workStatus==="COMPLETED"?<p>관리자의 완료 기록을 확인했습니다. 목록에서 이력을 다시 볼 수 있습니다.</p>:session.role==="TENANT"&&tenantIntakeOpen(selected)?null:<details id={session.role==="TENANT"?undefined:"ticket-decision"} className={styles.protocolDetails}><summary>{session.role==="TENANT"?"추가 확인":"추가 확인·결정 기록"}</summary>{session.role==="TENANT"?<TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} evidenceStep={evidenceStep}/>:<TicketReview key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} onDecided={onDecided}/>}</details>}
+        {selected.workStatus==="COMPLETED"?<p>관리자의 완료 기록을 확인했어요. 목록에서 이력을 다시 볼 수 있어요.</p>:session.role==="TENANT"&&tenantIntakeOpen(selected)?null:<details id={session.role==="TENANT"?undefined:"ticket-decision"} className={styles.protocolDetails}><summary>{session.role==="TENANT"?"추가 확인":"추가 확인·결정 기록"}</summary>{session.role==="TENANT"?<TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} evidenceStep={evidenceStep}/>:<TicketReview key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} onDecided={onDecided}/>}</details>}
         </div>
         {session.role!=="TENANT"?<ManagerInspector expanded={inspectorExpanded} onExpandedChange={setInspectorExpanded}><div className={styles.actionRail}>
         <ManagerWorkDetail key={selected.ticketId} client={client} ticket={selected} revision={revision}/>
         {b1?<VendorHandoffManager communicationVersion={communicationVersion?.ticketId===selected.ticketId?communicationVersion.version:undefined} key={`vendor-${b1.orgId}-${selected.ticketId}`} client={client} ticket={selected} revision={revision} onHandoff={onManagerHandoff} onChanged={()=>void run(async()=>adopt(await client.read(selected.ticketId)))}/>:null}
         <ManagerMaintenanceFactEditor key={`maintenance-${selected.ticketId}`} client={client} ticket={selected} revision={revision} onOpenTicket={openMaintenanceTicket} onRecorded={recorded=>setFactRecorded(current=>current?.ticketId===selected.ticketId&&current.recorded===recorded?current:{ticketId:selected.ticketId,recorded})} onChanged={()=>setRevision(r=>r+1)} onViewUnit={id=>{setMaintenanceUnit(id);setManagerView("MAINTENANCE");}}/>
-        <ManagerDirectCompletionGate enabled={Boolean(b1)} handoff={managerHandoff?.ticketId===selected.ticketId?managerHandoff:null} loading={Boolean(b1&&managerHandoff?.ticketId!==selected.ticketId)}>{selected.workStatus!=="COMPLETED"?<form id="ticket-handling" className={styles.handling} onSubmit={e=>{e.preventDefault();void run(async()=>{const starting=selected.workStatus==="OPEN";adopt(await client.handling(selected.ticketId,{status:starting?"IN_PROGRESS":"COMPLETED",message,...(!starting&&communicationVersion?.ticketId===selected.ticketId?{expectedCommunicationVersion:communicationVersion.version}:{})}));setMessage("");setNotice(starting?"처리 시작 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.":"처리 완료 기록을 저장했습니다. 세입자도 새로고침하면 확인할 수 있습니다.");detailHeading.current?.focus();},true);}}>
+        <ManagerDirectCompletionGate enabled={Boolean(b1)} handoff={managerHandoff?.ticketId===selected.ticketId?managerHandoff:null} loading={Boolean(b1&&managerHandoff?.ticketId!==selected.ticketId)}>{selected.workStatus!=="COMPLETED"?<form id="ticket-handling" className={styles.handling} onSubmit={e=>{e.preventDefault();void run(async()=>{const starting=selected.workStatus==="OPEN";adopt(await client.handling(selected.ticketId,{status:starting?"IN_PROGRESS":"COMPLETED",message,...(!starting&&communicationVersion?.ticketId===selected.ticketId?{expectedCommunicationVersion:communicationVersion.version}:{})}));setMessage("");setNotice(starting?"처리 시작 기록을 저장했어요. 세입자도 새로고침하면 확인할 수 있어요.":"처리 완료 기록을 저장했어요. 세입자도 새로고침하면 확인할 수 있어요.");detailHeading.current?.focus();},true);}}>
           <label>처리 기록 <textarea aria-label="처리 기록" maxLength={2000} required value={message} onChange={e=>setMessage(e.target.value)} /></label>
           <button className={styles.primary} disabled={busy||!message.trim()||(selected.workStatus==="IN_PROGRESS"&&communicationVersion?.ticketId!==selected.ticketId)}>{selected.workStatus==="OPEN"?"처리 시작 기록":"처리 완료 기록"}</button>
-          <p>담당자가 확인한 사실을 기록하세요. 자동 출동이나 수리 검증을 뜻하지 않습니다.</p>
+          <p>담당자가 확인한 사실을 기록하세요. 자동 출동이나 수리 검증을 뜻하지 않아요.</p>
         </form>:null}</ManagerDirectCompletionGate>
         </div></ManagerInspector>:null}
       </section>:session.role!=="TENANT"?null:<>
         {followUp?<><FollowUpContext kind={followUp.claimKind}/><button disabled={busy||Boolean(followAttempt)} onClick={()=>openOutcome(followUp.sourceTicketId)}>원본 접수로 돌아가기</button></>:null}
         {units.length!==1?<label>건물·호실 <select aria-label="건물·호실" disabled={!units.length||Boolean(followUp)} value={unit} onChange={e=>setUnit(e.target.value)}>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>:null}
-        {!units.length?<p>접근 가능한 호실이 없습니다. 관리자에게 소속·호실 배정을 확인한 뒤 새로고침을 눌러 주세요.</p>:null}
+        {!units.length?<p>접근 가능한 호실이 없어요. 관리자에게 소속·호실 배정을 확인한 뒤 새로고침을 눌러 주세요.</p>:null}
         {session.role==="TENANT"&&unit?<form onSubmit={e=>{e.preventDefault();submit();}}>
           <h2>어떤 문제가 있나요?</h2><fieldset disabled={Boolean(followAttempt)} className={styles.issueChoice}><legend>문제 유형</legend>{(["HEATING","LEAK"] as const).map(value=><label key={value}><input type="radio" name="issueType" value={value} checked={issue===value} onChange={e=>setIssue(e.target.value as "HEATING"|"LEAK")}/><span>{value==="HEATING"?"난방":"누수"}</span></label>)}</fieldset>
           <label>문제 설명 <textarea aria-label="문제 설명" readOnly={Boolean(followAttempt)} value={text} maxLength={2000} required onChange={e=>setText(e.target.value)} /></label>
@@ -276,8 +276,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
           <div className={styles.submitZone}><button className={styles.primary} disabled={busy||!text.trim()}>{followAttempt?"같은 후속 접수 다시 확인·전송":"접수하기"}</button></div>
         </form>:null}
         <h2>최근 접수 <small>{tickets.filter(t=>t.unitId===unit).length}건</small></h2>
-        {conversationSummaries.error?<p role="alert">대화 대기 상태를 확인하지 못했습니다. 새로고침을 눌러 주세요.</p>:null}
-        {tickets.filter(t=>t.unitId===unit).length===0?<p>{!unit?"호실 배정 후 접수 이력을 볼 수 있습니다.":session.role==="TENANT"?"선택한 호실의 접수 내역이 없습니다. 위의 문제 접수에서 첫 내용을 남겨 주세요.":"선택한 호실의 접수 내역이 없습니다. 다른 호실을 선택하거나 새로고침으로 새 접수를 확인해 주세요."}</p>:<ul className={styles.ticketList}>{tickets.filter(t=>t.unitId===unit).map(t=><li key={t.ticketId} data-ticket-id={t.ticketId}><button data-open-ticket className={styles.ticketRow} disabled={busy||pending.length>0} onClick={()=>void run(async()=>{setSelected(await client.read(t.ticketId));setMessage("");})}><span className={styles.ticketTitle}>{t.detail.issueType==="HEATING"?"난방":"누수"}</span><span> · </span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}<CommunicationBadge summary={conversationSummaries.summaries[t.ticketId]} tenant/></button><PhotoGallery compact client={client} ticketId={t.ticketId} revision={revision} /></li>)}</ul>}
+        {conversationSummaries.error?<p role="alert">대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.</p>:null}
+        {tickets.filter(t=>t.unitId===unit).length===0?<p>{!unit?"호실 배정 후 접수 이력을 볼 수 있어요.":session.role==="TENANT"?"선택한 호실의 접수 내역이 없어요. 위의 문제 접수에서 첫 내용을 남겨 주세요.":"선택한 호실의 접수 내역이 없어요. 다른 호실을 선택하거나 새로고침으로 새 접수를 확인해 주세요."}</p>:<ul className={styles.ticketList}>{tickets.filter(t=>t.unitId===unit).map(t=><li key={t.ticketId} data-ticket-id={t.ticketId}><button data-open-ticket className={styles.ticketRow} disabled={busy||pending.length>0} onClick={()=>void run(async()=>{setSelected(await client.read(t.ticketId));setMessage("");})}><span className={styles.ticketTitle}>{t.detail.issueType==="HEATING"?"난방":"누수"}</span><span> · </span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}<CommunicationBadge summary={conversationSummaries.summaries[t.ticketId]} tenant/></button><PhotoGallery compact client={client} ticketId={t.ticketId} revision={revision} /></li>)}</ul>}
       </>}
       </div>}
     </>}

@@ -29,7 +29,7 @@ for(const deniedAction of ["refresh","timeline source","editor source"] as const
   if(deniedAction==="refresh")await page.getByRole("button",{name:"이력 다시 불러오기",exact:true}).click();
   else await (deniedAction==="timeline source"?timeline:editor).getByRole("button",{name:"근거 접수 보기",exact:true}).click();
   expect((await denied).status()).toBe(404);
-  await expect(page.getByRole("alert").filter({hasText:deniedAction==="refresh"?"접근 권한":"접수 내역을 열 수 없습니다"})).toBeVisible();
+  await expect(page.getByRole("alert").filter({hasText:deniedAction==="refresh"?"접근 권한":"접수 내역을 열 수 없어요"})).toBeVisible();
   await page.screenshot({path:testInfo.outputPath("after-denied-navigation.png")});
   await expect(timeline).toHaveCount(0);await expect(page.getByText(factLabel,{exact:false})).toHaveCount(0);await expect(page.getByRole("region",{name:"선택한 접수",exact:true})).toHaveCount(0);await expect(page.getByRole("navigation",{name:"관리자 보기"})).toHaveCount(0);await expect(page.locator("#core-tickets[data-role]")).toHaveCount(0);await expect(page.getByLabel("건물·호실",{exact:true})).toHaveCount(0);
   for(const p of [path,list])expect((await staff.context.request.get(p,{headers:staff.headers})).status()).toBe(404);expect((await staff.context.request.post(path,{headers:staff.headers,data:input})).status()).toBe(404);expect((await staff.context.request.post(correctPath,{headers:staff.headers,data:correction})).status()).toBe(404);

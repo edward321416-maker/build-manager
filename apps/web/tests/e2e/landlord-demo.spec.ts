@@ -209,17 +209,17 @@ test.describe("landlord demo", () => {
     await page.getByRole("link", { name: ticketId }).click();
     await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}$`));
 
-    await expect(page.getByRole("heading", { name: "추천 경로" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "추천 처리 방법" })).toBeVisible();
     await expect(page.getByText("관리사무소").first()).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "왜 이 경로인가" }),
+      page.getByRole("heading", { name: "이 방법을 추천한 이유" }),
     ).toBeVisible();
     await expect(page.locator(".packet-provenance").getByText("관리 방식")).toBeVisible();
     await expect(page.getByText("managementMode")).toHaveCount(0);
 
     await page.getByTestId("approve").click();
 
-    await expect(page.getByText("추천 경로를 승인했어요.")).toBeVisible();
+    await expect(page.getByText("추천 처리 방법을 승인했어요.")).toBeVisible();
     await expect(page.getByText("상태: 처리 방법 결정됨")).toBeVisible();
   });
 
@@ -232,7 +232,7 @@ test.describe("landlord demo", () => {
 
     await page.goto(`/demo/landlord/tickets/${ticketId}`);
 
-    await page.getByLabel("직접 지정할 경로").selectOption("LANDLORD_REVIEW");
+    await page.getByLabel("직접 정할 처리 방법").selectOption("LANDLORD_REVIEW");
     await page.getByLabel("지정 사유").fill("현장 확인 후 임대인이 직접 검토");
     await page.getByTestId("override").click();
 
@@ -259,7 +259,7 @@ test.describe("landlord demo", () => {
     await page.getByTestId("request-more-info").click();
 
     await expect(page.getByText("상태: 추가 확인 필요")).toBeVisible();
-    await expect(page.getByText("아직 기록된 결정이 없습니다.")).toBeVisible();
+    await expect(page.getByText("아직 기록된 결정이 없어요.")).toBeVisible();
   });
 
   test("shows a zero-ticket empty state after a demo reset", async ({
@@ -293,7 +293,7 @@ test.describe("landlord demo", () => {
     await expect(page.getByTestId("manual-route-note")).toBeVisible();
 
     // The whole closed vocabulary is offered, not just server alternatives.
-    const selector = page.getByLabel("직접 지정할 경로");
+    const selector = page.getByLabel("직접 정할 처리 방법");
     await expect(selector).toBeEnabled();
     await expect(selector.locator("option")).toHaveCount(5);
 
@@ -329,7 +329,7 @@ test.describe("landlord demo", () => {
     await page.goto(`/demo/landlord/tickets/${ticketId}`);
 
     await expect(page.getByTestId("override-unavailable")).toBeVisible();
-    await expect(page.getByLabel("직접 지정할 경로")).toHaveCount(0);
+    await expect(page.getByLabel("직접 정할 처리 방법")).toHaveCount(0);
     await expect(page.getByTestId("override")).toHaveCount(0);
     await expect(page.getByTestId("approve")).toBeDisabled();
 

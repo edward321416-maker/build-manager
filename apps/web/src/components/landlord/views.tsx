@@ -18,10 +18,10 @@ const statusName = (ticket: LandlordTicketDetailDto) =>
 
 const NO_RECOMMENDATION_REASON: Record<string, string> = {
   SAFETY_ESCALATED:
-    "안전 위험 신호가 있어 일반 추천을 중단했습니다. 사람이 직접 확인해야 합니다.",
-  MISSING_REQUIRED: "필수 정보가 아직 부족해 추천 경로가 없습니다.",
-  CONFLICTING: "제출된 정보가 서로 어긋나 추천 경로가 없습니다.",
-  AWAITING_INTAKE: "아직 접수가 끝나지 않아 추천 경로가 없습니다.",
+    "안전 위험 신호가 있어 일반 추천을 중단했어요. 사람이 직접 확인해야 해요.",
+  MISSING_REQUIRED: "필수 정보가 아직 부족해요.",
+  CONFLICTING: "제출된 정보가 서로 어긋나요.",
+  AWAITING_INTAKE: "아직 접수가 끝나지 않았어요.",
 };
 
 export function DemoBanner() {
@@ -158,22 +158,22 @@ export function RepairPacketPanel({
       </p>
 
       {packet === null ? (
-        <p className="packet-empty">{NO_RECOMMENDATION_REASON.AWAITING_INTAKE}</p>
+        <p className="packet-empty">추천할 처리 방법이 없어요. {NO_RECOMMENDATION_REASON.AWAITING_INTAKE}</p>
       ) : (
         <>
           <p className="packet-summary">{packet.summary}</p>
 
           {recommendation === null ? (
             <p className="no-recommendation" data-state={state}>
-              추천 경로가 없습니다. {NO_RECOMMENDATION_REASON[state]}
+              추천할 처리 방법이 없어요. {NO_RECOMMENDATION_REASON[state]}
             </p>
           ) : (
             <>
-              <h3>추천 경로</h3>
+              <h3>추천 처리 방법</h3>
               <p className="recommendation" data-route={recommendation.routeCode}>
                 {routeLabel(recommendation.routeCode)}
               </p>
-              <h3>왜 이 경로인가</h3>
+              <h3>이 방법을 추천한 이유</h3>
               <ul className="recommendation-reasons">
                 {recommendation.reasons.map((reason) => (
                   <li key={reason}>{reason}</li>
@@ -184,7 +184,7 @@ export function RepairPacketPanel({
 
           <h3>판단 근거가 된 건물 정보</h3>
           {packet.provenance.length === 0 ? (
-            <p className="provenance-empty">사용된 라우팅 기준 정보가 없습니다.</p>
+            <p className="provenance-empty">추천에 쓴 건물 정보가 없어요.</p>
           ) : (
             <ul className="packet-provenance">
               {packet.provenance.map((key) => (
@@ -197,11 +197,11 @@ export function RepairPacketPanel({
 
       <h3>사람의 결정</h3>
       {ticket.decision === null ? (
-        <p className="decision-empty">아직 기록된 결정이 없습니다.</p>
+        <p className="decision-empty">아직 기록된 결정이 없어요.</p>
       ) : (
         <p className="decision" data-decision={ticket.decision.type}>
           {ticket.decision.type === "APPROVE"
-            ? "추천 경로를 승인했어요."
+            ? "추천 처리 방법을 승인했어요."
             : ticket.decision.type === "OVERRIDE"
               ? `관리자가 처리 방법을 직접 정했어요: ${routeLabel(ticket.decision.routeCode)}`
               : "추가 정보를 요청했어요."}
@@ -223,14 +223,14 @@ export function StateMessage({
   if (kind === "loading") {
     return (
       <p className="state-loading" role="status">
-        불러오는 중입니다…
+        불러오는 중이에요…
       </p>
     );
   }
 
   return (
     <div className="state-error" role="alert">
-      <p>{message ?? "오류가 발생했습니다."}</p>
+      <p>{message ?? "오류가 발생했어요."}</p>
       <button type="button" onClick={onRetry}>
         다시 시도
       </button>

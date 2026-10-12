@@ -69,7 +69,7 @@ test("compact intake preview keeps native selection and puts submit directly aft
     const preview = picker.getByAltText("전송 전 사진 1 미리보기"); await expect(preview).toBeVisible();
     expect((await preview.boundingBox())!.width).toBeLessThan((await picker.boundingBox())!.width / 2);
     await expect(picker.getByText("JPEG·PNG · 최대 3장", { exact: true })).toHaveCount(1);
-    const recovery = picker.getByText(/선택한 사진은 아직 저장되지 않았습니다/); await expect(recovery).not.toBeVisible();
+    const recovery = picker.getByText(/선택한 사진은 아직 저장되지 않았어요/); await expect(recovery).not.toBeVisible();
     await picker.getByText("사진 도움말", { exact: true }).click(); await expect(recovery).toBeVisible(); await picker.getByText("사진 도움말", { exact: true }).click();
     const submit = page.getByRole("button", { name: "접수하기", exact: true }), recent = page.getByRole("heading", { name: /^최근 접수/ });
     const a = (await picker.boundingBox())!, b = (await submit.boundingBox())!, c = (await recent.boundingBox())!;
@@ -96,8 +96,8 @@ test("compact photo validation and failed upload preserve prominent recovery and
     await page.getByLabel("문제 설명").fill("합성 compact 전송 복구 확인");
     let uploads = 0, creates = 0; page.on("request", r => { if (r.method() === "POST" && r.url().endsWith("/core/tickets")) creates++; });
     await page.route("**/api/v2/core/tickets/*/photos", route => { if (route.request().method() !== "POST") return route.continue(); uploads++; return uploads === 1 ? route.abort() : route.continue(); });
-    await page.getByRole("button", { name: "접수하기", exact: true }).click(); await expect(page.getByText(/사진 전송 결과를 확인하지 못했습니다/)).toBeVisible();
-    await expect(page.getByText(/선택한 사진은 아직 저장되지 않았습니다/)).toBeVisible(); await expect(page.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();
+    await page.getByRole("button", { name: "접수하기", exact: true }).click(); await expect(page.getByText(/사진 전송 결과를 확인하지 못했어요/)).toBeVisible();
+    await expect(page.getByText(/선택한 사진은 아직 저장되지 않았어요/)).toBeVisible(); await expect(page.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();
     await page.getByRole("button", { name: "사진 저장", exact: true }).click(); await expect(page.getByRole("region", { name: "사진", exact: true }).getByRole("img")).toHaveCount(1);
     await expect(page.getByAltText("전송 전 사진 1 미리보기")).toHaveCount(0); expect(creates).toBe(1); expect(uploads).toBe(2);
   } finally { await tenant.close(); }

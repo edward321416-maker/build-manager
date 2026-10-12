@@ -17,12 +17,12 @@ function Preview({file,index}:{file:File;index:number}){
 export function PhotoPicker({files,onChange,disabled=false,compact=false}:{files:PendingPhoto[];onChange:(files:PendingPhoto[])=>void;disabled?:boolean;compact?:boolean}){
   const [error,setError]=useState("");
   const constraints=<p>한 장당 5MiB·2천만 화소 이하만 올릴 수 있어요. 사진을 자동으로 분석하지 않아요. 접수에 꼭 필요한 사진은 다음 단계에서 직접 골라요.</p>;
-  const recovery=<p>선택한 사진은 아직 저장되지 않았습니다. 전송 실패 시 이 화면에서 다시 시도할 수 있습니다. 페이지를 닫거나 새로고침하면 미전송 선택은 사라집니다.</p>;
+  const recovery=<p>선택한 사진은 아직 저장되지 않았어요. 전송 실패 시 이 화면에서 다시 시도할 수 있어요. 페이지를 닫거나 새로고침하면 미전송 선택은 사라져요.</p>;
   return <section className="core-photos" data-compact={compact} aria-label="사진 선택 및 미리보기">
     <PhotoSelectionSurface selectionCount={files.length} disabled={disabled} compact={compact}><input aria-label="참고 사진 선택" type="file" accept="image/jpeg,image/png" multiple disabled={disabled} onChange={e=>{
       const added=Array.from(e.target.files??[]);e.target.value="";
-      if(files.length+added.length>3){setError("한 접수에 사진은 최대 3장입니다.");return;}
-      if(added.some(f=>!['image/jpeg','image/png'].includes(f.type)||f.size>CORE_PHOTO_MAX_BYTES)){setError("JPEG·PNG만 선택하세요. 한 장당 5MiB 이하입니다.");return;}
+      if(files.length+added.length>3){setError("한 접수에 사진은 최대 3장이에요.");return;}
+      if(added.some(f=>!['image/jpeg','image/png'].includes(f.type)||f.size>CORE_PHOTO_MAX_BYTES)){setError("JPEG·PNG만 선택하세요. 한 장당 5MiB 이하예요.");return;}
       setError("");onChange([...files,...added.map(file=>({file,uploadId:crypto.randomUUID()}))]);
     }} /></PhotoSelectionSurface>
     {!compact?<details><summary>사진 도움말</summary>{constraints}</details>:null}
@@ -52,7 +52,7 @@ function LoadedGallery({client,ticketId,compact,named,retry}:{client:CoreFlowCli
   useEffect(()=>{if(zoom)dialog.current?.showModal();else dialog.current?.close();},[zoom]);
   return <section className="core-photos" aria-label={compact?"이력의 첨부 사진":"사진"}>
     {!compact?<h2>사진</h2>:null}
-    {loading?<p>사진 불러오는 중…</p>:error?<p role="alert">사진을 불러오지 못했습니다. <button type="button" onClick={retry}>사진 다시 불러오기</button></p>:!photos.length?(!compact?<p>저장된 사진이 없습니다. 글만으로도 접수할 수 있습니다.</p>:null):<div className="photo-grid">{photos.map(({photo,url},i)=><figure key={photo.photoId}><button type="button" aria-label={`저장된 사진 ${i+1} 확대`} onClick={()=>setZoom(url)}><img src={url} alt={`접수 참고 사진 ${i+1}`} /></button>{!compact?<figcaption>사진 {i+1} · <DateTime at={photo.createdAt}/>{names.has(photo.photoId)?<span className="photo-evidence">{names.get(photo.photoId)!.join(", ")}</span>:null}</figcaption>:null}</figure>)}</div>}
+    {loading?<p>사진 불러오는 중…</p>:error?<p role="alert">사진을 불러오지 못했어요. <button type="button" onClick={retry}>사진 다시 불러오기</button></p>:!photos.length?(!compact?<p>저장된 사진이 없어요. 글만으로도 접수할 수 있어요.</p>:null):<div className="photo-grid">{photos.map(({photo,url},i)=><figure key={photo.photoId}><button type="button" aria-label={`저장된 사진 ${i+1} 확대`} onClick={()=>setZoom(url)}><img src={url} alt={`접수 참고 사진 ${i+1}`} /></button>{!compact?<figcaption>사진 {i+1} · <DateTime at={photo.createdAt}/>{names.has(photo.photoId)?<span className="photo-evidence">{names.get(photo.photoId)!.join(", ")}</span>:null}</figcaption>:null}</figure>)}</div>}
     <dialog ref={dialog} className="photo-dialog" onClose={()=>setZoom(null)} aria-label="첨부 사진 확대"
       onKeyDown={event=>{if(event.key==="Tab"){event.preventDefault();event.currentTarget.querySelector<HTMLButtonElement>("button")?.focus();}}}>
       <button type="button" onClick={()=>setZoom(null)}>사진 닫기</button>{zoom?<img src={zoom} alt="확대한 접수 참고 사진" />:null}</dialog>
@@ -61,8 +61,8 @@ function LoadedGallery({client,ticketId,compact,named,retry}:{client:CoreFlowCli
 
 export function photoError(error:unknown){
   const status=error instanceof ApiClientError?error.status:undefined;
-  if(status===413)return "사진 용량 또는 화소가 한도를 넘습니다. 5MiB·2천만 화소 이하 사진을 선택하세요.";
+  if(status===413)return "사진 용량 또는 화소가 한도를 넘어요. 5MiB·2천만 화소 이하 사진을 선택하세요.";
   if(status===400||status===415)return "읽을 수 있는 JPEG·PNG 사진을 선택해 주세요.";
-  if(status===409)return "사진을 저장하지 못했습니다. 저장 상태 확인으로 이미 저장된 사진과 완료 상태를 확인하세요. 최대 3장까지 첨부할 수 있습니다.";
-  return "사진 전송 결과를 확인하지 못했습니다. 접수는 이미 저장되어 있습니다. 선택은 유지했습니다. 저장 상태 확인 후 사진만 다시 전송해 주세요.";
+  if(status===409)return "사진을 저장하지 못했어요. 저장 상태 확인으로 이미 저장된 사진과 완료 상태를 확인하세요. 최대 3장까지 첨부할 수 있어요.";
+  return "사진 전송 결과를 확인하지 못했어요. 접수는 이미 저장되어 있어요. 선택은 유지했어요. 저장 상태 확인 후 사진만 다시 전송해 주세요.";
 }

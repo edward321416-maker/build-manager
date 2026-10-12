@@ -247,7 +247,7 @@ describe("follow-up panel", () => {
       />,
     );
 
-    expect(html).toContain("추가정보가 반영되었습니다. 다시 제출해 주세요.");
+    expect(html).toContain("추가 정보가 반영됐어요. 다시 제출해 주세요.");
     expect(html).toContain("누수 위치를 다시 확인해 주세요");
   });
 });

@@ -156,19 +156,19 @@ export function TicketReview({ ticketId, client, coreFlow=false, onStatusChange,
                   void runAction((client) => client.approveRoute(ticketId))
                 }
               >
-                추천 경로 승인
+                추천 처리 방법 승인
               </button>
               {canApprove(state.ticket) ? null : (
                 <p className="action-note">
-                  현재 상태에서는 승인할 수 있는 추천 경로가 없습니다.
+                  지금은 승인할 수 있는 추천 처리 방법이 없어요.
                 </p>
               )}
             </div>
 
             {manualRouteMode(state.ticket) === "NONE" ? (
               <p className="action-note" data-testid="override-unavailable">
-                안전 확인이 필요한 요청이므로 일반 경로 지정을 제공하지 않습니다.
-                사람이 직접 상황을 확인해야 합니다.
+                안전 확인이 필요한 요청이라 일반 처리 방법은 직접 정할 수 없어요.
+                사람이 직접 상황을 확인해야 해요.
               </p>
             ) : (
               <form
@@ -192,7 +192,7 @@ export function TicketReview({ ticketId, client, coreFlow=false, onStatusChange,
                   </p>
                 ) : null}
 
-                <label htmlFor="overrideRoute">직접 지정할 경로</label>
+                <label htmlFor="overrideRoute">직접 정할 처리 방법</label>
                 <select
                   id="overrideRoute"
                   name="overrideRoute"
@@ -231,7 +231,7 @@ export function TicketReview({ ticketId, client, coreFlow=false, onStatusChange,
                     overrideReason.trim().length === 0
                   }
                 >
-                  경로 직접 지정
+                  처리 방법 직접 정하기
                 </button>
               </form>
             )}
@@ -323,7 +323,7 @@ export function TicketReview({ ticketId, client, coreFlow=false, onStatusChange,
               </button>
               {canRequestMoreInfo(state.ticket) ? null : (
                 <p className="action-note">
-                  현재 상태에서는 추가 정보를 요청할 수 없습니다.
+                  지금은 추가 정보를 요청할 수 없어요.
                 </p>
               )}
               {requestedQuestionIds.length + requestedEvidenceTypes.length ===

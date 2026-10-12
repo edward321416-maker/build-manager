@@ -193,7 +193,7 @@ export function FollowUpPanel({
 
       {fulfilled ? (
         <p className="follow-up-done" data-testid="follow-up-done">
-          추가정보가 반영되었습니다. 다시 제출해 주세요.
+          추가 정보가 반영됐어요. 다시 제출해 주세요.
         </p>
       ) : (
         <>

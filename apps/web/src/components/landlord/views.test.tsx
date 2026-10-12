@@ -226,7 +226,7 @@ describe("repair packet", () => {
       />,
     );
 
-    expect(html).toContain("추천 경로가 없습니다");
+    expect(html).toContain("추천할 처리 방법이 없어요");
     expect(html).not.toContain("관리사무소 관리 건물의 천장·벽 누수");
   });
 

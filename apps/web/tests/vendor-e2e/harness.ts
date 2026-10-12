@@ -87,16 +87,16 @@ export async function issueThroughUI(page: Page, id: string, preauthorized = fal
   await openTicket(page, id, true);
   await page.getByLabel('업체 표시 이름', { exact: true }).fill('Task12 synthetic Vendor');
   await click(page, '작업 요청 준비');
-  await expect(page.getByText('작업 요청 준비를 저장했습니다.', { exact: true })).toBeVisible();
+  await expect(page.getByText('작업 요청 준비를 저장했어요.', { exact: true })).toBeVisible();
   await page.getByLabel('업체 작업 설명', { exact: true }).fill('Task12 synthetic minimum packet');
   if (preauthorized) await page.getByLabel('출입 정책', { exact: true }).selectOption('TENANT_PREAUTHORIZATION_ALLOWED');
   await click(page, '업체 전달 내용 미리보기');
   const preview = page.getByRole('region', { name: '업체 전달 내용 미리보기', exact: true });
   expect(await preview.innerText()).not.toContain('Task12 synthetic private resident text');
   await keyboardClick(page, '업체 전달 내용 게시');
-  await expect(page.getByText('업체 전달 내용을 게시했습니다.', { exact: true })).toBeVisible();
+  await expect(page.getByText('업체 전달 내용을 게시했어요.', { exact: true })).toBeVisible();
   await keyboardClick(page, '보안 링크 발급');
-  await expect(page.getByText('보안 링크를 발급했습니다. 업체에 직접 전달하세요.', { exact: true })).toBeVisible();
+  await expect(page.getByText('보안 링크를 발급했어요. 업체에 직접 전달하세요.', { exact: true })).toBeVisible();
   const input = page.getByLabel('직접 전달할 보안 링크', { exact: true });
   // Boolean assertion never lets a failure render the input's secret value.
   expect(await input.count(), 'immediate link remains mounted after own Core version refresh').toBe(1);

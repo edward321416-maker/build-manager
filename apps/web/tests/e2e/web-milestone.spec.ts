@@ -103,9 +103,9 @@ test.describe("web milestone golden path", () => {
     await ticketLink.click();
     await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}$`));
 
-    await expect(page.getByRole("heading", { name: "추천 경로" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "추천 처리 방법" })).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "왜 이 경로인가" }),
+      page.getByRole("heading", { name: "이 방법을 추천한 이유" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "판단 근거가 된 건물 정보" }),
