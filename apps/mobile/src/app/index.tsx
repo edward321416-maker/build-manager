@@ -2,6 +2,7 @@ import { HERO_MESSAGE, PRODUCT_NAME } from "@build-manager/api-contracts";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { ActionButton, DemoBanner, Screen, SectionHeading } from "../components/ui";
+import { color, space, text } from "../design/tokens";
 
 export default function RoleHomeScreen() {
   const router = useRouter();
@@ -36,15 +37,11 @@ export default function RoleHomeScreen() {
   );
 }
 
+// Design rules v1 values (src/design/tokens.ts): no widened letter spacing, weights 400/600/700 only (§3.2).
 const styles = StyleSheet.create({
-  header: { gap: 10 },
-  eyebrow: {
-    color: "#7b4c2f",
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 2,
-  },
-  title: { color: "#17322b", fontSize: 34, fontWeight: "800", lineHeight: 40 },
-  message: { color: "#426057", fontSize: 17, lineHeight: 25 },
-  group: { gap: 10 },
+  header: { gap: space.s2 },
+  eyebrow: { ...text.caption, color: color.textSecondary },
+  title: { ...text.title, color: color.text },
+  message: { ...text.body, color: color.textSecondary },
+  group: { gap: space.s2 },
 });

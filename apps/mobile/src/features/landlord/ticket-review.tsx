@@ -14,6 +14,7 @@ import {
   Screen,
   SectionHeading,
 } from "../../components/ui";
+import { color, radius, size, space, text } from "../../design/tokens";
 import { describeMobileError } from "../../lib/errors";
 import {
   canApprove,
@@ -379,29 +380,31 @@ export function TicketReview({
   );
 }
 
+// Design rules v1 values (src/design/tokens.ts).
 const styles = StyleSheet.create({
-  header: { gap: 4 },
-  title: { color: "#17322b", fontSize: 24, fontWeight: "800" },
+  header: { gap: space.s1 },
+  title: { ...text.title, color: color.text },
+  // A group area: surface fill, 1px edge, 15 corners (rules §6.2).
   card: {
     borderWidth: 1,
-    borderColor: "#c9c1ad",
-    borderRadius: 12,
-    backgroundColor: "#fffdf7",
-    padding: 14,
-    gap: 10,
+    borderColor: color.borderStrong,
+    borderRadius: radius.group,
+    backgroundColor: color.surface,
+    padding: space.s3,
+    gap: space.s2,
   },
-  group: { gap: 8 },
-  body: { color: "#426057", fontSize: 15, lineHeight: 22 },
-  rowLabel: { color: "#17322b", fontSize: 14, fontWeight: "700" },
-  recommendation: { color: "#17322b", fontSize: 20, fontWeight: "800" },
+  group: { gap: space.s2 },
+  body: { ...text.body, color: color.textSecondary },
+  rowLabel: { ...text.label, color: color.text },
+  recommendation: { ...text.heading, color: color.text },
   input: {
-    minHeight: 48,
+    minHeight: size.target,
     borderWidth: 1,
-    borderColor: "#c9c1ad",
-    borderRadius: 10,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    color: "#17322b",
-    fontSize: 16,
+    borderColor: color.borderControl,
+    borderRadius: radius.control,
+    backgroundColor: color.surface,
+    paddingHorizontal: space.s3,
+    ...text.body,
+    color: color.text,
   },
 });

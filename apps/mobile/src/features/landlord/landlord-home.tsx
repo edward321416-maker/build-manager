@@ -13,6 +13,7 @@ import {
   Screen,
   SectionHeading,
 } from "../../components/ui";
+import { color, space, text } from "../../design/tokens";
 import { describeMobileError } from "../../lib/errors";
 
 type LoadState =
@@ -140,10 +141,11 @@ export function LandlordHome({
   );
 }
 
+// Design rules v1 values (src/design/tokens.ts).
 const styles = StyleSheet.create({
-  header: { gap: 6 },
-  title: { color: "#17322b", fontSize: 26, fontWeight: "800" },
-  tagline: { color: "#426057", fontSize: 16 },
-  group: { gap: 8 },
-  body: { color: "#426057", fontSize: 15, lineHeight: 22 },
+  header: { gap: space.s1 },
+  title: { ...text.title, color: color.text },
+  tagline: { ...text.body, color: color.textSecondary },
+  group: { gap: space.s2 },
+  body: { ...text.body, color: color.textSecondary },
 });

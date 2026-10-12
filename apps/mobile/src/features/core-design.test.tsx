@@ -1,7 +1,34 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import { ActionButton as DemoActionButton } from "../components/ui";
+import { color, status, text } from "../design/tokens";
 import { ActionButton, CoreText, CoreWorkStatus, Screen } from "./core-ui";
+
+// Design rules v1 colours on the shared buttons and status labels (§2.2–§2.4, §8.7).
+it.each([["core", ActionButton], ["demo", DemoActionButton]] as const)("draws the %s button in the rules' colours, disabled without transparency", async (_name, Button) => {
+  const view = await render(<Button label="접수하기" onPress={() => {}}/>);
+  const box = () => StyleSheet.flatten(screen.getByRole("button", { name: "접수하기" }).props.style);
+  const label = () => StyleSheet.flatten(screen.getByText(/접수하기$/).props.style);
+  expect(box()).toMatchObject({ backgroundColor: color.surface, borderColor: color.borderStrong });
+  expect(label()).toMatchObject({ ...text.label, color: color.text });
+  await view.rerender(<Button label="접수하기" selected onPress={() => {}}/>);
+  expect(box()).toMatchObject({ backgroundColor: color.primarySoft, borderColor: color.primary, borderWidth: 2 });
+  await view.rerender(<Button label="접수하기" disabled onPress={() => {}}/>);
+  expect(box()).toMatchObject({ backgroundColor: color.fillSubtle, borderColor: color.border });
+  expect(box().opacity).toBeUndefined();
+  expect(label()).toMatchObject({ color: color.textSecondary });
+});
+
+it("fills the core primary button with the brand blue and inverse text", async () => {
+  await render(<ActionButton label="접수하기" primary onPress={() => {}}/>);
+  expect(StyleSheet.flatten(screen.getByRole("button", { name: "접수하기" }).props.style)).toMatchObject({ backgroundColor: color.primary });
+  expect(StyleSheet.flatten(screen.getByText("접수하기").props.style)).toMatchObject({ color: color.textInverse });
+});
+
+it.each([["OPEN", status.neutral], ["IN_PROGRESS", status.progress], ["COMPLETED", status.done]] as const)("shows %s in its status colour pair", async (work, pair) => {
+  await render(<CoreWorkStatus status={work}/>);
+  expect(StyleSheet.flatten(screen.getByTestId("work-status").props.style)).toMatchObject({ ...pair, ...text.label, borderRadius: 5 });
+});
 
 it.each([
   ["core", ActionButton, {}], ["core selected", ActionButton, { selected: true }], ["core primary", ActionButton, { primary: true }],

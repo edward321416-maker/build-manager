@@ -3,7 +3,7 @@ import type { CoreSessionDto,CoreTicketDto,CoreUnitDto } from "@build-manager/ap
 import { useCallback,useState } from "react";
 import { TextInput,View } from "react-native";
 import { useRouter } from "expo-router";
-import { Screen,ActionButton,SectionHeading,CoreText as Text,CoreHeader,CoreWorkStatus,coreInputStyle } from "../features/core-ui";
+import { Screen,ActionButton,SectionHeading,ScreenTitle,CoreText as Text,CoreHeader,CoreWorkStatus,coreInputStyle,coreCaptionStyle } from "../features/core-ui";
 import { resolveMobileApiBaseUrl } from "../lib/api-config";
 import { TenantTicket } from "../features/tenant/tenant-ticket";
 import { TicketReview } from "../features/landlord/ticket-review";
@@ -22,8 +22,8 @@ export default function CoreFlowScreen(){
   const run=async(action:()=>Promise<void>)=>{setBusy(true);setError("");try{await action();}catch(e){if(e instanceof ApiClientError && (e.status===401||e.status===403)){setSession(null);setClient(null);setSelected(null);setDetails(false);setTickets([]);setUnits([]);}else if(e instanceof ApiClientError && e.status===404){setSelected(null);setDetails(false);}setError("처리하지 못했습니다. 서버 주소·입력·접근 권한·연결을 확인하세요.");}finally{setBusy(false);}};
   if(details&&selected&&client&&session)return <View style={{flex:1}}><ActionButton label="← 처리 이력으로" onPress={()=>{setDetails(false);void run(async()=>setSelected(await client.read(selected.ticketId)));}} />{session.role==="TENANT"?<TenantTicket client={client.protocol} ticketId={selected.ticketId} coreFlow />:<TicketReview client={client.protocol} ticketId={selected.ticketId} onBack={()=>setDetails(false)} coreFlow />}</View>;
   return <Screen>
-    <CoreHeader><SectionHeading inverse>우리 집 수리 접수</SectionHeading>
-    <Text style={{color:"#D8E3F0",fontSize:14,lineHeight:21}}>RC1 합성 개발 계정 전용 · 사진 업로드·실제 로그인·업체 출동·알림 미지원</Text></CoreHeader>
+    <CoreHeader><ScreenTitle>우리 집 수리 접수</ScreenTitle>
+    <Text style={coreCaptionStyle}>RC1 합성 개발 계정 전용 · 사진 업로드·실제 로그인·업체 출동·알림 미지원</Text></CoreHeader>
     <ActionButton label="← 앱 홈" onPress={()=>router.back()} />
     {error?<Text accessibilityRole="alert">{error}</Text>:null}{busy?<Text>불러오는 중…</Text>:null}
     {!session||!client?<>

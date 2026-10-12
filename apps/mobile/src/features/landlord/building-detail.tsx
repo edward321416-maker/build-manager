@@ -15,6 +15,7 @@ import {
   Screen,
   SectionHeading,
 } from "../../components/ui";
+import { color, radius, space, text } from "../../design/tokens";
 import { describeMobileError } from "../../lib/errors";
 import { contextRows } from "./logic";
 
@@ -242,21 +243,23 @@ export function BuildingDetail({
   );
 }
 
+// Design rules v1 values (src/design/tokens.ts).
 const styles = StyleSheet.create({
-  header: { gap: 6 },
-  title: { color: "#17322b", fontSize: 24, fontWeight: "800" },
-  note: { color: "#6b7f78", fontSize: 13, lineHeight: 19 },
+  header: { gap: space.s1 },
+  title: { ...text.title, color: color.text },
+  note: { ...text.caption, color: color.textSecondary },
+  // A group area: surface fill, 1px edge, 15 corners (rules §6.2).
   card: {
     borderWidth: 1,
-    borderColor: "#c9c1ad",
-    borderRadius: 12,
-    backgroundColor: "#fffdf7",
-    padding: 14,
-    gap: 12,
+    borderColor: color.borderStrong,
+    borderRadius: radius.group,
+    backgroundColor: color.surface,
+    padding: space.s3,
+    gap: space.s2,
   },
-  row: { gap: 2 },
-  rowLabel: { color: "#17322b", fontSize: 14, fontWeight: "700" },
-  rowValue: { color: "#426057", fontSize: 15 },
-  rowTag: { color: "#6b7f78", fontSize: 12 },
-  group: { gap: 8 },
+  row: { gap: space.s1 },
+  rowLabel: { ...text.label, color: color.text },
+  rowValue: { ...text.body, color: color.textSecondary },
+  rowTag: { ...text.caption, color: color.textSecondary },
+  group: { gap: space.s2 },
 });
