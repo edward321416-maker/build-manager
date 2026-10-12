@@ -145,7 +145,8 @@ function inspect() {
   const lines = rs => {
     const text = rs.filter(r => r.text), boxes = rs.filter(r => !r.text), placed = new Set(), ls = [];
     for (const r of [...text].sort((a, b) => a.top - b.top)) { const mid = (r.top + r.bottom) / 2, l = ls.find(l => mid > l.band.top && mid < l.band.bottom); if (l) l.pieces.push(r); else ls.push({ band: r, pieces: [r] }); }
-    const beside = (b, band) => Math.min(b.bottom, band.bottom) - Math.max(b.top, band.top) > (band.bottom - band.top) / 2;
+    // Beside a line: the piece's middle lies in the line, or the two overlap by more than half of the shorter one.
+    const beside = (b, band) => { const mid = (b.top + b.bottom) / 2; return (mid > band.top && mid < band.bottom) || Math.min(b.bottom, band.bottom) - Math.max(b.top, band.top) > Math.min(b.bottom - b.top, band.bottom - band.top) / 2; };
     return [...ls.map(l => { const bs = boxes.filter(b => beside(b, l.band)); bs.forEach(b => placed.add(b)); return union([...l.pieces, ...bs]); }), ...boxes.filter(b => !placed.has(b)).map(b => union([b]))];
   };
   // Gaps are measured inside the borders, where CSS centres the content, so an underline border is not counted as space.
