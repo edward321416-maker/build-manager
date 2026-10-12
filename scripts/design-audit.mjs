@@ -123,25 +123,34 @@ function inspect() {
       if (c.nodeType === 3) {
         if (!c.textContent.trim()) continue;
         const cs = getComputedStyle(c.parentElement), line = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
-        for (const r of rects(c)) { const pad = Math.max(0, (line - r.height) / 2); out.push({ left: r.left, right: r.right, top: r.top - pad, bottom: r.bottom + pad }); }
+        for (const r of rects(c)) { const pad = Math.max(0, (line - r.height) / 2); out.push({ text: true, left: r.left, right: r.right, top: r.top - pad, bottom: r.bottom + pad }); }
         continue;
       }
       if (c.nodeType !== 1 || hiddenText(c)) continue;
       const cs = getComputedStyle(c);
-      if (cs.position === "absolute" || cs.position === "fixed") continue;
+      // A positioned piece without text is a decoration (an unread dot); positioned text still counts.
+      if ((cs.position === "absolute" || cs.position === "fixed") && !c.textContent.trim()) continue;
       if (cs.display !== "contents" && (c.matches("img, svg, canvas, video, input") || visibleSides(c).size)) { const r = c.getBoundingClientRect(); if (r.width > 0 && r.height > 0) out.push(r); continue; }
       visit(c);
     } };
     visit(el); return out;
   };
   const union = rs => rs.reduce((u, r) => ({ left: Math.min(u.left, r.left), right: Math.max(u.right, r.right), top: Math.min(u.top, r.top), bottom: Math.max(u.bottom, r.bottom) }), { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity });
-  // Pieces that overlap by more than half of the lower one sit on the same line.
-  const lines = rs => { const ls = []; for (const r of [...rs].sort((a, b) => a.top - b.top)) { const i = ls.findIndex(l => Math.min(l.bottom, r.bottom) - Math.max(l.top, r.top) > Math.min(l.bottom - l.top, r.bottom - r.top) / 2); if (i < 0) ls.push(union([r])); else ls[i] = union([ls[i], r]); } return ls; };
+  // Lines come from the text alone: a piece joins a line when its middle lies inside that line's first piece, so lines
+  // never grow into each other. An icon, image or inner box then widens every line it sits beside; without text, each
+  // such piece is a line of its own.
+  const lines = rs => {
+    const text = rs.filter(r => r.text), boxes = rs.filter(r => !r.text);
+    if (!text.length) return boxes.map(r => union([r]));
+    const ls = [];
+    for (const r of [...text].sort((a, b) => a.top - b.top)) { const mid = (r.top + r.bottom) / 2, l = ls.find(l => mid > l.band.top && mid < l.band.bottom); if (l) l.pieces.push(r); else ls.push({ band: r, pieces: [r] }); }
+    return ls.map(l => union([...l.pieces, ...boxes.filter(b => Math.min(b.bottom, l.band.bottom) - Math.max(b.top, l.band.top) > (l.band.bottom - l.band.top) / 2)]));
+  };
   // Gaps are measured inside the borders, where CSS centres the content, so an underline border is not counted as space.
   const inner = el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el), b = s => parseFloat(cs["border" + s + "Width"]) || 0; return { left: r.left + b("Left"), right: r.right - b("Right"), top: r.top + b("Top"), bottom: r.bottom - b("Bottom") }; };
   // Rows read from the left compare only top and bottom: summary rows, list rows that open a request (rules §8.5),
   // checkbox and radio rows (§8.4) and the left menu, which is the account column once it sticks to the side.
-  const leftStart = el => el.matches("summary, [data-open-ticket], .field-check label") || (el.matches(".core-account nav a, .core-account .core-logout") && getComputedStyle(el.closest(".core-account")).position === "sticky");
+  const leftStart = el => el.matches("summary, [data-open-ticket], .field-check label, label:has(input[type=checkbox])") ||(el.matches(".core-account nav a, .core-account .core-logout") && getComputedStyle(el.closest(".core-account")).position === "sticky");
   const badge = el => [...el.classList].some(c => /(^|__)badge$/i.test(c) || /[a-z]Badge$/.test(c)) || el.matches("span[data-work-state], span[data-intake-state]");
   for (const el of new Set([...taps, ...[...document.querySelectorAll("body *")].filter(badge)])) {
     if (hiddenText(el) || el.matches("select, textarea, input")) continue;
