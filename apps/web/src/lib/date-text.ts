@@ -32,14 +32,20 @@ export const meridiem = (p: Pick<ClockParts, "hour">) => (p.hour < 12 ? "오전"
 export const clockText = (p: Pick<ClockParts, "hour" | "minute">) => `${p.hour % 12 === 0 ? 12 : p.hour % 12}:${String(p.minute).padStart(2, "0")}`;
 export const timeText = (p: Pick<ClockParts, "hour" | "minute">) => `${meridiem(p)} ${clockText(p)}`;
 
+const sameSeoulDay = (a: number, b: number) => {
+  const x = clockParts(a), y = clockParts(b);
+  return x.year === y.year && x.month === y.month && x.day === y.day;
+};
+
 /**
  * `방금` under a minute ago, then `10분 전` for the rest of the last hour, else null. Past the first minute, minutes are
- * counted on the clock (2:00 minus 1:49 is 11), so they agree with the time shown beside them. A server time up to a
- * minute ahead of this clock is ordinary skew and reads `방금`; anything later is a future time and gets the date.
+ * counted on the clock (2:00 minus 1:49 is 11), so they agree with the time shown beside them. Only the same Seoul day
+ * counts: a time from before midnight gets its date, since the time alone would not say which day. A server time up
+ * to a minute ahead of this clock is ordinary skew and reads `방금`; anything later is a future time and gets the date.
  */
 export function relativeText(at: string, now: Date): string | null {
   const then = Date.parse(at), current = now.getTime();
-  if (!Number.isFinite(then) || current - then <= -MINUTE_MS) return null;
+  if (!Number.isFinite(then) || current - then <= -MINUTE_MS || !sameSeoulDay(Math.min(then, current), current)) return null;
   if (current - then < MINUTE_MS) return "방금";
   const minutes = Math.floor(current / MINUTE_MS) - Math.floor(then / MINUTE_MS);
   return minutes < 60 ? `${minutes}분 전` : null;

@@ -10,9 +10,9 @@ const now = new Date("2026-10-12T05:00:00Z");
 afterEach(() => { vi.useRealTimers(); });
 
 describe("DateTime", () => {
-  it("shows a recent instant as relative time with the exact time beside it, and the date in the title", () => {
+  it("shows a recent instant as relative time with the exact time beside it, all on screen and no hover title", () => {
     const html = renderToStaticMarkup(<DateTime at="2026-10-12T04:50:00Z" now={now} />);
-    expect(html).toBe('<time dateTime="2026-10-12T04:50:00Z" title="10월 12일 (월) 오후 1:50">10분 전 (오후 1:50)</time>');
+    expect(html).toBe('<time dateTime="2026-10-12T04:50:00Z">10분 전 (오후 1:50)</time>');
   });
 
   it("shows an older instant as the date and time without a title", () => {

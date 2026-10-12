@@ -47,6 +47,13 @@ describe("date text (design rules section 14, Seoul time)", () => {
     expect(formatDateTime("2026-10-12T04:00:50Z", { now: ten })).toBe("10월 12일 (월) 오후 1:00");
   });
 
+  it("keeps relative time to the same Seoul day, so a time from before midnight always shows its date", () => {
+    // 00:20 on 13 October in Seoul; 23:40 the day before is 40 minutes ago but on another day.
+    const afterMidnight = new Date("2026-10-12T15:20:00Z");
+    expect(formatDateTime("2026-10-12T14:40:00Z", { now: afterMidnight })).toBe("10월 12일 (월) 오후 11:40");
+    expect(formatDateTime("2026-10-12T15:05:00Z", { now: afterMidnight })).toBe("15분 전 (오전 12:05)");
+  });
+
   it("reads a server time slightly ahead of this clock as 방금 at this clock's time, not as a full date", () => {
     expect(formatDateTime("2026-10-12T05:00:05Z", { now })).toBe("방금 (오후 2:00)");
     // The phone shows 1:59, so the bracket must not show the server's 2:00.

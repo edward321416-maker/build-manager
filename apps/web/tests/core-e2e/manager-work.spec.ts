@@ -35,7 +35,12 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   await detail.getByLabel("처리 예정",{exact:true}).fill(localPast);await detail.getByRole("button",{name:"저장",exact:true}).click();await expect(detail.getByText("업무 정보를 저장했습니다.",{exact:true})).toBeVisible();
   const latest=await mutation(tickets[0],`manager/tickets/${tickets[0]}/work`,{priority:"HIGH",assigneeLabel:"동시 변경 합성 담당",dueAt:dueFuture,expectedVersion:2});expect(latest.version).toBe(3);
   await detail.getByLabel("담당자",{exact:true}).fill("오래된 변경 시도");await detail.getByRole("button",{name:"저장",exact:true}).click();await expect(detail.getByRole("alert")).toContainText("최신 업무 정보를 불러왔습니다");await expect(detail.getByLabel("담당자",{exact:true})).toHaveValue("동시 변경 합성 담당");
-  await detail.getByRole("combobox",{name:"긴급도",exact:true}).selectOption("URGENT");await detail.getByLabel("담당자",{exact:true}).fill("합성 내부 담당 A");await detail.getByLabel("처리 예정",{exact:true}).fill(localPast);await detail.getByRole("button",{name:"저장",exact:true}).click();await expect(detail.getByText("업무 정보를 저장했습니다.",{exact:true})).toBeVisible();
+  // Saving only the assignee resends the stored due date as it is; the minute-only input must not cut its seconds.
+  const workSave=()=>page.waitForResponse(r=>r.url().endsWith(`/manager/tickets/${tickets[0]}/work`)&&r.request().method()==="POST");
+  let saved=workSave();await detail.getByLabel("담당자",{exact:true}).fill("합성 내부 담당 B");await detail.getByRole("button",{name:"저장",exact:true}).click();
+  expect(Date.parse((await (await saved).json()).dueAt)).toBe(Date.parse(dueFuture));
+  saved=workSave();
+  await detail.getByRole("combobox",{name:"긴급도",exact:true}).selectOption("URGENT");await detail.getByLabel("담당자",{exact:true}).fill("합성 내부 담당 A");await detail.getByLabel("처리 예정",{exact:true}).fill(localPast);await detail.getByRole("button",{name:"저장",exact:true}).click();expect((await saved).status()).toBe(200);await expect(detail.getByText("업무 정보를 저장했습니다.",{exact:true})).toBeVisible();
   const memo="합성 내부 전용 점검 순서\n세입자에게 공개하지 않는 업무 메모";
   await detail.getByLabel("내부 메모 입력",{exact:true}).fill(memo);await detail.getByRole("button",{name:"내부 메모 추가",exact:true}).click();await expect(detail.getByText(memo,{exact:true})).toBeVisible();
   await expect(page.getByRole("region",{name:"사진",exact:true}).getByRole("img")).toHaveCount(1);
