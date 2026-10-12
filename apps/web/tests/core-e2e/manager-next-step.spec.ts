@@ -39,7 +39,7 @@ test("manager next step leads from the route decision through handling to the ma
   await zone(page).getByRole("button",{name:"처리 방법 정하기",exact:true}).click();
   const decision=page.locator("#ticket-decision");
   await expect(decision).toHaveJSProperty("open",true);await expect(decision.locator("summary")).toBeFocused();await inView(page,decision);
-  await decision.getByLabel("직접 정할 처리 방법").selectOption({label:"관리사무소"});await decision.getByLabel("지정 사유").fill("합성 관리사무소 처리");
+  await decision.getByLabel("직접 정할 처리 방법").selectOption({label:"관리사무소"});await decision.getByLabel("직접 정한 이유").fill("합성 관리사무소 처리");
   await decision.getByRole("button",{name:"처리 방법 직접 정하기",exact:true}).click();
   // The decision refreshes the step without reopening the request; the row is checked beside the request at 1440px below.
   await expect(zone(page)).toContainText("처리를 시작하면 기록해 주세요.");
@@ -85,7 +85,7 @@ test("a route decision and its correction refresh the request, its history and i
   await zone(page).getByRole("button",{name:"처리 방법 정하기",exact:true}).click();
   const decision=page.locator("#ticket-decision"),route=decision.getByLabel("직접 정할 처리 방법");
   const decisions=page.getByRole("region",{name:"진행 이력",exact:true}).getByText("처리 방법 결정");
-  const decide=async(label:string,reason:string)=>{await route.selectOption({label});await decision.getByLabel("지정 사유").fill(reason);await decision.getByRole("button",{name:"처리 방법 직접 정하기",exact:true}).click();};
+  const decide=async(label:string,reason:string)=>{await route.selectOption({label});await decision.getByLabel("직접 정한 이유").fill(reason);await decision.getByRole("button",{name:"처리 방법 직접 정하기",exact:true}).click();};
   await decide("관리사무소","합성 관리사무소 처리");
   await expect(zone(page)).toContainText("처리를 시작하면 기록해 주세요.");await expect(decisions).toHaveCount(1);
   await expect(row).not.toContainText("처리 방법 결정 필요");

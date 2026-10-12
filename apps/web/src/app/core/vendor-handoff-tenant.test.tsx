@@ -21,7 +21,7 @@ const availability={id:subId,windows:[{id:w1,startAt:"2026-10-07T05:00:00Z",endA
 const scheduled=dto({phase:"SCHEDULED",waitingOn:"VENDOR",currentRound:{...round,status:"CONFIRMED",version:3},appointment:{id:apptId,schedulingRoundId:roundId,packetRevisionId:packetId,proposalId:propId,
   availabilitySubmissionId:null,selectedWindowId:null,startAt:"2026-10-07T05:00:00Z",endAt:"2026-10-07T06:00:00Z",confirmationMode:"TENANT_CONFIRMED",status:"SCHEDULED",createdAt:"2026-10-06T02:00:00Z"}});
 const http=(status:number,code:string)=>new ApiClientError(code,"요청을 처리하지 못했습니다.",{status});
-const network=()=>new ApiClientError("NETWORK_ERROR","API 요청을 전송하지 못했습니다.");
+const network=()=>new ApiClientError("NETWORK_ERROR","요청을 보내지 못했어요.");
 type Override=Partial<Record<"readScheduling"|"submitAvailability"|"authorizeEntry"|"confirmSlot"|"tenantReschedule",(...args:unknown[])=>Promise<unknown>>>;
 function fake(initial:TenantVendorSchedulingDto|Error,overrides:Override={}){
   const vendorHandoff={

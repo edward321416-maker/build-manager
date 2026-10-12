@@ -30,7 +30,7 @@ function active(assignmentId:string,label:string):VendorJobDto{
   return {...job(assignmentId,label),status:"ACTIVE",phase:"SCHEDULING",waitingOn:"TENANT",assignmentVersion:4,effectiveMode:"RESIDENT_CONFIRMATION_REQUIRED",
     currentRound:{id:roundB,openedPacketRevisionId:packetB,purpose:"INITIAL",status:"OPEN",version:1,createdAt:"2026-10-07T00:00:00.000Z"}};
 }
-const network=()=>new ApiClientError("NETWORK_ERROR","API 요청을 전송하지 못했습니다.");
+const network=()=>new ApiClientError("NETWORK_ERROR","요청을 보내지 못했어요.");
 const http=(status:number,code:string)=>new ApiClientError(code,"요청을 처리하지 못했습니다.",{status});
 type Overrides={[K in "redeem"|"session"|"job"|"decline"|"logout"|"accept"|"withdraw"|"proposeSlots"|"selectPreauthorizedSlot"|"reschedule"|"startVisit"|"recordBlocker"|"clearBlocker"|"uploadCompletionPhoto"|"submitCompletionReport"]?:(...args:Parameters<VendorJobClient[K]>)=>Promise<unknown>};
 function fakeClient(overrides:Overrides={}){

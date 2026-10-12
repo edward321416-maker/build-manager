@@ -213,7 +213,7 @@ export function TicketReview({ ticketId, client, coreFlow=false, onStatusChange,
                   ))}
                 </select>
 
-                <label htmlFor="overrideReason">지정 사유</label>
+                <label htmlFor="overrideReason">직접 정한 이유</label>
                 <input
                   id="overrideReason"
                   name="overrideReason"

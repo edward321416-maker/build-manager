@@ -22,7 +22,7 @@ test("a Vendor route points the manager at the Vendor section, which explains it
     await expect(vendor.getByLabel("업체 표시 이름",{exact:true})).toHaveCount(0);
     await zone(m).getByRole("button",{name:"처리 방법 정하기",exact:true}).click();
     const decision=m.locator("#ticket-decision"),route=decision.getByLabel("직접 정할 처리 방법");await expect(decision.locator("summary")).toBeFocused();
-    const decide=async(label:string,reason:string)=>{await route.selectOption({label});await decision.getByLabel("지정 사유").fill(reason);await decision.getByRole("button",{name:"처리 방법 직접 정하기",exact:true}).click();};
+    const decide=async(label:string,reason:string)=>{await route.selectOption({label});await decision.getByLabel("직접 정한 이유").fill(reason);await decision.getByRole("button",{name:"처리 방법 직접 정하기",exact:true}).click();};
     // First a route without a Vendor, then a correction to a Vendor route. The status stays OVERRIDDEN, and the
     // request is still read again.
     const direct=(await route.locator("option").allTextContents()).find(label=>label&&!["일반 수리업체","제조사 A/S"].includes(label));expect(direct).toBeTruthy();

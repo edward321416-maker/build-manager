@@ -51,12 +51,12 @@ export function ManagerWorkDetail({client,ticket,revision}:{client:CoreFlowClien
   const [priority,setPriority]=useState<CoreManagerWorkItem["priority"]>("NORMAL"),[assignee,setAssignee]=useState(""),[due,setDue]=useState(""),[body,setBody]=useState("");
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[uncertain,setUncertain]=useState(false);
   const apply=useCallback((value:CoreManagerWorkItem)=>{setWork(value);setPriority(value.priority);setAssignee(value.assigneeLabel??"");setDue(seoulDueInput(value.dueAt));},[]);
-  useEffect(()=>{let live=true;void Promise.all([client.manager.read(ticket.ticketId),client.manager.notes(ticket.ticketId)]).then(([value,list])=>{if(live){apply(value);setNotes(list);setError("");setUncertain(false);}}).catch(()=>{if(live)setError("업무 정보를 불러오지 못했어요. 최신 정보을 눌러 주세요.");});return()=>{live=false;};},[client,ticket.ticketId,ticket.version,revision,apply]);
+  useEffect(()=>{let live=true;void Promise.all([client.manager.read(ticket.ticketId),client.manager.notes(ticket.ticketId)]).then(([value,list])=>{if(live){apply(value);setNotes(list);setError("");setUncertain(false);}}).catch(()=>{if(live)setError("업무 정보를 불러오지 못했어요. 최신 정보를 눌러 주세요.");});return()=>{live=false;};},[client,ticket.ticketId,ticket.version,revision,apply]);
   const refresh=async()=>{setBusy(true);try{const [value,list]=await Promise.all([client.manager.read(ticket.ticketId),client.manager.notes(ticket.ticketId)]);apply(value);setNotes(list);setUncertain(false);setError("");}catch{setError("업무 정보를 불러오지 못했어요. 새로고침으로 접근 상태를 확인해 주세요.");}finally{setBusy(false);}};
   const completed=ticket.workStatus==="COMPLETED"||work?.workStatus==="COMPLETED",locked=busy||completed||!work||uncertain;
   const fail=async(e:unknown)=>{
     if(e instanceof ApiClientError&&e.status===409){
-      try{apply(await client.manager.read(ticket.ticketId));setError("다른 변경이 먼저 저장되었거나 처리가 완료됐어요. 최신 업무 정보를 불러왔어요. 확인한 뒤 다시 입력해 주세요.");}catch{setError("최신 상태를 확인하지 못했어요. 최신 정보을 눌러 주세요.");setUncertain(true);}
+      try{apply(await client.manager.read(ticket.ticketId));setError("다른 변경이 먼저 저장되었거나 처리가 완료됐어요. 최신 업무 정보를 불러왔어요. 확인한 뒤 다시 입력해 주세요.");}catch{setError("최신 상태를 확인하지 못했어요. 최신 정보를 눌러 주세요.");setUncertain(true);}
     }else{setError("저장 결과를 확인하지 못했어요. 중복 저장하지 말고 최신 정보로 저장된 내용을 먼저 확인해 주세요.");setUncertain(true);}
   };
   return <section aria-label="업무 관리" className={styles.detail}>

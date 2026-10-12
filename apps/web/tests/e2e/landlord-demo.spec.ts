@@ -233,7 +233,7 @@ test.describe("landlord demo", () => {
     await page.goto(`/demo/landlord/tickets/${ticketId}`);
 
     await page.getByLabel("직접 정할 처리 방법").selectOption("LANDLORD_REVIEW");
-    await page.getByLabel("지정 사유").fill("현장 확인 후 임대인이 직접 검토");
+    await page.getByLabel("직접 정한 이유").fill("현장 확인 후 임대인이 직접 검토");
     await page.getByTestId("override").click();
 
     await expect(page.getByText("상태: 처리 방법 결정됨")).toBeVisible();
@@ -298,7 +298,7 @@ test.describe("landlord demo", () => {
     await expect(selector.locator("option")).toHaveCount(5);
 
     await selector.selectOption("THIRD_PARTY_MANAGER");
-    await page.getByLabel("지정 사유").fill("위탁관리사가 확인하기로 함");
+    await page.getByLabel("직접 정한 이유").fill("위탁관리사가 확인하기로 함");
     await page.getByTestId("override").click();
 
     await expect(page.getByText("상태: 처리 방법 결정됨")).toBeVisible();

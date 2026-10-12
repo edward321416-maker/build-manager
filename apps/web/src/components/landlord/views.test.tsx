@@ -247,7 +247,7 @@ describe("repair packet", () => {
     );
 
     expect(html).toContain("안전");
-    expect(html).not.toContain("추천 경로: ");
+    expect(html).not.toContain("추천 처리 방법");
     for (const unsafe of ["119", "직접 수리", "밸브를 잠그", "차단기를 내리"]) {
       expect(html).not.toContain(unsafe);
     }

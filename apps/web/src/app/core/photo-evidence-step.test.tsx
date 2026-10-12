@@ -87,7 +87,7 @@ describe("PhotoEvidenceStep",()=>{
 
   it("offers a retry with the same upload id after a connection failure, and does not send it twice when the photo was stored after all",async()=>{
     let attempts=0;
-    const {api,client}=fake({uploadPhoto:async(_ticket:string,uploadId:string)=>{attempts++;stored=[...stored,photo(3,uploadId)];throw new ApiClientError("NETWORK_ERROR","사진 연결을 확인하지 못했습니다.");}});
+    const {api,client}=fake({uploadPhoto:async(_ticket:string,uploadId:string)=>{attempts++;stored=[...stored,photo(3,uploadId)];throw new ApiClientError("NETWORK_ERROR","사진 연결을 확인하지 못했어요.");}});
     await mount(client);
     await choose([png()]);
     expect(host.querySelector('[role="alert"] p')?.textContent).toBe("사진을 올리지 못했어요. 연결을 확인하고 다시 올려 주세요.");
@@ -105,7 +105,7 @@ describe("PhotoEvidenceStep",()=>{
     [415,"읽을 수 있는 JPEG·PNG 사진을 골라 주세요."],
     [409,"사진을 더 올릴 수 없어요. 사진은 최대 3장이고, 처리가 끝난 접수에는 올릴 수 없어요."],
   ])("explains a %i refusal without offering a retry that cannot work",async(status,message)=>{
-    const {api,client}=fake({uploadPhoto:async()=>{throw new ApiClientError("PHOTO_ERROR","사진 요청을 처리하지 못했습니다.",{status});}});
+    const {api,client}=fake({uploadPhoto:async()=>{throw new ApiClientError("PHOTO_ERROR","사진 요청을 처리하지 못했어요.",{status});}});
     await mount(client);
     await choose([png()]);
     expect(host.querySelector('[role="alert"] p')?.textContent).toBe(message);
@@ -114,7 +114,7 @@ describe("PhotoEvidenceStep",()=>{
   });
 
   it("reads the stored photos again after a 409, so a stale list does not keep offering to add",async()=>{
-    const {api,client}=fake({uploadPhoto:async()=>{stored=[photo(1),photo(2),photo(3)];throw new ApiClientError("PHOTO_ERROR","사진 요청을 처리하지 못했습니다.",{status:409});}});
+    const {api,client}=fake({uploadPhoto:async()=>{stored=[photo(1),photo(2),photo(3)];throw new ApiClientError("PHOTO_ERROR","사진 요청을 처리하지 못했어요.",{status:409});}});
     await mount(client);
     expect(fileInput().disabled).toBe(false);
     await choose([png()]);
@@ -184,7 +184,7 @@ describe("PhotoEvidenceStep",()=>{
 
   it("says when the stored photos cannot be read and reads them again on request",async()=>{
     let fail=true;
-    const {api,client}=fake({photos:async()=>{if(fail)throw new ApiClientError("PHOTO_ERROR","사진 요청을 처리하지 못했습니다.",{status:500});return stored;}});
+    const {api,client}=fake({photos:async()=>{if(fail)throw new ApiClientError("PHOTO_ERROR","사진 요청을 처리하지 못했어요.",{status:500});return stored;}});
     await mount(client);
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("올린 사진을 불러오지 못했어요.");
     fail=false;await click(button("사진 다시 불러오기"));

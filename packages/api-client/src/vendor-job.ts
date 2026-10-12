@@ -21,10 +21,10 @@ export function createVendorJobClient(fetcher:FetchLike,baseUrl="",binaryFetch:t
     try{
       response=await binaryFetch(`${base}${root}/job/completion-photos`,{method:"POST",credentials:"same-origin",cache:"no-store",body:file,
         headers:{"Content-Type":file.type,"X-Upload-Id":command.clientRequestId,"X-Vendor-Upload-Command":JSON.stringify(command),"X-Vendor-CSRF":csrf}});
-    }catch{throw new ApiClientError("NETWORK_ERROR","사진을 전송하지 못했습니다.");}
-    if(!response.ok)throw new ApiClientError("PHOTO_ERROR","사진 요청을 처리하지 못했습니다.",{status:response.status});
+    }catch{throw new ApiClientError("NETWORK_ERROR","사진을 보내지 못했어요.");}
+    if(!response.ok)throw new ApiClientError("PHOTO_ERROR","사진 요청을 처리하지 못했어요.",{status:response.status});
     try{return VendorCompletionPhotoDtoSchema.parse(await response.json());}
-    catch{throw new ApiClientError("INVALID_RESPONSE","사진 응답이 올바르지 않습니다.");}
+    catch{throw new ApiClientError("INVALID_RESPONSE","사진 응답이 올바르지 않아요.");}
   };
   return {
     redeem:(token:string,input:VendorRedeemCommand)=>sendRequest<VendorRedeemResultDto>(withHeaders(fetcher,{Authorization:`VendorCapability ${token}`}),baseUrl,
