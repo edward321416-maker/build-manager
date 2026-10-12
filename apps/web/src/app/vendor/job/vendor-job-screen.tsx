@@ -2,18 +2,16 @@
 import Image from "next/image";
 import { useCallback,useEffect,useRef,useState } from "react";
 import { ApiClientError,createVendorJobClient,type VendorJobClient } from "@build-manager/api-client";
-import { VendorBlockerCommandSchema,VendorCompletionReportCommandSchema,VendorDeclineCommandSchema,type VendorBlockerCode,type VendorBlockerCommand,type VendorClearBlockerCommand,type VendorCompletionPhotoUploadCommand,type VendorCompletionReportCommand,type VendorDeclineCommand,type VendorWithdrawCommand,type VendorDeclineReason,type VendorJobDto,type VendorPhotoOmissionReason,type VendorPreauthorizedAppointmentCommand,type VendorProposalCommand,type VendorRescheduleCommand,type VendorSharedDetailSourceType,type VendorVisitStartCommand } from "@build-manager/api-contracts";
+import { VendorBlockerCommandSchema,VendorCompletionReportCommandSchema,VendorDeclineCommandSchema,type VendorBlockerCode,type VendorBlockerCommand,type VendorClearBlockerCommand,type VendorCompletionPhotoUploadCommand,type VendorCompletionReportCommand,type VendorDeclineCommand,type VendorWithdrawCommand,type VendorDeclineReason,type VendorJobDto,type VendorPhotoOmissionReason,type VendorPreauthorizedAppointmentCommand,type VendorProposalCommand,type VendorRescheduleCommand,type VendorVisitStartCommand } from "@build-manager/api-contracts";
 import { IntervalFields,draftsToIntervals,emptyIntervalDraft,intervalToDraft,type IntervalDraft } from "../../../components/vendor-interval-fields";
 import { formatVendorInterval,intervalWithin } from "../../../lib/vendor-time";
 import { BLOCKER_LABELS,OMISSION_LABELS } from "../../../lib/vendor-blocker";
-import { ACCESS_POLICY_NAMES,buildingValueName } from "../../../components/status-names";
+import { ACCESS_POLICY_NAMES,SHARED_DETAIL_SOURCE_NAMES,buildingValueName } from "../../../components/status-names";
 import styles from "./vendor-job.module.css";
 
 const RAW=/^[A-Za-z0-9_-]{43}$/;
 const REDEEM_KEY="bm.vendor.redeem";
 const ISSUE:Record<"HEATING"|"LEAK",string>={HEATING:"난방",LEAK:"누수"};
-const SOURCE:Record<VendorSharedDetailSourceType,string>={TENANT_REPORTED:"세입자 입력",BUILDING_VERIFIED:"건물 확인",MANAGER_REVIEWED:"관리자 확인"};
-const ACCESS=ACCESS_POLICY_NAMES;
 export const DECLINE_REASONS:readonly {value:VendorDeclineReason;label:string}[]=[
   {value:"NO_CAPACITY",label:"일정·인력 여유가 없음"},
   {value:"OUT_OF_SERVICE_AREA",label:"서비스 지역이 아님"},
@@ -869,12 +867,12 @@ function Packet({job,photoPath}:{job:VendorJobDto;photoPath:(id:string)=>string}
       <dt>호실</dt><dd>{packet.unitLabel}</dd>
       <dt>문제 유형</dt><dd>{ISSUE[packet.issueType]}</dd>
       <dt>작업 내용</dt><dd>{packet.workSummary}</dd>
-      <dt>출입 방식</dt><dd>{ACCESS[packet.accessPolicy]}</dd>
+      <dt>출입 방식</dt><dd>{ACCESS_POLICY_NAMES[packet.accessPolicy]}</dd>
       {packet.accessInstruction?<><dt>출입 안내</dt><dd>{packet.accessInstruction}</dd></>:null}
     </dl>
     {packet.safetyNotice.length?<div className={styles.notice} role="note"><h3>안전 안내</h3><ul>{packet.safetyNotice.map((line,index)=><li key={index}>{line}</li>)}</ul></div>:null}
     {packet.sharedDetails.length?<div><h3>공유된 정보</h3><ul className={styles.details}>{packet.sharedDetails.map(detail=><li key={detail.key}>
-      <span>{detail.label}: {buildingValueName(detail.key,detail.value)}</span> <span className={styles.source}>{SOURCE[detail.sourceType]}</span>
+      <span>{detail.label}: {buildingValueName(detail.key,detail.value)}</span> <span className={styles.source}>{SHARED_DETAIL_SOURCE_NAMES[detail.sourceType]}</span>
     </li>)}</ul></div>:null}
     {packet.allowedPhotoIds.length?<div><h3>공유된 원본 사진</h3><div className={styles.photos}>{packet.allowedPhotoIds.map((id,index)=>
       <Image key={id} unoptimized src={photoPath(id)} width={640} height={480} alt={`공유된 원본 사진 ${index+1}`}/>)}</div></div>:null}
