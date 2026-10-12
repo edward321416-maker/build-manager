@@ -65,3 +65,14 @@ export function seoulLocalToInstant(date:string,time:string):string|null{
   if(check.getUTCFullYear()!==year||check.getUTCMonth()!==month-1||check.getUTCDate()!==day)return null;
   return new Date(wall-OFFSET_MS).toISOString();
 }
+
+/** ISO instant → a `datetime-local` value `YYYY-MM-DDTHH:MM` in Seoul time, whatever zone the browser is in. */
+export function instantToSeoulInput(at:string):string{
+  const {date,time}=instantToSeoulLocal(at);
+  return `${date}T${time}`;
+}
+
+/** A `datetime-local` value read as Seoul time → ISO instant; seconds are dropped, null for impossible or malformed entries. */
+export function seoulInputToInstant(value:string):string|null{
+  return seoulLocalToInstant(value.slice(0,10),value.slice(11,16));
+}

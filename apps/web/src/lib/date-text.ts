@@ -1,26 +1,26 @@
 /**
  * Korean date and time text in the design rules section 14 format, one place for every web screen.
- * Without a `timeZone` the browser's zone applies, as on /core so far. Vendor handoff times are Seoul times: ranges
- * through vendor-time.ts, which borrows the text shapes from here, and instants through `<DateTime timeZone="Asia/Seoul">`.
+ * Every time is Seoul time, whatever zone the browser is in (operator decision 2026-10-12). Vendor time ranges go
+ * through vendor-time.ts, which borrows the text shapes from here.
  */
 export type ClockParts = { year: number; month: number; day: number; weekday: string; hour: number; minute: number };
 
+export const SEOUL = "Asia/Seoul";
 export const WEEKDAYS = "일월화수목금토";
 const HOUR_MS = 3_600_000, MINUTE_MS = 60_000;
 
 // One formatter per time zone: building Intl.DateTimeFormat is the expensive part, and messages re-render on every key press.
 const formatters = new Map<string, Intl.DateTimeFormat>();
-function formatter(timeZone?: string): Intl.DateTimeFormat {
-  const key = timeZone ?? "";
-  let found = formatters.get(key);
+function formatter(timeZone: string): Intl.DateTimeFormat {
+  let found = formatters.get(timeZone);
   if (!found) {
     found = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", hourCycle: "h23" });
-    formatters.set(key, found);
+    formatters.set(timeZone, found);
   }
   return found;
 }
 
-export function clockParts(at: string | Date, timeZone?: string): ClockParts {
+export function clockParts(at: string | Date, timeZone: string = SEOUL): ClockParts {
   const date = typeof at === "string" ? new Date(at) : at;
   if (!Number.isFinite(date.getTime())) throw new RangeError("INVALID_INSTANT");
   const parts = formatter(timeZone).formatToParts(date);
@@ -55,8 +55,12 @@ export function absoluteDateTime(at: string, options: { now?: Date; timeZone?: s
   return `${dateText(parts, clockParts(options.now ?? new Date(), options.timeZone).year)} ${timeText(parts)}`;
 }
 
-/** Relative text for the last hour unless `relative` is false; otherwise the date and time. */
+/**
+ * For the last hour, `10분 전 (오후 1:50)`: relative time with the exact time beside it, so the exact time is visible
+ * on touch screens too (operator decision 2026-10-12). Otherwise, or when `relative` is false, the date and time.
+ */
 export function formatDateTime(at: string, options: { now?: Date; timeZone?: string; relative?: boolean } = {}): string {
   const now = options.now ?? new Date();
-  return (options.relative !== false ? relativeText(at, now) : null) ?? absoluteDateTime(at, { now, timeZone: options.timeZone });
+  const relative = options.relative !== false ? relativeText(at, now) : null;
+  return relative ? `${relative} (${timeText(clockParts(at, options.timeZone))})` : absoluteDateTime(at, { now, timeZone: options.timeZone });
 }

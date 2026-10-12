@@ -9,11 +9,10 @@ import { managerRowHint } from "./manager-next-step";
 import styles from "./manager-work.module.css";
 import { CommunicationBadge,useCommunicationSummaries } from "./ticket-communication";
 import { DateTime } from "../../components/date-time";
+import { instantToSeoulInput,seoulInputToInstant } from "../../lib/vendor-time";
 
-function localInput(value:string|null){
-  if(!value)return "";const d=new Date(value),pad=(n:number)=>String(n).padStart(2,"0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+// The due date is entered and shown in Seoul time, whatever zone the browser is in (operator decision 2026-10-12).
+const localInput=(value:string|null)=>value?instantToSeoulInput(value):"";
 export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selectedId,tickets=[]}:{client:CoreFlowClient;units:CoreUnitDto[];revision:number;onOpen(id:string):void;disabled:boolean;selectedId?:string;
   /** The screen's ticket list; the work items carry no intake state, so row hints join on it by ticket ID. */
   tickets?:CoreTicketDto[]}){
@@ -64,14 +63,14 @@ export function ManagerWorkDetail({client,ticket,revision}:{client:CoreFlowClien
     <div className={styles.title}><div><p>관리자 전용 · 세입자에게 전달되지 않아요.</p></div><button disabled={busy} onClick={()=>void refresh()}>최신 정보</button></div>
     {error?<p role="alert">{error}</p>:null}{notice?<p role="status">{notice}</p>:null}{!work&&!error?<p role="status">업무 정보 불러오는 중…</p>:null}
     {completed?<p>처리 완료된 업무입니다. 기존 업무 정보와 내부 메모는 조회만 할 수 있습니다.</p>:null}
-    <form onSubmit={e=>{e.preventDefault();if(!work)return;const timestamp=due?new Date(due):null;const input=CoreManagerWorkUpdateSchema.safeParse({priority,assigneeLabel:assignee.trim()||null,dueAt:timestamp&&!Number.isNaN(timestamp.valueOf())?timestamp.toISOString():due||null,expectedVersion:work.version});if(!input.success){setError("긴급도·담당자(80자 이하)·처리 예정 날짜와 시간을 확인해 주세요.");return;}setBusy(true);setError("");setNotice("");void client.manager.update(ticket.ticketId,input.data).then(value=>{apply(value);setNotice("업무 정보를 저장했습니다.");}).catch(fail).finally(()=>setBusy(false));}}>
+    <form onSubmit={e=>{e.preventDefault();if(!work)return;const timestamp=due?seoulInputToInstant(due):null;const input=CoreManagerWorkUpdateSchema.safeParse({priority,assigneeLabel:assignee.trim()||null,dueAt:timestamp??(due||null),expectedVersion:work.version});if(!input.success){setError("긴급도·담당자(80자 이하)·처리 예정 날짜와 시간을 확인해 주세요.");return;}setBusy(true);setError("");setNotice("");void client.manager.update(ticket.ticketId,input.data).then(value=>{apply(value);setNotice("업무 정보를 저장했습니다.");}).catch(fail).finally(()=>setBusy(false));}}>
       <fieldset disabled={locked} className={styles.fields}>
         <label>긴급도<select value={priority} onChange={e=>setPriority(e.target.value as CoreManagerWorkItem["priority"])}><option value="NORMAL">보통</option><option value="HIGH">높음</option><option value="URGENT">긴급</option></select></label>
         <label>담당자<input value={assignee} maxLength={80} onChange={e=>setAssignee(e.target.value)} placeholder="미지정" /></label>
         <label>처리 예정<input type="datetime-local" value={due} onChange={e=>setDue(e.target.value)} /></label>
         <button type="submit">저장</button>
       </fieldset>
-      <p className={styles.help}>예정 시각은 이 브라우저의 시간대 기준입니다. 담당자는 실제 담당자 확인이나 접근 권한을 부여하지 않습니다.</p>
+      <p className={styles.help}>예정 시각은 한국 시간 기준이에요. 담당자는 실제 담당자 확인이나 접근 권한을 부여하지 않습니다.</p>
     </form>
     <section aria-label="내부 메모" className={styles.notes}><h3>내부 메모</h3>
       <form onSubmit={e=>{e.preventDefault();const input=CoreManagerInternalNoteCreateSchema.safeParse({body});if(!input.success){setError("내부 메모는 공백을 제외한 1~2000자로 입력해 주세요. 제어 문자는 사용할 수 없습니다.");return;}setBusy(true);setError("");setNotice("");void client.manager.appendNote(ticket.ticketId,input.data.body).then(note=>{setNotes(current=>[note,...current]);setBody("");setNotice("내부 메모를 저장했습니다. 세입자에게 공개되지 않습니다.");}).catch(fail).finally(()=>setBusy(false));}}>

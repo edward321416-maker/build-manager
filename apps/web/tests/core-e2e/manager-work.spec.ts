@@ -31,7 +31,8 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   const detail=page.getByRole("region",{name:"업무 관리",exact:true});await expect(detail.getByRole("combobox",{name:"긴급도",exact:true})).toBeEnabled();
   await detail.getByRole("combobox",{name:"긴급도",exact:true}).selectOption("URGENT");await detail.getByLabel("담당자",{exact:true}).fill("합성 내부 담당 A");
   // Browser input is explicitly local wall time; the server stores an offset timestamp.
-  const localPast=await page.evaluate(value=>{const d=new Date(value),p=(n:number)=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;},duePast);
+  // The due date is entered in Seoul time whatever the browser's zone (CI browsers run in UTC), so fill the Seoul wall time.
+  const localPast=new Date(Date.parse(duePast)+9*3_600_000).toISOString().slice(0,16);
   await detail.getByLabel("처리 예정",{exact:true}).fill(localPast);await detail.getByRole("button",{name:"저장",exact:true}).click();await expect(detail.getByText("업무 정보를 저장했습니다.",{exact:true})).toBeVisible();
   const latest=await mutation(tickets[0],`manager/tickets/${tickets[0]}/work`,{priority:"HIGH",assigneeLabel:"동시 변경 합성 담당",dueAt:dueFuture,expectedVersion:2});expect(latest.version).toBe(3);
   await detail.getByLabel("담당자",{exact:true}).fill("오래된 변경 시도");await detail.getByRole("button",{name:"저장",exact:true}).click();await expect(detail.getByRole("alert")).toContainText("최신 업무 정보를 불러왔습니다");await expect(detail.getByLabel("담당자",{exact:true})).toHaveValue("동시 변경 합성 담당");

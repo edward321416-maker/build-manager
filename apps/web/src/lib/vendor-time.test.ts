@@ -1,5 +1,5 @@
 import { describe,expect,it } from "vitest";
-import { formatVendorInstant,formatVendorInterval,instantToSeoulLocal,intervalWithin,seoulLocalToInstant } from "./vendor-time";
+import { formatVendorInstant,formatVendorInterval,instantToSeoulInput,instantToSeoulLocal,intervalWithin,seoulInputToInstant,seoulLocalToInstant } from "./vendor-time";
 
 const now=new Date("2026-10-06T03:00:00Z");
 
@@ -60,5 +60,12 @@ describe("Seoul wall-clock entry",()=>{
     expect(instantToSeoulLocal("2026-12-31T15:30:00Z")).toEqual({date:"2027-01-01",time:"00:30"});
     const {date,time}=instantToSeoulLocal("2026-10-07T05:00:00.000Z");
     expect(seoulLocalToInstant(date,time)).toBe("2026-10-07T05:00:00.000Z");
+  });
+  it("fills and reads a datetime-local input in Seoul time, as the manager's due date does",()=>{
+    expect(instantToSeoulInput("2026-10-07T15:00:00Z")).toBe("2026-10-08T00:00");
+    expect(seoulInputToInstant("2026-10-08T00:00")).toBe("2026-10-07T15:00:00.000Z");
+    expect(seoulInputToInstant("2026-10-08T00:00:00")).toBe("2026-10-07T15:00:00.000Z");
+    expect(seoulInputToInstant("2026-02-30T10:00")).toBeNull();
+    expect(seoulInputToInstant("")).toBeNull();
   });
 });

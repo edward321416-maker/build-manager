@@ -121,7 +121,7 @@ const reported=(changes:Partial<VendorCompletionReportDto>={}):ManagerVendorHand
   phase:"COMPLETION_REPORTED",waitingOn:"MANAGER",currentReport:{...report,...changes},reportHistory:[{...report,...changes}]});
 it("names a report sent minutes ago in relative time, like the request history beside it (design rules section 14)",()=>{
   const html=view({handoff:reported(),now:new Date("2026-10-07T05:05:00Z")});
-  expect(html).toContain('title="10월 7일 (수) 오후 2:00">5분 전</time> 제출');
+  expect(html).toContain('>5분 전 (오후 2:00)</time> 제출');
 });
 it("keeps a report's relative time moving while the page stays open, and lists earlier reports as plain text",async()=>{
   vi.useFakeTimers({toFake:["Date","setInterval","clearInterval"]});vi.setSystemTime(new Date("2026-10-07T05:05:00Z"));
@@ -131,7 +131,7 @@ it("keeps a report's relative time moving while the page stays open, and lists e
   try{
     // Like the loaded manager: a Date taken at the parent's render plus the live clock function. Only the clock may drive times.
     await act(async()=>task10Root!.render(<VendorHandoffManagerView {...base} handoff={handoffWithHistory} now={new Date()} clock={()=>new Date()}/>));
-    expect(task10Host.textContent).toContain("5분 전 제출");
+    expect(task10Host.textContent).toContain("5분 전 (오후 2:00) 제출");
     await act(async()=>{vi.advanceTimersByTime(2*60*60_000);});
     expect(task10Host.textContent).toContain("10월 7일 (수) 오후 2:00 제출");
     // An <option> may hold text only, so earlier reports are listed with their date and time as plain text.

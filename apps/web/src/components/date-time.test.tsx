@@ -10,9 +10,9 @@ const now = new Date("2026-10-12T05:00:00Z");
 afterEach(() => { vi.useRealTimers(); });
 
 describe("DateTime", () => {
-  it("shows a recent instant as relative time and keeps the date and time in the title", () => {
-    const html = renderToStaticMarkup(<DateTime at="2026-10-12T04:50:00Z" now={now} timeZone="Asia/Seoul" />);
-    expect(html).toBe('<time dateTime="2026-10-12T04:50:00Z" title="10월 12일 (월) 오후 1:50">10분 전</time>');
+  it("shows a recent instant as relative time with the exact time beside it, visible on touch screens too", () => {
+    const html = renderToStaticMarkup(<DateTime at="2026-10-12T04:50:00Z" now={now} />);
+    expect(html).toBe('<time dateTime="2026-10-12T04:50:00Z">10분 전 (오후 1:50)</time>');
   });
 
   it("shows an older instant as the date and time without a title", () => {
@@ -36,9 +36,9 @@ describe("DateTime", () => {
     const root = createRoot(host);
     try {
       await act(async () => { root.render(<DateTime at="2026-10-12T04:59:40Z" timeZone="Asia/Seoul" />); });
-      expect(host.textContent).toBe("방금");
+      expect(host.textContent).toBe("방금 (오후 1:59)");
       await act(async () => { vi.advanceTimersByTime(3 * 60_000); });
-      expect(host.textContent).toBe("3분 전");
+      expect(host.textContent).toBe("3분 전 (오후 1:59)");
       await act(async () => { vi.advanceTimersByTime(60 * 60_000); });
       expect(host.textContent).toBe("10월 12일 (월) 오후 1:59");
     } finally {

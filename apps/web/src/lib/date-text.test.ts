@@ -23,9 +23,9 @@ describe("date text (design rules section 14)", () => {
     expect(formatDateTime("2026-10-07T15:05:00Z", { ...seoul, now })).toBe("10월 8일 (목) 오전 12:05");
   });
 
-  it("uses relative time only for the last hour, and never for future times", () => {
-    expect(formatDateTime("2026-10-12T04:59:30Z", { ...seoul, now })).toBe("방금");
-    expect(formatDateTime("2026-10-12T04:01:00Z", { ...seoul, now })).toBe("59분 전");
+  it("uses relative time only for the last hour, with the exact time beside it, and never for future times", () => {
+    expect(formatDateTime("2026-10-12T04:59:30Z", { ...seoul, now })).toBe("방금 (오후 1:59)");
+    expect(formatDateTime("2026-10-12T04:01:00Z", { ...seoul, now })).toBe("59분 전 (오후 1:01)");
     expect(formatDateTime("2026-10-12T03:59:00Z", { ...seoul, now })).toBe("10월 12일 (월) 오후 12:59");
     expect(formatDateTime("2026-10-12T05:10:00Z", { ...seoul, now })).toBe("10월 12일 (월) 오후 2:10");
     expect(formatDateTime("2026-10-12T04:59:30Z", { ...seoul, now, relative: false })).toBe("10월 12일 (월) 오후 1:59");
@@ -36,13 +36,24 @@ describe("date text (design rules section 14)", () => {
     expect(clockParts("2026-10-07T15:05:00Z", "Asia/Seoul")).toEqual({ year: 2026, month: 10, day: 8, weekday: "목", hour: 0, minute: 5 });
   });
 
+  it("shows Seoul time when no zone is given, whatever zone this machine or browser is in (operator decision 2026-10-12)", () => {
+    const saved = process.env.TZ;
+    try {
+      process.env.TZ = "UTC";
+      expect(formatDateTime("2026-10-07T15:05:00Z", { now })).toBe("10월 8일 (목) 오전 12:05");
+      expect(clockParts("2026-10-07T15:05:00Z").day).toBe(8);
+    } finally {
+      if (saved === undefined) delete process.env.TZ; else process.env.TZ = saved;
+    }
+  });
+
   it("refuses an instant it cannot read, but formatting shows the raw text instead of throwing during render", () => {
     expect(() => clockParts("not a date")).toThrow(RangeError);
     expect(formatDateTime("not a date", { ...seoul, now })).toBe("not a date");
   });
 
   it("reads a server time slightly ahead of this clock as 방금, not as a full date", () => {
-    expect(formatDateTime("2026-10-12T05:00:05Z", { ...seoul, now })).toBe("방금");
+    expect(formatDateTime("2026-10-12T05:00:05Z", { ...seoul, now })).toBe("방금 (오후 2:00)");
     expect(formatDateTime("2026-10-12T05:01:30Z", { ...seoul, now })).toBe("10월 12일 (월) 오후 2:01");
   });
 
