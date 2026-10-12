@@ -30,7 +30,7 @@ async function captureLayout(page:Page,name:string){
     await page.setViewportSize(viewport);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     const account=page.getByRole("region",{name:"로그인과 내 소속"});
-    if(viewport.width>=1024)expect((await account.boundingBox())!.width).toBe(220);
+    if(viewport.width>=1024)expect((await account.boundingBox())!.width).toBe(248);
     expect(await account.evaluate(el=>getComputedStyle(el).backgroundColor)).toBe("rgb(242, 242, 247)");
     const workspace=page.getByRole("region",{name:"수리 접수 작업",exact:true});
     await expect(workspace).toHaveCSS("background-color","rgb(255, 255, 255)");
