@@ -1,4 +1,5 @@
 import { test,expect,type APIRequestContext,type Locator,type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -106,4 +107,35 @@ test("opening a request brings the other rows up to date, and a failed list read
   await routeOnce(page,"**/api/v2/core/tickets",route=>route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:{code:"DEPENDENCY_UNAVAILABLE",message:"합성 목록 읽기 실패"}})}));
   await row(b.ticketId).locator("[data-open-ticket]").click();
   await expect(page.getByTestId("ticket-heading")).toContainText("난방");await expect(zone(page)).toContainText("처리 방법을 정해 주세요.");
+});
+
+// The outcome card's follow-up button opens a request through the same list re-read as the queue.
+test("opening a request from its outcome card brings the other rows up to date at 1440px",async({request,page})=>{
+  const source=await tenantRequest(request,"LEAK","합성 결과 카드 원본",true),b=await tenantRequest(request,"HEATING","합성 결과 카드 목록 갱신",false);
+  const manager={Authorization:`Bearer ${(await codes()).manager}`},tenant={Authorization:`Bearer ${(await codes()).tenant}`};
+  const post=async(path:string,headers:Record<string,string>,data:unknown,status:number)=>{const r=await request.post(`/api/v2/core/tickets/${source.ticketId}${path}`,{headers,data});expect(r.status()).toBe(status);};
+  await post("/handling",manager,{status:"IN_PROGRESS",message:"합성 처리 시작"},200);await post("/handling",manager,{status:"COMPLETED",message:"합성 처리 완료"},200);
+  await post("/follow-up",tenant,{clientRequestId:randomUUID(),claimKind:"UNRESOLVED",issueType:"LEAK",rawUserText:"합성 결과 카드 후속 접수"},201);
+  await page.setViewportSize({width:1440,height:900});await login(page,"manager");
+  const row=(id:string)=>page.locator(`[data-ticket-id="${id}"]`);
+  await expect(row(b.ticketId).locator('[data-work-state="DRAFT"]')).toHaveText("제출 전");
+  await row(source.ticketId).locator("[data-open-ticket]").click();
+  const followUp=page.getByRole("button",{name:"후속 접수 보기",exact:true});await expect(followUp).toBeVisible();
+  // The tenant submits B after the screen read the list; only the follow-up button's open can bring B's row up to date.
+  await submitRequest(request,b.ticketId);
+  await followUp.click();await expect(page.getByRole("button",{name:"이전 완료 접수 보기",exact:true})).toBeVisible();
+  await expect(row(b.ticketId)).toContainText("처리 방법 결정 필요");
+});
+
+// A list read that loses access must still stop the open, so no request stays selected behind the sign-in form.
+test("an access loss on the list read opens nothing, even after signing in again, at 1440px",async({request,page})=>{
+  const t=await tenantRequest(request,"LEAK","합성 목록 읽기 접근 만료",true);
+  await page.setViewportSize({width:1440,height:900});await login(page,"manager");
+  await routeOnce(page,"**/api/v2/core/tickets",route=>route.fulfill({status:401,contentType:"application/json",body:JSON.stringify({error:{code:"UNAUTHENTICATED",message:"합성 세션 만료"}})}));
+  const read=page.waitForResponse(r=>r.url().endsWith(`/api/v2/core/tickets/${t.ticketId}`)&&r.request().method()==="GET");
+  await page.locator(`[data-ticket-id="${t.ticketId}"] [data-open-ticket]`).click();await read;
+  await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(page.getByText("불러오는 중…")).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"← 목록으로",exact:true})).toHaveCount(0);
+  await page.getByLabel("개발 접근 코드").fill((await codes()).manager);await page.getByRole("button",{name:"들어가기",exact:true}).click();
+  await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();await expect(page.getByTestId("ticket-heading")).toHaveCount(0);
 });

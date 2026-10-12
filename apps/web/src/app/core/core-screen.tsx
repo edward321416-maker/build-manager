@@ -127,8 +127,9 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
     void run(async()=>{const ticket=await client.read(id);if(seq===intakeRead.current)adopt(ticket);});
   };
   /** Opening a request re-reads the ticket list too, since the manager's queue reloads its rows on every selection.
-   * The list read is best effort: when it fails, the request still opens and the current list stays. */
-  const openWithList=async(id:string)=>{const [ticket,list]=await Promise.all([client.read(id),client.tickets().catch(()=>null)]);setSelected(ticket);setTickets(current=>(list??current).map(item=>item.ticketId===ticket.ticketId?ticket:item));};
+   * The list read is best effort: when it fails, the request still opens and the current list stays. A lost session or
+   * access (401, 403) still stops the open, so no request stays selected behind the sign-in form. */
+  const openWithList=async(id:string)=>{const [ticket,list]=await Promise.all([client.read(id),client.tickets().catch((e:unknown)=>{if(e instanceof ApiClientError&&(e.status===401||e.status===403))throw e;return null;})]);setSelected(ticket);setTickets(current=>(list??current).map(item=>item.ticketId===ticket.ticketId?ticket:item));};
   // Whether the completed request already has a unit maintenance fact; null until the fact editor has loaded.
   const [factRecorded,setFactRecorded]=useState<{ticketId:string;recorded:boolean}|null>(null);
   /** Opens the folded section that holds the step's control and brings it into view with focus. */
