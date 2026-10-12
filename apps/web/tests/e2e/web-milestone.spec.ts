@@ -89,7 +89,7 @@ test.describe("web milestone golden path", () => {
     await expect(page.getByTestId("finalize")).toBeVisible();
     await page.getByTestId("finalize").click();
 
-    await expect(page.getByText("상태: 검토 대기")).toBeVisible();
+    await expect(page.getByText("상태: 결정 대기")).toBeVisible();
     await expect(page.getByText("정보 상태: 필수 정보 확인됨")).toBeVisible();
 
     // The landlord arrives the same way and finds that exact ticket listed.
@@ -111,16 +111,16 @@ test.describe("web milestone golden path", () => {
       page.getByRole("heading", { name: "판단 근거가 된 건물 정보" }),
     ).toBeVisible();
     await expect(page.locator(".packet-provenance")).toContainText(
-      "heatingType",
+      "난방 방식",
     );
 
     await page.getByTestId("approve").click();
-    await expect(page.getByText("상태: 승인됨")).toBeVisible();
+    await expect(page.getByText("상태: 처리 방법 결정됨")).toBeVisible();
 
     // Back to the tenant page this run actually reached.
     await page.goto(tenantTicketUrl);
     await page.getByTestId("refresh").click();
 
-    await expect(page.getByText("상태: 임대인 확인 완료")).toBeVisible();
+    await expect(page.getByText("상태: 처리 방법 결정됨")).toBeVisible();
   });
 });

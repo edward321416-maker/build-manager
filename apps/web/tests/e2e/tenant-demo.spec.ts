@@ -10,7 +10,7 @@ async function assertSafeGuidance(page: Page): Promise<void> {
     expect((await region.innerText()).trim().length, required).toBeGreaterThan(0);
   }
   await expect(page.locator('[data-status="SAFETY_ESCALATED"]'), required)
-    .toHaveText("상태: 안전 확인 필요");
+    .toHaveText("상태: 긴급 확인 필요");
 
   const content = await page.evaluate(() => {
     // Inspect the whole body, including adjacent notices, actions and hidden
@@ -144,7 +144,7 @@ test.describe("tenant demo", () => {
     await expect(page.getByTestId("finalize")).toBeVisible();
     await page.getByTestId("finalize").click();
 
-    await expect(page.getByText("상태: 검토 대기")).toBeVisible();
+    await expect(page.getByText("상태: 결정 대기")).toBeVisible();
     await expect(page.getByText("정보 상태: 필수 정보 확인됨")).toBeVisible();
   });
 
@@ -172,7 +172,7 @@ test.describe("tenant demo", () => {
     await page.getByTestId("submit-LEAK_LOCATION").click();
     await page.getByTestId("finalize").click();
 
-    await expect(page.getByText("상태: 검토 대기")).toBeVisible();
+    await expect(page.getByText("상태: 결정 대기")).toBeVisible();
   });
 
   test("interrupts intake when the report itself carries a hazard", async ({
@@ -192,7 +192,7 @@ test.describe("tenant demo", () => {
     ).toBeVisible();
     await expect(page.getByTestId("answer-no")).toHaveCount(0);
     await expect(page.getByTestId("finalize")).toHaveCount(0);
-    await expect(page.getByText("상태: 안전 확인 필요")).toBeVisible();
+    await expect(page.getByText("상태: 긴급 확인 필요")).toBeVisible();
 
     await assertSafeGuidance(page);
   });
@@ -240,7 +240,7 @@ test.describe("tenant demo", () => {
     await expect(page.getByText("정보 상태: 필수 정보 부족")).toBeVisible();
 
     const content = await page.content();
-    for (const landlordOnly of ["추천 경로", "관리사무소", "임대인 검토"]) {
+    for (const landlordOnly of ["추천 경로", "관리사무소", "관리자 검토"]) {
       expect(content).not.toContain(landlordOnly);
     }
   });
@@ -268,7 +268,7 @@ test.describe("tenant demo", () => {
     await page.getByTestId("submit-LEAK_LOCATION").click();
     await expect(page.getByTestId("finalize")).toBeVisible();
     await page.getByTestId("finalize").click();
-    await expect(page.getByText("상태: 검토 대기")).toBeVisible();
+    await expect(page.getByText("상태: 결정 대기")).toBeVisible();
 
     // The landlord asks for one specific question, through the real UI.
     await page.goto(`/demo/landlord/tickets/${ticketId}`);
@@ -277,12 +277,12 @@ test.describe("tenant demo", () => {
       .fill("누수 시점을 다시 확인해 주세요");
     await page.getByLabel("처음 발견한 시점을 입력해 주세요.").check();
     await page.getByTestId("request-more-info").click();
-    await expect(page.getByText("상태: 추가 정보 요청됨")).toBeVisible();
+    await expect(page.getByText("상태: 추가 확인 필요")).toBeVisible();
 
     // The tenant sees exactly that request.
     await page.goto(`/demo/tenant/tickets/${ticketId}`);
     await expect(
-      page.getByRole("heading", { name: "임대인이 추가 정보를 요청했습니다" }),
+      page.getByRole("heading", { name: "관리자가 추가 정보를 요청했어요" }),
     ).toBeVisible();
     await expect(page.getByText("누수 시점을 다시 확인해 주세요")).toBeVisible();
     // Scoped to the outstanding list: the prompt also renders as the question
@@ -301,7 +301,7 @@ test.describe("tenant demo", () => {
     await page.getByTestId("refinalize").click();
 
     await expect(
-      page.getByRole("heading", { name: "임대인이 추가 정보를 요청했습니다" }),
+      page.getByRole("heading", { name: "관리자가 추가 정보를 요청했어요" }),
     ).toHaveCount(0);
 
     const detail = await request.get(

@@ -84,7 +84,7 @@ test("a route decision and its correction refresh the request, its history and i
   await row.locator("[data-open-ticket]").click();await expect(zone(page)).toContainText("처리 방법을 정해 주세요.");
   await zone(page).getByRole("button",{name:"처리 방법 정하기",exact:true}).click();
   const decision=page.locator("#ticket-decision"),route=decision.getByLabel("직접 지정할 경로");
-  const decisions=page.getByRole("region",{name:"진행 이력",exact:true}).getByText("추천 경로 결정");
+  const decisions=page.getByRole("region",{name:"진행 이력",exact:true}).getByText("처리 방법 결정");
   const decide=async(label:string,reason:string)=>{await route.selectOption({label});await decision.getByLabel("지정 사유").fill(reason);await decision.getByRole("button",{name:"경로 직접 지정",exact:true}).click();};
   await decide("관리사무소","합성 관리사무소 처리");
   await expect(zone(page)).toContainText("처리를 시작하면 기록해 주세요.");await expect(decisions).toHaveCount(1);

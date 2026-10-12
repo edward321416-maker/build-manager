@@ -92,7 +92,7 @@ test("Hero B: Web Tenant produces the Building B management-office landlord cont
   await expect(page.getByTestId("finalize")).toBeVisible();
   await page.getByTestId("finalize").click();
 
-  await expect(page.getByText("상태: 검토 대기")).toBeVisible();
+  await expect(page.getByText("상태: 결정 대기")).toBeVisible();
   await expect(page.getByText("정보 상태: 필수 정보 확인됨")).toBeVisible();
 
   const response = await request.get(

@@ -54,10 +54,10 @@ for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace ->
   // Existing live tenant units are preserved; the manager's first sorted unit may differ.
   await m.getByLabel("건물·호실").selectOption(tenant.fixture.unitA);
   await m.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
-  await expect(saved(m).getByRole("img")).toHaveCount(1);await openInspector(m);await m.getByLabel("처리 기록").fill("로그인한 관리자가 합성 사진 확인 후 처리 시작");await m.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(m.getByTestId("work-status")).toHaveText("처리중");
+  await expect(saved(m).getByRole("img")).toHaveCount(1);await openInspector(m);await m.getByLabel("처리 기록").fill("로그인한 관리자가 합성 사진 확인 후 처리 시작");await m.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(m.getByTestId("work-status")).toHaveText("처리 중");
   await expect.poll(()=>saved(m).getByRole("img").evaluateAll(imgs=>imgs.every(img=>(img as HTMLImageElement).naturalWidth>0))).toBe(true);
   await m.evaluate(()=>scrollTo(0,0));await layout(m,width);await m.screenshot({path:capture("manager"),fullPage:true});
-  await page.reload();await page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(page.getByTestId("work-status")).toHaveText("처리중");await expect(saved(page).getByRole("img")).toHaveCount(1);
+  await page.reload();await page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(page.getByTestId("work-status")).toHaveText("처리 중");await expect(saved(page).getByRole("img")).toHaveCount(1);
   const photos=await (await tenant.context.request.get(`/api/v2/core/tickets/${ticket.ticketId}/photos`,{headers:tenant.headers})).json();
   await page.evaluate(()=>scrollTo(0,0));await layout(page,width);await page.screenshot({path:capture("reconnected"),fullPage:true});
   const ending=page.waitForResponse(r=>r.url().endsWith("/api/v2/session/logout"));await page.getByRole("button",{name:"로그아웃",exact:true}).click();
