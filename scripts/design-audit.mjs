@@ -3,7 +3,7 @@
 // Requires the pinned Node, Docker and a production Web build (npm run build:web). Synthetic data only; the pages load the
 // Pretendard font from cdn.jsdelivr.net and nothing else leaves this machine. The container and the private state folder
 // the fixture writes are removed at the end, on failure and on Ctrl+C.
-// Checks (the first five came from operator feedback recorded in the rules, §18):
+// Checks (all but tap and coverage came from operator feedback recorded in the rules, §18):
 //   edge-box   text closer than 6px to a box edge that is visible (background or border on that side)
 //   edge-view  text closer than 16px to the left or right of the viewport
 //   top        first text closer than 10px to the top of the page
@@ -12,6 +12,10 @@
 //   tap        a button, link, field or summary smaller than 50x50px (rules §5); for a checkbox, a radio or a visually
 //              hidden input its visible label is measured (added after the PR 122 end review found 60x45px photo
 //              buttons). The one exception: up to 767px the /core top menu links need only 40px height (rules §16).
+//   center     text not in the middle of its button, link, tab, summary, option label or status label: the space above
+//              and below differs by 2px or more, or, in a box with a visible fill or border, the space left and right of
+//              any line does (rules §4). Rows read from the left (summary, request list rows, checkbox and radio rows,
+//              the side-column left menu) are compared only top and bottom.
 //   coverage   a requested engine did not start, or a screen that should exist could not be reached
 // Exit code 1 when any finding remains, so it can gate a design change.
 import { createRequire } from "node:module";
@@ -45,17 +49,20 @@ const missing = (screen, detail) => findings.push({ check: "coverage", screen, w
 
 function inspect() {
   document.querySelectorAll("details:not([open])").forEach(d => d.setAttribute("open", ""));
-  const transparent = c => c === "rgba(0, 0, 0, 0)" || c === "transparent";
-  const hiddenText = el => { for (let a = el; a && a !== document.body; a = a.parentElement) { const cs = getComputedStyle(a); if (cs.visibility === "hidden" || cs.display === "none" || cs.opacity === "0" || cs.clipPath.includes("inset(50%)")) return true; if (cs.display === "contents") continue; const r = a.getBoundingClientRect(); if (r.width <= 1 || r.height <= 1) return true; } return false; };
-  const visibleSides = el => {
+  // Any colour with zero alpha is transparent, not only rgba(0, 0, 0, 0).
+  const transparent = c => c === "transparent" || /^rgba\(.*,\s*0\)$/.test(c) || /\/\s*0\)$/.test(c);
+  // The page does not change during one inspection, so per-element answers are cached.
+  const memo = f => { const seen = new Map(); return el => { if (!seen.has(el)) seen.set(el, f(el)); return seen.get(el); }; };
+  const hiddenText = memo(el => { for (let a = el; a && a !== document.body; a = a.parentElement) { const cs = getComputedStyle(a); if (cs.visibility === "hidden" || cs.display === "none" || cs.opacity === "0" || cs.clipPath.includes("inset(50%)")) return true; if (cs.display === "contents") continue; const r = a.getBoundingClientRect(); if (r.width <= 1 || r.height <= 1) return true; } return false; });
+  const visibleSides = memo(el => {
     const cs = getComputedStyle(el), sides = new Set();
     let a = el.parentElement, under = "rgb(255, 255, 255)";
     while (a) { const c = getComputedStyle(a).backgroundColor; if (!transparent(c)) { under = c; break; } a = a.parentElement; }
     if (!transparent(cs.backgroundColor) && cs.backgroundColor !== under) ["left", "right", "top", "bottom"].forEach(s => sides.add(s));
-    for (const s of ["Top", "Right", "Bottom", "Left"]) if (parseFloat(cs["border" + s + "Width"]) > 0 && cs["border" + s + "Style"] !== "none") sides.add(s.toLowerCase());
+    for (const s of ["Top", "Right", "Bottom", "Left"]) if (parseFloat(cs["border" + s + "Width"]) > 0 && cs["border" + s + "Style"] !== "none" && !transparent(cs["border" + s + "Color"])) sides.add(s.toLowerCase());
     if (el.tagName === "FIELDSET") sides.delete("top"); // the legend sits on the top border by design
     return sides;
-  };
+  });
   const rects = node => { const r = document.createRange(); r.selectNodeContents(node); return [...r.getClientRects()].filter(x => x.width > 0); };
   const label = el => el.tagName.toLowerCase() + (el.getAttribute("aria-label") ? `[${el.getAttribute("aria-label")}]` : "") + " \"" + (el.innerText || el.value || "").replace(/\s+/g, " ").trim().slice(0, 30) + "\"";
   const result = [];
@@ -105,11 +112,65 @@ function inspect() {
     const r = el.getBoundingClientRect(), minHeight = phoneMenu(el) ? 40 : 50;
     if (r.width < 49.5 || r.height < minHeight - .5) result.push({ check: "tap", where: label(el), detail: `${Math.round(r.width)}x${Math.round(r.height)}px, needs 50x${minHeight}` });
   }
+  // Operator request 2026-10-13 (rules §4): text sits in the middle of its box. The content is the text, icons, images,
+  // visible inputs and inner boxes such as a status label inside a button; positioned decorations (absolute, fixed) are
+  // not, and ::before/::after content cannot be measured, nor can the label of an <input> button (none on these
+  // screens). A text line counts at its full line height, which is what
+  // CSS centres; browsers report only the glyph area, and Chromium and WebKit report it differently.
+  const badge = el => [...el.classList].some(c => /(^|__)badge$/i.test(c) || /[a-z]Badge$/.test(c)) || el.matches("span[data-work-state], span[data-intake-state]");
+  const visibleText = el => { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n = w.nextNode(); n; n = w.nextNode()) if (n.textContent.trim() && !hiddenText(n.parentElement)) return true; return false; };
+  const contentRects = el => {
+    const out = [];
+    const visit = node => { for (const c of node.childNodes) {
+      if (c.nodeType === 3) {
+        if (!c.textContent.trim()) continue;
+        const cs = getComputedStyle(c.parentElement), line = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
+        for (const r of rects(c)) { const pad = Math.max(0, (line - r.height) / 2); out.push({ text: true, left: r.left, right: r.right, top: r.top - pad, bottom: r.bottom + pad }); }
+        continue;
+      }
+      if (c.nodeType !== 1 || hiddenText(c)) continue;
+      const cs = getComputedStyle(c);
+      // A positioned count badge, a piece hidden from screen readers or one without visible text sits over the control
+      // (an unread count, a dot); a positioned label still counts.
+      if ((cs.position === "absolute" || cs.position === "fixed") && (badge(c) || c.closest("[aria-hidden=true]") || !visibleText(c))) continue;
+      if (cs.display !== "contents" && (c.matches("img, svg, canvas, video, input") || visibleSides(c).size)) { const r = c.getBoundingClientRect(); if (r.width > 0 && r.height > 0) out.push(r); continue; }
+      visit(c);
+    } };
+    visit(el); return out;
+  };
+  const union = rs => rs.reduce((u, r) => ({ left: Math.min(u.left, r.left), right: Math.max(u.right, r.right), top: Math.min(u.top, r.top), bottom: Math.max(u.bottom, r.bottom) }), { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity });
+  // Lines come from the text alone: a piece joins a line when its middle lies inside that line's first piece, so lines
+  // never grow into each other. An icon, image or inner box widens every line it sits beside; one that sits beside no
+  // line (a picture above a caption) is a line of its own.
+  const lines = rs => {
+    const text = rs.filter(r => r.text), boxes = rs.filter(r => !r.text), placed = new Set(), ls = [];
+    for (const r of [...text].sort((a, b) => a.top - b.top)) { const mid = (r.top + r.bottom) / 2, l = ls.find(l => mid > l.band.top && mid < l.band.bottom); if (l) l.pieces.push(r); else ls.push({ band: r, pieces: [r] }); }
+    // Beside a line: the piece's middle lies in the line, or the two overlap by more than half of the shorter one.
+    const beside = (b, band) => { const mid = (b.top + b.bottom) / 2; return (mid > band.top && mid < band.bottom) || Math.min(b.bottom, band.bottom) - Math.max(b.top, band.top) > Math.min(b.bottom - b.top, band.bottom - band.top) / 2; };
+    return [...ls.map(l => { const bs = boxes.filter(b => beside(b, l.band)); bs.forEach(b => placed.add(b)); return union([...l.pieces, ...bs]); }), ...boxes.filter(b => !placed.has(b)).map(b => union([b]))];
+  };
+  // Gaps are measured inside the borders, where CSS centres the content, so an underline border is not counted as space.
+  const inner = el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el), b = s => parseFloat(cs["border" + s + "Width"]) || 0; return { left: r.left + b("Left"), right: r.right - b("Right"), top: r.top + b("Top"), bottom: r.bottom - b("Bottom") }; };
+  // Rows read from the left compare only top and bottom: summary rows, list rows that open a request (rules §8.5),
+  // checkbox and radio rows (§8.4) and the left menu, which is the account column once it sticks to the side. A
+  // selection tile (§8.3) is marked data-tile and is centred both ways like a button.
+  const leftStart = el => el.matches("summary, [data-open-ticket], .field-check label, label:has(input[type=checkbox], input[type=radio]):not([data-tile])") || (el.matches(".core-account nav a, .core-account .core-logout") && getComputedStyle(el.closest(".core-account")).position === "sticky");
+  for (const el of new Set([...taps, ...[...document.querySelectorAll("body *")].filter(badge)])) {
+    if (hiddenText(el) || el.matches("select, textarea, input")) continue;
+    const rs = contentRects(el); if (!rs.length) continue;
+    const box = inner(el), c = union(rs), pairs = [[c.top - box.top, box.bottom - c.bottom, "top", "bottom"]];
+    // Every line of a one-name box is centred on its own, so a wrapped label is checked line by line.
+    if (!leftStart(el) && visibleSides(el).size) pairs.push(...lines(rs).map(l => [l.left - box.left, box.right - l.right, "left", "right"]));
+    const off = pairs.find(([a, b]) => Math.abs(a - b) >= 2);
+    if (off) result.push({ check: "center", where: label(el), detail: `${off[2]} ${Math.round(off[0])}px, ${off[3]} ${Math.round(off[1])}px` });
+  }
   if (document.documentElement.scrollWidth > vw) result.push({ check: "hscroll", where: "page", detail: `${document.documentElement.scrollWidth}px wide in ${vw}px` });
   return result;
 }
 
 async function audit(page, name) {
+  // The pointer stays on the last control clicked; move it off so no hover fill changes what is measured.
+  await page.mouse.move(0, 0);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(500);
   const file = join(out, name + ".png");

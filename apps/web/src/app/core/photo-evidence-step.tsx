@@ -81,7 +81,7 @@ export function PhotoEvidenceStep({client,ticketId,requirement,named,revision,bu
       :load==="failed"?<div role="alert"><p>올린 사진을 불러오지 못했어요. 연결을 확인하고 다시 불러와 주세요.</p><button type="button" onClick={()=>{setLoad("loading");setReload(value=>value+1);}}>사진 다시 불러오기</button></div>
       :!photos.length?<p id={hintId}>아직 올린 사진이 없어요. &apos;사진 추가하기&apos;로 올려 주세요.</p>
       :<div className={styles.evidenceTiles} role="radiogroup" aria-labelledby={headingId}>{photos.map(({photo,url},index)=>
-        <label key={photo.photoId} className={styles.evidenceTile}>
+        <label key={photo.photoId} className={styles.evidenceTile} data-tile>
           <img src={url} alt={`올린 사진 ${index+1}`}/>
           {/* Named by the caption only, so the photo's alt text is not read twice. */}
           <span><input type="radio" aria-labelledby={`${headingId}-photo-${index}`} name={`evidence-${ticketId}-${requirement.evidenceType}`} value={photo.photoId} checked={selected===photo.photoId} disabled={locked} onChange={()=>setSelected(photo.photoId)}/><span id={`${headingId}-photo-${index}`}>{`사진 ${index+1}`}{names.has(photo.photoId)?` · ${names.get(photo.photoId)!.join(", ")}`:""}</span></span>
