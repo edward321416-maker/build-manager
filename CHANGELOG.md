@@ -51,3 +51,7 @@
 ## 2026-10-12 — Manager next step and /core design cleanup
 
 - Redeployed the hosted demo from main `309b0b7` with the manager's next step from PR #121 (a 다음 할 일 zone in each request, queue rows that name the open intake step, and a Vendor section that explains what it needs first) and the remaining `/core` design items from PR #122 (4:3 photo thumbnails without a box, the caption style for times and counts, the 248px left menu from 1024px, and maintenance history as list rows). No migration was added. The archive of the previous image was kept on the VM for rollback.
+
+## 2026-10-13 — Plain names, Korean dates and larger tap targets
+
+- Redeployed the hosted demo from main `f5ff1ce` with the one name table for states, routes and policies from PR #123 (raw values and the old landlord term are gone), dates and times in the design rules section 14 format with folded repeat saves in the history from PR #125, Seoul time everywhere with the exact time next to `10분 전` from PR #127, and 50px tap targets for the `/core` controls the design audit found from PR #126 (the phone top menu links stay 40px tall by operator decision). No migration was added. The archive of the previous image was kept on the VM for rollback.
