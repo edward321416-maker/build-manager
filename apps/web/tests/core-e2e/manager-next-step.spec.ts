@@ -2,6 +2,7 @@ import { test,expect,type APIRequestContext,type Locator,type Page } from "@play
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { routeOnce } from "../routes";
 
 const privateRoot=join(homedir(),".build-manager-rc1-private");
 const codes=async()=>JSON.parse(await readFile(join(privateRoot,"access-codes.json"),"utf8")) as Record<string,string>;
@@ -12,10 +13,16 @@ async function inView(page:Page,target:Locator){const box=await target.boundingB
 async function tenantRequest(request:APIRequestContext,issueType:"LEAK"|"HEATING",rawUserText:string,submit:boolean){
   const headers={Authorization:`Bearer ${(await codes()).tenant}`};
   const unit=(await (await request.get("/api/v2/core/units",{headers})).json())[0].id;
-  const post=async(path:string,data:unknown)=>{const r=await request.post(`/api/v2/core/tickets${path}`,{headers,data});expect(r.status()).toBe(path?200:201);return r.json();};
-  let t=await post("",{unitId:unit,issueType,rawUserText});if(!submit)return t;
-  for(let i=0;i<15&&t.detail.activeQuestion;i++){const q=t.detail.activeQuestion;t=await post(`/${t.ticketId}/answers`,{questionId:q.questionId,answer:q.responseType==="YES_NO"?false:q.responseType==="SINGLE_SELECT"?q.options[0].value:"합성 답변"});}
-  return post(`/${t.ticketId}/finalize`,{});
+  const r=await request.post("/api/v2/core/tickets",{headers,data:{unitId:unit,issueType,rawUserText}});expect(r.status()).toBe(201);
+  const t=await r.json();return submit?submitRequest(request,t.ticketId):t;
+}
+/** Answers every remaining question of a tenant request and submits it. */
+async function submitRequest(request:APIRequestContext,ticketId:string){
+  const headers={Authorization:`Bearer ${(await codes()).tenant}`};
+  const post=async(path:string,data:unknown)=>{const r=await request.post(`/api/v2/core/tickets/${ticketId}${path}`,{headers,data});expect(r.status()).toBe(200);return r.json();};
+  let t=await (await request.get(`/api/v2/core/tickets/${ticketId}`,{headers})).json();
+  for(let i=0;i<15&&t.detail.activeQuestion;i++){const q=t.detail.activeQuestion;t=await post("/answers",{questionId:q.questionId,answer:q.responseType==="YES_NO"?false:q.responseType==="SINGLE_SELECT"?q.options[0].value:"합성 답변"});}
+  return post("/finalize",{});
 }
 
 // Menu audit F-04/F-05/F-06: the manager sees the next step by state at the top, and its button opens the folded section.
@@ -84,4 +91,19 @@ test("a route decision and its correction refresh the request, its history and i
   const other=(await route.locator("option").allTextContents()).find(label=>label&&label!=="관리사무소");expect(other).toBeTruthy();
   await decide(other!,"합성 경로 수정");
   await expect(decisions).toHaveCount(2);
+});
+
+// Opening a request re-reads the ticket list, so the other rows catch up with the queue; the list read is best effort.
+test("opening a request brings the other rows up to date, and a failed list read does not block it, at 1440px",async({request,page})=>{
+  const a=await tenantRequest(request,"LEAK","합성 목록 갱신 A",true),b=await tenantRequest(request,"HEATING","합성 목록 갱신 B",false);
+  await page.setViewportSize({width:1440,height:900});await login(page,"manager");
+  const row=(id:string)=>page.locator(`[data-ticket-id="${id}"]`);
+  await expect(row(b.ticketId).locator('[data-work-state="DRAFT"]')).toHaveText("제출 전");
+  // The tenant submits B after the manager's list was loaded; opening A also brings B's row up to date.
+  await submitRequest(request,b.ticketId);
+  await row(a.ticketId).locator("[data-open-ticket]").click();await expect(page.getByTestId("ticket-heading")).toContainText("누수");
+  await expect(row(b.ticketId)).toContainText("처리 방법 결정 필요");
+  await routeOnce(page,"**/api/v2/core/tickets",route=>route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:{code:"DEPENDENCY_UNAVAILABLE",message:"합성 목록 읽기 실패"}})}));
+  await row(b.ticketId).locator("[data-open-ticket]").click();
+  await expect(page.getByTestId("ticket-heading")).toContainText("난방");await expect(zone(page)).toContainText("처리 방법을 정해 주세요.");
 });

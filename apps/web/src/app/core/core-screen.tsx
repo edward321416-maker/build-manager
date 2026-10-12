@@ -122,8 +122,9 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
     const id=selected.ticketId,seq=++intakeRead.current;intakeSync.current=`${id}:${status}`;
     void run(async()=>{const ticket=await client.read(id);if(seq===intakeRead.current)adopt(ticket);});
   };
-  /** Opening a request from the manager's queue or timeline re-reads the list too: the queue reloads its rows on every selection. */
-  const openManaged=async(id:string)=>{const [ticket,list]=await Promise.all([client.read(id),client.tickets()]);setSelected(ticket);setTickets(list.map(item=>item.ticketId===ticket.ticketId?ticket:item));};
+  /** Opening a request re-reads the ticket list too, since the manager's queue reloads its rows on every selection.
+   * The list read is best effort: when it fails, the request still opens and the current list stays. */
+  const openWithList=async(id:string)=>{const [ticket,list]=await Promise.all([client.read(id),client.tickets().catch(()=>null)]);setSelected(ticket);setTickets(current=>(list??current).map(item=>item.ticketId===ticket.ticketId?ticket:item));};
   // Whether the completed request already has a unit maintenance fact; null until the fact editor has loaded.
   const [factRecorded,setFactRecorded]=useState<{ticketId:string;recorded:boolean}|null>(null);
   /** Opens the folded section that holds the step's control and brings it into view with focus. */
@@ -149,9 +150,9 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
     catch(e){if(e instanceof ApiClientError&&(e.status===401||e.status===403))throw e;setPhotoMessage(photoError(e));}
   };
   const checkPhotos=async()=>{if(!selected)return;const ticket=await client.read(selected.ticketId),photos=await client.photos(selected.ticketId);setSelected(ticket);setPending(current=>current.filter(f=>!photos.some(p=>p.uploadId===f.uploadId)));setRevision(r=>r+1);setPhotoMessage(`저장된 사진 ${photos.length}장을 확인했습니다. ${ticket.workStatus==="COMPLETED"?"처리 완료된 접수에는 사진을 추가할 수 없습니다.":"남은 미전송 사진만 다시 전송할 수 있습니다."}`);};
-  const openOutcome=(id:string)=>void run(async()=>{const ticket=await client.read(id);setSelected(ticket);setFollowUp(null);setFollowAttempt(null);setText("");setMessage("");setRevision(r=>r+1);});
+  const openOutcome=(id:string)=>void run(async()=>{await openWithList(id);setFollowUp(null);setFollowAttempt(null);setText("");setMessage("");setRevision(r=>r+1);});
   const openMaintenanceTicket=(id:string)=>void run(async()=>{
-    try{await openManaged(id);setManagerView("WORK_QUEUE");setFollowUp(null);setFollowAttempt(null);setText("");setMessage("");setRevision(r=>r+1);}
+    try{await openWithList(id);setManagerView("WORK_QUEUE");setFollowUp(null);setFollowAttempt(null);setText("");setMessage("");setRevision(r=>r+1);}
     catch(e){if(e instanceof ApiClientError&&[401,403,404].includes(e.status??0))clearAccess();throw e;}
   });
   const beginFollowUp=(kind:FollowUpKind)=>{if(!selected)return;const fresh=freshFollowUp(selected,kind);setFollowUp(fresh);setFollowAttempt(null);setUnit(fresh.unitId);setIssue(fresh.issueType);setText("");setPending([]);setPhotoMessage("");setSelected(null);};
@@ -196,7 +197,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout}:{b1?:{orgId:string;c
       {session.role==="TENANT"?<OutcomeRecoveryPanel client={client} onOpen={openOutcome}/>:null}
       {session.role!=="TENANT"?<nav className="core-actions core-view-switch" aria-label="관리자 보기"><button disabled={busy} aria-pressed={managerView==="WORK_QUEUE"} onClick={()=>setManagerView("WORK_QUEUE")}>업무함</button><button disabled={busy} aria-pressed={managerView==="MAINTENANCE"} onClick={()=>setManagerView("MAINTENANCE")}>호실 정비 이력</button></nav>:null}
       {session.role!=="TENANT"&&managerView==="MAINTENANCE"?<ManagerMaintenanceTimeline key={maintenanceUnit} client={client} units={units} revision={revision} disabled={busy} initialUnit={maintenanceUnit} onOpenTicket={openMaintenanceTicket}/>:<div className={session.role!=="TENANT"?styles.managerWorkspace:styles.tenantWorkspace} data-detail={Boolean(selected)}>
-      {session.role!=="TENANT"?<div className={styles.queuePane}><ManagerWorkQueue key={`${selected?.ticketId??"list"}-${selected?.version??0}`} client={client} units={units} tickets={tickets} revision={revision} disabled={busy} selectedId={selected?.ticketId} onOpen={id=>void run(async()=>{await openManaged(id);setMessage("");})}/></div>:null}
+      {session.role!=="TENANT"?<div className={styles.queuePane}><ManagerWorkQueue key={`${selected?.ticketId??"list"}-${selected?.version??0}`} client={client} units={units} tickets={tickets} revision={revision} disabled={busy} selectedId={selected?.ticketId} onOpen={id=>void run(async()=>{await openWithList(id);setMessage("");})}/></div>:null}
       {selected?<section className={styles.selectedPane} aria-label="선택한 접수">
 
         {pending.length?<p>목록으로 돌아가기 전에 미전송 사진을 저장하거나 선택 취소해 주세요.</p>:null}
