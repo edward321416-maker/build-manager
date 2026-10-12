@@ -1,6 +1,7 @@
 "use client";
 import type { CoreTicketDto, InvitationDto } from "@build-manager/api-contracts";
 import { useEffect, useRef, type ReactNode } from "react";
+import { DateTime } from "../../../components/date-time";
 import styles from "../core-design.module.css";
 import { DraftBadge, IntakeStatus, WorkStatusBadge } from "./work-status-badge";
 
@@ -65,11 +66,11 @@ export function InvitationMetadata({ invite }: {
     </> : null}
     {invite.requestedAt ? <>
       <dt>신청 시각</dt>
-      <dd><time dateTime={invite.requestedAt}>{new Date(invite.requestedAt).toLocaleString("ko-KR")}</time></dd>
+      <dd><DateTime at={invite.requestedAt} /></dd>
     </> : null}
     <dt>만료 시각</dt>
-    <dd><time dateTime={invite.expiresAt}>{new Date(invite.expiresAt).toLocaleString("ko-KR")}</time></dd>
-    {invite.decidedAt ? <><dt>확인 시각</dt><dd><time dateTime={invite.decidedAt}>{new Date(invite.decidedAt).toLocaleString("ko-KR")}</time></dd></> : null}
+    <dd><DateTime at={invite.expiresAt} /></dd>
+    {invite.decidedAt ? <><dt>확인 시각</dt><dd><DateTime at={invite.decidedAt} /></dd></> : null}
   </dl>;
 }
 

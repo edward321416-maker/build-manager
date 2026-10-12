@@ -4,6 +4,7 @@ import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
 import { CoreCommunicationSendSchema,type CoreCommunicationIntent,type CoreCommunicationPage,type CoreCommunicationSummary } from "@build-manager/api-contracts";
 import { clearCommunicationRecovery,readCommunicationRecovery,saveCommunicationRecovery,type CommunicationRecovery } from "./communication-recovery";
 import { TaskZone } from "./ui/core-display";
+import { DateTime } from "../../components/date-time";
 import styles from "./ticket-communication.module.css";
 
 export function CommunicationBadge({summary,tenant=false}:{summary?:Pick<CoreCommunicationSummary,"waitingFor"|"readOnly">;tenant?:boolean}){
@@ -97,7 +98,7 @@ export function TicketCommunication({client,ticketId,tenant,revision,completed,o
       <div className={styles.heading}><p>세입자와 권한 있는 관리자에게 공개됩니다.</p><button aria-label="대화 새로고침" disabled={busy||loading} onClick={()=>{setError("");void load();}}>↻</button></div>
       <CommunicationBadge summary={page?{...page,readOnly:Boolean(readOnly)}:undefined} tenant={tenant}/>
     {page?.nextBeforeSequence?<button disabled={busy||loading} onClick={()=>void older()}>이전 대화 더 보기</button>:null}
-    {page?.messages.length?<ol className={styles.messages}>{page.messages.map(m=><li key={m.id} data-author={m.authorRole}><p className={styles.meta}><strong>{m.authorRole==="TENANT"?"세입자":"관리자"}</strong> · {intentLabel[m.intent]} · <time dateTime={m.createdAt}>{new Date(m.createdAt).toLocaleString("ko-KR")}</time></p><p className={styles.body}>{m.body}</p>{m.replyToMessageId?<small>앞선 대화에 대한 답변</small>:null}</li>)}</ol>:page?<p>아직 공유된 대화가 없습니다. 문의나 진행 안내를 남겨 주세요.</p>:null}
+    {page?.messages.length?<ol className={styles.messages}>{page.messages.map(m=><li key={m.id} data-author={m.authorRole}><p className={styles.meta}><strong>{m.authorRole==="TENANT"?"세입자":"관리자"}</strong> · {intentLabel[m.intent]} · <DateTime at={m.createdAt}/></p><p className={styles.body}>{m.body}</p>{m.replyToMessageId?<small>앞선 대화에 대한 답변</small>:null}</li>)}</ol>:page?<p>아직 공유된 대화가 없습니다. 문의나 진행 안내를 남겨 주세요.</p>:null}
       {readOnly?<p>관리자의 완료 기록이 있는 접수입니다. 이전 대화만 볼 수 있으며 새 메시지는 보낼 수 없습니다.</p>:!ownsTask?composer:null}
     </details>
     {!tenant?children:null}

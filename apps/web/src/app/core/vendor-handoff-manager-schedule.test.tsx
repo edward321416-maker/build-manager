@@ -32,7 +32,7 @@ async function click(label:string){expect(Boolean(button(label)),label).toBe(tru
 
 it("shows the SCHEDULED Appointment in Seoul time and reschedules only after an explicit confirmation",async()=>{
   const s=await mount(scheduled());
-  expect(page()).toContain("10월 7일(수) 오후 2:00–3:00");
+  expect(page()).toContain("10월 7일 (수) 오후 2:00–3:00");
   await click("방문 일정 변경");
   expect(s.reschedule).not.toHaveBeenCalled();
   expect(page()).toContain("기존 방문 일정은 취소되고");
@@ -61,7 +61,7 @@ it("labels the dismiss action without implying cancellation and resets an open c
   expect(button("취소")).toBeUndefined();
   s.readHandoff.mockResolvedValue(scheduled({appointment:{...appointment,id:"appointment-2",startAt:"2026-10-08T05:00:00Z",endAt:"2026-10-08T06:00:00Z"}}));
   await click("업체 연결 상태 다시 확인");
-  expect(page()).toContain("10월 8일(목) 오후 2:00–3:00");
+  expect(page()).toContain("10월 8일 (목) 오후 2:00–3:00");
   expect(button("일정 변경하기")).toBeUndefined();
   expect(button("방문 일정 변경")).toBeDefined();
 });

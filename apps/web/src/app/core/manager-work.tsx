@@ -8,8 +8,8 @@ import { compareManagerWork,isOverdue,priorityLabels } from "./manager-work-orde
 import { managerRowHint } from "./manager-next-step";
 import styles from "./manager-work.module.css";
 import { CommunicationBadge,useCommunicationSummaries } from "./ticket-communication";
+import { DateTime } from "../../components/date-time";
 
-const dateText=(value:string)=>new Date(value).toLocaleString("ko-KR");
 function localInput(value:string|null){
   if(!value)return "";const d=new Date(value),pad=(n:number)=>String(n).padStart(2,"0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -40,7 +40,7 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selected
         <span className={styles.subject}><strong>{item.issueType==="HEATING"?"난방":"누수"}</strong><span>{item.buildingName} · {item.unitLabel}</span></span>
         <span className={styles.workState}>{(hint=><>{hint==="DRAFT"?<DraftBadge/>:<WorkStatusBadge status={item.workStatus}/>}{hint==="NEEDS_MORE_INFO"||hint==="SAFETY_ESCALATED"?<IntakeBadge status={hint}/>:null}<CommunicationBadge summary={conversation.summaries[item.ticketId]}/>{hint==="DECIDE"?<small className={styles.rowHint}>처리 방법 결정 필요</small>:null}</>)(managerRowHint(byId.get(item.ticketId)))}</span>
         <span className={styles.assignee}><small>담당자</small>{item.assigneeLabel??"미지정"}</span>
-        <span className={styles.due}><small>처리 예정</small>{item.dueAt?<time dateTime={item.dueAt} title={dateText(item.dueAt)}>{new Date(item.dueAt).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}</time>:"미정"}{isOverdue(item,now)?<strong className={styles.overdue}>기한 지남</strong>:null}</span>
+        <span className={styles.due}><small>처리 예정</small>{item.dueAt?<DateTime at={item.dueAt} relative={false}/>:"미정"}{isOverdue(item,now)?<strong className={styles.overdue}>기한 지남</strong>:null}</span>
       </button>
     </li>)}</ul>}
     <details className={styles.help}><summary>업무 정보 안내</summary><p>담당자와 예정일은 업무 정리용입니다. 권한 부여·업체 배정·자동 출동을 뜻하지 않습니다.</p></details>
@@ -78,7 +78,7 @@ export function ManagerWorkDetail({client,ticket,revision}:{client:CoreFlowClien
         <label>내부 메모 입력<textarea value={body} maxLength={2000} disabled={locked} onChange={e=>setBody(e.target.value)} /></label><button disabled={locked||!body.trim()}>내부 메모 추가</button>
       </form>
       <p className={styles.help}>개인정보를 적지 마세요. 저장 후 수정·삭제할 수 없으며 처리 상태에는 영향을 주지 않습니다.</p>
-      {notes.length?<ol className={styles.noteList}>{notes.map(note=><li key={note.id}><time dateTime={note.createdAt}>{dateText(note.createdAt)}</time><p>{note.body}</p></li>)}</ol>:<p>저장된 내부 메모가 없습니다.</p>}
+      {notes.length?<ol className={styles.noteList}>{notes.map(note=><li key={note.id}><DateTime at={note.createdAt}/><p>{note.body}</p></li>)}</ol>:<p>저장된 내부 메모가 없습니다.</p>}
     </section>
   </section>;
 }

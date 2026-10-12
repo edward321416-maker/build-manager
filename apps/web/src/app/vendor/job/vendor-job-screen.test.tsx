@@ -509,15 +509,15 @@ describe("Task6 Vendor visit scheduling",()=>{
   it("shows Tenant availability in Seoul time and proposes future slots with current guards and server CSRF",async()=>{
     const client=fakeClient({redeem:opened(vendorTurn()),proposeSlots:vi.fn(async()=>proposed([{id:slotNew,startAt:"2026-10-10T01:00:00.000Z",endAt:"2026-10-10T02:00:00.000Z"}]))});
     await mount(client,`#${tokenB}`,now);
-    expect(page()).toContain("10월 7일(수) 오후 2:00–4:00");
-    expect(page()).toContain("10월 8일(목) 오전 10:00–오후 1:00");
+    expect(page()).toContain("10월 7일 (수) 오후 2:00–4:00");
+    expect(page()).toContain("10월 8일 (목) 오전 10:00–오후 1:00");
     await enter("2026-10-10","10:00","11:00");
     await click("방문 시간 제안하기");
     const [sent,input]=client.proposeSlots.mock.calls[0];
     expect(sent).toBe(csrf);
     expect(input).toMatchObject({expectedAssignmentVersion:4,expectedRoundVersion:1,expectedPacketRevisionId:packetB,slots:[{startAt:"2026-10-10T01:00:00.000Z",endAt:"2026-10-10T02:00:00.000Z"}]});
     expect(page()).toContain("제안한 시간 중 하나를 세입자가 고르기를 기다리고 있습니다");
-    expect(page()).toContain("10월 10일(토) 오전 10:00–11:00");
+    expect(page()).toContain("10월 10일 (토) 오전 10:00–11:00");
     expect(tokenFree()).toBe(true);
   });
   // Menu audit F-17: a Tenant's available time can be copied into a proposal row instead of retyped.
@@ -526,10 +526,10 @@ describe("Task6 Vendor visit scheduling",()=>{
   it("copies a Tenant's available time into the proposal rows and proposes it",async()=>{
     const client=fakeClient({redeem:opened(vendorTurn()),proposeSlots:vi.fn(async()=>proposed([{id:slotNew,startAt:availability.windows[0].startAt,endAt:availability.windows[0].endAt}]))});
     await mount(client,`#${tokenB}`,now);
-    await act(async()=>{fill("10월 7일(수) 오후 2:00–4:00")!.click();});
+    await act(async()=>{fill("10월 7일 (수) 오후 2:00–4:00")!.click();});
     expect(rows()).toEqual([["2026-10-07","14:00","16:00"]]);
-    await act(async()=>{fill("10월 8일(목) 오전 10:00–오후 1:00")!.click();});
-    await act(async()=>{fill("10월 7일(수) 오후 2:00–4:00")!.click();});
+    await act(async()=>{fill("10월 8일 (목) 오전 10:00–오후 1:00")!.click();});
+    await act(async()=>{fill("10월 7일 (수) 오후 2:00–4:00")!.click();});
     expect(rows()).toEqual([["2026-10-07","14:00","16:00"],["2026-10-08","10:00","13:00"]]);
     await click("방문 시간 제안하기");
     expect(client.proposeSlots.mock.calls[0][1].slots).toEqual(availability.windows.map(({startAt,endAt})=>({startAt,endAt})));
@@ -563,15 +563,15 @@ describe("Task6 Vendor visit scheduling",()=>{
   it("hides expired proposal slots and lets the Vendor propose again when all have passed",async()=>{
     const client=fakeClient({redeem:opened(proposed([{id:slotOld,startAt:"2026-10-06T01:00:00.000Z",endAt:"2026-10-06T02:00:00.000Z"}]))});
     await mount(client,`#${tokenB}`,now);
-    expect(page().includes("10월 6일(화) 오전 10:00–11:00")).toBe(false);
+    expect(page().includes("10월 6일 (화) 오전 10:00–11:00")).toBe(false);
     expect(page()).toContain("제안한 시간이 모두 지났습니다");
     expect(button("방문 시간 제안하기")).toBeDefined();
   });
   it("selects a visit time only inside an explicitly authorized window",async()=>{
     const client=fakeClient({redeem:opened(preauthorized()),selectPreauthorizedSlot:vi.fn(async()=>scheduled())});
     await mount(client,`#${tokenB}`,now);
-    expect(Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]')).map(x=>x.closest("label")?.textContent)).toEqual(["10월 7일(수) 오후 2:00–4:00"]);
-    await choose("10월 7일(수) 오후 2:00–4:00");
+    expect(Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]')).map(x=>x.closest("label")?.textContent)).toEqual(["10월 7일 (수) 오후 2:00–4:00"]);
+    await choose("10월 7일 (수) 오후 2:00–4:00");
     await enter("2026-10-07","14:30","15:30");
     await click("동의된 시간 안에서 방문 확정");
     const [sent,input]=client.selectPreauthorizedSlot.mock.calls[0];
@@ -582,7 +582,7 @@ describe("Task6 Vendor visit scheduling",()=>{
   it("rejects a preauthorized time that leaves the authorized window by absolute instant",async()=>{
     const client=fakeClient({redeem:opened(preauthorized())});
     await mount(client,`#${tokenB}`,now);
-    await choose("10월 7일(수) 오후 2:00–4:00");
+    await choose("10월 7일 (수) 오후 2:00–4:00");
     await enter("2026-10-07","15:30","16:30");
     await click("동의된 시간 안에서 방문 확정");
     expect(client.selectPreauthorizedSlot).not.toHaveBeenCalled();
@@ -591,7 +591,7 @@ describe("Task6 Vendor visit scheduling",()=>{
   it("shows the SCHEDULED Appointment and reschedules only after an explicit confirmation",async()=>{
     const client=fakeClient({redeem:opened(scheduled())});
     await mount(client,`#${tokenB}`,now);
-    expect(page()).toContain("10월 7일(수) 오후 2:00–3:00");
+    expect(page()).toContain("10월 7일 (수) 오후 2:00–3:00");
     await click("방문 일정 변경");
     expect(client.reschedule).not.toHaveBeenCalled();
     expect(page()).toContain("기존 방문 일정은 취소되고");
@@ -676,7 +676,7 @@ describe("Task6 Vendor visit scheduling",()=>{
     await flush();
     expect(page()).toContain("합성 업체 A");
     expect(page().includes("방문 일정 조율")).toBe(false);
-    expect(page().includes("10월 10일(토)")).toBe(false);
+    expect(page().includes("10월 10일 (토)")).toBe(false);
   });
 });
 
@@ -725,7 +725,7 @@ describe("Task7 Vendor visit and blocker evidence",()=>{
     expect(page()).toContain("현재 막힘");
     expect(page()).toContain("부품 필요");
     expect(page()).toContain("합성 부품 대기");
-    expect(page()).toContain("10월 7일(수) 오후 2:00–3:00");
+    expect(page()).toContain("10월 7일 (수) 오후 2:00–3:00");
     expect(button("방문 시작")).toBeUndefined();
     expect(button("막힘 기록")).toBeUndefined();
   });
@@ -1154,7 +1154,7 @@ describe("WC-M02 all non-upload Vendor command families",()=>{
     if(family==="decline"){await click("작업 거절");await choose("OTHER");await click("거절 내용 확인");await click("거절하기");}
     if(family==="withdraw"){await click("작업 철회");await click("철회 내용 확인");await click("철회하기");}
     if(family==="proposeSlots"||family==="selectPreauthorizedSlot"){
-      if(family==="selectPreauthorizedSlot")await choose("10월 7일(수) 오후 2:00–4:00");
+      if(family==="selectPreauthorizedSlot")await choose("10월 7일 (수) 오후 2:00–4:00");
       await input('input[type="date"]',"2026-10-07");await input('input[type="time"]',"14:00",0);await input('input[type="time"]',"15:00",1);
       await click(family==="proposeSlots"?"방문 시간 제안하기":"동의된 시간 안에서 방문 확정");
     }

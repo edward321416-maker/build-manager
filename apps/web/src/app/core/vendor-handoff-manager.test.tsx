@@ -119,9 +119,30 @@ const report:VendorCompletionReportDto={id:"report",assignmentId:"assignment",ap
   componentOrPartNote:"합성 밸브",completionPhotoIds:["photo-1"],photoOmissionReason:null,submittedAt:"2026-10-07T05:00:00Z"};
 const reported=(changes:Partial<VendorCompletionReportDto>={}):ManagerVendorHandoffDto=>({...handoff,assignment:{...handoff.assignment!,status:"ACTIVE",version:6},
   phase:"COMPLETION_REPORTED",waitingOn:"MANAGER",currentReport:{...report,...changes},reportHistory:[{...report,...changes}]});
+it("names a report sent minutes ago in relative time, like the request history beside it (design rules section 14)",()=>{
+  const html=view({handoff:reported(),now:new Date("2026-10-07T05:05:00Z")});
+  expect(html).toContain('title="10월 7일 (수) 오후 2:00">5분 전</time> 제출');
+});
+it("keeps a report's relative time moving while the page stays open, and lists earlier reports as plain text",async()=>{
+  vi.useFakeTimers({toFake:["Date","setInterval","clearInterval"]});vi.setSystemTime(new Date("2026-10-07T05:05:00Z"));
+  task10Host=document.createElement("div");document.body.append(task10Host);task10Root=createRoot(task10Host);
+  const earlier={...report,id:"earlier",revision:1,submittedAt:"2026-10-07T04:00:00Z"},current={...report,revision:2};
+  const handoffWithHistory={...reported(),currentReport:current,reportHistory:[earlier,current]};
+  try{
+    // Like the loaded manager: a Date taken at the parent's render plus the live clock function. Only the clock may drive times.
+    await act(async()=>task10Root!.render(<VendorHandoffManagerView {...base} handoff={handoffWithHistory} now={new Date()} clock={()=>new Date()}/>));
+    expect(task10Host.textContent).toContain("5분 전 제출");
+    await act(async()=>{vi.advanceTimersByTime(2*60*60_000);});
+    expect(task10Host.textContent).toContain("10월 7일 (수) 오후 2:00 제출");
+    // An <option> may hold text only, so earlier reports are listed with their date and time as plain text.
+    const option=task10Host.querySelector('select[aria-label="이전 작업 보고"] option[value="earlier"]')!;
+    expect(option.children).toHaveLength(0);
+    expect(option.textContent).toContain("보고 1차 · 10월 7일 (수) 오후 1:00");
+  }finally{vi.useRealTimers();}
+});
 it("shows the Vendor completion report with only its selected photos while awaiting the Manager (Task8)",()=>{
   const html=view({handoff:reported(),reportPhotos:[{photoId:"photo-1",url:"blob:synthetic-report"}],now:new Date("2026-10-07T06:00:00Z")});
-  for(const text of ["업체 작업 보고 · 1차","10월 7일(수) 오후 2:00 제출","관리자 확인 대기","합성 배관 교체","사용한 부품·자재: 합성 밸브"])expect(html).toContain(text);
+  for(const text of ["업체 작업 보고 · 1차","10월 7일 (수) 오후 2:00</time> 제출","관리자 확인 대기","합성 배관 교체","사용한 부품·자재: 합성 밸브"])expect(html).toContain(text);
   expect(html).toContain('alt="업체 보고 사진 1"');
   for(const phrase of ["업체 완료","수리 완료","완료 보고"])expect(html.includes(phrase),phrase).toBe(false);
   // D9 §19.19: no competing Manager mutation while the report awaits its disposition.
