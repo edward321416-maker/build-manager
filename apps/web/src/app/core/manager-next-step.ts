@@ -63,7 +63,7 @@ export function managerNextStep({ ticket, handoff, vendorEnabled, handoffLoading
   }
   const intake = intakeDisplayStatus(ticket);
   if (ticket.workStatus === "OPEN") {
-    if (intake === "IN_PROGRESS") return { title: "세입자가 아직 질문에 답하는 중이에요.", detail: "제출되면 처리 방법을 정할 수 있어요." };
+    if (intake === "IN_PROGRESS") return { title: "세입자가 아직 제출하지 않았어요.", detail: "제출되면 처리 방법을 정할 수 있어요." };
     if (intake === "NEEDS_MORE_INFO") return { title: "세입자의 추가 답변을 기다리고 있어요.", detail: "답변이 오면 처리 방법을 다시 확인해 주세요." };
     if (intake === "SAFETY_ESCALATED") return { title: "안전 확인이 필요한 접수예요.", detail: "세입자에게 직접 연락해 상황을 먼저 확인해 주세요." };
     if (intake === "PARTIAL" || intake === "READY_FOR_REVIEW") return { title: "처리 방법을 정해 주세요.", detail: "정하면 업체 연결이나 처리 기록을 이어서 할 수 있어요.", action: decide };
