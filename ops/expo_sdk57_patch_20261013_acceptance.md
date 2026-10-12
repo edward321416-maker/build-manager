@@ -77,3 +77,7 @@ On the pinned Node 24.21.0 / npm 11.19.0, on the tree committed as `6556962`:
 ## Rollback
 
 Revert the PR #130 merge commit with `git revert -m 1`. That restores the lockfile, `apps/mobile/package.json`, the fixture and the tests together. No data or deployment changes. CI `mobile-health` then fails again until the patch releases are taken another way.
+
+## Correction (2026-10-13, after merge)
+
+The Change section says "13 transitive Expo packages moved up one or two patch releases". One of the 13, babel-plugin-react-native-web (0.21.2 → 0.21.4), belongs to react-native-web, not Expo: 12 transitive Expo packages and babel-plugin-react-native-web moved. The independent reviewer noted this as a non-blocking wording slip on `97b5595`. The text above is kept as accepted.
