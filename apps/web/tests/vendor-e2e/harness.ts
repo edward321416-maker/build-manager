@@ -63,12 +63,7 @@ export async function ticket(f: Fixture, route = 'GENERAL_VENDOR', text = 'Task1
 }
 export async function openTicket(page: Page, id: string, manager = false) {
   await safeGoto(page, '/core', 'open Core');
-  const org = page.getByLabel('내 소속', { exact: true });
-  if (await org.count()) {
-    await expect(org).toBeVisible();
-    const values = await org.locator('option').evaluateAll(options => options.map(option => (option as HTMLOptionElement).value).filter(Boolean));
-    if (values.length === 1) await org.selectOption(values[0]);
-  }
+  // The screen picks a single organisation itself, and 내 소속 then moves into 내 정보 (P5); openTicketRow waits for the menu that follows.
   await openTicketRow(page, id);
   if (manager) await page.getByRole('button', { name: '업무 정보', exact: true }).click();
 }
