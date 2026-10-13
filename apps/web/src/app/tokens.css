@@ -17,6 +17,7 @@
   --color-primary-soft: rgba(0,100,255,.08);
   --color-danger: #FF3B30;
   --color-danger-soft: rgba(255,59,48,.08);
+  --color-badge: #C8231A;
   --status-urgent-text: #C8231A; --status-urgent-bg: #FFF0EF;
   --status-wait-text: #9A5B00; --status-wait-bg: #FFF3DC;
   --status-progress-text: #0056D8; --status-progress-bg: #EEF4FF;
