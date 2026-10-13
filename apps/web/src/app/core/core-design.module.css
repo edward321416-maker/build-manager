@@ -140,7 +140,7 @@
 .root :global(.page-shell.core-flow), .root :global(.core-workspace > .core-flow) { padding: 0; }
 .root :global(.core-flow) > * + * { margin-top: 0; }
 .root :global(.core-flow) > :is([role="alert"],[role="status"],form) { margin: 1.25rem; }
-.root .heading { min-height: 3.5rem; padding: .3125rem 1.25rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .625rem; }
+.root .heading { min-height: 3.5rem; padding: 0 1.25rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .625rem; }
 .toolbarLeading { display: flex; align-items: center; gap: .625rem; }
 .toolbarLeading > button { flex: 0 0 auto; }
 .root .heading h1 { font-size: 1.25rem; line-height: 1.875rem; }
