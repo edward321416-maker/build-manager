@@ -2,7 +2,7 @@
 
 import { createCoreFlowClient,ApiClientError } from "@build-manager/api-client";
 import { CoreCreateFollowUpSchema,type CoreCreateFollowUp,type CoreSessionDto,type CoreTicketDto,type CoreUnitDto,type ManagerVendorHandoffDto } from "@build-manager/api-contracts";
-import { useCallback,useEffect,useMemo,useRef,useState,type ReactNode } from "react";
+import { useCallback,useEffect,useMemo,useRef,useState,type MouseEvent as ReactMouseEvent,type ReactNode } from "react";
 import { TicketIntake,type EvidenceStepRenderer } from "../../components/tenant/ticket-intake";
 import { PhotoEvidenceStep } from "./photo-evidence-step";
 import { evidenceStage } from "./evidence-stage";
@@ -23,7 +23,9 @@ import { managerNextStep,type ManagerStepTarget } from "./manager-next-step";
 import { VendorHandoffTenant } from "./vendor-handoff-tenant";
 import { historyLines } from "./history-lines";
 import { DateTime } from "../../components/date-time";
-import { BackButton,CoreNav } from "./nav/core-nav";
+import { BackButton,CoreNav,plainClick } from "./nav/core-nav";
+import { navHref } from "./nav/nav-location";
+import { homeCards,HOME_CARD_LIMIT } from "./nav/tenant-home";
 import { MenuList,TodoScreen,UnitsScreen } from "./nav/nav-screens";
 import { OpenSourceNotice } from "./nav/open-source-notice";
 import { inLeftMenu,meRows,moreRows,navTitle,roleName,type NavLocation } from "./nav/nav-config";
@@ -48,6 +50,9 @@ function progressMessage(t:CoreTicketDto,tenant:boolean){
     default:return tenant?"관리자에게 보냈어요. 확인을 기다리고 있어요.":"세입자가 제출했어요.";
   }
 }
+// Photos picked but not sent would become the opened request's photos, so every request stays shut until they are sent
+// or dropped; the lists say why (final review of PR 139).
+const pendingPhotosHint="고른 사진이 있어서 요청을 열 수 없어요. 접수하거나 사진 선택을 취소해 주세요.";
 const sessionMessage="접속이 만료되었거나 코드가 유효하지 않아요. 개발 환경에서 새 코드를 발급받아 다시 들어가 주세요.";
 const accessMessage="이 계정의 접근 권한을 확인할 수 없어요. 관리자에게 소속·호실 권한을 확인한 뒤 다시 들어가 주세요.";
 function describeError(error:unknown,saving:boolean){
@@ -135,6 +140,9 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:
     if(next.tab==="alerts"&&session)void run(refresh);
   };
   const todo=useMemo(()=>role?buildTodoList({role,tickets,summaries:conversationSummaries.summaries,summariesFailed:conversationSummaries.error}):{items:[],partial:false},[role,tickets,conversationSummaries.summaries,conversationSummaries.error]);
+  const home=useMemo(()=>tenant?homeCards({tickets,todo,unitId:unit}):{cards:[],total:0},[tenant,tickets,todo,unit]);
+  /** A menu-like link inside the content: the real address for a new tab, this page's own move for a plain click. */
+  const placeLink=(to:NavLocation)=>({href:navHref(to),onClick:(event:ReactMouseEvent)=>{if(plainClick(event)){event.preventDefault();navigate(to);}}});
   const logout=account?.logout??(()=>{if(onLogout){clearAccess();onLogout();}else void run(async()=>{await client.logout();clearAccess();});});
   useEffect(()=>{let live=true;void (async()=>{
     try{const s=await client.session(),u=await client.units(),t=await client.tickets();if(live){setSession(s);setUnits(u);setUnit(u[0]?.id??"");setTickets(t);}}
@@ -242,6 +250,13 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:
   const sub=Boolean(selected)||Boolean(view);
   const title=!session?"수리 접수":selected?(tenant?"접수 내용":"업무함"):tenant&&tab==="home"&&!view?(units.find(u=>u.id===unit)?.label??"수리 접수"):navTitle(session.role,location);
   const openFromList=(id:string)=>void run(async()=>{await openWithList(id);setMessage("");});
+  const openTenantTicket=(id:string)=>void run(async()=>{setSelected(await client.read(id));setMessage("");});
+  const ticketName=(t:CoreTicketDto)=>{const label=units.find(u=>u.id===t.unitId)?.label;return (t.detail.issueType==="HEATING"?"난방":"누수")+(label?` · ${label}`:"");};
+  const unitTickets=tickets.filter(t=>t.unitId===unit);
+  const requestGroups=[
+    {name:"진행 중",list:unitTickets.filter(t=>t.workStatus!=="COMPLETED"),empty:"진행 중인 요청이 없어요. 문제가 생기면 우리 집에서 접수해 주세요."},
+    {name:"끝난 요청",list:unitTickets.filter(t=>t.workStatus==="COMPLETED"),empty:"끝난 요청이 없어요."},
+  ];
   // The request list area: the tenant's 우리 집 and 내 요청, the manager's 업무함, or any open request.
   const workVisible=Boolean(selected)||(!view&&(tenant?tab==="home"||tab==="requests":tab==="work"));
   return <div className={navStyles.shell} data-nav={navContext?"on":undefined} data-sub={sub?"true":undefined}>
@@ -312,10 +327,21 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:
         </form>:null}</ManagerDirectCompletionGate>
         </div></ManagerInspector>:null}
       </section>:!tenant?null:<>
+        {/* P5 PR 1b (spec §4): the to-do line above the unit choice. It counts the 알림 rows, so it waits for the same read. */}
+        {tab==="home"&&conversationSummaries.ready&&todo.items.length?<a className={styles.todoLine} {...placeLink({tab:"alerts",view:null})}>처리할 일 {todo.items.length}건 · 알림에서 보기</a>:null}
         {units.length!==1?<label>건물·호실 <select aria-label="건물·호실" disabled={!units.length||Boolean(followUp)} value={unit} onChange={e=>setUnit(e.target.value)}>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>:null}
         <div className={styles.tenantHome} hidden={tab!=="home"}>
           {followUp?<><FollowUpContext kind={followUp.claimKind}/><button disabled={busy||Boolean(followAttempt)} onClick={()=>openOutcome(followUp.sourceTicketId)}>원본 접수로 돌아가기</button></>:null}
           {!units.length?<p>접근 가능한 호실이 없어요. 관리자에게 소속·호실 배정을 확인한 뒤 새로고침을 눌러 주세요.</p>:null}
+          {home.cards.length?<section className={styles.homeCards} aria-label="진행 중인 요청">
+            <h2>진행 중인 요청 <small>{home.total}건</small></h2>
+            {pending.length?<p>{pendingPhotosHint}</p>:null}
+            <ul>{home.cards.map(({ticket:t,next})=><li key={t.ticketId} data-home-card={t.ticketId}>
+              <div><p className={styles.cardTitle}><span className={styles.ticketTitle}>{ticketName(t)}</span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}</p><p className={styles.cardNext}>{next}</p></div>
+              <button type="button" aria-label={`${ticketName(t)} 열기`} disabled={busy||pending.length>0} onClick={()=>openTenantTicket(t.ticketId)}>열기</button>
+            </li>)}</ul>
+            {home.total>HOME_CARD_LIMIT?<a className={styles.moreLink} {...placeLink({tab:"requests",view:null})}>내 요청에서 모두 보기</a>:null}
+          </section>:null}
           {unit?<form onSubmit={e=>{e.preventDefault();submit();}}>
             <h2>어떤 문제가 있나요?</h2><fieldset disabled={Boolean(followAttempt)} className={styles.issueChoice}><legend>문제 유형</legend>{(["HEATING","LEAK"] as const).map(value=><label key={value} data-tile><input type="radio" name="issueType" value={value} checked={issue===value} onChange={e=>setIssue(e.target.value as "HEATING"|"LEAK")}/><span>{value==="HEATING"?"난방":"누수"}</span></label>)}</fieldset>
             <label>문제 설명 <textarea aria-label="문제 설명" readOnly={Boolean(followAttempt)} value={text} maxLength={2000} required onChange={e=>setText(e.target.value)} /></label>
@@ -324,13 +350,16 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:
           </form>:null}
         </div>
         <div className={styles.tenantRequests} hidden={tab!=="requests"}>
-          <h2>최근 접수 <small>{tickets.filter(t=>t.unitId===unit).length}건</small></h2>
           {conversationSummaries.error?<p role="alert">대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.</p>:null}
-          {tickets.filter(t=>t.unitId===unit).length===0?<p>{!unit?"호실 배정 후 접수 이력을 볼 수 있어요.":"선택한 호실의 접수 내역이 없어요. 우리 집에서 문제를 접수해 주세요."}</p>:<ul className={styles.ticketList}>{tickets.filter(t=>t.unitId===unit).map(t=><li key={t.ticketId} data-ticket-id={t.ticketId}><button data-open-ticket className={styles.ticketRow} disabled={busy||pending.length>0} onClick={()=>void run(async()=>{setSelected(await client.read(t.ticketId));setMessage("");})}><span className={styles.ticketTitle}>{t.detail.issueType==="HEATING"?"난방":"누수"}</span><span> · </span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}<CommunicationBadge summary={conversationSummaries.summaries[t.ticketId]} tenant/></button><PhotoGallery compact client={client} ticketId={t.ticketId} revision={revision} /></li>)}</ul>}
+          {pending.length?<p>{pendingPhotosHint}</p>:null}
+          {!unit?<p>호실 배정 후 접수 이력을 볼 수 있어요.</p>:requestGroups.map(group=><section key={group.name} aria-label={group.name}>
+            <h2>{group.name} <small>{group.list.length}건</small></h2>
+            {group.list.length?<ul className={styles.ticketList}>{group.list.map(t=><li key={t.ticketId} data-ticket-id={t.ticketId}><button data-open-ticket className={styles.ticketRow} disabled={busy||pending.length>0} onClick={()=>openTenantTicket(t.ticketId)}><span className={styles.ticketTitle}>{t.detail.issueType==="HEATING"?"난방":"누수"}</span><span> · </span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}<CommunicationBadge summary={conversationSummaries.summaries[t.ticketId]} tenant/></button><PhotoGallery compact client={client} ticketId={t.ticketId} revision={revision} /></li>)}</ul>:<p>{group.empty}</p>}
+          </section>)}
         </div>
       </>}
       </div>
-      {navContext&&!selected&&!view&&tab==="alerts"?<div className={navStyles.pane}><TodoScreen role={session.role} list={todo} ready={conversationSummaries.ready} units={units} disabled={busy||pending.length>0} onOpen={openFromList} onRetry={()=>void run(refresh)}/></div>:null}
+      {navContext&&!selected&&!view&&tab==="alerts"?<div className={navStyles.pane}><TodoScreen role={session.role} list={todo} ready={conversationSummaries.ready} units={units} disabled={busy||pending.length>0} notice={pending.length?pendingPhotosHint:undefined} onOpen={openFromList} onRetry={()=>void run(refresh)}/></div>:null}
       {navContext&&!selected&&(tenant?tab==="me"&&!view:view==="me")?<div className={navStyles.pane}><MenuList label="내 정보" rows={meRows(navContext)} organization={account?.organization} onOpen={navigate} onLogout={logout}/></div>:null}
       {navContext&&!selected&&!tenant&&tab==="more"&&!view?<div className={navStyles.pane}><MenuList label="더 보기" rows={moreRows(navContext)} onOpen={navigate} onLogout={logout}/></div>:null}
       {!tenant&&!selected&&view==="maintenance"?<ManagerMaintenanceTimeline key={maintenanceUnit} client={client} units={units} revision={revision} disabled={busy} initialUnit={maintenanceUnit} onOpenTicket={openMaintenanceTicket}/>:null}

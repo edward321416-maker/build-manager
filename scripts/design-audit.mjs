@@ -248,7 +248,7 @@ try {
     for (const width of widths) {
       const t = await page(width, "tenant"); await audit(t, `${engine}-${width}-tenant-intake`);
       // P5: the tenant's request list lives under 내 요청.
-      await t.goto(origin + "/core?tab=requests"); await t.getByRole("heading", { name: /^최근 접수/ }).waitFor({ timeout: 20000 }); await audit(t, `${engine}-${width}-tenant-requests`);
+      await t.goto(origin + "/core?tab=requests"); await t.getByRole("region", { name: "진행 중", exact: true }).waitFor({ timeout: 20000 }); await audit(t, `${engine}-${width}-tenant-requests`);
       const open = t.locator(baseTicket ? `[data-ticket-id="${baseTicket}"] [data-open-ticket]` : "[data-open-ticket]").first();
       if (await open.count()) { await open.click(); await audit(t, `${engine}-${width}-tenant-ticket`); } else missing(`${engine}-${width}-tenant-ticket`, "no ticket row to open");
       for (const [query, name, heading] of [["?tab=alerts", "tenant-alerts", "알림"], ["?tab=me", "tenant-me", "내 정보"], ["?tab=me&view=units", "tenant-units", "내 호실"], ["?tab=me&view=link", "tenant-link", "호실 연결"], ["?tab=me&view=licenses", "tenant-licenses", "오픈소스 라이선스"]]) {

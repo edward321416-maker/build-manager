@@ -200,9 +200,22 @@
 .tenantWorkspace { padding: 1.25rem; max-width: 50rem; margin-inline: auto; }
 .tenantWorkspace[data-detail="true"] { padding: 0; }
 .root .tenantHome > form { margin-top: 0; gap: 1.25rem; }
-.root .tenantRequests > h2 { display: flex; justify-content: space-between; align-items: center; gap: .625rem; }
-.root .tenantRequests > h2 small { color: var(--color-text-readable); font-weight: 400; }
+.root :is(.tenantRequests,.homeCards) h2 { display: flex; justify-content: space-between; align-items: center; gap: .625rem; }
+.root :is(.tenantRequests,.homeCards) h2 small { color: var(--color-text-readable); font-weight: 400; }
+.root .tenantRequests > section + section { margin-top: 1.875rem; }
+.root :is(.tenantRequests,.homeCards) > section > * + *, .root .homeCards > * + * { margin-top: .625rem; }
 .tenantHome > * + *, .tenantRequests > * + * { margin-top: 1.25rem; }
+/* P5 PR 1b (spec §4): the to-do line is a link shaped like a secondary button (rules 8.1); the in-progress requests are
+ * list rows (8.5) with a secondary 열기 button, never boxed cards (6.3). */
+.root .todoLine { display: inline-flex; align-items: center; justify-content: center; min-height: 3.125rem; padding: .625rem 1.25rem; border: 1px solid var(--color-border-strong); border-radius: .625rem; background: var(--color-surface); color: var(--color-text); font-size: .9375rem; line-height: 1.25rem; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; }
+.root .todoLine:hover { background: var(--color-fill-hover); }
+.root .homeCards > ul { list-style: none; padding: 0; border-top: 1px solid var(--color-border); }
+.root .homeCards > ul > li { display: flex; align-items: center; justify-content: space-between; gap: .625rem; margin: 0; padding: .9375rem 0; border-bottom: 1px solid var(--color-border); }
+.homeCards li > div { min-width: 0; display: grid; gap: .3125rem; }
+.root .cardTitle { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; margin: 0; }
+.root .cardNext { margin: 0; color: var(--color-text-readable); }
+.root .homeCards li > button { flex: 0 0 auto; }
+.root .moreLink { display: inline-flex; align-items: center; min-height: 3.125rem; }
 .root .issueChoice { display: flex; border: 0; padding: 0; margin: 0; gap: .625rem; }
 .issueChoice legend { margin-bottom: .625rem; font-size: .9375rem; }
 .root .issueChoice label { position: relative; display: flex; align-items: center; justify-content: center; flex: 1; gap: .625rem; min-height: 3.125rem; border: 1px solid var(--color-border-control); border-radius: .625rem; cursor: pointer; transition: background-color var(--motion-fast) var(--ease); }

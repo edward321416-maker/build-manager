@@ -117,7 +117,7 @@ test("load failure offers a read-only retry and empty lists explain the next act
   // Controlled empty/error responses exercise UI recovery, not persistence or authorization.
   await page.route("**/api/v2/core/tickets",route=>route.request().method()==="GET"?route.fulfill({json:[]}):route.continue());
   await new CoreScreen(page).login("tenant");
-  await openTab(page,"내 요청");await expect(page.getByText("선택한 호실의 접수 내역이 없어요. 우리 집에서 문제를 접수해 주세요.",{exact:true})).toBeVisible();
+  await openTab(page,"내 요청");await expect(page.getByText("진행 중인 요청이 없어요. 문제가 생기면 우리 집에서 접수해 주세요.",{exact:true})).toBeVisible();await expect(page.getByText("끝난 요청이 없어요.",{exact:true})).toBeVisible();
   await page.screenshot({path:join(privateRoot,"usability-empty-320.png"),fullPage:true});
   // P5: the intake form lives on 우리 집, so go back there before typing.
   await openTab(page,"우리 집");await page.getByLabel("문제 설명").fill("연결 실패에도 유지할 합성 입력");

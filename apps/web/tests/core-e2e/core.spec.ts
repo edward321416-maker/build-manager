@@ -82,7 +82,7 @@ test("a more-info round reads 추가 확인 on /core, never 제출 전, and resu
 });
 
 test("revoked cookie session clears the protected screen on refresh",async({page})=>{
-  await login(page,"tenantOther");await openTab(page,"내 요청");await expect(page.getByRole("heading",{name:/^최근 접수/})).toBeVisible();
+  await login(page,"tenantOther");await openTab(page,"내 요청");await expect(page.getByRole("region",{name:"진행 중",exact:true})).toBeVisible();
   const r=await page.request.post("/api/v2/core/logout",{headers:{Origin:"http://127.0.0.1:3131"},data:{}});expect(r.status()).toBe(200);
   await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(page.getByRole("heading",{name:/^최근 접수/})).toHaveCount(0);
 });
