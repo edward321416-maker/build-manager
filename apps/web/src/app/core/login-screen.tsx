@@ -46,8 +46,10 @@ export function CoreLoginScreen({demoEntry=false}:{demoEntry?:boolean}={}){
  };
  const logout=()=>{clearCommunicationRecovery();clearOutcomeRecovery();generation.current++;setScope(undefined);setAccess(null);setError("");setPhase("logout");logoutForm.current?.submit();};
  const current=access?.organizations.find(o=>o.id===scope?.orgId);
- // One 내 소속 field: in the sign-in column before an organisation is chosen, and in 내 정보 after (rules 8.16).
- const organizationField=access?.organizations.length?<><label><span className="core-org-label">내 소속</span><span className="core-org-field"><select aria-label="내 소속" value={scope?.orgId??""} onChange={e=>void select(e.target.value)}><option value="">소속을 선택해 주세요</option>{access.organizations.map(o=><option key={o.id} value={o.id}>{o.name} · {roleName(o.role)}</option>)}</select>{/* The current choice wraps in a select-like box, so a long organisation name is never cut. */}<span className="core-org-current" aria-hidden="true">{current?`${current.name} · ${roleName(current.role)}`:"소속을 선택해 주세요"}</span></span></label>
+ // One 내 소속 field: in the sign-in column before an organisation is chosen, and in 내 정보 after (rules 8.16). One
+ // organisation leaves nothing to choose, so it is its name as text (P5 spec §1, PR 1b).
+ const only=access?.organizations.length===1?access.organizations[0]:null;
+ const organizationField=only?<><span className="core-org-label">내 소속</span><strong className="core-org-name">{only.name} · {roleName(only.role)}</strong></>:access?.organizations.length?<><label><span className="core-org-label">내 소속</span><span className="core-org-field"><select aria-label="내 소속" value={scope?.orgId??""} onChange={e=>void select(e.target.value)}><option value="">소속을 선택해 주세요</option>{access.organizations.map(o=><option key={o.id} value={o.id}>{o.name} · {roleName(o.role)}</option>)}</select>{/* The current choice wraps in a select-like box, so a long organisation name is never cut. */}<span className="core-org-current" aria-hidden="true">{current?`${current.name} · ${roleName(current.role)}`:"소속을 선택해 주세요"}</span></span></label>
   {access.organizations.length>1?<p>소속을 바꾸면 저장하지 않은 입력과 사진 선택은 초기화돼요. 저장된 접수·사진은 해당 소속의 이력에 남아요.</p>:null}</>:null;
  return <div className="core-b1-shell" data-phase={phase} data-scoped={scope?"true":undefined}>
   {scope?null:<section className="page-shell core-flow core-account" aria-label="로그인과 내 소속">

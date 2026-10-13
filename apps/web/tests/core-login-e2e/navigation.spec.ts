@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
-import { sdkSession } from "./session";
+import { sdkSession, twoOrgSession } from "./session";
 
 // P5 (docs/superpowers/specs/2026-10-13-navigation-shell-p5-design.md): tab bar up to 767px, left menu from 768px.
 const menu = (page: Page) => page.getByRole("navigation", { name: "주 메뉴", exact: true });
@@ -72,7 +72,7 @@ test("left menu from 768px: 248px, 더 보기 rows spread with icons, account ar
     await expect(page.getByRole("button", { name: "뒤로", exact: true })).toBeHidden();
     await link(page, "내 정보").click(); await expect(page.getByRole("heading", { level: 1, name: "내 정보" })).toBeVisible();
     const account = page.getByRole("region", { name: "내 정보", exact: true });
-    await expect(account.getByLabel("내 소속", { exact: true })).toBeVisible();
+    await expect(account.getByText("내 소속", { exact: true })).toBeVisible(); await expect(account.getByRole("combobox")).toHaveCount(0);
     await account.getByRole("link", { name: "오픈소스 라이선스", exact: true }).click();
     await expect(page.getByText("Copyright (c) 2020-2026 Paweł Kuna")).toBeVisible();
     await expect(page.getByRole("button", { name: "뒤로", exact: true })).toBeVisible();
@@ -102,7 +102,7 @@ test("a manager's to-do opens in 업무함 and browser back returns to 알림", 
 });
 
 test("the address keeps the menu place, wrong places fall back, and an organisation change starts on the first tab", async ({ browser }) => {
-  const tenant = await sdkSession(browser), two = await sdkSession(browser, "none");
+  const tenant = await sdkSession(browser), two = await twoOrgSession(browser);
   try {
     const page = await tenant.context.newPage(); await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/core"); await expect(page).toHaveURL(/\/core\?tab=home$/); await page.reload(); await expect(page).toHaveURL(/\/core\?tab=home$/);
@@ -113,8 +113,6 @@ test("the address keeps the menu place, wrong places fall back, and an organisat
     await page.getByRole("button", { name: "뒤로", exact: true }).click(); await expect(page).toHaveURL(/\/core\?tab=me$/);
     await expect(page.getByRole("region", { name: "내 정보", exact: true })).toBeVisible();
     // An account in two organisations: switching from 내 정보 lands on that role's first tab (rules 8.16).
-    const actor = (await two.admin.query("SELECT authn.current_actor($1) AS id", [two.digest])).rows[0].id;
-    for (const org of [two.fixture.orgA, two.fixture.orgB]) await two.admin.query("INSERT INTO app.organization_membership(org_id,user_id,role,status) VALUES($1,$2,'ORG_ADMIN','ACTIVE')", [org, actor]);
     const admin = await two.context.newPage(); await admin.setViewportSize({ width: 1280, height: 900 }); await admin.goto("/core");
     await admin.getByLabel("내 소속", { exact: true }).selectOption(two.fixture.orgA); await expect(link(admin, "업무함")).toHaveAttribute("aria-current", "page");
     await link(admin, /^알림/).click(); await link(admin, "내 정보").click();

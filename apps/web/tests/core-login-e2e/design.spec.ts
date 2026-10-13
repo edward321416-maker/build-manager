@@ -3,7 +3,7 @@ import { test, expect, type Page, type Locator } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { sdkSession, privateRoot, base } from "./session";
+import { sdkSession, twoOrgSession, privateRoot, base } from "./session";
 
 const evidence=join(privateRoot,"design-20261004");
 const viewports=[{width:320,height:844},{width:390,height:844},{width:768,height:1024},{width:1280,height:900},{width:1440,height:900}];
@@ -56,14 +56,9 @@ test("neutral account and white workspace reflow without remounting drafts; mana
   try{
     const page=await tenant.context.newPage();await page.goto("/core");
     await expect(page.getByLabel("문제 설명")).toBeVisible();
-    await openAccount(page);const account=page.getByRole("region",{name:"내 정보"}).getByRole("combobox",{name:"내 소속"});
-    await account.focus();await page.keyboard.press("Tab");await page.keyboard.press("Shift+Tab");await expect(account).toBeFocused();
-    expect(await account.evaluate(el=>getComputedStyle(el).outlineStyle)).toBe("solid");
-    expect(await account.evaluate(el=>getComputedStyle(el).outlineColor)).toBe("rgb(0, 100, 255)");
-    // The select is the transparent control; the visible ring is drawn on the wrapped current choice (rules §8.2, §2.4).
-    const currentOrg=page.getByRole("region",{name:"내 정보"}).locator(".core-org-current");
-    await expect(currentOrg).toBeVisible();
-    await expect(currentOrg).toHaveCSS("outline-style","solid");await expect(currentOrg).toHaveCSS("outline-width","2px");await expect(currentOrg).toHaveCSS("outline-color","rgb(0, 100, 255)");
+    await openAccount(page);const account=page.getByRole("region",{name:"내 정보"});
+    // One organisation: its name as text, nothing to choose (spec §1, PR 1b).
+    await expect(account.getByRole("combobox",{name:"내 소속"})).toHaveCount(0);await expect(account.locator(".core-org-name")).toContainText("세입자");
     await expect(page.getByRole("region",{name:"내 정보"})).not.toContainText(/B1|RC1 합성 주거 데이터/);
     await openTab(page,"우리 집");await page.getByLabel("문제 설명").fill("합성 디자인 상태 구분 검사");
     await expect(page.getByRole("button",{name:"접수하기",exact:true})).toHaveCSS("background-color","rgb(0, 100, 255)");
@@ -156,4 +151,20 @@ test("zero-association requests and missing-link guidance remain reachable at 32
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:join(evidence,"join-no-link-320.png"),fullPage:true});
   }finally{await account.close();}
+});
+
+test("two organisations keep the 내 소속 choice with its focus ring on the wrapped current name",async({browser})=>{
+  const two=await twoOrgSession(browser);
+  try{
+    const page=await two.context.newPage();await page.goto("/core");
+    await page.getByLabel("내 소속",{exact:true}).selectOption(two.fixture.orgA);
+    await openAccount(page);const account=page.getByRole("region",{name:"내 정보"}).getByRole("combobox",{name:"내 소속"});
+    await account.focus();await page.keyboard.press("Tab");await page.keyboard.press("Shift+Tab");await expect(account).toBeFocused();
+    expect(await account.evaluate(el=>getComputedStyle(el).outlineStyle)).toBe("solid");
+    expect(await account.evaluate(el=>getComputedStyle(el).outlineColor)).toBe("rgb(0, 100, 255)");
+    // The select is the transparent control; the visible ring is drawn on the wrapped current choice (rules §8.2, §2.4).
+    const currentOrg=page.getByRole("region",{name:"내 정보"}).locator(".core-org-current");
+    await expect(currentOrg).toBeVisible();
+    await expect(currentOrg).toHaveCSS("outline-style","solid");await expect(currentOrg).toHaveCSS("outline-width","2px");await expect(currentOrg).toHaveCSS("outline-color","rgb(0, 100, 255)");
+  }finally{await two.close();}
 });
