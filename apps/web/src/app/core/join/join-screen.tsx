@@ -1,5 +1,5 @@
 "use client";
-import { useEffect,useRef,useState } from "react";
+import { useEffect,useMemo,useRef,useState } from "react";
 import { CoreAccessSchema,type InvitationDto } from "@build-manager/api-contracts";
 import { ApiClientError,createCoreOnboardingClient } from "@build-manager/api-client";
 import { InvitationSummary,onboardingMessage } from "../onboarding-panel";
@@ -21,7 +21,16 @@ export function JoinScreen(){
   return()=>{active=false;window.removeEventListener("hashchange",reopen);};
  },[]);
  const run=async(work:()=>Promise<void>,mutation=false)=>{setBusy(true);setMessage("");if(mutation)setUncertain(true);try{await work();}catch(e){setMessage(onboardingMessage(e));if(e instanceof ApiClientError&&e.status===401){token.current="";setHasToken(false);setCsrf("");setInvite(null);setPhase("login");}}finally{setBusy(false);}};
- const client=createCoreOnboardingClient({csrf});
+ const client=useMemo(()=>createCoreOnboardingClient({csrf}),[csrf]);
+ // The saved state of the inspected invite. While this tab still holds the link, one inspect answers OPEN (nothing saved),
+ // REQUESTED or APPROVED; a closed invite answers 409, and then the person's own requests are searched page by page.
+ const savedState=async(id:string)=>{
+  if(token.current){try{return await client.inspect(token.current);}catch(e){if(!(e instanceof ApiClientError&&e.status===409))throw e;}}
+  let cursor:string|undefined;
+  do{const page=await client.mine(cursor);const found=page.items.find(i=>i.invitationId===id);if(found)return found;cursor=page.nextCursor??undefined;}while(cursor);
+  return null;
+ };
+ const statusHint=<p>{"이미 신청했다면 내 호실로 돌아가 '입주 연결'에서 상태를 확인할 수 있어요."}</p>;
  return <main className="page-shell core-flow core-join"><header className={styles.heading}>{invite?.state==="REQUESTED"?<div className={styles.confirmationMark} aria-hidden="true">✓</div>:null}<h1>{invite?.state==="REQUESTED"?"연결 요청을 보냈어요":"내 호실 연결"}</h1>
   <p>{invite?.state==="REQUESTED"?`관리자 확인 후 ${invite.unitLabel}가 내 호실에 추가돼요.`:"호실을 확인하고 연결을 요청하세요. 관리자 승인 후 연결돼요."}</p>
   </header>
@@ -29,8 +38,8 @@ export function JoinScreen(){
   {phase==="login"?<><p>기존 계정으로 로그인한 뒤, 관리자에게 받은 원래 초대 링크를 다시 열어 주세요. 초대 정보는 로그인 제공자에게 전달하지 않아요.</p><a className="primary-button" href="/auth/login">기존 계정으로 로그인</a></>:null}
   {message?<p role="alert">{message}</p>:null}{busy?<p role="status">연결 상태를 확인하는 중…</p>:null}
   {phase==="ready"?<>
-   {!hasToken&&!invite?<p>초대 링크 정보가 없어요. 관리자에게 받은 원래 링크를 다시 열어 주세요. 이미 신청했다면 내 연결 요청에서 상태를 확인할 수 있어요.</p>:null}
-   {hasToken&&!invite?<button className={styles.primary} disabled={busy||uncertain} onClick={()=>void run(async()=>setInvite(await client.inspect(token.current!)))}>초대 내용 확인</button>:null}
+   {!hasToken&&!invite?<><p>초대 링크 정보가 없어요. 관리자에게 받은 원래 링크를 다시 열어 주세요.</p>{statusHint}</>:null}
+   {hasToken&&!invite?<><button className={styles.primary} disabled={busy||uncertain} onClick={()=>void run(async()=>setInvite(await client.inspect(token.current!)))}>초대 내용 확인</button>{statusHint}</>:null}
    {invite?<section className="core-result" aria-label="초대 확인"><InvitationSummary invite={invite}>
     {invite.state==="OPEN"?<p>위 호실이 본인의 입주 예정 호실인지 확인한 뒤 신청하세요.</p>:null}
      {invite.state==="REQUESTED"?<p>확인 번호를 관리자에게 전달해 주세요. 승인 전에는 이 호실의 접수·사진에 접근할 수 없어요.</p>:null}
@@ -39,8 +48,8 @@ export function JoinScreen(){
     {invite.state==="OPEN"?<button className={styles.primary} disabled={busy||uncertain||!hasToken} onClick={()=>void run(async()=>{setInvite(await client.claim(token.current!));setUncertain(false);token.current="";setHasToken(false);},true)}>연결 요청 보내기</button>:null}
    </section>:null}
    {uncertain?<p>응답이 확인되지 않았어요. 요청을 다시 보내기 전에 저장 상태를 확인해 주세요.</p>:null}
-   {/* Only an inspected invite names the request to look for; without one the saved list cannot answer. */}
-   {invite?<button className={invite.state==="REQUESTED"?styles.primary:undefined} disabled={busy} onClick={()=>void run(async()=>{const id=invite.invitationId;let page=await client.mine();let found=page.items.find(i=>i.invitationId===id);while(!found&&page.nextCursor){page=await client.mine(page.nextCursor);found=page.items.find(i=>i.invitationId===id);}if(found){setInvite(found);token.current="";setHasToken(false);}setUncertain(false);setMessage(found?"저장된 연결 상태를 확인했어요.":"이 초대에 저장된 요청이 없어요. 원래 링크의 호실을 다시 확인한 뒤 신청해 주세요.");})}>요청 상태 확인</button>:null}
+   {/* Only an inspected invite names the request to look for, and an unclaimed one has nothing saved unless a claim's answer was lost. */}
+   {invite&&(uncertain||invite.state!=="OPEN")?<button className={invite.state==="REQUESTED"?styles.primary:undefined} disabled={busy} onClick={()=>void run(async()=>{const found=await savedState(invite.invitationId),saved=found&&found.state!=="OPEN"?found:null;if(found)setInvite(found);if(saved){token.current="";setHasToken(false);}setUncertain(false);setMessage(saved?"저장된 연결 상태를 확인했어요.":"이 초대에 저장된 요청이 없어요. 원래 링크의 호실을 다시 확인한 뒤 신청해 주세요.");})}>요청 상태 확인</button>:null}
   </>:null}
   <p><a href="/core">내 호실로 돌아가기</a></p>
  </main>;
