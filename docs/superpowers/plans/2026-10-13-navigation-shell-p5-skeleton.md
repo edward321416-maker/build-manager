@@ -1310,7 +1310,7 @@ git diff --stat origin/main...HEAD | tail -1
 git fetch origin && git merge --no-edit origin/main
 ```
 
-Expected: 충돌 없음. 2-b6의 PR #134(`b1a4aa6`)가 들어온다(가입 화면 `join-screen.tsx`, `join-screen.test.tsx`, `core-login-e2e/design.spec.ts` 한 줄).
+Expected: 충돌 없음. 브랜치는 2026-10-13에 `b1a4aa6`(PR #134) 위에서 다시 만들었으므로, 그 뒤 main에 들어온 것만 합쳐진다. 디자인 규칙이 바뀌었으면(2-b6의 PR #135 등) 훅이 다시 읽기를 요구한다.
 
 - [ ] **Step 2: 메뉴 도우미를 더한다**
 
@@ -1457,6 +1457,10 @@ test("a manager's to-do opens in 업무함 and browser back returns to 알림", 
     await row.click(); await expect(page).toHaveURL(/tab=work$/); await expect(page.getByTestId("ticket-heading")).toBeVisible();
     await expect(link(page, "업무함")).toHaveAttribute("aria-current", "page");
     await page.evaluate(() => history.back()); await expect(page).toHaveURL(/tab=alerts$/); await expect(page.getByTestId("ticket-heading")).toHaveCount(0);
+    // Closing a request through the menu replaces its history entry, so one browser back returns to the screen before it.
+    await row.click(); await expect(page.getByTestId("ticket-heading")).toBeVisible();
+    await link(page, "호실 정비 이력").click(); await expect(page).toHaveURL(/tab=more&view=maintenance$/); await expect(page.getByTestId("ticket-heading")).toHaveCount(0);
+    await page.evaluate(() => history.back()); await expect(page).toHaveURL(/tab=alerts$/); await expect(page.getByTestId("ticket-heading")).toHaveCount(0);
   } finally { await tenant.close(); await manager.close(); }
 });
 
@@ -1464,6 +1468,7 @@ test("the address keeps the menu place, wrong places fall back, and an organisat
   const tenant = await sdkSession(browser), two = await sdkSession(browser, "none");
   try {
     const page = await tenant.context.newPage(); await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/core"); await expect(page).toHaveURL(/\/core\?tab=home$/); await page.reload(); await expect(page).toHaveURL(/\/core\?tab=home$/);
     await page.goto("/core?tab=work"); await expect(page).toHaveURL(/\/core\?tab=home$/);
     await page.goto("/core?tab=more&view=invitations"); await expect(page).toHaveURL(/\/core\?tab=home$/);
     await page.goto("/core?tab=me&view=licenses"); await expect(page.getByText("Copyright (c) 2020-2026 Paweł Kuna")).toBeVisible();
@@ -1578,7 +1583,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:
   // Tenant rows show every request's conversation state; a manager's to-dos need only unfinished requests. Opening and
   // closing a request re-reads them, as before P5, so a row shows the reply just sent.
   const summaryIds=useMemo(()=>tickets.filter(t=>tenant||t.workStatus!=="COMPLETED").map(t=>t.ticketId),[tickets,tenant]);
-  const conversationSummaries=useCommunicationSummaries(client,session?summaryIds:[],selected?revision+.5:revision);
+  // null until the session is known, so the 알림 tab shows "불러오는 중이에요" instead of an empty list (parts review).
+  const conversationSummaries=useCommunicationSummaries(client,session?summaryIds:null,selected?revision+.5:revision);
 ```
 
 - [ ] **Step 4: 메뉴 상태, 상세 기록, 처리할 일**
