@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 import { accessCodes, mintOwnSession } from "./own-session";
 
 const menu = (page: Page) => page.getByRole("navigation", { name: "주 메뉴", exact: true });
@@ -38,6 +39,28 @@ test("closing a request through its own tab leaves no dead back step (final revi
   await menu(page).getByRole("link", { name: "내 요청", exact: true }).click();
   await expect(page.getByTestId("ticket-heading")).toHaveCount(0); await expect(page).toHaveURL(/tab=requests$/);
   await page.goBack(); await expect(page).toHaveURL(/tab=home$/);
+});
+
+// A plain create leaves the ticket as a tenant draft, which carries no manager to-do; a TENANT_MESSAGE on it is the
+// same way the sdk suite gets a manager to-do row (core-login-e2e/navigation.spec.ts, "a manager's to-do opens in
+// 업무함...").
+async function createManagerTodo(page: Page, text: string) {
+  const id = await createOwn(page, text);
+  const asked = await page.request.post(`/api/v2/core/tickets/${id}/communication/messages`, { headers: bearer(tenantCode), data: { clientRequestId: randomUUID(), expectedVersion: 0, intent: "TENANT_MESSAGE", body: "합성 세입자 문의예요." } });
+  expect(asked.status()).toBe(201); return id;
+}
+
+test("closing a manager's request opened from 알림 through the left menu leaves no dead back step (fix round 1)", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const id = await createManagerTodo(page, "합성 알림에서 연 요청");
+  await login(page, (await accessCodes()).manager); await expect(page).toHaveURL(/tab=work$/);
+  await menu(page).getByRole("link", { name: /^알림/ }).click(); await expect(page).toHaveURL(/tab=alerts$/);
+  const row = page.locator(`[data-todo-ticket="${id}"]`); await expect(row).toBeVisible();
+  await row.click(); await expect(page).toHaveURL(/tab=work$/); await expect(page.getByTestId("ticket-heading")).toBeVisible();
+  // Closing through 알림 — the place the request was opened from, not its own tab — must step back the same way: one
+  // click leaves no dead back step (the defect this task exists to remove also covered the manager-from-알림 case).
+  await menu(page).getByRole("link", { name: /^알림/ }).click();
+  await expect(page.getByTestId("ticket-heading")).toHaveCount(0); await expect(page).toHaveURL(/tab=alerts$/);
 });
 
 test("opening a 더 보기 row puts focus on the new screen's title", async ({ page }) => {
