@@ -27,16 +27,17 @@ export function UnitsScreen({ units }: { units: readonly CoreUnitDto[] }) {
     : <p className={styles.empty}>연결된 호실이 없어요. 관리자에게 호실 연결을 확인해 주세요.</p>}</section>;
 }
 
-/** 알림 (spec §5): one row per request with every reason; a partial read says so instead of inventing a count. */
-export function TodoScreen({ role, list, ready, units, onOpen, onRetry }: {
-  role: CoreRole; list: TodoList; ready: boolean; units: readonly CoreUnitDto[]; onOpen(ticketId: string): void; onRetry(): void;
+/** 알림 (spec §5): one row per request with every reason; a partial read says so instead of inventing a count.
+ * `disabled` locks the rows like the 내 요청 rows, so photos picked on 우리 집 never become a request's unsent photos. */
+export function TodoScreen({ role, list, ready, units, onOpen, onRetry, disabled = false }: {
+  role: CoreRole; list: TodoList; ready: boolean; units: readonly CoreUnitDto[]; onOpen(ticketId: string): void; onRetry(): void; disabled?: boolean;
 }) {
   if (!ready) return <p role="status">불러오는 중이에요</p>;
   const unitLabel = (id: string) => units.find(unit => unit.id === id)?.label;
   return <section className={styles.todo} aria-label="처리할 일">
     {list.partial ? <div className={styles.partial} role="alert"><p>일부를 확인하지 못했어요.</p><button type="button" onClick={onRetry}>다시 불러오기</button></div> : null}
     {list.items.length ? <ul>{list.items.map(item => <li key={item.ticketId}>
-      <button type="button" className={styles.todoRow} data-todo-ticket={item.ticketId} onClick={() => onOpen(item.ticketId)}>
+      <button type="button" className={styles.todoRow} data-todo-ticket={item.ticketId} disabled={disabled} onClick={() => onOpen(item.ticketId)}>
         <span className={styles.todoTitle}>{item.issueType === "HEATING" ? "난방" : "누수"}{unitLabel(item.unitId) ? ` · ${unitLabel(item.unitId)}` : ""}</span>
         <span className={styles.reasons}>{item.reasons.map(reason => <span key={reason} className={styles.reasonBadge} data-reason={reason}>{todoReasonName(role, reason)}</span>)}</span>
         {item.lastActivity ? <span className={styles.todoTime}><DateTime at={item.lastActivity} /></span> : null}

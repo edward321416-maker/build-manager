@@ -127,10 +127,12 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:
   const detailId=selected?.ticketId??null;
   useEffect(()=>{if(!role)return;if(detailId)showDetailEntry(role==="TENANT"?undefined:"work");else hideDetailEntry();},[detailId,role]);
   const closeDetail=()=>{if(detailEntryOnTop())window.history.back();else leaveDetail();};
-  /** A menu link. An open request closes first; unsent photos keep it open, and the request says why. */
+  /** A menu link. An open request closes first; unsent photos keep it open, and the request says why. Opening 알림
+   * (and tapping it again) reads the requests and their conversation summaries again, so the to-dos are current (spec §5). */
   const navigate=(next:NavLocation)=>{
     if(selected){if(pending.length)return;setSelected(null);setPhotoMessage("");}
     nav.go(next);
+    if(next.tab==="alerts"&&session)void run(refresh);
   };
   const todo=useMemo(()=>role?buildTodoList({role,tickets,summaries:conversationSummaries.summaries,summariesFailed:conversationSummaries.error}):{items:[],partial:false},[role,tickets,conversationSummaries.summaries,conversationSummaries.error]);
   const logout=account?.logout??(()=>{if(onLogout){clearAccess();onLogout();}else void run(async()=>{await client.logout();clearAccess();});});
@@ -328,7 +330,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:
         </div>
       </>}
       </div>
-      {navContext&&!selected&&!view&&tab==="alerts"?<div className={navStyles.pane}><TodoScreen role={session.role} list={todo} ready={conversationSummaries.ready} units={units} onOpen={openFromList} onRetry={()=>void run(refresh)}/></div>:null}
+      {navContext&&!selected&&!view&&tab==="alerts"?<div className={navStyles.pane}><TodoScreen role={session.role} list={todo} ready={conversationSummaries.ready} units={units} disabled={busy||pending.length>0} onOpen={openFromList} onRetry={()=>void run(refresh)}/></div>:null}
       {navContext&&!selected&&(tenant?tab==="me"&&!view:view==="me")?<div className={navStyles.pane}><MenuList label="내 정보" rows={meRows(navContext)} organization={account?.organization} onOpen={navigate} onLogout={logout}/></div>:null}
       {navContext&&!selected&&!tenant&&tab==="more"&&!view?<div className={navStyles.pane}><MenuList label="더 보기" rows={moreRows(navContext)} onOpen={navigate} onLogout={logout}/></div>:null}
       {!tenant&&!selected&&view==="maintenance"?<ManagerMaintenanceTimeline key={maintenanceUnit} client={client} units={units} revision={revision} disabled={busy} initialUnit={maintenanceUnit} onOpenTicket={openMaintenanceTicket}/>:null}
