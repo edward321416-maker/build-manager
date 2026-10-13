@@ -1,8 +1,9 @@
+import type { MouseEvent } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { BackButton, CoreNav } from "./core-nav";
+import { BackButton, CoreNav, plainClick } from "./core-nav";
 import { meRows, moreRows } from "./nav-config";
-import { MenuList, TodoScreen } from "./nav-screens";
+import { MenuList, TodoScreen, UnitsScreen } from "./nav-screens";
 
 const noop = () => undefined;
 const nav = (role: "TENANT" | "ORG_ADMIN", location: { tab: "home" | "alerts" | "more" | "me" | "work"; view: null | "maintenance" | "me" }, badge = 0) =>
@@ -48,6 +49,16 @@ describe("main menu (rules 8.10, 8.14, 8.15, 12)", () => {
     expect(renderToStaticMarkup(<BackButton wide onClick={noop} />)).toContain('aria-label="뒤로"');
     expect(renderToStaticMarkup(<BackButton wide={false} onClick={noop} />)).toContain('data-device="phone"');
   });
+
+  it("treats only a plain, unmodified left click as an in-app navigation", () => {
+    const plain = { button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false } as MouseEvent;
+    expect(plainClick(plain)).toBe(true);
+    expect(plainClick({ ...plain, metaKey: true })).toBe(false);
+    expect(plainClick({ ...plain, ctrlKey: true })).toBe(false);
+    expect(plainClick({ ...plain, shiftKey: true })).toBe(false);
+    expect(plainClick({ ...plain, altKey: true })).toBe(false);
+    expect(plainClick({ ...plain, button: 1 })).toBe(false);
+  });
 });
 
 describe("menu screens (rules 8.5, 8.11, 8.16)", () => {
@@ -63,6 +74,14 @@ describe("menu screens (rules 8.5, 8.11, 8.16)", () => {
     const html = renderToStaticMarkup(<MenuList label="더 보기" rows={moreRows({ role: "ORG_ADMIN", b1: true })} onOpen={noop} onLogout={noop} />);
     expect(html).toContain('href="/workspace"');
     expect(html).toContain('href="/core?tab=more&amp;view=me"');
+  });
+
+  it("lists 내 호실 units with their building, and says so when there are none", () => {
+    const html = renderToStaticMarkup(<UnitsScreen units={[{ id: "u1", label: "101호", buildingName: "합성 건물" } as never]} />);
+    expect(html).toContain('aria-label="내 호실"');
+    expect(html).toContain("101호");
+    expect(html).toContain("합성 건물");
+    expect(renderToStaticMarkup(<UnitsScreen units={[]} />)).toContain("연결된 호실이 없어요. 관리자에게 호실 연결을 확인해 주세요.");
   });
 
   it("shows loading, empty, partial and filled to-do states", () => {
