@@ -11,11 +11,13 @@
 //   hscroll    the page scrolls sideways
 //   tap        a button, link, field or summary smaller than 50x50px (rules §5); for a checkbox, a radio or a visually
 //              hidden input its visible label is measured (added after the PR 122 end review found 60x45px photo
-//              buttons). The one exception: up to 767px the /core top menu links need only 40px height (rules §16).
+//              buttons). The 40px exception for the /core top menu links (rules §16) was removed with the P5 menu
+//              (2026-10-13); tap is 50x50 everywhere now.
 //   center     text not in the middle of its button, link, tab, summary, option label or status label: the space above
 //              and below differs by 2px or more, or, in a box with a visible fill or border, the space left and right of
-//              any line does (rules §4). Rows read from the left (summary, request list rows, checkbox and radio rows,
-//              the side-column left menu) are compared only top and bottom.
+//              any line does (rules §4). Rows read from the left only (summary rows, request-opening rows
+//              ([data-open-ticket]), to-do rows ([data-todo-ticket]), menu rows ([data-menu-row]), checkbox and radio
+//              rows, the sign-in column's sticky logout, and the sticky P5 left menu) are compared only top and bottom.
 //   coverage   a requested engine did not start, or a screen that should exist could not be reached
 // Exit code 1 when any finding remains, so it can gate a design change.
 import { createRequire } from "node:module";

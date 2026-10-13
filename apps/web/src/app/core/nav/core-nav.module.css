@@ -42,8 +42,8 @@
 .empty { padding: 1.25rem; }
 .todo li button.todoRow { display: grid; gap: .3125rem; width: 100%; min-height: 3.125rem; padding: .9375rem 1.25rem; border: 0; border-radius: 0; background: transparent; color: var(--color-text); text-align: left; font-weight: 400; }
 .todo li button.todoRow:hover:not(:disabled) { background: var(--color-fill-hover); }
-/* Beats .root button:disabled (0,2,1) in core-design.module.css, so a disabled to-do row keeps the rules' disabled
- * look (subtle fill, secondary text, never opacity: 2.4) instead of its normal colours (review: Task 8). */
+/* Beats .root button:disabled (0,2,1) in core-design.module.css by specificity, so a disabled to-do row shows this
+ * rule's own disabled look (secondary text on a subtle fill) instead of its normal colours (review: Task 8). */
 .todo li button.todoRow:disabled { color: var(--color-text-secondary); background: var(--color-fill-subtle); cursor: not-allowed; }
 .todoTitle { font-size: .9375rem; line-height: 1.5625rem; font-weight: 600; letter-spacing: -0.01em; }
 .reasons { display: flex; flex-wrap: wrap; gap: .3125rem; }
