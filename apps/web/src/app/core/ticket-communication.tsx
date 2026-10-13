@@ -5,26 +5,34 @@ import { CoreCommunicationSendSchema,type CoreCommunicationIntent,type CoreCommu
 import { clearCommunicationRecovery,readCommunicationRecovery,saveCommunicationRecovery,type CommunicationRecovery } from "./communication-recovery";
 import { TaskZone } from "./ui/core-display";
 import { DateTime } from "../../components/date-time";
+import { TODO_REASON_NAMES } from "../../components/status-names";
 import styles from "./ticket-communication.module.css";
 
 export function CommunicationBadge({summary,tenant=false}:{summary?:Pick<CoreCommunicationSummary,"waitingFor"|"readOnly">;tenant?:boolean}){
   if(!summary||summary.readOnly||summary.waitingFor==="NONE")return null;
-  return <span className={styles.badge}>{summary.waitingFor==="TENANT"?(tenant?"내 답변 필요":"세입자 답변 대기"):"관리자 답변 대기"}</span>;
+  return <span className={styles.badge}>{summary.waitingFor==="TENANT"?(tenant?TODO_REASON_NAMES.REPLY_TENANT:TODO_REASON_NAMES.WAITING_TENANT):TODO_REASON_NAMES.REPLY_MANAGER}</span>;
 }
-export function useCommunicationSummaries(client:CoreFlowClient,ids:string[],revision:number){
+/** `ids===null` means the caller does not know the id set yet (e.g. the session is still loading): no read runs and
+ * `ready` stays false, instead of the empty-array read that used to turn `ready` true before anything real loaded. */
+export function useCommunicationSummaries(client:CoreFlowClient,ids:string[]|null,revision:number){
   const [summaries,setSummaries]=useState<Record<string,CoreCommunicationSummary>>({}),[error,setError]=useState(false);
-  const key=ids.join(",");
+  // Readiness is derived from whether the last finished read's key matches the current one, not a sticky flag, so a
+  // null id set (and a later id set a finished read has not matched yet) both read as not ready without an effect
+  // that would set state synchronously from the id set it was handed (react-hooks/set-state-in-effect).
+  const [readyKey,setReadyKey]=useState<string|null>(null);
+  const key=ids===null?null:ids.join(",");
   useEffect(()=>{
+    if(key===null)return;
     let live=true,generation=0;
     const load=async()=>{const current=++generation;try{
       const list=key?key.split(","):[],all:CoreCommunicationSummary[]=[];
       for(let i=0;i<list.length;i+=50)all.push(...await client.communication.summaries(list.slice(i,i+50)));
-      if(live&&current===generation){setSummaries(Object.fromEntries(all.map(s=>[s.ticketId,s])));setError(false);}
-    }catch{if(live&&current===generation){setSummaries({});setError(true);}}};
+      if(live&&current===generation){setSummaries(Object.fromEntries(all.map(s=>[s.ticketId,s])));setError(false);setReadyKey(key);}
+    }catch{if(live&&current===generation){setSummaries({});setError(true);setReadyKey(key);}}};
     const focus=()=>{if(!document.hidden)void load();};void load();window.addEventListener("focus",focus);document.addEventListener("visibilitychange",focus);
     return()=>{live=false;generation++;window.removeEventListener("focus",focus);document.removeEventListener("visibilitychange",focus);};
   },[client,key,revision]);
-  return {summaries,error};
+  return {summaries,error,ready:key!==null&&readyKey===key};
 }
 const intentLabel:Record<CoreCommunicationIntent,string>={REQUEST_REPLY:"질문",TENANT_MESSAGE:"문의·답변",MANAGER_REPLY:"답변",MANAGER_UPDATE:"진행 안내"};
 export function TicketCommunication({client,ticketId,tenant,revision,completed,onVersion,children}:{client:CoreFlowClient;ticketId:string;tenant:boolean;revision:number;completed:boolean;onVersion(value:{ticketId:string;version:number}|null):void;children?:ReactNode}){

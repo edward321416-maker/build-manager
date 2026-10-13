@@ -3,7 +3,7 @@ import { useCallback,useEffect,useState } from "react";
 import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
 import { CoreManagerWorkUpdateSchema,CoreManagerInternalNoteCreateSchema,type CoreManagerWorkItem,type CoreManagerInternalNote,type CoreTicketDto,type CoreUnitDto } from "@build-manager/api-contracts";
 import { DraftBadge,IntakeBadge,WorkStatusBadge } from "./ui/work-status-badge";
-import { WORK_STATUS_NAMES } from "../../components/status-names";
+import { TODO_REASON_NAMES,WORK_STATUS_NAMES } from "../../components/status-names";
 import { compareManagerWork,isOverdue,priorityLabels } from "./manager-work-order";
 import { managerRowHint } from "./manager-next-step";
 import styles from "./manager-work.module.css";
@@ -37,7 +37,7 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selected
       <button data-open-ticket className={styles.row} aria-current={selectedId===item.ticketId?"true":undefined} disabled={disabled} onClick={()=>onOpen(item.ticketId)}>
         <span className={styles.priority} data-priority={item.priority}><span className={styles.srOnly}>긴급도 </span>{priorityLabels[item.priority]}</span>
         <span className={styles.subject}><strong>{item.issueType==="HEATING"?"난방":"누수"}</strong><span>{item.buildingName} · {item.unitLabel}</span></span>
-        <span className={styles.workState}>{(hint=><>{hint==="DRAFT"?<DraftBadge/>:<WorkStatusBadge status={item.workStatus}/>}{hint==="NEEDS_MORE_INFO"||hint==="SAFETY_ESCALATED"?<IntakeBadge status={hint}/>:null}<CommunicationBadge summary={conversation.summaries[item.ticketId]}/>{hint==="DECIDE"?<small className={styles.rowHint}>처리 방법 결정 필요</small>:null}</>)(managerRowHint(byId.get(item.ticketId)))}</span>
+        <span className={styles.workState}>{(hint=><>{hint==="DRAFT"?<DraftBadge/>:<WorkStatusBadge status={item.workStatus}/>}{hint==="NEEDS_MORE_INFO"||hint==="SAFETY_ESCALATED"?<IntakeBadge status={hint}/>:null}<CommunicationBadge summary={conversation.summaries[item.ticketId]}/>{hint==="DECIDE"?<small className={styles.rowHint}>{TODO_REASON_NAMES.DECIDE}</small>:null}</>)(managerRowHint(byId.get(item.ticketId)))}</span>
         <span className={styles.assignee}><small>담당자</small>{item.assigneeLabel??"미지정"}</span>
         <span className={styles.due}><small>처리 예정</small>{item.dueAt?<DateTime at={item.dueAt} relative={false}/>:"미정"}{isOverdue(item,now)?<strong className={styles.overdue}>기한 지남</strong>:null}</span>
       </button>

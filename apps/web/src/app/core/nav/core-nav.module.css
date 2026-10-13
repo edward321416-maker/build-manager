@@ -1,0 +1,83 @@
+/* P5 navigation (design rules 3.2, 4, 6, 8.5, 8.10, 8.14, 8.15; spec docs/superpowers/specs/2026-10-13-navigation-shell-p5-design.md). */
+/* Open-source notice: body text for the Korean line, caption size for the English licence (rules 3.2). */
+.notice { padding: 1.25rem; }
+.notice > * + * { margin-top: .625rem; }
+.licenseText { color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; overflow-wrap: anywhere; }
+.licenseText > p + p { margin-top: .625rem; }
+@media (min-width: 768px) { .notice { padding: 1.875rem; } }
+@media (min-width: 1440px) { .notice { padding: 2.5rem; } }
+
+/* Shell: the menu beside or below the content (rules 7, 8.10, 8.14). */
+.shell { min-height: 100vh; }
+.content { min-width: 0; background: var(--color-surface); }
+.pane { min-width: 0; }
+.shell .nav { background: var(--color-surface); }
+.items { margin: 0; padding: 0; list-style: none; }
+.items > li { margin: 0; }
+.shell .nav li a { position: relative; display: flex; text-decoration: none; color: var(--color-text-secondary); }
+.shell .nav li a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.shell .nav svg { flex: none; }
+.label { white-space: nowrap; }
+/* Badge (8.15): count only, 18 high, at least 18 wide, 5 inside on each side, 5 corners, centred. */
+.badge { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; height: 1.125rem; min-width: 1.125rem; padding: 0 .3125rem; border-radius: .3125rem; background: var(--color-badge); color: var(--color-text-inverse); font-size: .8125rem; line-height: 1.0625rem; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.caption { margin: 0; padding: .625rem .9375rem; color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; overflow-wrap: anywhere; }
+.back svg { width: 1.5rem; height: 1.5rem; }
+/* Beats .root button (0,1,1) and .heading button (0,1,1) in core-design.module.css (both class+element; .content.back
+ * adds a second class), so the 50x50 target stays a bare 24px chevron with no visible box (rules 8.10). */
+.content button.back { display: inline-flex; align-items: center; justify-content: center; min-width: 3.125rem; min-height: 3.125rem; padding: 0; border-color: transparent; background: transparent; }
+/* Beats .root button:disabled (0,2,1) in core-design.module.css regardless of stylesheet order, so a disabled back
+ * button never shows that rule's grey fill box (rules 8.10). */
+.content button.back:disabled { background: transparent; border-color: transparent; }
+
+/* List rows (8.5): 50 high at least, 15 above and below, subheading names. */
+.menuList > ul, .todo > ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--color-border); }
+.menuList > ul > li, .todo > ul > li { margin: 0; border-bottom: 1px solid var(--color-border); }
+.menuList li a.row, .menuList li button.row { display: flex; align-items: center; width: 100%; min-height: 3.125rem; padding: .9375rem 1.25rem; border: 0; border-radius: 0; background: transparent; color: var(--color-text); text-align: left; text-decoration: none; font-size: .9375rem; line-height: 1.5625rem; font-weight: 600; letter-spacing: -0.01em; }
+.menuList li a.row:hover, .menuList li button.row:hover:not(:disabled) { background: var(--color-fill-hover); }
+.rowBlock { display: grid; gap: .3125rem; padding: .9375rem 1.25rem; }
+.rowBlock > span { color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; }
+.empty { padding: 1.25rem; }
+.todo li button.todoRow { display: grid; gap: .3125rem; width: 100%; min-height: 3.125rem; padding: .9375rem 1.25rem; border: 0; border-radius: 0; background: transparent; color: var(--color-text); text-align: left; font-weight: 400; }
+.todo li button.todoRow:hover:not(:disabled) { background: var(--color-fill-hover); }
+.todoTitle { font-size: .9375rem; line-height: 1.5625rem; font-weight: 600; letter-spacing: -0.01em; }
+.reasons { display: flex; flex-wrap: wrap; gap: .3125rem; }
+/* Status labels (2.3, 8.7): text plus a soft fill; urgent red, the rest the waiting amber. */
+.reasonBadge { display: inline-flex; align-items: center; justify-content: center; padding: .3125rem .625rem; border-radius: .3125rem; color: var(--status-wait-text); background: var(--status-wait-bg); font-size: .9375rem; line-height: 1.25rem; font-weight: 600; }
+.reasonBadge[data-reason="SAFETY"] { color: var(--status-urgent-text); background: var(--status-urgent-bg); }
+.todoTime { color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; }
+.partial { margin: 1.25rem; }
+.partial > * + * { margin-top: .625rem; }
+
+@media (max-width: 767px) {
+  /* Bottom tab bar (8.14): 5 · icon 24 · 5 · label 17 · 5 = 56, plus the bottom safe area; the top line sits inside. */
+  .shell .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: inset 0 1px 0 var(--color-border); }
+  .nav > .items { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  .nav [data-device="wide"] { display: none; }
+  .shell .nav li a { flex-direction: column; align-items: center; gap: .3125rem; min-height: 3.5rem; padding: .3125rem 0; font-size: .8125rem; line-height: 1.0625rem; font-weight: 400; letter-spacing: 0; }
+  .shell .nav li a svg { width: 1.5rem; height: 1.5rem; }
+  .shell .nav li a[aria-current="page"] { color: var(--color-primary); font-weight: 600; }
+  /* Badge: left edge 19 right of the icon's left edge, top 5 above the icon's top (8.15). */
+  .shell .nav .badge { position: absolute; top: 0; left: calc(50% + .4375rem); }
+  .shell[data-nav="on"]:not([data-sub="true"]) .content { padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px)); }
+  .shell[data-sub="true"] .nav { display: none; }
+  :global(html):has(.shell[data-nav="on"]:not([data-sub="true"])) { scroll-padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px)); }
+}
+@media (min-width: 768px) {
+  /* Left menu (8.10): 248px; items 50 high, 15 inside left and right, icon 20, 5 to the label; account area last. */
+  .shell[data-nav="on"] { display: grid; grid-template-columns: 248px minmax(0, 1fr); }
+  .shell .nav { position: sticky; top: 0; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; padding: 1.25rem .625rem; border-right: 1px solid var(--color-border); }
+  .nav [data-device="phone"] { display: none; }
+  .shell .nav li a { align-items: center; gap: .3125rem; min-height: 3.125rem; padding: 0 .9375rem; border-radius: .625rem; color: var(--color-text); font-size: .9375rem; line-height: 1.5625rem; letter-spacing: -0.01em; }
+  .shell .nav li a svg { width: 1.25rem; height: 1.25rem; }
+  .shell .nav li a:hover { background: var(--color-fill-hover); }
+  .shell .nav li a[aria-current="page"] { font-weight: 600; background: var(--color-fill-hover); }
+  .shell .nav .badge { margin-left: auto; }
+  .account { margin-top: auto; padding-top: .625rem; border-top: 1px solid var(--color-border); }
+  /* Beats .content button.back (0,2,1) from here on, so the phone-only back button actually hides at this width
+   * instead of losing to that higher-specificity rule (finding: review 2026-10-13). */
+  .content button.back[data-device="phone"] { display: none; }
+  .menuList li a.row, .menuList li button.row, .rowBlock, .todo li button.todoRow, .empty { padding-inline: 1.875rem; }
+}
+@media (min-width: 1440px) {
+  .menuList li a.row, .menuList li button.row, .rowBlock, .todo li button.todoRow, .empty { padding-inline: 2.5rem; }
+}
