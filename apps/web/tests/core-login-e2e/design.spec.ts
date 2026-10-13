@@ -144,6 +144,8 @@ test("zero-association requests and missing-link guidance remain reachable at 32
     await page.goto("/core/join");await expect(page.getByText("초대 링크 정보가 없어요.",{exact:false})).toBeVisible();
     await readable(page.getByText("호실을 확인하고 연결을 요청하세요.",{exact:false}));
     await expect(page.getByRole("button",{name:"연결 요청 보내기",exact:true})).toHaveCount(0);
+    // Without an inspected invite there is no request to look up.
+    await expect(page.getByRole("button",{name:"요청 상태 확인",exact:true})).toHaveCount(0);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:join(evidence,"join-no-link-320.png"),fullPage:true});
   }finally{await account.close();}
