@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import sharp from "sharp";
 import { accessCodes, mintOwnSession } from "./own-session";
 
 const menu = (page: Page) => page.getByRole("navigation", { name: "주 메뉴", exact: true });
@@ -89,4 +90,39 @@ test("from 768px a screen the left menu lists keeps the first-screen title (rule
   await menu(page).getByRole("link", { name: "호실 정비 이력", exact: true }).click(); await expect(page.getByRole("heading", { level: 1, name: "호실 정비 이력" })).toBeVisible();
   expect(await font()).toBe(first);
   await page.setViewportSize({ width: 390, height: 844 }); await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("font-size", "15px");
+});
+
+const png = () => sharp({ create: { width: 64, height: 48, channels: 3, background: "#759cac" } }).png().toBuffer();
+
+test("a focused control on a first screen is never under the tab bar (rules 8.14)", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 480 }); await login(page, tenantCode);
+  await page.getByLabel("문제 설명").fill("합성 탭바 가림 확인");
+  const submit = page.getByRole("button", { name: "접수하기", exact: true });
+  await page.getByLabel("문제 설명").focus();
+  for (let i = 0; i < 12 && !(await submit.evaluate(el => el === document.activeElement)); i++) await page.keyboard.press("Tab");
+  await expect(submit).toBeFocused();
+  const bar = (await menu(page).boundingBox())!, box = (await submit.boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+});
+
+test("on a wide screen a menu click keeps a request with unsent photos open (spec §3)", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const id = await createOwn(page, "합성 미전송 사진과 메뉴"); await login(page, tenantCode);
+  await menu(page).getByRole("link", { name: "내 요청", exact: true }).click();
+  await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click(); await expect(page.getByTestId("ticket-heading")).toBeVisible();
+  await page.getByLabel("참고 사진 선택", { exact: true }).setInputFiles({ name: "pending.png", mimeType: "image/png", buffer: await png() });
+  await menu(page).getByRole("link", { name: "우리 집", exact: true }).click();
+  await expect(page.getByTestId("ticket-heading")).toBeVisible(); await expect(page).toHaveURL(/tab=requests$/);
+  await expect(page.getByText("목록으로 돌아가기 전에 미전송 사진을 저장하거나 선택 취소해 주세요.", { exact: true })).toBeVisible();
+});
+
+test("at 320px with 200% text every tab label stays on one line inside its cell (rules 8.14, 12)", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 }); await login(page, tenantCode);
+  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  const cells = await menu(page).getByRole("link").evaluateAll(links => links.filter(a => a.getClientRects().length).map(a => {
+    const label = a.querySelector("span")!;
+    return { text: label.textContent, lines: label.getClientRects().length, fits: label.getBoundingClientRect().width <= a.getBoundingClientRect().width + 0.5 };
+  }));
+  expect(cells.map(cell => cell.text)).toEqual(["우리 집", "내 요청", "알림", "내 정보"]);
+  for (const cell of cells) expect(cell).toMatchObject({ lines: 1, fits: true });
 });
