@@ -20,7 +20,12 @@ export async function expectSignedIn(page: Page) {
 /** On a phone a request or row screen hides the tab bar (rules 8.14); go back until the menu shows. */
 async function toFirstScreen(page: Page) {
   const back = page.getByRole("button", { name: "뒤로", exact: true });
-  for (let i = 0; i < 3 && !(await mainMenu(page).isVisible()) && await back.isVisible(); i++) await back.click();
+  const menuOrBack = mainMenu(page).or(back);
+  await expect(menuOrBack).toBeVisible();
+  for (let i = 0; i < 3 && !(await mainMenu(page).isVisible()) && await back.isVisible(); i++) {
+    await back.click();
+    await expect(menuOrBack).toBeVisible();
+  }
   await expectSignedIn(page);
 }
 /** Clicks a main-menu item by name; the 알림 item may carry a count ("알림, 처리할 일 2건"). */
