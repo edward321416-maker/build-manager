@@ -96,3 +96,31 @@ it("reports a browser back with the entry's request mark and re-reads the addres
   await act(async () => { window.dispatchEvent(new PopStateEvent("popstate")); });
   expect(view.onPop).toHaveBeenLastCalledWith(true);
 });
+
+// This test runs before the next one on purpose: its real (unmocked) `history.back()` leaves the shared jsdom window's
+// pointer one step behind the top of the stack, which would corrupt a `history.length`-relative `before` baseline in
+// any test that runs after it and then pushes a plain entry (the push truncates the dangling forward entry instead of
+// growing the stack). Keeping it last avoids that; it needs no such baseline itself (verification note, this task).
+it("a manager's request opened from 알림 still replaces its entry, so back returns to 알림", async () => {
+  window.history.replaceState({ coreNav: true }, "", "/core?tab=alerts");
+  const view = await mount(admin), before = window.history.length;
+  await act(async () => showDetailEntry("work"));
+  expect(window.history.state).toEqual({ coreNav: true, detail: true });
+  await act(async () => view.api.current!.go({ tab: "work", view: null }));
+  expect(window.history.length).toBe(before + 1);
+  expect(window.history.state).toEqual({ coreNav: true });
+  expect(window.location.search).toBe("?tab=work");
+});
+
+it("leaving a request through its own place's menu item steps back to that place instead of stacking a copy", async () => {
+  window.history.replaceState({ coreNav: true }, "", "/core?tab=requests");
+  const view = await mount(tenant);
+  await act(async () => showDetailEntry());
+  expect(window.history.state).toEqual({ coreNav: true, detail: true, samePlace: true });
+  const popped = new Promise(resolve => window.addEventListener("popstate", resolve, { once: true }));
+  await act(async () => view.api.current!.go({ tab: "requests", view: null }));
+  await act(async () => { await popped; });
+  expect(window.history.state).toEqual({ coreNav: true });
+  expect(window.location.search).toBe("?tab=requests");
+  expect(window.scrollTo).toHaveBeenCalledWith({ top: 0 });
+});

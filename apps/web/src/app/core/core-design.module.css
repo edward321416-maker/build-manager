@@ -18,7 +18,7 @@
 .root p { max-width: 75ch; }
 .root small { font-size: .9375rem; line-height: 1.25rem; }
 .root :is(button,input,select,textarea,summary) { font: inherit; }
-.root :is(button,a,input,select,textarea,summary,h2[tabindex],[role="alert"]):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; scroll-margin-block: 1.25rem; }
+.root :is(button,a,input,select,textarea,summary,h1[tabindex],h2[tabindex],[role="alert"]):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; scroll-margin-block: 1.25rem; }
 .root button, .root :global(a.primary-button) { min-width: 3.125rem; min-height: 3.125rem; height: auto; max-width: 100%; padding: .625rem 1.25rem; border: 1px solid var(--color-border-strong); border-radius: .625rem; background: var(--color-surface); color: var(--color-text); font-size: .9375rem; font-weight: 600; line-height: 1.25rem; white-space: normal; overflow-wrap: anywhere; box-shadow: none; cursor: pointer; }
 .root button:hover:not(:disabled) { background: var(--color-fill-hover); }
 .root button.primary, .root :global(a.primary-button), .root :global(button.primary-button) { color: var(--color-text-inverse); background: var(--color-primary); border-color: var(--color-primary); }

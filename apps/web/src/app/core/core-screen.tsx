@@ -68,7 +68,7 @@ function describeError(error:unknown,saving:boolean){
 /** What the login screen hands the menu (P5 spec §1): the account-area caption, the 내 소속 field, this organisation's
  * move-in link screen, and logout. Development sign-in passes none of it. */
 export type CoreAccount={caption:string;organization?:ReactNode;linkPanel?:ReactNode;logout():void};
-export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:string;csrf:string};onDenied?:()=>void;onLogout?:()=>void;account?:CoreAccount}={}){
+export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{b1?:{orgId:string;csrf:string};onDenied?:()=>void;onLogout?:()=>void;account?:CoreAccount;focusTitle?:boolean}={}){
   const [session,setSession]=useState<CoreSessionDto|null>(null),[code,setCode]=useState("");
   const [units,setUnits]=useState<CoreUnitDto[]>([]),[unit,setUnit]=useState("");
   const [tickets,setTickets]=useState<CoreTicketDto[]>([]),[selected,setSelected]=useState<CoreTicketDto|null>(null);
@@ -85,7 +85,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:
   const [followUp,setFollowUp]=useState<ReturnType<typeof freshFollowUp>|null>(null),[followAttempt,setFollowAttempt]=useState<CoreCreateFollowUp|null>(null);
   const followSending=useRef(false);
   const [accessGeneration]=useState(createRequestFence);
-  const detailHeading=useRef<HTMLHeadingElement>(null),errorPanel=useRef<HTMLDivElement>(null);
+  const detailHeading=useRef<HTMLHeadingElement>(null),errorPanel=useRef<HTMLDivElement>(null),titleRef=useRef<HTMLHeadingElement>(null);
   const clearAccess=useCallback(()=>{accessGeneration.invalidate();clearCommunicationRecovery();clearOutcomeRecovery();setFollowUp(null);setFollowAttempt(null);setCommunicationVersion(null);setManagerHandoff(null);setSession(null);setSelected(null);setTickets([]);setUnits([]);setUnit("");setText("");setMessage("");setCode("");setNotice("");setPending([]);setPhotoMessage("");setMaintenanceUnit("");},[accessGeneration]);
   // The embedded intake/review also uses this client: a denied nested request
   // must clear the parent screen, not leave old protected content visible.
@@ -247,6 +247,14 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:
   const Workspace=b1?"section":"main";
   const managerStep=selected&&session&&session.role!=="TENANT"?managerNextStep({ticket:selected,handoff:managerHandoff?.ticketId===selected.ticketId?managerHandoff:null,vendorEnabled:Boolean(b1),handoffLoading:Boolean(b1&&managerHandoff?.ticketId!==selected.ticketId),factRecorded:factRecorded?.ticketId===selected.ticketId?factRecorded.recorded:null}):null;
   const location=nav.location,tab=location.tab,view=location.view;
+  // When the place changes from inside the content (a 더 보기 or 내 정보 row, closing a request), the control that had
+  // focus is gone. Focus the new screen's title instead of leaving it on the page body (final review of PR 139).
+  const place=`${tab}|${view??""}|${selected?"detail":""}`,lastPlace=useRef<string|null>(null);
+  useEffect(()=>{if(!navContext)return;const before=lastPlace.current;lastPlace.current=place;if(before===null||before===place||selected)return;
+    const active=document.activeElement;if(!active||active===document.body)titleRef.current?.focus({preventScroll:true});},[navContext,place,selected]);
+  // After an organisation is chosen the whole page is new: start keyboard and screen reader at its title, once.
+  const titleFocused=useRef(false);
+  useEffect(()=>{if(focusTitle&&session&&!titleFocused.current){titleFocused.current=true;titleRef.current?.focus({preventScroll:true});}},[focusTitle,session]);
   const sub=Boolean(selected)||Boolean(view);
   const title=!session?"수리 접수":selected?(tenant?"접수 내용":"업무함"):tenant&&tab==="home"&&!view?(units.find(u=>u.id===unit)?.label??"수리 접수"):navTitle(session.role,location);
   const openFromList=(id:string)=>void run(async()=>{await openWithList(id);setMessage("");});
@@ -263,7 +271,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:
     {navContext&&session?<CoreNav ctx={navContext} location={location} badge={conversationSummaries.ready?todo.items.length:0} caption={account?.caption??roleName(session.role)} onNavigate={navigate}/>:null}
     <div className={navStyles.content}>
     <Workspace id="core-tickets" className="page-shell core-flow" aria-label="수리 접수 작업" data-role={session?.role}>
-    <header className={styles.heading} data-testid="unit-context" data-sub={sub?"true":undefined}><div className={styles.toolbarLeading}>{selected?<BackButton wide disabled={busy||pending.length>0} onClick={closeDetail}/>:view&&navContext?<BackButton wide={!inLeftMenu(navContext,view)} onClick={nav.back}/>:null}<div><h1>{title}</h1>
+    <header className={styles.heading} data-testid="unit-context" data-sub={sub?"true":undefined}><div className={styles.toolbarLeading}>{selected?<BackButton wide disabled={busy||pending.length>0} onClick={closeDetail}/>:view&&navContext?<BackButton wide={!inLeftMenu(navContext,view)} onClick={nav.back}/>:null}<div><h1 ref={titleRef} tabIndex={-1}>{title}</h1>
     {tenant&&!selected&&tab==="home"&&!view?<p className={styles.headingCaption}>{units.find(u=>u.id===unit)?.buildingName}</p>:null}
     </div></div>
     {!b1?<EnvironmentNote>검증용 환경으로 실제 업체 배정이나 알림은 전송되지 않아요.</EnvironmentNote>:null}

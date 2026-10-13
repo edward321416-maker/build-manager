@@ -13,6 +13,9 @@ export function CoreLoginScreen({demoEntry=false}:{demoEntry?:boolean}={}){
  const [phase,setPhase]=useState<"loading"|"login"|"ready"|"unavailable"|"logout">("loading"),[error,setError]=useState("");
  const generation=useRef(0),logoutForm=useRef<HTMLFormElement>(null);
  const [logoutCsrf,setLogoutCsrf]=useState("");
+ // Set only by a manual 내 소속 choice (select), never by load()'s auto-select of a single organisation, so a plain
+ // sign-in never steals focus from the page body onto the new screen's title (final review of PR 139).
+ const [chosen,setChosen]=useState(false);
  const denied=useCallback(()=>{clearCommunicationRecovery();clearOutcomeRecovery();generation.current++;setScope(undefined);setAccess(null);setPhase("login");setError("세션이 만료되었거나 접근 권한이 변경됐어요. 다시 로그인하거나 소속을 확인해 주세요.");},[]);
  const scopedDenied=useCallback(()=>{if(scope?.generation===generation.current)denied();},[scope,denied]);
  const load=useCallback(async()=>{
@@ -36,6 +39,7 @@ export function CoreLoginScreen({demoEntry=false}:{demoEntry?:boolean}={}){
   document.addEventListener("visibilitychange",recheck);return()=>document.removeEventListener("visibilitychange",recheck);
  },[access,scope,denied]);
  const select=async(orgId:string)=>{
+  setChosen(true);
   clearCommunicationRecovery();clearOutcomeRecovery();
   // Another organisation may mean another role: start on that role's first tab, in place of this entry (rules 8.16).
   window.history.replaceState(null,"","/core");
@@ -69,7 +73,7 @@ export function CoreLoginScreen({demoEntry=false}:{demoEntry?:boolean}={}){
   </section>}
   <form ref={logoutForm} action="/api/v2/session/logout" method="post" hidden><input type="hidden" name="csrf" value={logoutCsrf}/></form>
   <div className="core-workspace">
-   {scope&&access&&current?<CoreFlowPage key={scope.orgId+scope.csrf} b1={scope} onDenied={scopedDenied} onLogout={logout} account={{caption:`${current.name} · ${roleName(current.role)}`,organization:organizationField,logout,
+   {scope&&access&&current?<CoreFlowPage key={scope.orgId+scope.csrf} b1={scope} onDenied={scopedDenied} onLogout={logout} focusTitle={chosen} account={{caption:`${current.name} · ${roleName(current.role)}`,organization:organizationField,logout,
     // Building staff have no move-in screen (spec D10); the tenant's 호실 연결 and the admin's 입주 연결 share the panel.
     linkPanel:current.role==="PROPERTY_STAFF"?undefined:<OnboardingPanel key={"onboarding-"+scope.orgId+access.csrf} embedded csrf={access.csrf} orgId={scope.orgId} manager={current.role==="ORG_ADMIN"} onRefreshAccess={()=>void load()} onDenied={denied}/>}}/>:null}
    {!scope&&phase==="ready"&&access?<OnboardingPanel key={"onboarding-none"+access.csrf} csrf={access.csrf} manager={false} onRefreshAccess={()=>void load()} onDenied={denied}/>:null}

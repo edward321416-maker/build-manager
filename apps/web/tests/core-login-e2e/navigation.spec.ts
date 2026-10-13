@@ -118,5 +118,6 @@ test("the address keeps the menu place, wrong places fall back, and an organisat
     await link(admin, /^알림/).click(); await link(admin, "내 정보").click();
     await admin.getByRole("region", { name: "내 정보", exact: true }).getByLabel("내 소속", { exact: true }).selectOption(two.fixture.orgB);
     await expect(admin).toHaveURL(/\/core\?tab=work$/); await expect(link(admin, "업무함")).toHaveAttribute("aria-current", "page");
+    await expect(admin.getByRole("heading", { level: 1, name: "업무함" })).toBeFocused();
   } finally { await tenant.close(); await two.close(); }
 });

@@ -5,13 +5,13 @@ import { navHref, parseNavLocation, sameLocation } from "./nav-location";
 
 // History entries this screen writes carry `coreNav`; an open request adds `detail` (P5 spec §3). The request itself is
 // never in the address: a reload shows the tab, and the request is always read again from the server.
-type Entry = { coreNav?: true; detail?: true };
+type Entry = { coreNav?: true; detail?: true; samePlace?: true };
 const NAV_EVENT = "core-nav";
 const entry = (): Entry => { const state: unknown = window.history.state; return state !== null && typeof state === "object" ? state as Entry : {}; };
 /** Picks only this screen's own marks out of a (possibly foreign) state object, so a replace never carries forward a
  * mark another layer owns — e.g. Next's own `__NA` router mark, which a replace that kept it would cause Next 16 to
  * treat as already synced and skip updating its router URL (finding: review 2026-10-13). */
-const marksOnly = (source: Entry): Entry => { const out: Entry = {}; if (source.coreNav) out.coreNav = true; if (source.detail) out.detail = true; return out; };
+const marksOnly = (source: Entry): Entry => { const out: Entry = {}; if (source.coreNav) out.coreNav = true; if (source.detail) out.detail = true; if (source.samePlace) out.samePlace = true; return out; };
 const here = () => window.location.pathname + window.location.search;
 function write(mode: "push" | "replace", state: Entry, href: string) {
   if (mode === "push") window.history.pushState(state, "", href); else window.history.replaceState(state, "", href);
@@ -22,10 +22,13 @@ const subscribe = (notify: () => void) => {
   return () => { window.removeEventListener("popstate", notify); window.removeEventListener(NAV_EVENT, notify); };
 };
 
-/** Marks the open request with one history entry, so browser back closes it; a manager's request opens in 업무함. */
+/** Marks the open request with one history entry, so browser back closes it; a manager's request opens in 업무함.
+ * `samePlace`: the entry below shows the same screen, so leaving through that screen's own menu item steps back to it
+ * instead of leaving two identical entries (final review of PR 139). */
 export function showDetailEntry(tab?: TabId) {
   if (entry().detail) return;
-  write("push", { coreNav: true, detail: true }, tab ? navHref({ tab, view: null }) : here());
+  const href = tab ? navHref({ tab, view: null }) : here();
+  write("push", href === here() ? { coreNav: true, detail: true, samePlace: true } : { coreNav: true, detail: true }, href);
 }
 /** Drops the request mark from the current entry when the request closed some other way, without a new entry. */
 export function hideDetailEntry() {
@@ -52,9 +55,16 @@ export function useNavLocation(ctx: NavContext | null, onPop: (detail: boolean) 
   /** A menu link: a new history entry; tapping the current first screen again scrolls it to the top (rules 8.14).
    * With a request entry on top, this REPLACES it instead of pushing: a push would leave a stale duplicate of the
    * target behind the request's own entry, so one browser back after the move would land on that duplicate and show
-   * the same screen again before a second back reaches the real previous screen (finding: review 2026-10-13). */
+   * the same screen again before a second back reaches the real previous screen (finding: review 2026-10-13).
+   * A request opened over the same place steps back instead. */
   const go = useCallback((next: NavLocation) => {
-    if (entry().detail) write("replace", { coreNav: true }, navHref(next));
+    const top = entry();
+    if (top.detail && top.samePlace && sameLocation(next, location)) {
+      // The screen below is this one: step back to it, then show its top (rules 8.14).
+      const toTop = () => { window.removeEventListener("popstate", toTop); window.scrollTo({ top: 0 }); };
+      window.addEventListener("popstate", toTop); window.history.back(); return;
+    }
+    if (top.detail) write("replace", { coreNav: true }, navHref(next));
     else if (!sameLocation(next, location)) write("push", { coreNav: true }, navHref(next));
     window.scrollTo({ top: 0 });
   }, [location]);
