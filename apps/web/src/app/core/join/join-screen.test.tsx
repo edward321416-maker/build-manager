@@ -32,7 +32,7 @@ async function mount(hash:string,route:Route=()=>undefined){
 const button=(label:string)=>Array.from(host.querySelectorAll("button")).find(item=>item.textContent===label);
 async function click(label:string){expect(Boolean(button(label)),label).toBe(true);await act(async()=>{button(label)!.click();});await settle();}
 const paths=()=>calls.map(call=>call.path+call.query);
-const hint="이미 신청했다면 내 호실로 돌아가 '내 연결 요청'에서 상태를 확인할 수 있어요. 소속이 선택돼 있다면 '입주 연결' 메뉴 안에 있어요.";
+const hint="이미 신청했다면 내 호실로 돌아가 '내 연결 요청'에서 상태를 확인할 수 있어요. 소속이 선택돼 있다면 '내 정보'의 '호실 연결'에 있어요.";
 const failure=(status:number,code:string)=>json({error:{code,message:"synthetic"}},status);
 
 it("offers no status check without a link, so it never reads the saved requests",async()=>{

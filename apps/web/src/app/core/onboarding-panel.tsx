@@ -21,7 +21,7 @@ export function InvitationSummary({invite,children}:{invite:InvitationDto;childr
   <InvitationMetadata invite={invite}/>
  </>;
 }
-export function OnboardingPanel({csrf,orgId,manager,onRefreshAccess,onDenied}:{csrf:string;orgId?:string;manager:boolean;onRefreshAccess:()=>void;onDenied:()=>void}){
+export function OnboardingPanel({csrf,orgId,manager,embedded=false,onRefreshAccess,onDenied}:{csrf:string;orgId?:string;manager:boolean;/** Inside the P5 menu the top bar already names the screen. */embedded?:boolean;onRefreshAccess:()=>void;onDenied:()=>void}){
  const client=useMemo(()=>createCoreOnboardingClient({csrf,orgId}),[csrf,orgId]);
  const empty:InvitationPage={items:[],nextCursor:null};
  const [mine,setMine]=useState<InvitationPage>(empty),[list,setList]=useState<InvitationPage>(empty),[units,setUnits]=useState<InviteUnitsPage>({items:[],nextCursor:null});
@@ -44,7 +44,7 @@ export function OnboardingPanel({csrf,orgId,manager,onRefreshAccess,onDenied}:{c
      {i.state==="OPEN"||i.state==="REQUESTED"?<button className={styles.dangerAction} disabled={busy||uncertain} onClick={()=>void run(async()=>{await client.decide("revoke",i.invitationId);setLink("");await load();setNotice("초대를 취소했어요. 이 링크로 새 연결을 만들 수 없어요.");},true)}>초대 취소</button>:null}
     </article>;
  return <section className="page-shell core-flow core-onboarding" aria-label="호실 연결">
-  <div id="core-invitations"><header className={styles.heading}><h1>{manager?"입주 연결":"내 호실 연결 요청"}</h1><button disabled={busy} onClick={()=>void run(load)}>연결 상태 새로고침</button></header>
+  <div id="core-invitations"><header className={styles.heading}>{embedded?null:<h1>{manager?"입주 연결":"호실 연결"}</h1>}<button disabled={busy} onClick={()=>void run(load)}>연결 상태 새로고침</button></header>
    <p>초대는 24시간 동안 유효해요. 로그인 후 신청하고 관리자가 확인 번호와 호실을 확인해야 연결돼요.</p>
    {error?<p role="alert">{error}</p>:null}{notice?<p role="status">{notice}</p>:null}{busy?<p role="status">연결 상태를 확인하는 중…</p>:null}
 
