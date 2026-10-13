@@ -57,10 +57,14 @@ test("closing a manager's request opened from 알림 through the left menu leave
   await menu(page).getByRole("link", { name: /^알림/ }).click(); await expect(page).toHaveURL(/tab=alerts$/);
   const row = page.locator(`[data-todo-ticket="${id}"]`); await expect(row).toBeVisible();
   await row.click(); await expect(page).toHaveURL(/tab=work$/); await expect(page.getByTestId("ticket-heading")).toBeVisible();
-  // Closing through 알림 — the place the request was opened from, not its own tab — must step back the same way: one
-  // click leaves no dead back step (the defect this task exists to remove also covered the manager-from-알림 case).
+  // Closing through 알림 — the place the request was opened from, not its own tab — must step back the same way,
+  // collapsing the detail entry instead of leaving a duplicate 알림 entry behind it. Both the fix and the old,
+  // dead-step bug show the same ?tab=alerts URL right after this click, so that alone cannot tell them apart: the
+  // fix leaves history [work, alerts] (one more back lands on work); the old bug left [work, alerts, alerts] (one
+  // more back does nothing, staying on alerts).
   await menu(page).getByRole("link", { name: /^알림/ }).click();
   await expect(page.getByTestId("ticket-heading")).toHaveCount(0); await expect(page).toHaveURL(/tab=alerts$/);
+  await page.goBack(); await expect(page).toHaveURL(/tab=work$/);
 });
 
 test("opening a 더 보기 row puts focus on the new screen's title", async ({ page }) => {
