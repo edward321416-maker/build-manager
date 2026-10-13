@@ -17,7 +17,7 @@ const GROUP: Record<TodoReason, number> = { SAFETY: 0, REPLY: 2, DECIDE: 2, DRAF
 export const todoReasonName = (role: CoreRole, reason: TodoReason): string =>
   reason === "REPLY" ? (isTenant(role) ? TODO_REASON_NAMES.REPLY_TENANT : TODO_REASON_NAMES.REPLY_MANAGER) : TODO_REASON_NAMES[reason];
 
-const lastActivity = (ticket: CoreTicketDto) =>
+export const lastActivity = (ticket: CoreTicketDto) =>
   ticket.events.reduce<string | null>((latest, event) => latest === null || Date.parse(event.at) > Date.parse(latest) ? event.at : latest, null);
 
 function reasonsFor(role: CoreRole, ticket: CoreTicketDto, summary: CoreCommunicationSummary | undefined): TodoReason[] {
