@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { Client, type ClientConfig } from 'pg';
 import type { VendorJobDto } from '@build-manager/api-contracts';
+import { openTicketRow } from '../core-e2e/presentation';
 export { expect };
 export type Account = { cookie: string; csrf: string; orgId: string; userId: string; digest: string };
 export type Fixture = { origin: string; admin: ClientConfig; fixture: { unitA: string; orgA: string; accounts: Record<string, Account> } };
@@ -68,7 +69,7 @@ export async function openTicket(page: Page, id: string, manager = false) {
     const values = await org.locator('option').evaluateAll(options => options.map(option => (option as HTMLOptionElement).value).filter(Boolean));
     if (values.length === 1) await org.selectOption(values[0]);
   }
-  await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();
+  await openTicketRow(page, id);
   if (manager) await page.getByRole('button', { name: '업무 정보', exact: true }).click();
 }
 export async function safeGoto(page: Page, url: string, phase: string) {

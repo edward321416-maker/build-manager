@@ -1,11 +1,11 @@
-import { openInspector } from "./presentation";
+import { expectSignedIn,openInspector,openTab,openTicketRow } from "./presentation";
 import { test,expect,type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 const privateRoot=join(homedir(),".build-manager-rc1-private");
 const codes=async()=>JSON.parse(await readFile(join(privateRoot,"access-codes.json"),"utf8")) as Record<string,string>;
-async function login(page:Page,who:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill((await codes())[who]);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();}
+async function login(page:Page,who:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill((await codes())[who]);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expectSignedIn(page);}
 
 test("Web tenant creates, another browser manager handles, tenant reloads and reopens persistent history",async({browser,page})=>{
   await login(page,"tenant");await page.getByRole("radio",{name:"누수",exact:true}).check();await page.getByLabel("문제 설명").fill("RC1 합성 누수 접수 — 브라우저 왕복");
@@ -16,7 +16,7 @@ test("Web tenant creates, another browser manager handles, tenant reloads and re
     await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 점검 시작");await manager.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("처리 중");
     await openInspector(manager);await manager.getByLabel("처리 기록").fill("합성 조치 결과를 관리자가 확인했습니다");await manager.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(manager.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");await expect(page.getByText("합성 조치 결과를 관리자가 확인했습니다",{exact:false})).toBeVisible();
-    await page.reload();await page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");
+    await page.reload();await openTicketRow(page,ticket.ticketId);await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");
     await page.screenshot({path:join(privateRoot,"web-tenant-result.png"),fullPage:true});await manager.screenshot({path:join(privateRoot,"web-manager-result.png"),fullPage:true});
   }finally{await managerContext.close();}
 });
@@ -58,7 +58,7 @@ test("a more-info round reads 추가 확인 on /core, never 제출 전, and resu
   t=await post(`/${t.ticketId}/decision`,{type:"REQUEST_MORE_INFO",reason:"합성 추가 확인 라운드",requestedQuestionIds:[q.questionId]},"manager");expect(t.detail.status).toBe("NEEDS_MORE_INFO");
   await page.setViewportSize({width:390,height:844});await login(page,"tenant");
   const row=page.locator(`[data-ticket-id="${t.ticketId}"]`);await expect(row.locator("[data-work-state]")).toHaveText("접수됨");
-  await row.locator("[data-open-ticket]").click();
+  await openTicketRow(page,t.ticketId);
   const zone=page.getByRole("region",{name:"지금 할 일: 추가 확인",exact:true});
   await expect(page.getByTestId("work-status")).toHaveText("접수됨");await expect(page.getByText("관리자가 추가 확인을 요청했어요.",{exact:false})).toBeVisible();await expect(zone).toContainText("답한 뒤 다시 제출해 주세요.");
   // Answering resets the server status to IN_PROGRESS; a request that was already sent must not read as unsubmitted.
@@ -82,7 +82,7 @@ test("a more-info round reads 추가 확인 on /core, never 제출 전, and resu
 });
 
 test("revoked cookie session clears the protected screen on refresh",async({page})=>{
-  await login(page,"tenantOther");await expect(page.getByRole("heading",{name:/^최근 접수/})).toBeVisible();
+  await login(page,"tenantOther");await openTab(page,"내 요청");await expect(page.getByRole("heading",{name:/^최근 접수/})).toBeVisible();
   const r=await page.request.post("/api/v2/core/logout",{headers:{Origin:"http://127.0.0.1:3131"},data:{}});expect(r.status()).toBe(200);
   await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(page.getByRole("heading",{name:/^최근 접수/})).toHaveCount(0);
 });

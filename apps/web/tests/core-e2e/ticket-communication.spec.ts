@@ -1,4 +1,4 @@
-import { openConversation,openInspector } from "./presentation";
+import { expectSignedIn,openConversation,openInspector,openTicketRow } from "./presentation";
 import { abortOnce,routeOnce } from "../routes";
 import { test,expect,type Page,type APIRequestContext } from "@playwright/test";
 import { readFile,mkdir,writeFile } from "node:fs/promises";
@@ -18,8 +18,8 @@ async function setup(request:APIRequestContext){
   const read=async(who="tenant")=>{const r=await request.get(`/api/v2/core/tickets/${id}/communication`,{headers:headers(who)});expect(r.status()).toBe(200);return r.json();};
   return {codes,headers,ticket,id,read};
 }
-async function login(page:Page,code:string,id?:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill(code);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();if(id)await open(page,id);}
-async function open(page:Page,id:string){await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();await openConversation(page);await expect(conversation(page).getByRole("button",{name:"대화 새로고침",exact:true})).toBeEnabled();}
+async function login(page:Page,code:string,id?:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill(code);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expectSignedIn(page);if(id)await open(page,id);}
+async function open(page:Page,id:string){await openTicketRow(page,id);await openConversation(page);await expect(conversation(page).getByRole("button",{name:"대화 새로고침",exact:true})).toBeEnabled();}
 async function send(page:Page,body:string,action:string){await openConversation(page);const section=conversation(page);await section.getByLabel("공개 대화 내용",{exact:true}).fill(body);await section.getByRole("button",{name:action,exact:true}).click();await expect(section.getByRole("listitem").filter({hasText:body})).toBeVisible();await expect(section.getByLabel("공개 대화 내용",{exact:true})).toHaveValue("");}
 async function fit(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
 const metadata=(page:Page)=>page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith("core-communication-request:")).map(k=>JSON.parse(sessionStorage.getItem(k)!)));
@@ -43,7 +43,7 @@ test("public Q&A round trip, independent protocol and queue, photo/privacy, comp
     expect((await request.post(`/api/v2/core/tickets/${id}/decision`,{headers:s.headers("manager"),data:{type:"REQUEST_MORE_INFO",reason:"합성 구조화 질문",requestedQuestionIds:[q.questionId]}})).status()).toBe(200);
     expect(await s.read()).toEqual(beforeProtocol);
     const answer="합성 답변입니다. "+"긴한국어연속문자".repeat(28);await send(page,answer,"답변 보내기");
-    await manager.getByRole("button",{name:"← 목록으로",exact:true}).click();await expect(manager.locator(`[data-ticket-id="${id}"] [data-open-ticket]`)).toContainText("관리자 답변 대기");await open(manager,id);
+    await manager.getByRole("button",{name:"뒤로",exact:true}).click();await expect(manager.locator(`[data-ticket-id="${id}"] [data-open-ticket]`)).toContainText("관리자 답변 대기");await open(manager,id);
     await send(manager,"합성 답변을 확인했습니다.","답변");expect((await s.read()).waitingFor).toBe("NONE");
     const markup='<img src="missing" onerror="window.__qaExecuted=1"> 합성 문자';await send(manager,markup,"진행 안내");
     await page.evaluate(()=>window.dispatchEvent(new Event("focus")));await expect(conversation(page).getByText(markup,{exact:true})).toBeVisible();expect(await page.evaluate(()=>"__qaExecuted" in window)).toBe(false);expect(await conversation(page).locator("li[data-author] img").count()).toBe(0);

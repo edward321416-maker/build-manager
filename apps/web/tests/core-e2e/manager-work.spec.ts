@@ -1,4 +1,4 @@
-import { openInspector } from "./presentation";
+import { expectSignedIn,openInspector,openTicketRow } from "./presentation";
 import { test,expect,type Page } from "@playwright/test";
 import { readFile,mkdir,writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 
 const root=join(homedir(),".build-manager-rc1-private"),evidence=join(root,"manager-work-queue");
-async function login(page:Page,code:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill(code);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();}
+async function login(page:Page,code:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill(code);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expectSignedIn(page);}
 const fit=async(page:Page)=>expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 
 test("manager work queue: real metadata, stale recovery, filters, private notes, photos and tenant boundary",async({page,browser,request})=>{
@@ -57,7 +57,7 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   // The saved instant is the Seoul wall time that was typed, to the minute; a browser-zone reading would be 9 hours off on CI.
   const savedDue=await queue.locator(`[data-ticket-id="${tickets[0]}"] time`).getAttribute("dateTime");expect(Date.parse(savedDue!)).toBe(Math.floor(Date.parse(duePast)/60_000)*60_000);
   await expect(detail.getByLabel("처리 예정",{exact:true})).toHaveValue(localPast);
-  await page.getByRole("button",{name:"← 목록으로",exact:true}).click();
+  await page.getByRole("button",{name:"뒤로",exact:true}).click();
   await expect.poll(()=>queue.locator("li[data-ticket-id]").evaluateAll((rows,ids)=>rows.map(x=>x.getAttribute("data-ticket-id")).filter(id=>ids.includes(id!)),tickets)).toEqual(tickets);
   await expect(queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`)).toContainText("기한 지남");
   await queue.getByRole("combobox",{name:"긴급도 필터",exact:true}).selectOption("URGENT");await expect(queue.locator(`[data-ticket-id="${tickets[1]}"] [data-open-ticket]`)).toHaveCount(0);await expect(queue.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`)).toBeVisible();
@@ -75,13 +75,13 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   await openInspector(page);await page.getByLabel("처리 기록",{exact:true}).fill("합성 담당자가 확인한 처리 시작");await page.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("처리 중");
   const tenantContext=await browser.newContext({viewport:{width:390,height:844}}),tenant=await tenantContext.newPage();
   try{
-    await login(tenant,codes.tenant);await tenant.locator(`[data-ticket-id="${tickets[0]}"] [data-open-ticket]`).click();
+    await login(tenant,codes.tenant);await openTicketRow(tenant,tickets[0]);
     await expect(tenant.getByTestId("work-status")).toHaveText("처리 중");await expect(tenant.getByRole("region",{name:"사진",exact:true}).getByRole("img")).toHaveCount(1);
     for(const text of ["업무 관리","내부 메모","담당자","긴급도","합성 내부 담당 A"])await expect(tenant.getByText(text,{exact:true})).toHaveCount(0);
     const publicRead=await request.get(`/api/v2/core/tickets/${tickets[0]}`,{headers:headers("tenant")});expect(publicRead.status()).toBe(200);const publicText=await publicRead.text();for(const text of [memo,"assigneeLabel","priority","internalNotes","noteCount"])expect(publicText).not.toContain(text);
     for(const path of ["manager/work-items",`manager/tickets/${tickets[0]}/work`,`manager/tickets/${tickets[0]}/internal-notes`])expect((await request.get(`/api/v2/core/${path}`,{headers:headers("tenant")})).status()).toBe(403);
     await fit(tenant);await tenant.screenshot({path:join(evidence,"tenant-private-fields-absent-390.png"),fullPage:true});
   }finally{await tenantContext.close();}
-  await page.getByRole("button",{name:"← 목록으로",exact:true}).click();await queue.locator(`[data-ticket-id="${tickets[1]}"] [data-open-ticket]`).click();await openInspector(page);await page.getByLabel("처리 기록",{exact:true}).fill("합성 점검 결과의 관리자 완료 기록");await page.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");await expect(detail.getByRole("button",{name:"저장",exact:true})).toBeDisabled();await expect(detail.getByRole("button",{name:"내부 메모 추가",exact:true})).toBeDisabled();
+  await page.getByRole("button",{name:"뒤로",exact:true}).click();await queue.locator(`[data-ticket-id="${tickets[1]}"] [data-open-ticket]`).click();await openInspector(page);await page.getByLabel("처리 기록",{exact:true}).fill("합성 점검 결과의 관리자 완료 기록");await page.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");await expect(detail.getByRole("button",{name:"저장",exact:true})).toBeDisabled();await expect(detail.getByRole("button",{name:"내부 메모 추가",exact:true})).toBeDisabled();
   await writeFile(join(evidence,"restart-target.private.json"),JSON.stringify({ticketId:tickets[0],tickets,memo,assigneeLabel:"합성 내부 담당 A",version:finalVersion}),{flag:"w"});
 });

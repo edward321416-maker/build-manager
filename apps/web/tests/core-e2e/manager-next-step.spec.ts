@@ -4,10 +4,11 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { routeOnce } from "../routes";
+import { expectSignedIn } from "./presentation";
 
 const privateRoot=join(homedir(),".build-manager-rc1-private");
 const codes=async()=>JSON.parse(await readFile(join(privateRoot,"access-codes.json"),"utf8")) as Record<string,string>;
-async function login(page:Page,who:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill((await codes())[who]);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();}
+async function login(page:Page,who:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill((await codes())[who]);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expectSignedIn(page);}
 const zone=(page:Page)=>page.getByRole("region",{name:"다음 할 일",exact:true});
 async function inView(page:Page,target:Locator){const box=await target.boundingBox();expect(box).not.toBeNull();expect(box!.y).toBeGreaterThanOrEqual(-1);expect(box!.y).toBeLessThan(page.viewportSize()!.height);}
 /** Creates a tenant request; with `submit`, answers every question and submits it. */
@@ -135,7 +136,7 @@ test("an access loss on the list read opens nothing, even after signing in again
   const read=page.waitForResponse(r=>r.url().endsWith(`/api/v2/core/tickets/${t.ticketId}`)&&r.request().method()==="GET");
   await page.locator(`[data-ticket-id="${t.ticketId}"] [data-open-ticket]`).click();await read;
   await expect(page.getByLabel("개발 접근 코드")).toBeVisible();await expect(page.getByText("불러오는 중…")).toHaveCount(0);
-  await expect(page.getByRole("button",{name:"← 목록으로",exact:true})).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"뒤로",exact:true})).toHaveCount(0);
   await page.getByLabel("개발 접근 코드").fill((await codes()).manager);await page.getByRole("button",{name:"들어가기",exact:true}).click();
-  await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();await expect(page.getByTestId("ticket-heading")).toHaveCount(0);
+  await expectSignedIn(page);await expect(page.getByTestId("ticket-heading")).toHaveCount(0);
 });

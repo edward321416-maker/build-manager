@@ -72,8 +72,8 @@ test("design reflow keeps the same draft and File through five widths, text scal
   await screen.fits();
   const labelChooser=page.waitForEvent("filechooser");await page.getByText("사진 추가",{exact:false}).click();
   await (await labelChooser).setFiles({name:"pending-design.png",mimeType:"image/png",buffer:bytes});
-  await page.setViewportSize({width:1440,height:900});await expect(page.getByRole("button",{name:"← 목록으로",exact:true})).toBeDisabled();
+  await page.setViewportSize({width:1440,height:900});await expect(page.getByRole("button",{name:"뒤로",exact:true})).toBeDisabled();
   await expect(page.getByAltText("전송 전 사진 1 미리보기")).toBeVisible();
   await page.getByRole("button",{name:"사진 1 선택 취소",exact:true}).click();
-  await expect(page.getByRole("button",{name:"← 목록으로",exact:true})).toBeEnabled();
+  await expect(page.getByRole("button",{name:"뒤로",exact:true})).toBeEnabled();
 });
