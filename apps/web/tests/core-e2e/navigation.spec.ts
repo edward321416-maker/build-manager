@@ -98,11 +98,14 @@ test("a focused control on a first screen is never under the tab bar (rules 8.14
   await page.setViewportSize({ width: 390, height: 480 }); await login(page, tenantCode);
   await page.getByLabel("문제 설명").fill("합성 탭바 가림 확인");
   const submit = page.getByRole("button", { name: "접수하기", exact: true });
+  const before = await page.evaluate(() => window.scrollY);
   await page.getByLabel("문제 설명").focus();
   for (let i = 0; i < 12 && !(await submit.evaluate(el => el === document.activeElement)); i++) await page.keyboard.press("Tab");
   await expect(submit).toBeFocused();
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
   const bar = (await menu(page).boundingBox())!, box = (await submit.boundingBox())!;
-  expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+  // Rule 8.14: scroll-padding-bottom is the tab bar height plus 20px, so the focused control must clear the bar by 20px, not just avoid overlap.
+  expect(box.y + box.height).toBeLessThanOrEqual(bar.y - 20);
 });
 
 test("on a wide screen a menu click keeps a request with unsent photos open (spec §3)", async ({ page }) => {
