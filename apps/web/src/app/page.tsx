@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { parseApplicationMode } from '../runtime/application-mode';
 import { demoEntryMode } from '../runtime/demo-entry-mode';
-import { INTAKE_STATUS_NAMES, WORK_STATUS_NAMES } from "../components/status-names";
+import { ACCESS_POLICY_NAMES, INTAKE_STATUS_NAMES, WORK_STATUS_NAMES } from "../components/status-names";
 import styles from "./home.module.css";
 export const dynamic = "force-dynamic";
 
@@ -108,11 +108,10 @@ function TenantSection() {
             <p className={styles.sectionLead}>문제 종류를 고르고 사진을 올리면 건물 정보에 맞춘 질문이 이어져요. 중앙난방인지 개별난방인지에 따라 묻는 내용이 달라요.</p>
           </div>
           <figure className={styles.panel} aria-label="건물 정보에 맞춘 질문 화면 예시 · 체험용 데이터">
+            {/* As in the tenant's question step: the answer buttons send the answer, there is no separate next button. */}
             <div className={styles.phone} aria-hidden="true">
-              <p className={styles.chip}>난방 방식: 개별난방 · 건물 확인</p>
               <p className={styles.phoneTitle}>보일러 또는 조절기 전원이 켜져 있나요?</p>
-              <div className={styles.tiles}><span>예</span><span data-selected="true">아니오</span></div>
-              <span className={styles.fakeButton}>다음</span>
+              <div className={styles.tiles}><span>예</span><span>아니오</span></div>
             </div>
           </figure>
         </div>
@@ -155,7 +154,7 @@ function ManagerSection() {
               <div className={styles.mini}>
                 <p className={styles.fieldLabel}>제안한 방문 시간</p>
                 <p className={styles.miniTitle}>10월 9일 (금) 오후 2:00–4:00</p>
-                <p className={styles.caption}>세입자가 있을 때만 방문</p>
+                <p className={styles.caption}>{ACCESS_POLICY_NAMES.TENANT_PRESENT_REQUIRED}</p>
               </div>
             </div>
             <h3>업체는 링크로 일정을 정해요</h3>
@@ -178,9 +177,10 @@ function RecordSection() {
           <div className={styles.history} aria-hidden="true">
             <p className={styles.historyHead}>101동 1203호 정비 이력</p>
             <ul>
-              <li><span className={styles.rowTitle}>난방 · 업체 방문</span><span className={styles.rowMeta}>10월 9일 (금) 오후 2:00–4:00</span><span className={styles.status} data-state="done">{WORK_STATUS_NAMES.COMPLETED}</span></li>
-              <li><span className={styles.rowTitle}>누수 · 관리사무소 처리</span><span className={styles.rowMeta}>8월 12일 (수)</span><span className={styles.status} data-state="done">{WORK_STATUS_NAMES.COMPLETED}</span></li>
-              <li><span className={styles.rowTitle}>난방 · 업체 방문</span><span className={styles.rowMeta}>3월 4일 (수)</span><span className={styles.status} data-state="done">{WORK_STATUS_NAMES.COMPLETED}</span></li>
+              {/* Entries are named as on the manager's history: issue · action kind. All are earlier than the example ticket. */}
+              <li><span className={styles.rowTitle}>난방 · 부품 교체</span><span className={styles.rowMeta}>8월 12일 (수)</span><span className={styles.status} data-state="done">{WORK_STATUS_NAMES.COMPLETED}</span></li>
+              <li><span className={styles.rowTitle}>누수 · 점검</span><span className={styles.rowMeta}>3월 4일 (수)</span><span className={styles.status} data-state="done">{WORK_STATUS_NAMES.COMPLETED}</span></li>
+              <li><span className={styles.rowTitle}>난방 · 수리</span><span className={styles.rowMeta}>2025년 12월 2일</span><span className={styles.status} data-state="done">{WORK_STATUS_NAMES.COMPLETED}</span></li>
             </ul>
           </div>
         </figure>
@@ -254,7 +254,7 @@ export default function Home() {
       <Link className={styles.textLink} href="/workspace">내 조직으로 이동</Link>
     </div>
   </>}/>;
-  if(mode!=='DEMO')return <div className={styles.page}><main className={styles.container}><h1 className={styles.heroTitle}>서비스를 준비하고 있어요.</h1></main></div>;
+  if(mode!=='DEMO')return <div className={styles.page}><main className={`${styles.container} ${styles.hero}`}><h1 className={styles.heroTitle}>서비스를 준비하고 있어요.</h1></main></div>;
   return <Landing title={TITLE} lead={LEAD} cta={{label:"데모 시작하기",href:"#entry"}} entry={<>
     <h2 id="entry-title" className={styles.entryTitle}>데모 시작하기</h2>
     <p>합성 데이터로 만든 데모예요. 실제 인증과 업체 배정은 하지 않아요. 안전 진단을 대신하지 않으며, 위험 신호가 보이면 일반 절차를 중단해요.</p>
