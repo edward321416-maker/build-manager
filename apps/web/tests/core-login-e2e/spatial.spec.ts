@@ -1,7 +1,7 @@
 import { test,expect,type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { sdkSession } from "./session";
-import { openInspector,openConversation } from "../core-e2e/presentation";
+import { openInspector,openConversation,openTab,openTicketRow } from "../core-e2e/presentation";
 
 const task=(page:Page)=>page.getByRole("region",{name:"지금 할 일",exact:true});
 const fit=async(page:Page)=>expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -16,7 +16,7 @@ test("task ownership, persistent inspector and mobile collapse preserve the publ
     const asked=await manager.context.request.post(url+"/messages",{headers:manager.headers,data:{clientRequestId:randomUUID(),expectedVersion:0,intent:"REQUEST_REPLY",body:question}});
     expect(asked.status()).toBe(201);
     const t=await tenant.context.newPage();await t.setViewportSize({width:390,height:844});await t.goto("/core");
-    await t.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();await expect(task(t)).toBeVisible();
+    await openTicketRow(t,id);await expect(task(t)).toBeVisible();
     await expect(task(t)).toContainText(question);await expect(t.getByRole("complementary",{name:"관리자 업무 정보"})).toHaveCount(0);
     for(const label of ["긴급도","담당자","내부 메모 입력"])await expect(t.getByLabel(label,{exact:true})).toHaveCount(0);
     await t.evaluate(()=>scrollTo(0,0));
@@ -55,12 +55,13 @@ test("segmented issue choice sends only exact supported values and chrome naviga
   try{
     const page=await tenant.context.newPage();await page.setViewportSize({width:390,height:844});await page.goto("/core");
     await expect(page.getByRole("group",{name:"문제 유형",exact:true}).getByRole("radio")).toHaveCount(2);
-    await page.getByLabel("문제 설명").fill("화면 이동에도 남을 합성 입력");await page.getByRole("link",{name:"입주 연결",exact:true}).click();await expect(page.getByRole("heading",{name:"내 호실 연결 요청",exact:true})).toBeVisible();
-    await page.getByRole("link",{name:"접수",exact:true}).click();await expect(page.getByLabel("문제 설명")).toHaveValue("화면 이동에도 남을 합성 입력");await expect(page.getByLabel("내 소속",{exact:true})).toBeVisible();
+    await page.getByLabel("문제 설명").fill("화면 이동에도 남을 합성 입력");await openTab(page,"내 정보");
+    await page.getByRole("region",{name:"내 정보",exact:true}).getByRole("link",{name:"호실 연결",exact:true}).click();await expect(page.getByRole("heading",{level:1,name:"호실 연결"})).toBeVisible();
+    await page.getByRole("button",{name:"뒤로",exact:true}).click();await openTab(page,"우리 집");await expect(page.getByLabel("문제 설명")).toHaveValue("화면 이동에도 남을 합성 입력");
     for(const [value,label] of [["HEATING","난방"],["LEAK","누수"]]){
       await page.getByRole("radio",{name:label,exact:true}).check();await expect(page.getByRole("radio",{name:label,exact:true})).toBeChecked();await page.getByLabel("문제 설명").fill(`합성 ${label} 계약 검사`);
       const posted=page.waitForResponse(r=>r.url().endsWith("/core/tickets")&&r.request().method()==="POST");await page.getByRole("button",{name:"접수하기",exact:true}).click();const response=await posted;expect(response.status()).toBe(201);expect(response.request().postDataJSON().issueType).toBe(value);expect((await response.json()).detail.issueType).toBe(value);
-      await expect(page.getByTestId("ticket-heading")).toBeVisible();await expect(task(page)).toHaveCount(0);await fit(page);await page.getByRole("button",{name:"← 목록으로",exact:true}).click();
+      await expect(page.getByTestId("ticket-heading")).toBeVisible();await expect(task(page)).toHaveCount(0);await fit(page);await page.getByRole("button",{name:"뒤로",exact:true}).click();
     }
   }finally{await tenant.close();}
 });

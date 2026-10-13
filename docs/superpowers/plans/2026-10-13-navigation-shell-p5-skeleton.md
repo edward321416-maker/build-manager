@@ -2104,7 +2104,9 @@ Co-Authored-By: <작업 환경이 정한 공동 작성자 줄>"
 
 - [ ] **Step 1: 규칙을 읽고 고친다**
 
-`design/DESIGN_RULES.md`를 처음부터 끝까지 다시 읽은 뒤(규칙 17절, 훅) 고친다.
+먼저 `git fetch origin && git merge --no-edit origin/main`으로 최신 규칙(2-b6의 #135, 첫 화면 PR)을 합친다. `design/DESIGN_RULES.md`를 처음부터 끝까지 다시 읽은 뒤(규칙 17절, 훅) 고친다.
+
+규칙 파일은 48,000바이트 상한이 있다(`tests/architecture/rules-gate.test.ts`). 2026-10-13 main이 이미 47,671바이트라, 아래 수정은 지우는 글이 더하는 글보다 많거나 같아야 한다. 고친 뒤 `wc -c design/DESIGN_RULES.md`와 `npx vitest run --config vitest.shared.config.ts tests/architecture/rules-gate.test.ts`로 확인한다. 넘치면 아래 새 글을 더 짧게 쓴다(내용은 그대로). 2-b6가 줄인 줄(3.1절 글꼴 문장, 8.13절 Tabler 개수 문장, 16절 날짜·시간과 해요체 완료 메모)은 건드리지 않는다.
 
 1. 맨 위 2026-10-12 [DECISION] 줄(휴대폰 메뉴 링크 40px)을 지우고, 그 자리에 둔다:
 

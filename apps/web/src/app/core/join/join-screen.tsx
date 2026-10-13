@@ -41,8 +41,8 @@ export function JoinScreen(){
   setMessage("이 초대에 저장된 요청이 없어요. 원래 링크의 호실을 다시 확인한 뒤 신청해 주세요.");
  });
  // Saved requests live under '내 연결 요청' on /core; while an organisation is selected (a single one is selected automatically)
- // that section sits behind the '입주 연결' menu.
- const statusHint=<p>{"이미 신청했다면 내 호실로 돌아가 '내 연결 요청'에서 상태를 확인할 수 있어요. 소속이 선택돼 있다면 '입주 연결' 메뉴 안에 있어요."}</p>;
+ // that section sits under 내 정보 › 호실 연결.
+ const statusHint=<p>{"이미 신청했다면 내 호실로 돌아가 '내 연결 요청'에서 상태를 확인할 수 있어요. 소속이 선택돼 있다면 '내 정보'의 '호실 연결'에 있어요."}</p>;
  return <main className="page-shell core-flow core-join"><header className={styles.heading}>{invite?.state==="REQUESTED"?<div className={styles.confirmationMark} aria-hidden="true">✓</div>:null}<h1>{invite?.state==="REQUESTED"?"연결 요청을 보냈어요":"내 호실 연결"}</h1>
   <p>{invite?.state==="REQUESTED"?`관리자 확인 후 ${invite.unitLabel}가 내 호실에 추가돼요.`:"호실을 확인하고 연결을 요청하세요. 관리자 승인 후 연결돼요."}</p>
   </header>

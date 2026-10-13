@@ -45,14 +45,18 @@
 .root :is([role="status"],:global(.save-ok)) { color: var(--color-text); background: var(--color-fill-subtle); border-radius: .3125rem; padding: .625rem; }
 .heading { padding-bottom: 1.25rem; border-bottom: 1px solid var(--color-border); }
 .heading p { color: var(--color-text-readable); margin-top: .3125rem; }
+/* 우리 집 only: the building name beside the unit title is supplementary (rules 3.2 caption), not body text; at
+ * body size the two-line title block left less than 6px before the header's bottom border (finding: design
+ * audit). The title block is the header's tallest item, so it sits flush within it (rules 4 space-2) and the
+ * added bottom margin becomes the real gap before the border, which a smaller line-height alone could not
+ * guarantee. Scoped to its own class (not `.heading p`), which also styles other /core headers' instruction
+ * sentences (e.g. /core/join) that must stay body size (review: Task 12 fix round 1). */
+.headingCaption { color: var(--color-text-readable); margin: .3125rem 0 .625rem; font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; }
 .root :global(.core-b1-shell) { grid-template-columns: minmax(0,1fr); min-height: 100vh; background: var(--color-page); }
 .root :global(.core-b1-shell .core-account) { max-width: none; padding: 1.25rem; background: var(--color-page); color: var(--color-text); border: 0; border-bottom: 1px solid var(--color-border); border-radius: 0; }
 .root :global(.core-account h1) { font-size: 1.25rem; line-height: 1.875rem; }
 .root :global(.core-account) p { color: var(--color-text-readable); font-size: .9375rem; line-height: 1.5625rem; }
 .root :global(.core-account) form { margin: 0; padding: 0; }
-.root :global(.core-account nav) { display: flex; flex-wrap: wrap; gap: .625rem; }
-.root :global(.core-account nav a) { display: flex; align-items: center; min-height: 3.125rem; padding: .625rem; color: var(--color-text); text-decoration: none; border-radius: .625rem; }
-.root :global(.core-account nav a:hover) { background: var(--color-fill-hover); }
 .root :global(.core-workspace) { min-width: 0; width: 100%; background: var(--color-surface); }
 .root :global(.core-workspace > .core-flow) { max-width: none; padding: 1.25rem; }
 .root :global(.core-environment) { padding: 1.25rem; border-top: 1px solid var(--color-border); background: var(--color-page); }
@@ -143,7 +147,7 @@
 .root :global(.page-shell.core-flow), .root :global(.core-workspace > .core-flow) { padding: 0; }
 .root :global(.core-flow) > * + * { margin-top: 0; }
 .root :global(.core-flow) > :is([role="alert"],[role="status"],form) { margin: 1.25rem; }
-.root .heading { min-height: 3.75rem; padding: .3125rem 1.25rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .625rem; }
+.root .heading { min-height: 3.5rem; padding: 0 1.25rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .625rem; }
 .toolbarLeading { display: flex; align-items: center; gap: .625rem; }
 .toolbarLeading > button { flex: 0 0 auto; }
 .root .heading h1 { font-size: 1.25rem; line-height: 1.875rem; }
@@ -155,9 +159,6 @@
 .root :global(.core-account h1) { display: none; }
 .root :global(.core-account label) { min-width: 0; font-size: .9375rem; line-height: 1.25rem; }
 .root :global(.core-account .core-logout) { min-height: 3.125rem; padding: .3125rem .625rem; border-color: transparent; background: transparent; font-weight: 400; }
-.root :global(.core-account nav) { grid-column: 1 / -1; gap: .625rem; }
-.root :global(.core-account nav a) { min-height: 3.125rem; padding: .3125rem .625rem; font-weight: 500; }
-.root :global(.core-account nav a[aria-current="page"]) { color: var(--color-primary); background: var(--color-fill-selected); text-decoration: underline; }
 .root :global(.core-account p),.root :global(.core-account [role="alert"]),.root :global(.core-account a.primary-button) { grid-column: 1 / -1; }
 .root :global(.core-account form) { display: none; }
 /* Login-free demo entry forms stay visible; the hidden logout transport form above does not. */
@@ -198,9 +199,10 @@
 .history p { margin-top: .625rem; }
 .tenantWorkspace { padding: 1.25rem; max-width: 50rem; margin-inline: auto; }
 .tenantWorkspace[data-detail="true"] { padding: 0; }
-.root .tenantWorkspace > form { margin-top: 0; gap: 1.25rem; }
-.root .tenantWorkspace > h2 { display: flex; justify-content: space-between; align-items: center; gap: .625rem; }
-.root .tenantWorkspace > h2 small { color: var(--color-text-readable); font-weight: 400; }
+.root .tenantHome > form { margin-top: 0; gap: 1.25rem; }
+.root .tenantRequests > h2 { display: flex; justify-content: space-between; align-items: center; gap: .625rem; }
+.root .tenantRequests > h2 small { color: var(--color-text-readable); font-weight: 400; }
+.tenantHome > * + *, .tenantRequests > * + * { margin-top: 1.25rem; }
 .root .issueChoice { display: flex; border: 0; padding: 0; margin: 0; gap: .625rem; }
 .issueChoice legend { margin-bottom: .625rem; font-size: .9375rem; }
 .root .issueChoice label { position: relative; display: flex; align-items: center; justify-content: center; flex: 1; gap: .625rem; min-height: 3.125rem; border: 1px solid var(--color-border-control); border-radius: .625rem; cursor: pointer; transition: background-color var(--motion-fast) var(--ease); }
@@ -231,10 +233,7 @@
 .managerWorkspace[data-detail="true"] .queuePane > section { border: 0; border-radius: 0; }
 @media (max-width: 1023px) {
   .root :global(.core-b1-shell .core-account) { padding-block: 0; row-gap: 0; }
-  .root :global(.core-account nav) { min-height: 3.125rem; align-items: center; flex-wrap: nowrap; }
-  /* A short menu link such as "접수" still gets a 50px wide target (rules §5), with its label centred. */
-  .root :global(.core-account nav a) { min-width: 3.125rem; justify-content: center; }
-  .root :global(.core-org-label) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .root :global(.core-account .core-org-label) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
 /* Only intake previews are compact; ticket detail and stored photos retain their layout. */
 .root :global(.core-photos[data-compact="true"]) .photoSelectionSurface { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; }
@@ -293,7 +292,6 @@
   .root :global(.core-b1-shell) { grid-template-columns: 248px minmax(0,1fr); }
   .root :global(.core-b1-shell .core-account) { display: flex; flex-direction: column; align-items: stretch; position: sticky; top: 0; min-height: 100vh; gap: 1.25rem; border: 0; border-right: 1px solid var(--color-border); padding: 1.25rem; }
   .root :global(.core-account h1) { display: block; font-size: 1.25rem; line-height: 1.875rem; }
-  .root :global(.core-account nav) { display: grid; }
   .root :global(.core-account .core-logout) { text-align: left; }
   .root .heading { padding-inline: 1.875rem; }
 }
@@ -315,14 +313,6 @@
 @media (max-width: 1023px) {
   /* 10px top inset; the divider is drawn inside the bar so the bar is no taller than its inset and controls. */
   .root :global(.core-b1-shell .core-account) { padding-top: .625rem; border-bottom: 0; box-shadow: inset 0 -1px 0 var(--color-border); }
-  /* The menu row is as tall as its links, so the inset does not push the tenant's task action below a 390x844
-     screen (core-login-e2e/spatial.spec.ts). */
-  .root :global(.core-account nav) { min-height: 0; }
-}
-/* Phones keep 40px tall menu links until the bottom tab bar replaces this menu: 50px would push the tenant's task
-   action below a 390x844 screen (rules §16, operator decision 2026-10-12). Their width stays at least 50px. */
-@media (max-width: 767px) {
-  .root :global(.core-account nav a) { min-height: 2.5rem; }
 }
 /* Signed out: one centred block with its own title instead of the account sidebar. */
 .root :global(.core-b1-shell[data-phase="login"]) { grid-template-columns: minmax(0,1fr); }
@@ -339,12 +329,6 @@
   .root :global(.core-b1-shell[data-phase="login"] .core-account form.core-demo-entry) { display: inline-block; margin: .625rem .625rem 0 0; }
   .root :global(.core-b1-shell[data-phase="login"] .core-account form.core-demo-entry button) { width: auto; }
 }
-/* Manager view switch: on the page margins, and the current view reads as selected (§8.10). */
-.root :global(.core-view-switch) { display: flex; flex-wrap: wrap; gap: .625rem; padding: .625rem 1.25rem; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
-.root :global(.core-view-switch) button { border-color: transparent; background: transparent; font-weight: 400; }
-.root :global(.core-view-switch) button[aria-pressed="true"] { background: var(--color-fill-hover); font-weight: 600; }
-@media (min-width: 768px) { .root :global(.core-view-switch) { padding-inline: 1.875rem; } }
-@media (min-width: 1440px) { .root :global(.core-view-switch) { padding-inline: 2.5rem; } }
 /* Link-styled buttons are boxes, so their padding cannot spill over neighbouring text. */
 .root :global(a.primary-button) { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 /* Join page: heading on the body edge, 20px between blocks. */
@@ -363,8 +347,12 @@
 }
 /* Organisation field at every width: the current choice wraps in a select-like box, so a long name is never cut
    (rules §8.2); the native select sits on top, transparent, as the real focusable control. */
-.root :global(.core-account .core-org-field) { position: relative; display: block; }
-.root :global(.core-account .core-org-current) { display: block; min-height: 3.125rem; padding: .625rem 2.5rem .625rem .9375rem; border: 1px solid var(--color-border-control); border-radius: .625rem; background: var(--color-surface) var(--icon-chevron) no-repeat right .9375rem center / 1rem 1rem; line-height: 1.5625rem; overflow-wrap: anywhere; }
-.root :global(.core-account .core-org-field select) { position: absolute; inset: 0; height: 100%; opacity: 0; cursor: pointer; }
-.root :global(.core-account .core-org-field:has(select:focus-visible) .core-org-current) { outline: 2px solid var(--color-primary); outline-offset: 0; border-color: var(--color-primary); }
+.root :global(.core-org-field) { position: relative; display: block; }
+.root :global(.core-org-current) { display: block; min-height: 3.125rem; padding: .625rem 2.5rem .625rem .9375rem; border: 1px solid var(--color-border-control); border-radius: .625rem; background: var(--color-surface) var(--icon-chevron) no-repeat right .9375rem center / 1rem 1rem; line-height: 1.5625rem; overflow-wrap: anywhere; }
+.root :global(.core-org-field select) { position: absolute; inset: 0; height: 100%; opacity: 0; cursor: pointer; }
+.root :global(.core-org-field:has(select:focus-visible) .core-org-current) { outline: 2px solid var(--color-primary); outline-offset: 0; border-color: var(--color-primary); }
 @media (prefers-reduced-motion: reduce) { .root *, .root *::before, .root *::after { transition: none; animation: none; scroll-behavior: auto; } }
+/* P5: after an organisation is chosen the menu replaces the account column (spec §2). */
+.root :global(.core-b1-shell[data-scoped="true"]) { grid-template-columns: minmax(0,1fr); }
+/* A sub-screen's top bar title is a subheading (rules 8.10); first screens keep their page title. */
+.root .heading[data-sub="true"] h1 { font-size: .9375rem; line-height: 1.5625rem; font-weight: 600; letter-spacing: -0.01em; }

@@ -31,7 +31,7 @@ for(const deniedAction of ["refresh","timeline source","editor source"] as const
   expect((await denied).status()).toBe(404);
   await expect(page.getByRole("alert").filter({hasText:deniedAction==="refresh"?"접근 권한":"접수 내역을 열 수 없어요"})).toBeVisible();
   await page.screenshot({path:testInfo.outputPath("after-denied-navigation.png")});
-  await expect(timeline).toHaveCount(0);await expect(page.getByText(factLabel,{exact:false})).toHaveCount(0);await expect(page.getByRole("region",{name:"선택한 접수",exact:true})).toHaveCount(0);await expect(page.getByRole("navigation",{name:"관리자 보기"})).toHaveCount(0);await expect(page.locator("#core-tickets[data-role]")).toHaveCount(0);await expect(page.getByLabel("건물·호실",{exact:true})).toHaveCount(0);
+  await expect(timeline).toHaveCount(0);await expect(page.getByText(factLabel,{exact:false})).toHaveCount(0);await expect(page.getByRole("region",{name:"선택한 접수",exact:true})).toHaveCount(0);await expect(page.getByRole("navigation",{name:"주 메뉴"})).toHaveCount(0);await expect(page.locator("#core-tickets[data-role]")).toHaveCount(0);await expect(page.getByLabel("건물·호실",{exact:true})).toHaveCount(0);
   for(const p of [path,list])expect((await staff.context.request.get(p,{headers:staff.headers})).status()).toBe(404);expect((await staff.context.request.post(path,{headers:staff.headers,data:input})).status()).toBe(404);expect((await staff.context.request.post(correctPath,{headers:staff.headers,data:correction})).status()).toBe(404);
   for(const p of [path,list,`/api/v2/core/tickets/${id}`])expect((await manager.context.request.get(p,{headers:manager.headers})).status()).toBe(200);
  }finally{await tenant.close();await manager.close();await staff.close();await foreign.close();}
@@ -48,6 +48,8 @@ test("new occupancy member cannot read manager facts or old source after isolate
   expect((await replacement.context.request.get(`/api/v2/core/tickets/${id}`,{headers:replacement.headers})).status()).toBe(404);
   for(const p of [path,`/api/v2/core/manager/units/${unit}/maintenance-timeline`])expect((await replacement.context.request.get(p,{headers:replacement.headers})).status()).toBe(403);
   expect((await replacement.context.request.post(path,{headers:replacement.headers,data:{clientRequestId:randomUUID(),actionKind:"REPAIR",componentLabel:null}})).status()).toBe(403);expect((await replacement.context.request.post(`/api/v2/core/manager/maintenance-facts/${fact.factId}/corrections`,{headers:replacement.headers,data:{clientRequestId:randomUUID(),expectedCurrentFactId:fact.factId,actionKind:"OTHER",componentLabel:null,correctionReason:"OTHER"}})).status()).toBe(403);
-  const page=await replacement.context.newPage();await page.goto("/core");await expect(page.getByTestId("unit-context")).toContainText("합성 정비 교체 호실");await expect(page.locator(`[data-ticket-id="${id}"]`)).toHaveCount(0);await expect(page.getByRole("navigation",{name:"관리자 보기"})).toHaveCount(0);expect((await manager.context.request.get(path,{headers:manager.headers})).status()).toBe(200);
+  const page=await replacement.context.newPage();await page.goto("/core");await expect(page.getByTestId("unit-context")).toContainText("합성 정비 교체 호실");await expect(page.locator(`[data-ticket-id="${id}"]`)).toHaveCount(0);
+  // P5: the replacement occupant gets the tenant menu and screen, never a manager's (checked at the session's width).
+  await expect(page.getByRole("navigation",{name:"주 메뉴"}).getByRole("link")).toHaveText(["우리 집","내 요청",/^알림/,"내 정보"]);await expect(page.locator("#core-tickets")).toHaveAttribute("data-role","TENANT");expect((await manager.context.request.get(path,{headers:manager.headers})).status()).toBe(200);
  }finally{await tenant.close();await manager.close();await replacement.close();}
 });

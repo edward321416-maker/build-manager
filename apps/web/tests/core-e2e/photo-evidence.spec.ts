@@ -3,12 +3,13 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
+import { expectSignedIn } from "./presentation";
 
 // P1b (spec docs/superpowers/specs/2026-10-11-intake-photo-evidence-p1b-design.md, D1-D6): the tenant names a stored
 // photo as the required evidence, so a complete intake reaches READY_FOR_REVIEW with a recommended route.
 const privateRoot=join(homedir(),".build-manager-rc1-private");
 const codes=async()=>JSON.parse(await readFile(join(privateRoot,"access-codes.json"),"utf8")) as Record<string,string>;
-async function login(page:Page,who="tenant"){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill((await codes())[who]!);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();}
+async function login(page:Page,who="tenant"){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill((await codes())[who]!);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expectSignedIn(page);}
 // Generated, non-personal fixture. This is input data, never presented as a real-site photo.
 const sample=()=>sharp(Buffer.from('<svg width="480" height="360" xmlns="http://www.w3.org/2000/svg"><rect width="480" height="360" fill="#edf3ef"/><path d="M60 90H240V200H420" fill="none" stroke="#718e94" stroke-width="36"/><path d="M240 230q-22 27 0 35q22-8 0-35" fill="#278dca"/><text x="24" y="340" font-size="17" fill="#244b43">SYNTHETIC EVIDENCE SAMPLE</text></svg>')).png().toBuffer();
 const saved=(page:Page)=>page.getByRole("region",{name:"사진",exact:true});

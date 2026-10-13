@@ -1,4 +1,5 @@
 import { test, expect, responsive } from './harness';
+import { openAccount } from '../core-e2e/presentation';
 
 test('D01 login-free demo entry opens the Manager queue and Tenant intake; demo logout returns to the role choice', async ({ browser, fixture }) => {
   const managerContext = await browser.newContext({ baseURL: fixture.origin, viewport: { width: 1280, height: 900 } });
@@ -21,7 +22,7 @@ test('D01 login-free demo entry opens the Manager queue and Tenant intake; demo 
     await expect(tenant.getByRole('button', { name: '접수하기', exact: true })).toBeVisible();
 
     // Demo logout ends the server session and returns to the role choice, never to a provider.
-    await manager.getByRole('button', { name: '로그아웃', exact: true }).click();
+    await openAccount(manager); await manager.getByRole('button', { name: '로그아웃', exact: true }).click();
     await expect(manager.getByRole('button', { name: '관리자로 체험하기', exact: true })).toBeVisible();
     expect(new URL(manager.url()).origin).toBe(fixture.origin);
     expect((await managerContext.request.get('/api/v2/core/access')).status()).toBe(401);

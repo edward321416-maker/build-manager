@@ -14,7 +14,7 @@ export function OpenSourceNotice() {
   return <section className={styles.notice} aria-label="오픈소스 라이선스">
     <p>메뉴 아이콘은 Tabler Icons 3.49.0에서 가져왔어요. 아래는 그 라이선스 원문이에요.</p>
     <h2>Tabler Icons</h2>
-    <p><a href="https://github.com/tabler/tabler-icons">github.com/tabler/tabler-icons</a></p>
+    <p><a className={styles.sourceLink} href="https://github.com/tabler/tabler-icons">github.com/tabler/tabler-icons</a></p>
     <div lang="en" className={styles.licenseText}>{TABLER_LICENSE.map(line => <p key={line}>{line}</p>)}</div>
   </section>;
 }

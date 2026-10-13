@@ -101,4 +101,15 @@ describe("menu screens (rules 8.5, 8.11, 8.16)", () => {
     expect(filled).toContain("제출 전");
     expect(filled).toContain('dateTime="2026-10-13T01:00:00Z"');
   });
+
+  it("locks every to-do row while the screen is busy or holds unsent photos, like the 내 요청 rows", () => {
+    const list = { partial: false, items: (["t1", "t2"] as const).map(ticketId => ({ ticketId, unitId: "u1", issueType: "LEAK" as const, reasons: ["REPLY" as const], lastActivity: null })) };
+    const rows = (html: string) => html.match(/<button[^>]*data-todo-ticket="[^"]*"[^>]*>/g) ?? [];
+    const locked = rows(renderToStaticMarkup(<TodoScreen role="TENANT" list={list} ready units={[]} disabled onOpen={noop} onRetry={noop} />));
+    expect(locked).toHaveLength(2);
+    for (const row of locked) expect(row).toMatch(/\sdisabled=""/);
+    const open = rows(renderToStaticMarkup(<TodoScreen role="TENANT" list={list} ready units={[]} onOpen={noop} onRetry={noop} />));
+    expect(open).toHaveLength(2);
+    for (const row of open) expect(row).not.toContain("disabled");
+  });
 });

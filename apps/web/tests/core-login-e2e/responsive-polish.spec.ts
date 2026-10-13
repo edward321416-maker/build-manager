@@ -5,27 +5,24 @@ import { sdkSession } from "./session";
 const fits = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 const image = async () => ({ name: "synthetic-polish.png", mimeType: "image/png", buffer: await sharp({ create: { width: 240, height: 180, channels: 3, background: "#84aa96" } }).png().toBuffer() });
 
-test("compact chrome keeps organization, logout and navigation in keyboard order at 320 and 390", async ({ browser }) => {
+test("compact tab bar keeps the four tenant tabs in keyboard order at 320 and 390", async ({ browser }) => {
   const tenant = await sdkSession(browser);
   try {
     const page = await tenant.context.newPage(); await page.goto("/core");
-    const chrome = page.getByRole("region", { name: "로그인과 내 소속" });
-    const org = chrome.getByRole("combobox", { name: "내 소속", exact: true });
-    const logout = chrome.getByRole("button", { name: "로그아웃", exact: true });
-    const nav = chrome.getByRole("navigation", { name: "작업 이동" });
+    const nav = page.getByRole("navigation", { name: "주 메뉴", exact: true });
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 844 }); await fits(page);
-      await expect(org).toBeVisible(); await expect(logout).toBeVisible(); await expect(nav).toBeVisible();
-      const a = (await org.boundingBox())!, b = (await logout.boundingBox())!, n = (await nav.boundingBox())!, shell = (await chrome.boundingBox())!;
-      expect(a.x + a.width).toBeLessThanOrEqual(b.x); expect(Math.abs(a.y - b.y)).toBeLessThanOrEqual(10);
-      expect(n.y).toBeGreaterThanOrEqual(a.y + a.height); expect(shell.height).toBeLessThanOrEqual(Math.max(a.height, b.height) + n.height + 10);
-      const content = (await page.getByTestId("unit-context").boundingBox())!;
-      expect(content.y).toBeGreaterThanOrEqual(shell.y + shell.height); expect(content.y - shell.y - shell.height).toBeLessThanOrEqual(10);
-      expect(await org.locator("option:checked").textContent()).toContain("세입자");
-      await org.focus(); await page.keyboard.press("Tab"); await expect(logout).toBeFocused(); await page.keyboard.press("Tab");
-      const current = nav.getByRole("link", { name: "접수", exact: true }); await expect(current).toBeFocused(); await expect(current).toHaveAttribute("aria-current", "page");
-      expect(await current.evaluate(el => getComputedStyle(el).textDecorationLine)).toContain("underline");
-      await nav.getByRole("link", { name: "입주 연결", exact: true }).click(); await expect(page.getByRole("heading", { name: "내 호실 연결 요청", exact: true })).toBeVisible(); await current.click();
+      const links = nav.getByRole("link"); await expect(links).toHaveText(["우리 집", "내 요청", /^알림/, "내 정보"]);
+      const boxes = await links.evaluateAll(els => els.map(el => el.getBoundingClientRect()).map(r => ({ x: r.x, width: r.width, height: r.height })));
+      for (let i = 1; i < boxes.length; i++) expect(boxes[i].x).toBeGreaterThanOrEqual(boxes[i - 1].x + boxes[i - 1].width - 1);
+      for (const box of boxes) { expect(box.width).toBeGreaterThanOrEqual(50); expect(Math.round(box.height)).toBe(56); }
+      await nav.getByRole("link", { name: "우리 집", exact: true }).focus();
+      for (const name of ["내 요청", /^알림/, "내 정보"]) { await page.keyboard.press("Tab"); await expect(nav.getByRole("link", { name })).toBeFocused(); }
+      await page.keyboard.press("Enter"); await expect(page.getByRole("heading", { level: 1, name: "내 정보" })).toBeVisible();
+      await page.getByRole("region", { name: "내 정보", exact: true }).getByRole("link", { name: "호실 연결", exact: true }).click();
+      await expect(page.getByRole("heading", { level: 1, name: "호실 연결" })).toBeVisible();
+      await page.getByRole("button", { name: "뒤로", exact: true }).click();
+      await nav.getByRole("link", { name: "우리 집", exact: true }).click(); await expect(nav.getByRole("link", { name: "우리 집", exact: true })).toHaveAttribute("aria-current", "page");
     }
   } finally { await tenant.close(); }
 });
@@ -71,9 +68,9 @@ test("compact intake preview keeps native selection and puts submit directly aft
     await expect(picker.getByText("JPEG·PNG · 최대 3장", { exact: true })).toHaveCount(1);
     const recovery = picker.getByText(/선택한 사진은 아직 저장되지 않았어요/); await expect(recovery).not.toBeVisible();
     await picker.getByText("사진 도움말", { exact: true }).click(); await expect(recovery).toBeVisible(); await picker.getByText("사진 도움말", { exact: true }).click();
-    const submit = page.getByRole("button", { name: "접수하기", exact: true }), recent = page.getByRole("heading", { name: /^최근 접수/ });
-    const a = (await picker.boundingBox())!, b = (await submit.boundingBox())!, c = (await recent.boundingBox())!;
-    expect(b.y).toBeGreaterThanOrEqual(a.y + a.height); expect(b.y - a.y - a.height).toBeLessThanOrEqual(50); expect(b.y + b.height).toBeLessThan(c.y);
+    const submit = page.getByRole("button", { name: "접수하기", exact: true });
+    const a = (await picker.boundingBox())!, b = (await submit.boundingBox())!;
+    expect(b.y).toBeGreaterThanOrEqual(a.y + a.height); expect(b.y - a.y - a.height).toBeLessThanOrEqual(50);
     const element = await preview.elementHandle();
     for (const width of [320, 390, 768, 1280, 1440]) { await page.setViewportSize({ width, height: 900 }); await fits(page); expect(await element!.evaluate(el => el.isConnected)).toBe(true); }
     await page.evaluate(() => document.documentElement.style.fontSize = "200%"); await fits(page); await page.evaluate(() => document.documentElement.style.fontSize = "");

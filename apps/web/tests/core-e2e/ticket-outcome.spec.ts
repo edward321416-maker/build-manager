@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { randomUUID,randomBytes,createHash } from "node:crypto";
 import { Client } from "pg";
 import sharp from "sharp";
-import { openConversation,openInspector } from "./presentation";
+import { expectSignedIn,openConversation,openInspector,openTicketRow } from "./presentation";
 import { abortOnce,routeOnce } from "../routes";
 
 const root=join(homedir(),".build-manager-rc1-private"),evidence=join(root,"completion-followup-browser");
@@ -26,8 +26,8 @@ test.beforeAll(async()=>{
 });
 const card=(page:Page)=>page.getByRole("region",{name:"세입자 처리 결과",exact:true});
 const metadata=(page:Page)=>page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith("core-outcome-request:")).map(k=>JSON.parse(sessionStorage.getItem(k)!)));
-async function login(page:Page,code:string,id?:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill(code);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();if(id)await open(page,id);}
-async function open(page:Page,id:string){await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();await expect(page.getByTestId("ticket-heading")).toBeVisible();}
+async function login(page:Page,code:string,id?:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill(code);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expectSignedIn(page);if(id)await open(page,id);}
+async function open(page:Page,id:string){await openTicketRow(page,id);await expect(page.getByTestId("ticket-heading")).toBeVisible();}
 async function fit(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
 const photoBytes=()=>sharp({create:{width:240,height:160,channels:3,background:"#759cac"}}).png().toBuffer();
 async function setup(request:APIRequestContext,rich=false){

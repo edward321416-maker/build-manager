@@ -1,4 +1,4 @@
-import { openInspector } from "../core-e2e/presentation";
+import { expectSignedIn,openInspector,openTicketRow } from "../core-e2e/presentation";
 import { test,expect } from "@playwright/test";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -8,17 +8,17 @@ import { sdkSession,base,privateRoot } from "./session";
 const saved=(page:import("@playwright/test").Page)=>page.getByRole("region",{name:"사진",exact:true});
 const evidenceRoot=join(privateRoot,"desktop-presentation");
 async function layout(page:import("@playwright/test").Page,width:number){
- await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toHaveCount(1);
  await expect(page.locator("main main")).toHaveCount(0);
- const account=await page.getByRole("region",{name:"로그인과 내 소속"}).boundingBox(),workspace=await page.getByRole("region",{name:"수리 접수 작업",exact:true}).boundingBox();
- expect(account).not.toBeNull();expect(workspace).not.toBeNull();
+ const menu=page.getByRole("navigation",{name:"주 메뉴"}),workspace=await page.getByRole("region",{name:"수리 접수 작업",exact:true}).boundingBox();
+ expect(workspace).not.toBeNull();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- if(width>=1024){
-  expect(account!.x+account!.width).toBeLessThanOrEqual(workspace!.x);
+ if(width>=768){
+  // P5: the 248px left menu sits beside the work area (rules 8.10).
+  const box=(await menu.boundingBox())!;
+  expect(box.width).toBe(248);expect(box.x+box.width).toBeLessThanOrEqual(workspace!.x);
   expect(workspace!.width).toBeGreaterThan(width*.6);
-  expect(account!.y).toBe(workspace!.y);
  }else{
-  expect(account!.y+account!.height).toBeLessThanOrEqual(workspace!.y);
+  // Phones: the work area is full width; a request screen hides the tab bar (rules 8.14).
   expect(workspace!.width).toBeGreaterThan(width*.9);
  }
  // Inspect real control geometry and hit targets, without fixed pixel snapshots.
@@ -30,7 +30,7 @@ async function layout(page:import("@playwright/test").Page,width:number){
  expect(controls.filter(c=>c.box.width>0&&c.box.height>0).every(c=>c.inside&&c.inShell)).toBe(true);
  expect(controls.filter(c=>c.inView).every(c=>c.hit)).toBe(true);
  await mkdir(evidenceRoot,{recursive:true});
- await writeFile(join(evidenceRoot,`controls-${width}.json`),JSON.stringify({width,account,workspace,controls},null,2));
+ await writeFile(join(evidenceRoot,`controls-${width}.json`),JSON.stringify({width,menu:await page.locator('nav[aria-label="주 메뉴"]').boundingBox(),workspace,controls},null,2));
 }
 for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace -> tenant photo -> manager handling -> reconnect -> existing POST logout (${width}px)`,async({browser})=>{
  const tenant=await sdkSession(browser),manager=await sdkSession(browser,"manager");
@@ -39,8 +39,7 @@ for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace ->
  try{
   const page=await tenant.context.newPage();await page.setViewportSize(viewport);await page.goto("/workspace");await page.getByRole("link",{name:"내 호실 수리 접수·사진·처리 이력 열기"}).click();
   await expect(page.getByTestId("unit-context")).toBeVisible();await expect(page.getByLabel("개발 접근 코드")).toHaveCount(0);
-  const accountBox=(await page.getByRole("region",{name:"로그인과 내 소속"}).boundingBox())!;
-  if(width<1024)expect(accountBox.height).toBeLessThan(300);else expect(accountBox.width).toBe(248);
+  const menuBox=(await page.getByRole("navigation",{name:"주 메뉴"}).boundingBox())!;if(width<768)expect(Math.round(menuBox.height)).toBe(56);else expect(menuBox.width).toBe(248);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await layout(page,width);
   await page.getByLabel("문제 설명").fill("로그인 연결 합성 누수 — 사진과 처리 이력");
@@ -57,10 +56,10 @@ for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace ->
   await expect(saved(m).getByRole("img")).toHaveCount(1);await openInspector(m);await m.getByLabel("처리 기록").fill("로그인한 관리자가 합성 사진 확인 후 처리 시작");await m.getByRole("button",{name:"처리 시작 기록",exact:true}).click();await expect(m.getByTestId("work-status")).toHaveText("처리 중");
   await expect.poll(()=>saved(m).getByRole("img").evaluateAll(imgs=>imgs.every(img=>(img as HTMLImageElement).naturalWidth>0))).toBe(true);
   await m.evaluate(()=>scrollTo(0,0));await layout(m,width);await m.screenshot({path:capture("manager"),fullPage:true});
-  await page.reload();await page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();await expect(page.getByTestId("work-status")).toHaveText("처리 중");await expect(saved(page).getByRole("img")).toHaveCount(1);
+  await page.reload();await openTicketRow(page,ticket.ticketId);await expect(page.getByTestId("work-status")).toHaveText("처리 중");await expect(saved(page).getByRole("img")).toHaveCount(1);
   const photos=await (await tenant.context.request.get(`/api/v2/core/tickets/${ticket.ticketId}/photos`,{headers:tenant.headers})).json();
   await page.evaluate(()=>scrollTo(0,0));await layout(page,width);await page.screenshot({path:capture("reconnected"),fullPage:true});
-  const ending=page.waitForResponse(r=>r.url().endsWith("/api/v2/session/logout"));await page.getByRole("button",{name:"로그아웃",exact:true}).click();
+  await page.goto("/core?tab=me");const ending=page.waitForResponse(r=>r.url().endsWith("/api/v2/session/logout"));await page.getByRole("button",{name:"로그아웃",exact:true}).click();
   // No provider exists in this synthetic run. Local registry revoke still precedes its failure.
   expect((await ending).status()).toBe(503);
   expect((await tenant.context.request.get(photos[0].path,{headers:tenant.headers})).status()).toBe(401);
@@ -70,7 +69,7 @@ for(const width of [320,1280,390])test(`synthetic SDK completion -> workspace ->
 });
 test("768px tablet uses the available width with account above workspace",async({browser})=>{
  const tenant=await sdkSession(browser);
- try{const page=await tenant.context.newPage();await page.setViewportSize({width:768,height:1024});await page.goto("/core");await expect(page.getByTestId("unit-context")).toBeVisible();await layout(page,768);await page.screenshot({path:join(evidenceRoot,"login-tenant-tablet-768.png"),fullPage:true});}
+ try{const page=await tenant.context.newPage();await page.setViewportSize({width:768,height:1024});await page.goto("/core");await expect(page.getByTestId("unit-context")).toBeVisible();await expectSignedIn(page);await layout(page,768);await page.screenshot({path:join(evidenceRoot,"login-tenant-tablet-768.png"),fullPage:true});}
  finally{await tenant.close();}
 });
 test("ended occupancy, assignment and membership revoke B1 raw photo access",async({browser})=>{

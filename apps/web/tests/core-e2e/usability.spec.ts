@@ -1,4 +1,4 @@
-import { openInspector } from "./presentation";
+import { clickAfterSessionLoss,expectSignedIn,openInspector,openTab } from "./presentation";
 import { test,expect,type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -13,7 +13,7 @@ class CoreScreen {
     await this.page.goto("/core");
     await this.page.getByLabel("개발 접근 코드").fill(codes[who]!);
     await this.page.getByRole("button",{name:"들어가기",exact:true}).click();
-    await expect(this.page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();
+    await expectSignedIn(this.page);
   }
   async assertFits(){
     expect(await this.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -94,8 +94,10 @@ test("an unsubmitted request reads 제출 전 in the tenant list and on the mana
   await page.getByRole("radio",{name:"누수",exact:true}).check();await page.getByLabel("문제 설명").fill("합성 제출 전 표시 확인");
   const response=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");
   await page.getByRole("button",{name:"접수하기",exact:true}).click();const ticket=await (await response).json();
-  await page.getByRole("button",{name:"← 목록으로",exact:true}).click();
-  await expect(page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-work-state="DRAFT"]`)).toHaveText("제출 전");
+  await page.getByRole("button",{name:"뒤로",exact:true}).click();
+  await openTab(page,"내 요청");
+  const draftRow=page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-work-state="DRAFT"]`);
+  await expect(draftRow).toBeVisible();await expect(draftRow).toHaveText("제출 전");
   const managerContext=await browser.newContext({viewport:{width:390,height:844}}),manager=await managerContext.newPage();
   try{
     await new CoreScreen(manager).login("manager");await manager.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();
@@ -115,9 +117,10 @@ test("load failure offers a read-only retry and empty lists explain the next act
   // Controlled empty/error responses exercise UI recovery, not persistence or authorization.
   await page.route("**/api/v2/core/tickets",route=>route.request().method()==="GET"?route.fulfill({json:[]}):route.continue());
   await new CoreScreen(page).login("tenant");
-  await expect(page.getByText("선택한 호실의 접수 내역이 없어요. 위의 문제 접수에서 첫 내용을 남겨 주세요.",{exact:true})).toBeVisible();
+  await openTab(page,"내 요청");await expect(page.getByText("선택한 호실의 접수 내역이 없어요. 우리 집에서 문제를 접수해 주세요.",{exact:true})).toBeVisible();
   await page.screenshot({path:join(privateRoot,"usability-empty-320.png"),fullPage:true});
-  await page.getByLabel("문제 설명").fill("연결 실패에도 유지할 합성 입력");
+  // P5: the intake form lives on 우리 집, so go back there before typing.
+  await openTab(page,"우리 집");await page.getByLabel("문제 설명").fill("연결 실패에도 유지할 합성 입력");
   let submissions=0;
   await page.route("**/api/v2/core/tickets",route=>{if(route.request().method()==="POST"){submissions++;return route.abort();}return route.fulfill({json:[]});});
   await page.getByRole("button",{name:"접수하기",exact:true}).click();
@@ -137,7 +140,7 @@ test("a missing session during a nested ticket action clears protected content a
   await page.getByLabel("문제 설명").fill("합성 세션 안내 확인");await page.getByRole("button",{name:"접수하기",exact:true}).click();
   await expect(page.getByRole("region",{name:"지금 할 일: 추가 확인",exact:true}).getByTestId("refresh")).toBeVisible();
   await context.clearCookies(); // Real server401 after browser loses its session, without revoking a shared fixture code.
-  await page.getByTestId("refresh").click();
+  await clickAfterSessionLoss(page.getByTestId("refresh"));
   await expect(alerts(page)).toContainText("접속이 만료되었거나 코드가 유효하지 않아요");
   await expect(page.getByLabel("개발 접근 코드")).toBeVisible();
   await expect(page.getByTestId("ticket-heading")).toHaveCount(0);

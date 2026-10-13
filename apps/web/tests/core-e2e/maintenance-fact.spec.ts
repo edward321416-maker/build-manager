@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { randomUUID,randomBytes,createHash } from "node:crypto";
 import { Client } from "pg";
 import sharp from "sharp";
-import { openInspector } from "./presentation";
+import { expectSignedIn,openInspector,openMoreRow,openTab } from "./presentation";
 import { routeOnce } from "../routes";
 const root=join(homedir(),".build-manager-rc1-private"),evidence=join(root,"maintenance-fact-browser");
 let codes:Record<string,string>;
@@ -18,7 +18,7 @@ test.beforeAll(async()=>{
 });
 const editor=(p:Page)=>p.getByRole("region",{name:"호실 정비 사실 기록",exact:true});
 const timeline=(p:Page)=>p.getByRole("region",{name:"호실 정비 이력",exact:true});
-async function login(page:Page,id?:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill(codes.manager);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expect(page.getByRole("button",{name:"로그아웃",exact:true})).toBeVisible();if(id){await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();await openInspector(page);await expect(editor(page).getByRole("button",{name:"정비 사실 다시 불러오기",exact:true})).toBeEnabled();}}
+async function login(page:Page,id?:string){await page.goto("/core");await page.getByLabel("개발 접근 코드").fill(codes.manager);await page.getByRole("button",{name:"들어가기",exact:true}).click();await expectSignedIn(page);if(id){await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();await openInspector(page);await expect(editor(page).getByRole("button",{name:"정비 사실 다시 불러오기",exact:true})).toBeEnabled();}}
 async function setup(request:APIRequestContext,rich=false){
  const headers=(who="manager")=>({Authorization:`Bearer ${codes[who]}`});
  const get=async(path:string,who="manager")=>{const r=await request.get("/api/v2/core/"+path,{headers:headers(who)});expect(r.status()).toBe(200);return r.json();};
@@ -43,7 +43,7 @@ test("actual390px root/correction, source preservation, dynamic claims and sourc
  await panel.getByRole("button",{name:"호실 이력에서 보기",exact:true}).click();const rows=timeline(page);await expect(rows.locator(`[data-fact-id="${detail.current.factId}"]`)).toBeVisible();await expect(rows.locator(`[data-fact-id="${detail.current.factId}"]`).getByText("세입자가 다시 문제가 생겼다고 응답",{exact:true})).toBeVisible();
  for(const hidden of ["정비 사실로 복사하면 안 되는 합성 원문","정비 이력에 복사하면 안 되는 합성 공개 문답","합성 내부 담당","합성 비공개 정비 메모"])await expect(rows.getByText(hidden,{exact:true})).toHaveCount(0);await expect(page.getByRole("region",{name:"선택한 접수",exact:true})).toHaveCount(0);await fit(page);await page.screenshot({path:join(evidence,"timeline-390.png"),fullPage:true});
  await rows.locator(`[data-fact-id="${detail.current.factId}"]`).getByRole("button",{name:"후속 접수 있음",exact:true}).click();await expect(page.getByRole("button",{name:"이전 완료 접수 보기",exact:true})).toBeVisible();await expect(editor(page)).toHaveCount(0);
- await page.getByRole("navigation",{name:"관리자 보기"}).getByRole("button",{name:"호실 정비 이력",exact:true}).click();await timeline(page).locator(`[data-fact-id="${detail.current.factId}"]`).getByRole("button",{name:"근거 접수 보기",exact:true}).click();await expect(page.getByTestId("ticket-heading")).toBeVisible();await page.reload();await page.getByRole("navigation",{name:"관리자 보기"}).getByRole("button",{name:"호실 정비 이력",exact:true}).click();await expect(timeline(page).locator(`[data-fact-id="${detail.current.factId}"]`)).toBeVisible();
+ await openMoreRow(page,"호실 정비 이력");await timeline(page).locator(`[data-fact-id="${detail.current.factId}"]`).getByRole("button",{name:"근거 접수 보기",exact:true}).click();await expect(page.getByTestId("ticket-heading")).toBeVisible();await page.reload();await openMoreRow(page,"호실 정비 이력");await expect(timeline(page).locator(`[data-fact-id="${detail.current.factId}"]`)).toBeVisible();
  await writeFile(join(evidence,"root-correction.private.json"),JSON.stringify({source:s.id,target:follow.ticket.ticketId,rootFactId:rootFact.factId,factId:detail.current.factId,sourceHashes:before}));
 });
 test("committed root response loss keeps one UUID and requires explicit replay even when values match",async({page,request})=>{
@@ -76,6 +76,6 @@ test("refresh cannot silently rebase a correction draft onto another manager's n
 });
 test("real timeline distinguishes loading, retryable error and empty unit without losing queue navigation",async({page,request})=>{
  await setup(request);await login(page);let release!:()=>void;const gate=new Promise<void>(r=>{release=r;});
- await routeOnce(page,"**/maintenance-timeline",async route=>{await gate;await route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:{code:"DEPENDENCY_UNAVAILABLE",message:"합성 장애"}})});});await page.getByRole("navigation",{name:"관리자 보기"}).getByRole("button",{name:"호실 정비 이력",exact:true}).click();await expect(timeline(page).getByText("호실 정비 이력 불러오는 중…",{exact:true})).toBeVisible();release();await expect(timeline(page).getByRole("alert")).toBeVisible();await timeline(page).getByRole("button",{name:"이력 다시 불러오기",exact:true}).click();await expect(timeline(page).getByRole("alert")).toHaveCount(0);
- const state=JSON.parse(await readFile(join(root,"state.json"),"utf8"));await timeline(page).getByLabel("정비 이력 건물·호실").selectOption(state.fixture.unitOther);await expect(timeline(page).getByText("아직 기록된 정비 사실이 없어요.",{exact:true})).toBeVisible();await page.getByRole("navigation",{name:"관리자 보기"}).getByRole("button",{name:"업무함",exact:true}).click();await expect(page.getByRole("region",{name:"관리 업무함",exact:true})).toBeVisible();
+ await routeOnce(page,"**/maintenance-timeline",async route=>{await gate;await route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:{code:"DEPENDENCY_UNAVAILABLE",message:"합성 장애"}})});});await openMoreRow(page,"호실 정비 이력");await expect(timeline(page).getByText("호실 정비 이력 불러오는 중…",{exact:true})).toBeVisible();release();await expect(timeline(page).getByRole("alert")).toBeVisible();await timeline(page).getByRole("button",{name:"이력 다시 불러오기",exact:true}).click();await expect(timeline(page).getByRole("alert")).toHaveCount(0);
+ const state=JSON.parse(await readFile(join(root,"state.json"),"utf8"));await timeline(page).getByLabel("정비 이력 건물·호실").selectOption(state.fixture.unitOther);await expect(timeline(page).getByText("아직 기록된 정비 사실이 없어요.",{exact:true})).toBeVisible();await openTab(page,"업무함");await expect(page.getByRole("region",{name:"관리 업무함",exact:true})).toBeVisible();
 });

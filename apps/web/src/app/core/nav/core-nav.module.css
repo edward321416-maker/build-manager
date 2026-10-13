@@ -2,6 +2,9 @@
 /* Open-source notice: body text for the Korean line, caption size for the English licence (rules 3.2). */
 .notice { padding: 1.25rem; }
 .notice > * + * { margin-top: .625rem; }
+/* The repository link's own text is far short of 50px tall (rules §5); the padding grows its tap target without
+ * growing the visible underline (finding: design audit tap on the licence screen). */
+.sourceLink { display: inline-block; padding: 1.25rem 0; }
 .licenseText { color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; overflow-wrap: anywhere; }
 .licenseText > p + p { margin-top: .625rem; }
 @media (min-width: 768px) { .notice { padding: 1.875rem; } }
@@ -39,6 +42,9 @@
 .empty { padding: 1.25rem; }
 .todo li button.todoRow { display: grid; gap: .3125rem; width: 100%; min-height: 3.125rem; padding: .9375rem 1.25rem; border: 0; border-radius: 0; background: transparent; color: var(--color-text); text-align: left; font-weight: 400; }
 .todo li button.todoRow:hover:not(:disabled) { background: var(--color-fill-hover); }
+/* Beats .root button:disabled (0,2,1) in core-design.module.css by specificity, so a disabled to-do row shows this
+ * rule's own disabled look (secondary text on a subtle fill) instead of its normal colours (review: Task 8). */
+.todo li button.todoRow:disabled { color: var(--color-text-secondary); background: var(--color-fill-subtle); cursor: not-allowed; }
 .todoTitle { font-size: .9375rem; line-height: 1.5625rem; font-weight: 600; letter-spacing: -0.01em; }
 .reasons { display: flex; flex-wrap: wrap; gap: .3125rem; }
 /* Status labels (2.3, 8.7): text plus a soft fill; urgent red, the rest the waiting amber. */
