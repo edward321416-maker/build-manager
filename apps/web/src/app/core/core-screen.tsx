@@ -249,7 +249,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account}:{b1?:{orgId:
     <div className={navStyles.content}>
     <Workspace id="core-tickets" className="page-shell core-flow" aria-label="수리 접수 작업" data-role={session?.role}>
     <header className={styles.heading} data-testid="unit-context" data-sub={sub?"true":undefined}><div className={styles.toolbarLeading}>{selected?<BackButton wide disabled={busy||pending.length>0} onClick={closeDetail}/>:view&&navContext?<BackButton wide={!inLeftMenu(navContext,view)} onClick={nav.back}/>:null}<div><h1>{title}</h1>
-    {tenant&&!selected&&tab==="home"&&!view?<p>{units.find(u=>u.id===unit)?.buildingName}</p>:null}
+    {tenant&&!selected&&tab==="home"&&!view?<p className={styles.headingCaption}>{units.find(u=>u.id===unit)?.buildingName}</p>:null}
     </div></div>
     {!b1?<EnvironmentNote>검증용 환경으로 실제 업체 배정이나 알림은 전송되지 않아요.</EnvironmentNote>:null}
     {session?<nav className="core-actions" aria-label="접속 및 새로고침">{selected&&!tenant?<button id="ticket-inspector-trigger" aria-controls="ticket-inspector" aria-expanded={inspectorExpanded} onClick={()=>{if(window.matchMedia("(min-width: 1120px) and (max-width: 1439px)").matches)setInspectorExpanded(value=>!value);else{setInspectorExpanded(true);/* Menu audit F-20: show the panel's content, not just its heading at the bottom edge. */requestAnimationFrame(()=>{const inspector=document.getElementById("ticket-inspector");inspector?.scrollIntoView({block:"start"});inspector?.querySelector("summary")?.focus({preventScroll:true});});}}}>업무 정보</button>:null}
