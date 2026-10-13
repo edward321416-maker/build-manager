@@ -47,7 +47,7 @@ test("우리 집 shows three in-progress requests with their next step, the to-d
   await expect(page).toHaveURL(/tab=requests$/);
   await expect(page.getByRole("region", { name: "진행 중", exact: true }).locator("[data-ticket-id]")).toHaveCount(4);
   await openTab(page, "우리 집"); await line.click(); await expect(page).toHaveURL(/tab=alerts$/);
-  await openTab(page, "우리 집"); await cards.first().getByRole("button").click();
+  await openTab(page, "우리 집"); await cards.first().getByRole("button", { name: /열기$/ }).click();
   await expect(page.getByTestId("ticket-heading")).toBeVisible();
   await page.getByRole("button", { name: "뒤로", exact: true }).click(); await expect(cards).toHaveCount(3);
   // Three or fewer: no link to all of them.
