@@ -39,7 +39,8 @@ export function JoinScreen(){
     {invite.state==="OPEN"?<button className={styles.primary} disabled={busy||uncertain||!hasToken} onClick={()=>void run(async()=>{setInvite(await client.claim(token.current!));setUncertain(false);token.current="";setHasToken(false);},true)}>연결 요청 보내기</button>:null}
    </section>:null}
    {uncertain?<p>응답이 확인되지 않았어요. 요청을 다시 보내기 전에 저장 상태를 확인해 주세요.</p>:null}
-   <button className={invite?.state==="REQUESTED"?styles.primary:undefined} disabled={busy} onClick={()=>void run(async()=>{let page=await client.mine();let found=page.items.find(i=>i.invitationId===invite?.invitationId);while(!found&&page.nextCursor){page=await client.mine(page.nextCursor);found=page.items.find(i=>i.invitationId===invite?.invitationId);}if(found){setInvite(found);token.current="";setHasToken(false);}setUncertain(false);setMessage(found?"저장된 연결 상태를 확인했어요.":"이 초대에 저장된 요청이 없어요. 원래 링크의 호실을 다시 확인한 뒤 신청해 주세요.");})}>요청 상태 확인</button>
+   {/* Only an inspected invite names the request to look for; without one the saved list cannot answer. */}
+   {invite?<button className={invite.state==="REQUESTED"?styles.primary:undefined} disabled={busy} onClick={()=>void run(async()=>{const id=invite.invitationId;let page=await client.mine();let found=page.items.find(i=>i.invitationId===id);while(!found&&page.nextCursor){page=await client.mine(page.nextCursor);found=page.items.find(i=>i.invitationId===id);}if(found){setInvite(found);token.current="";setHasToken(false);}setUncertain(false);setMessage(found?"저장된 연결 상태를 확인했어요.":"이 초대에 저장된 요청이 없어요. 원래 링크의 호실을 다시 확인한 뒤 신청해 주세요.");})}>요청 상태 확인</button>:null}
   </>:null}
   <p><a href="/core">내 호실로 돌아가기</a></p>
  </main>;
