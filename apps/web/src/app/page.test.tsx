@@ -12,7 +12,8 @@ describe("product root", () => {
   it("leads with what the service does and one example ticket", () => {
     const html = markup();
 
-    expect(html).toContain("세입자 수리 요청, 문자 대신 여기서 받아요");
+    // The title breaks after the comma.
+    expect(html.replaceAll("<br/>", "")).toContain("세입자 수리 요청, 문자 대신 여기서 받아요");
     expect(html).toContain("101동 1203호 · 난방");
     expect(html).toContain("이렇게 진행돼요");
     // The example uses the app's own state name.
