@@ -376,3 +376,5 @@
 .root :global(.core-b1-shell[data-scoped="true"]) { grid-template-columns: minmax(0,1fr); }
 /* A sub-screen's top bar title is a subheading (rules 8.10); first screens keep their page title. */
 .root .heading[data-sub="true"] h1 { font-size: .9375rem; line-height: 1.5625rem; font-weight: 600; letter-spacing: -0.01em; }
+/* From 768px a screen the left menu lists is a first screen (rules 8.10), so its title matches 업무함's and 알림's. */
+@media (min-width: 768px) { .root .heading[data-menu-screen="true"] h1 { font-size: 1.25rem; line-height: 1.875rem; font-weight: 700; letter-spacing: -0.02em; } }

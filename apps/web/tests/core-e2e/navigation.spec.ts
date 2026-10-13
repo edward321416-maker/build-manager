@@ -81,3 +81,12 @@ test("closing a request with the back button puts focus on the list's title", as
   await page.getByRole("button", { name: "뒤로", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: "내 요청" })).toBeFocused();
 });
+
+test("from 768px a screen the left menu lists keeps the first-screen title (rules 8.10)", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 }); await login(page, (await accessCodes()).manager);
+  const font = () => page.getByRole("heading", { level: 1 }).evaluate(h => { const s = getComputedStyle(h); return `${s.fontSize} ${s.fontWeight} ${s.letterSpacing}`; });
+  const first = await font();
+  await menu(page).getByRole("link", { name: "호실 정비 이력", exact: true }).click(); await expect(page.getByRole("heading", { level: 1, name: "호실 정비 이력" })).toBeVisible();
+  expect(await font()).toBe(first);
+  await page.setViewportSize({ width: 390, height: 844 }); await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("font-size", "15px");
+});

@@ -271,7 +271,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
     {navContext&&session?<CoreNav ctx={navContext} location={location} badge={conversationSummaries.ready?todo.items.length:0} caption={account?.caption??roleName(session.role)} onNavigate={navigate}/>:null}
     <div className={navStyles.content}>
     <Workspace id="core-tickets" className="page-shell core-flow" aria-label="수리 접수 작업" data-role={session?.role}>
-    <header className={styles.heading} data-testid="unit-context" data-sub={sub?"true":undefined}><div className={styles.toolbarLeading}>{selected?<BackButton wide disabled={busy||pending.length>0} onClick={closeDetail}/>:view&&navContext?<BackButton wide={!inLeftMenu(navContext,view)} onClick={nav.back}/>:null}<div><h1 ref={titleRef} tabIndex={-1}>{title}</h1>
+    <header className={styles.heading} data-testid="unit-context" data-sub={sub?"true":undefined} data-menu-screen={view&&navContext&&inLeftMenu(navContext,view)?"true":undefined}><div className={styles.toolbarLeading}>{selected?<BackButton wide disabled={busy||pending.length>0} onClick={closeDetail}/>:view&&navContext?<BackButton wide={!inLeftMenu(navContext,view)} onClick={nav.back}/>:null}<div><h1 ref={titleRef} tabIndex={-1}>{title}</h1>
     {tenant&&!selected&&tab==="home"&&!view?<p className={styles.headingCaption}>{units.find(u=>u.id===unit)?.buildingName}</p>:null}
     </div></div>
     {!b1?<EnvironmentNote>검증용 환경으로 실제 업체 배정이나 알림은 전송되지 않아요.</EnvironmentNote>:null}

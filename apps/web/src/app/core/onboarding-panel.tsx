@@ -21,7 +21,7 @@ export function InvitationSummary({invite,children}:{invite:InvitationDto;childr
   <InvitationMetadata invite={invite}/>
  </>;
 }
-export function OnboardingPanel({csrf,orgId,manager,embedded=false,onRefreshAccess,onDenied}:{csrf:string;orgId?:string;manager:boolean;/** Inside the P5 menu the top bar already names the screen. */embedded?:boolean;onRefreshAccess:()=>void;onDenied:()=>void}){
+export function OnboardingPanel({csrf,orgId,manager,embedded=false,onRefreshAccess,onDenied}:{csrf:string;orgId?:string;manager:boolean;/** Inside the P5 menu the page's top bar names the screen, so the panel draws no bar of its own. */embedded?:boolean;onRefreshAccess:()=>void;onDenied:()=>void}){
  const client=useMemo(()=>createCoreOnboardingClient({csrf,orgId}),[csrf,orgId]);
  const empty:InvitationPage={items:[],nextCursor:null};
  const [mine,setMine]=useState<InvitationPage>(empty),[list,setList]=useState<InvitationPage>(empty),[units,setUnits]=useState<InviteUnitsPage>({items:[],nextCursor:null});
@@ -44,8 +44,10 @@ export function OnboardingPanel({csrf,orgId,manager,embedded=false,onRefreshAcce
      {i.state==="OPEN"||i.state==="REQUESTED"?<button className={styles.dangerAction} disabled={busy||uncertain} onClick={()=>void run(async()=>{await client.decide("revoke",i.invitationId);setLink("");await load();setNotice("초대를 취소했어요. 이 링크로 새 연결을 만들 수 없어요.");},true)}>초대 취소</button>:null}
     </article>;
  return <section className="page-shell core-flow core-onboarding" aria-label="호실 연결">
-  <div id="core-invitations"><header className={styles.heading}>{embedded?null:<h1>{manager?"입주 연결":"호실 연결"}</h1>}<button disabled={busy} onClick={()=>void run(load)}>연결 상태 새로고침</button></header>
+  <div id="core-invitations">{embedded?null:<header className={styles.heading}><h1>{manager?"입주 연결":"호실 연결"}</h1><button disabled={busy} onClick={()=>void run(load)}>연결 상태 새로고침</button></header>}
    <p>초대는 24시간 동안 유효해요. 로그인 후 신청하고 관리자가 확인 번호와 호실을 확인해야 연결돼요.</p>
+   {/* Inside the P5 menu the page's top bar is the only bar; this refresh moves into the content (final review of PR 139). */}
+   {embedded?<button disabled={busy} onClick={()=>void run(load)}>연결 상태 새로고침</button>:null}
    {error?<p role="alert">{error}</p>:null}{notice?<p role="status">{notice}</p>:null}{busy?<p role="status">연결 상태를 확인하는 중…</p>:null}
 
    {uncertain?<p>현재 상태를 먼저 확인해 주세요. 생성된 링크를 받지 못했다면 목록에서 취소한 뒤 새로 만드세요.</p>:null}
