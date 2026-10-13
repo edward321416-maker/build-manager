@@ -13,19 +13,19 @@ export function CommunicationBadge({summary,tenant=false}:{summary?:Pick<CoreCom
   return <span className={styles.badge}>{summary.waitingFor==="TENANT"?(tenant?TODO_REASON_NAMES.REPLY_TENANT:TODO_REASON_NAMES.WAITING_TENANT):TODO_REASON_NAMES.REPLY_MANAGER}</span>;
 }
 export function useCommunicationSummaries(client:CoreFlowClient,ids:string[],revision:number){
-  const [summaries,setSummaries]=useState<Record<string,CoreCommunicationSummary>>({}),[error,setError]=useState(false);
+  const [summaries,setSummaries]=useState<Record<string,CoreCommunicationSummary>>({}),[error,setError]=useState(false),[ready,setReady]=useState(false);
   const key=ids.join(",");
   useEffect(()=>{
     let live=true,generation=0;
     const load=async()=>{const current=++generation;try{
       const list=key?key.split(","):[],all:CoreCommunicationSummary[]=[];
       for(let i=0;i<list.length;i+=50)all.push(...await client.communication.summaries(list.slice(i,i+50)));
-      if(live&&current===generation){setSummaries(Object.fromEntries(all.map(s=>[s.ticketId,s])));setError(false);}
-    }catch{if(live&&current===generation){setSummaries({});setError(true);}}};
+      if(live&&current===generation){setSummaries(Object.fromEntries(all.map(s=>[s.ticketId,s])));setError(false);setReady(true);}
+    }catch{if(live&&current===generation){setSummaries({});setError(true);setReady(true);}}};
     const focus=()=>{if(!document.hidden)void load();};void load();window.addEventListener("focus",focus);document.addEventListener("visibilitychange",focus);
     return()=>{live=false;generation++;window.removeEventListener("focus",focus);document.removeEventListener("visibilitychange",focus);};
   },[client,key,revision]);
-  return {summaries,error};
+  return {summaries,error,ready};
 }
 const intentLabel:Record<CoreCommunicationIntent,string>={REQUEST_REPLY:"질문",TENANT_MESSAGE:"문의·답변",MANAGER_REPLY:"답변",MANAGER_UPDATE:"진행 안내"};
 export function TicketCommunication({client,ticketId,tenant,revision,completed,onVersion,children}:{client:CoreFlowClient;ticketId:string;tenant:boolean;revision:number;completed:boolean;onVersion(value:{ticketId:string;version:number}|null):void;children?:ReactNode}){
