@@ -31,6 +31,15 @@ it("corrects a bare or wrong address in place to the role's first tab", async ()
   expect(window.history.length).toBe(before);
 });
 
+it("replaces a wrong address with only its own marks, dropping any other key the previous state carried", async () => {
+  // Next 16 patches replaceState and skips its own router sync when the state it is handed still carries its own
+  // `__NA` mark, so the correction must never pass the whole previous state back through.
+  window.history.replaceState({ coreNav: true, __NA: true }, "", "/core?tab=work");
+  await mount(tenant);
+  expect(window.location.search).toBe("?tab=home");
+  expect(window.history.state).toEqual({ coreNav: true });
+});
+
 it("pushes a menu move and scrolls a repeated tap to the top", async () => {
   const view = await mount(tenant), before = window.history.length;
   await act(async () => view.api.current!.go({ tab: "alerts", view: null }));
@@ -64,6 +73,17 @@ it("keeps one history entry per open request and clears it without a new entry",
   act(() => hideDetailEntry());
   expect(detailEntryOnTop()).toBe(false);
   expect(window.history.length).toBe(before + 1);
+});
+
+it("replaces a request entry on a menu move instead of leaving a stale duplicate of the target behind it", async () => {
+  const view = await mount(admin), before = window.history.length;
+  act(() => showDetailEntry("work"));
+  expect(window.history.length).toBe(before + 1);
+  await act(async () => view.api.current!.go({ tab: "alerts", view: null }));
+  expect(window.history.length).toBe(before + 1);
+  expect(detailEntryOnTop()).toBe(false);
+  expect(window.location.search).toBe("?tab=alerts");
+  expect(view.shown()).toEqual(["alerts", ""]);
 });
 
 it("reports a browser back with the entry's request mark and re-reads the address", async () => {

@@ -25,6 +25,9 @@
 /* Beats .root button (0,1,1) and .heading button (0,1,1) in core-design.module.css (both class+element; .content.back
  * adds a second class), so the 50x50 target stays a bare 24px chevron with no visible box (rules 8.10). */
 .content button.back { display: inline-flex; align-items: center; justify-content: center; min-width: 3.125rem; min-height: 3.125rem; padding: 0; border-color: transparent; background: transparent; }
+/* Beats .root button:disabled (0,2,1) in core-design.module.css regardless of stylesheet order, so a disabled back
+ * button never shows that rule's grey fill box (rules 8.10). */
+.content button.back:disabled { background: transparent; border-color: transparent; }
 
 /* List rows (8.5): 50 high at least, 15 above and below, subheading names. */
 .menuList > ul, .todo > ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--color-border); }
@@ -70,7 +73,9 @@
   .shell .nav li a[aria-current="page"] { font-weight: 600; background: var(--color-fill-hover); }
   .shell .nav .badge { margin-left: auto; }
   .account { margin-top: auto; padding-top: .625rem; border-top: 1px solid var(--color-border); }
-  .back[data-device="phone"] { display: none; }
+  /* Beats .content button.back (0,2,1) from here on, so the phone-only back button actually hides at this width
+   * instead of losing to that higher-specificity rule (finding: review 2026-10-13). */
+  .content button.back[data-device="phone"] { display: none; }
   .menuList li a.row, .menuList li button.row, .rowBlock, .todo li button.todoRow, .empty { padding-inline: 1.875rem; }
 }
 @media (min-width: 1440px) {

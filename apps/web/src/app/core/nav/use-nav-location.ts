@@ -8,6 +8,10 @@ import { navHref, parseNavLocation, sameLocation } from "./nav-location";
 type Entry = { coreNav?: true; detail?: true };
 const NAV_EVENT = "core-nav";
 const entry = (): Entry => { const state: unknown = window.history.state; return state !== null && typeof state === "object" ? state as Entry : {}; };
+/** Picks only this screen's own marks out of a (possibly foreign) state object, so a replace never carries forward a
+ * mark another layer owns — e.g. Next's own `__NA` router mark, which a replace that kept it would cause Next 16 to
+ * treat as already synced and skip updating its router URL (finding: review 2026-10-13). */
+const marksOnly = (source: Entry): Entry => { const out: Entry = {}; if (source.coreNav) out.coreNav = true; if (source.detail) out.detail = true; return out; };
 const here = () => window.location.pathname + window.location.search;
 function write(mode: "push" | "replace", state: Entry, href: string) {
   if (mode === "push") window.history.pushState(state, "", href); else window.history.replaceState(state, "", href);
@@ -39,15 +43,19 @@ export function useNavLocation(ctx: NavContext | null, onPop: (detail: boolean) 
   const popped = useRef(onPop);
   useEffect(() => { popped.current = onPop; });
   // An address another role or an old link wrote is corrected in place, without a new history entry.
-  useEffect(() => { if (ctx && window.location.pathname === "/core" && here() !== navHref(location)) write("replace", entry(), navHref(location)); }, [ctx, location]);
+  useEffect(() => { if (ctx && window.location.pathname === "/core" && here() !== navHref(location)) write("replace", marksOnly(entry()), navHref(location)); }, [ctx, location]);
   useEffect(() => {
     const pop = () => popped.current(Boolean(entry().detail));
     window.addEventListener("popstate", pop);
     return () => window.removeEventListener("popstate", pop);
   }, []);
-  /** A menu link: a new history entry; tapping the current first screen again scrolls it to the top (rules 8.14). */
+  /** A menu link: a new history entry; tapping the current first screen again scrolls it to the top (rules 8.14).
+   * With a request entry on top, this REPLACES it instead of pushing: a push would leave a stale duplicate of the
+   * target behind the request's own entry, so one browser back after the move would land on that duplicate and show
+   * the same screen again before a second back reaches the real previous screen (finding: review 2026-10-13). */
   const go = useCallback((next: NavLocation) => {
-    if (!sameLocation(next, location) || entry().detail) write("push", { coreNav: true }, navHref(next));
+    if (entry().detail) write("replace", { coreNav: true }, navHref(next));
+    else if (!sameLocation(next, location)) write("push", { coreNav: true }, navHref(next));
     window.scrollTo({ top: 0 });
   }, [location]);
   /** The top bar's back button on a row screen: history back after an in-page move, else one step up in place. */
