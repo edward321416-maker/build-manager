@@ -104,7 +104,8 @@ test("a focused control on a first screen is never under the tab bar (rules 8.14
   await expect(submit).toBeFocused();
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
   const bar = (await menu(page).boundingBox())!, box = (await submit.boundingBox())!;
-  // Rule 8.14: scroll-padding-bottom is the tab bar height plus 20px, so the focused control must clear the bar by 20px, not just avoid overlap.
+  // Rule 8.14: scroll-padding-bottom reserves the tab bar height plus 20px, so the focused control must clear the bar by
+  // 20px, not just avoid overlap (core-design.module.css's focus-visible scroll-margin-block backs up the same 20px too).
   expect(box.y + box.height).toBeLessThanOrEqual(bar.y - 20);
 });
 
