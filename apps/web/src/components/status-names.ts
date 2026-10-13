@@ -13,6 +13,12 @@ export const INTAKE_STATUS_NAMES: Record<TicketStatus, string> = {
   SAFETY_ESCALATED: "긴급 확인 필요", APPROVED: "처리 방법 결정됨", OVERRIDDEN: "처리 방법 결정됨",
 };
 
+/** Names of what someone has to do next (P5 spec §5): the request rows and the 알림 to-do list share them (rules 8.7). */
+export const TODO_REASON_NAMES = {
+  SAFETY: INTAKE_STATUS_NAMES.SAFETY_ESCALATED, DRAFT: INTAKE_STATUS_NAMES.IN_PROGRESS, MORE_INFO: INTAKE_STATUS_NAMES.NEEDS_MORE_INFO,
+  DECIDE: "처리 방법 결정 필요", REPLY_TENANT: "내 답변 필요", REPLY_MANAGER: "관리자 답변 대기", WAITING_TENANT: "세입자 답변 대기",
+} as const;
+
 /**
  * Every tenant answer resets the server status to IN_PROGRESS, also inside a more-info round after the request was
  * sent. A request that was sent once must never read 제출 전 again, so it reads as the more-info round instead.

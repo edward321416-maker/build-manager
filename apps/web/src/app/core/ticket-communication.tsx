@@ -5,11 +5,12 @@ import { CoreCommunicationSendSchema,type CoreCommunicationIntent,type CoreCommu
 import { clearCommunicationRecovery,readCommunicationRecovery,saveCommunicationRecovery,type CommunicationRecovery } from "./communication-recovery";
 import { TaskZone } from "./ui/core-display";
 import { DateTime } from "../../components/date-time";
+import { TODO_REASON_NAMES } from "../../components/status-names";
 import styles from "./ticket-communication.module.css";
 
 export function CommunicationBadge({summary,tenant=false}:{summary?:Pick<CoreCommunicationSummary,"waitingFor"|"readOnly">;tenant?:boolean}){
   if(!summary||summary.readOnly||summary.waitingFor==="NONE")return null;
-  return <span className={styles.badge}>{summary.waitingFor==="TENANT"?(tenant?"내 답변 필요":"세입자 답변 대기"):"관리자 답변 대기"}</span>;
+  return <span className={styles.badge}>{summary.waitingFor==="TENANT"?(tenant?TODO_REASON_NAMES.REPLY_TENANT:TODO_REASON_NAMES.WAITING_TENANT):TODO_REASON_NAMES.REPLY_MANAGER}</span>;
 }
 export function useCommunicationSummaries(client:CoreFlowClient,ids:string[],revision:number){
   const [summaries,setSummaries]=useState<Record<string,CoreCommunicationSummary>>({}),[error,setError]=useState(false);
