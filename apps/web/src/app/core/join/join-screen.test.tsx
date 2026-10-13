@@ -32,7 +32,8 @@ async function mount(hash:string,route:Route=()=>undefined){
 const button=(label:string)=>Array.from(host.querySelectorAll("button")).find(item=>item.textContent===label);
 async function click(label:string){expect(Boolean(button(label)),label).toBe(true);await act(async()=>{button(label)!.click();});await settle();}
 const paths=()=>calls.map(call=>call.path+call.query);
-const hint="이미 신청했다면 내 호실로 돌아가 '입주 연결'에서 상태를 확인할 수 있어요.";
+const hint="이미 신청했다면 내 호실로 돌아가 '내 연결 요청'에서 상태를 확인할 수 있어요. 소속을 고른 뒤라면 '입주 연결' 메뉴 안에 있어요.";
+const failure=(status:number,code:string)=>json({error:{code,message:"synthetic"}},status);
 
 it("offers no status check without a link, so it never reads the saved requests",async()=>{
   await mount("");
@@ -51,7 +52,7 @@ it("asks to inspect a linked invite first and sends nothing until asked",async()
 });
 
 it("keeps pointing to the saved requests when the linked invite can no longer be inspected",async()=>{
-  await mount("#"+token,call=>call.path.endsWith("/inspect")?json({error:{code:"STATE_CONFLICT",message:"synthetic"}},409):undefined);
+  await mount("#"+token,call=>call.path.endsWith("/inspect")?failure(409,"STATE_CONFLICT"):undefined);
   await click("초대 내용 확인");
   expect(host.querySelector('[role="alert"]')).not.toBeNull();
   expect(host.textContent).toContain(hint);
@@ -95,6 +96,56 @@ it("after a lost claim answer that was never saved, says so and lets the person 
   await click("요청 상태 확인");
   expect(host.textContent).toContain("이 초대에 저장된 요청이 없어요.");
   expect(button("연결 요청 보내기")?.disabled).toBe(false);
+});
+
+it.each([[409,"STATE_CONFLICT"],[404,"NOT_FOUND"]])("when the held link answers %i, finds the lost claim among the saved requests",async(status,code)=>{
+  let inspections=0;
+  await mount("#"+token,call=>{
+    if(call.path.endsWith("/inspect"))return ++inspections===1?json(invite):failure(status,code);
+    if(call.path.endsWith("/claim"))throw new TypeError("synthetic lost answer");
+    if(call.path.endsWith("/mine"))return json({items:[{...requested,state:"EXPIRED"}],nextCursor:null});
+    return undefined;
+  });
+  await click("초대 내용 확인");
+  await click("연결 요청 보내기");
+  await click("요청 상태 확인");
+  expect(paths().slice(3)).toEqual(["/api/v2/core/onboarding/inspect","/api/v2/core/onboarding/mine"]);
+  expect(host.textContent).toContain("저장된 연결 상태를 확인했어요.");
+  expect(host.textContent).toContain("초대 만료");
+  expect(host.textContent).toContain(requestNumber);
+});
+
+it("says a closed invite with nothing saved can no longer be used, and offers no claim",async()=>{
+  await mount("#"+token,call=>{
+    if(call.path.endsWith("/inspect"))return call===calls.find(c=>c.path.endsWith("/inspect"))?json(invite):failure(409,"STATE_CONFLICT");
+    if(call.path.endsWith("/claim"))return failure(409,"STATE_CONFLICT");
+    if(call.path.endsWith("/mine"))return json({items:[decoy],nextCursor:null});
+    return undefined;
+  });
+  await click("초대 내용 확인");
+  await click("연결 요청 보내기");
+  await click("요청 상태 확인");
+  expect(host.textContent).toContain("이 초대는 더 이상 쓸 수 없어요.");
+  expect(host.textContent).not.toContain("저장된 요청이 없어요");
+  expect(host.textContent).not.toContain("초대 링크 정보가 없어요.");
+  expect(button("연결 요청 보내기")).toBeUndefined();
+  expect(button("요청 상태 확인")).toBeUndefined();
+});
+
+it("does not search the saved requests when the server is only busy",async()=>{
+  let inspections=0;
+  await mount("#"+token,call=>{
+    if(call.path.endsWith("/inspect"))return ++inspections===1?json(invite):failure(429,"RATE_LIMITED");
+    if(call.path.endsWith("/claim"))throw new TypeError("synthetic lost answer");
+    return undefined;
+  });
+  await click("초대 내용 확인");
+  await click("연결 요청 보내기");
+  await click("요청 상태 확인");
+  expect(paths().some(path=>path.includes("/mine"))).toBe(false);
+  expect(host.textContent).toContain("시도가 많아요.");
+  expect(button("연결 요청 보내기")?.disabled).toBe(true);
+  expect(button("요청 상태 확인")?.disabled).toBe(false);
 });
 
 it("once the link is spent, finds the claimed invite among the saved requests page by page",async()=>{
