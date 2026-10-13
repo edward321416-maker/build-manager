@@ -95,7 +95,9 @@ test("an unsubmitted request reads 제출 전 in the tenant list and on the mana
   const response=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");
   await page.getByRole("button",{name:"접수하기",exact:true}).click();const ticket=await (await response).json();
   await page.getByRole("button",{name:"뒤로",exact:true}).click();
-  await expect(page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-work-state="DRAFT"]`)).toHaveText("제출 전");
+  await openTab(page,"내 요청");
+  const draftRow=page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-work-state="DRAFT"]`);
+  await expect(draftRow).toBeVisible();await expect(draftRow).toHaveText("제출 전");
   const managerContext=await browser.newContext({viewport:{width:390,height:844}}),manager=await managerContext.newPage();
   try{
     await new CoreScreen(manager).login("manager");await manager.locator(`[data-ticket-id="${ticket.ticketId}"] [data-open-ticket]`).click();

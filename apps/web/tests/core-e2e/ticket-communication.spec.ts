@@ -1,4 +1,4 @@
-import { expectSignedIn,openConversation,openInspector,openTicketRow } from "./presentation";
+import { expectSignedIn,openConversation,openInspector,openTab,openTicketRow } from "./presentation";
 import { abortOnce,routeOnce } from "../routes";
 import { test,expect,type Page,type APIRequestContext } from "@playwright/test";
 import { readFile,mkdir,writeFile } from "node:fs/promises";
@@ -38,7 +38,9 @@ test("public Q&A round trip, independent protocol and queue, photo/privacy, comp
   const context=await browser.newContext({viewport:{width:1440,height:1000}}),manager=await context.newPage();
   try{
     await login(manager,s.codes.manager,id);const question="합성 점검을 위해 현재 상태를 알려 주세요.";await send(manager,question,"세입자에게 질문");
-    await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await expect(page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`)).toContainText("내 답변 필요");await open(page,id);
+    await page.getByRole("navigation",{name:"접속 및 새로고침"}).getByRole("button",{name:"새로고침",exact:true}).click();await openTab(page,"내 요청");
+    const tenantRow=page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`);await expect(tenantRow).toBeVisible();await expect(tenantRow).toContainText("내 답변 필요");
+    await open(page,id);
     const beforeProtocol=await s.read();const managerTicket=await (await request.get(`/api/v2/core/tickets/${id}`,{headers:s.headers("manager")})).json(),q=managerTicket.detail.followUpOptions.questions[0];expect(q).toBeTruthy();
     expect((await request.post(`/api/v2/core/tickets/${id}/decision`,{headers:s.headers("manager"),data:{type:"REQUEST_MORE_INFO",reason:"합성 구조화 질문",requestedQuestionIds:[q.questionId]}})).status()).toBe(200);
     expect(await s.read()).toEqual(beforeProtocol);
