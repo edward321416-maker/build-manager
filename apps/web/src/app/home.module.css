@@ -1,27 +1,33 @@
-/* First-visitor page on design rules v1 (design/DESIGN_RULES.md); tokens in app/tokens.css. */
+/* First-visitor page: layout from the operator-picked reference (design rules §1, 2026-10-13), values from the rules
+   (landing values: §3.2 hero/headline/lead, §4 space-20, §5 content width 82.5rem, §6.2 30px). Tokens in app/tokens.css. */
 .page {
-  min-height: 100vh; background: var(--color-page); color: var(--color-text); font-family: var(--font-sans);
+  min-height: 100vh; background: var(--color-surface); color: var(--color-text); font-family: var(--font-sans);
   font-size: .9375rem; line-height: 1.5625rem; letter-spacing: -0.01em; word-break: keep-all; overflow-wrap: anywhere;
 }
-.page :is(h1, h2, p, ol, figure) { margin: 0; }
+/* Resets carry no element weight, so each block's own spacing below wins. */
+.page :where(h1, h2, h3, p, ol, ul, figure) { margin: 0; }
+.page :where(ol, ul) { padding: 0; list-style: none; }
+/* Anchored sections stop below the sticky 56px bar plus 20px (§7). */
+.page [id] { scroll-margin-block: calc(3.5rem + 1.25rem); }
 
-/* Top bar (§8.10): 56px, wordmark only. */
-.bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; height: 3.5rem; padding-inline: 1.25rem; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
-.wordmark { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
+/* Content column: at most 82.5rem, side margins 20 / 30 / 40px (§5, §7). */
+.container { width: min(100% - 2.5rem, 82.5rem); margin-inline: auto; }
 
-/* Mobile first: one column, 20px side margins, 30px between sections. */
-.main { display: grid; gap: 1.875rem; max-width: 72rem; margin: 0 auto; padding: 1.875rem 1.25rem 3.125rem; }
-.intro { display: grid; gap: .625rem; }
-.display { font-size: 2rem; line-height: 2.625rem; font-weight: 700; letter-spacing: -0.03em; max-width: 16em; }
-.lead { max-width: 34rem; color: var(--color-text-secondary); }
+/* Top bar (§8.10): 56px, wordmark, page links from 1024px, and the way in. */
+.bar { position: sticky; top: 0; z-index: 10; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.barInner { display: flex; align-items: center; gap: .625rem; min-height: 3.5rem; }
+.wordmark { margin-right: auto; font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
+.nav { display: none; }
+.nav a {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 3.125rem; min-height: 3.125rem; padding-inline: .9375rem;
+  border-radius: .625rem; color: var(--color-text); font-size: .9375rem; line-height: 1.25rem; font-weight: 600; text-decoration: none;
+  transition: background-color var(--motion-fast) var(--ease);
+}
+.nav a:hover { background: var(--color-fill-hover); }
 
-/* Entry block: one filled button (§7). */
-.entry { display: grid; gap: .625rem; padding: 1.5625rem 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .9375rem; }
-.entry h2 { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
-.actions { display: grid; gap: .625rem; margin-block: .625rem; }
-.actions form { margin: 0; }
+/* Buttons (§8.1). */
 .primary, .secondary {
-  display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 3.125rem; padding: .625rem 1.25rem;
+  display: inline-flex; align-items: center; justify-content: center; min-height: 3.125rem; padding: .625rem 1.25rem;
   border: 1px solid var(--color-border-strong); border-radius: .625rem; background: var(--color-surface); color: var(--color-text);
   font: inherit; font-size: .9375rem; line-height: 1.25rem; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease), transform var(--motion-fast) var(--ease);
@@ -34,14 +40,82 @@
 .page :is(a, button):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
 .caption { font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; color: var(--color-text-secondary); }
 
-/* Signature: one real-looking repair ticket and its handling history. */
-.ticket { display: grid; gap: .9375rem; padding: 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .9375rem; }
+/* Opening: title, then the explanation and the way in; one wide panel of drawn screens below. */
+.hero { padding-top: 3.125rem; }
+.heroGrid { display: grid; gap: 1.25rem; }
+.heroTitle { font-size: 2rem; line-height: 2.625rem; font-weight: 700; letter-spacing: -0.03em; }
+.heroSide { display: grid; gap: .625rem; align-content: start; }
+.lead { max-width: 34rem; font-size: 1.125rem; line-height: 1.75rem; letter-spacing: -0.01em; color: var(--color-text-secondary); }
+.entry { display: grid; gap: .625rem; padding-top: .625rem; }
+.entryTitle { font-size: .9375rem; line-height: 1.5625rem; font-weight: 600; letter-spacing: -0.01em; }
+.actions { display: grid; gap: .625rem; }
+.actions form { margin: 0; }
+.actions :is(.primary, .secondary) { width: 100%; }
+
+/* The wide panel (§6.2 30px): the tenant's phone overlaps the manager's queue from 1024px. */
+.showcase {
+  display: grid; justify-items: center; gap: 1.25rem; margin-top: 3.125rem; padding: 1.25rem;
+  background: var(--color-page); border-radius: 1.875rem; overflow: hidden;
+}
+.showcase > .window { width: 100%; }
+
+/* A drawn phone screen. */
+.phone {
+  display: grid; gap: .625rem; align-content: start; width: min(100%, 17.5rem); padding: 1.5625rem 1.25rem;
+  background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: 1.875rem;
+}
+.phoneTitle { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .625rem; }
+.tiles span {
+  display: flex; align-items: center; justify-content: center; min-height: 3.125rem; padding: .9375rem;
+  border: 1px solid var(--color-border-control); border-radius: .625rem; font-weight: 600; line-height: 1.25rem; text-align: center;
+}
+.tiles span[data-selected] { border: 2px solid var(--color-primary); background: var(--color-primary-soft); padding: calc(.9375rem - 1px); }
+.fieldLabel { font-weight: 600; line-height: 1.25rem; }
+.field { padding: .625rem .9375rem; border: 1px solid var(--color-border-control); border-radius: .625rem; }
+.fakeButton {
+  display: flex; align-items: center; justify-content: center; min-height: 3.125rem; padding: .625rem 1.25rem;
+  border-radius: .625rem; background: var(--color-primary); color: var(--color-text-inverse); font-weight: 600; line-height: 1.25rem;
+}
+.chip {
+  justify-self: start; padding: .3125rem .625rem; border-radius: .3125rem; background: var(--color-fill-subtle);
+  color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0;
+}
+
+/* A drawn manager window: queue rows (from 1024px) beside the example ticket. */
+.window { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .9375rem; overflow: hidden; }
+.windowBar {
+  padding: .625rem .9375rem; border-bottom: 1px solid var(--color-border);
+  font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; color: var(--color-text-secondary);
+}
+.windowBody { display: grid; }
+.queue { display: none; }
+.queue li, .history li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: .625rem; align-items: center;
+  padding-block: .9375rem; border-bottom: 1px solid var(--color-border);
+}
+.queue li:last-child, .history li:last-child { border-bottom: 0; }
+.rowTitle { grid-column: 1; font-weight: 600; }
+.rowMeta { grid-column: 1; font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.queue .status, .history .status { grid-column: 2; grid-row: 1 / span 2; }
+
+/* Status labels (§8.7): the app's own names and colour pairs. */
+.status {
+  display: inline-flex; align-items: center; justify-content: center; justify-self: start; padding: .3125rem .625rem; border-radius: .3125rem;
+  font-size: .9375rem; line-height: 1.25rem; font-weight: 600; white-space: nowrap;
+}
+.status[data-state="progress"] { color: var(--status-progress-text); background: var(--status-progress-bg); }
+.status[data-state="done"] { color: var(--status-done-text); background: var(--status-done-bg); }
+.status[data-state="wait"] { color: var(--status-wait-text); background: var(--status-wait-bg); }
+.status[data-state="urgent"] { color: var(--status-urgent-text); background: var(--status-urgent-bg); }
+.status[data-state="open"] { color: var(--color-text-secondary); background: var(--color-fill-subtle); }
+
+/* The example ticket and its handling history. */
+.ticket { display: grid; gap: .9375rem; padding: 1.25rem; }
 .ticketHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .625rem; }
 .unit { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
-.status { padding: .3125rem .625rem; border-radius: .3125rem; font-size: .9375rem; line-height: 1.25rem; font-weight: 600; }
-.status[data-state="progress"] { color: var(--status-progress-text); background: var(--status-progress-bg); }
 .quote { padding: .9375rem; background: var(--color-fill-subtle); border-radius: .625rem; }
-.timeline { display: grid; padding: 0; list-style: none; }
+.timeline { display: grid; }
 .timeline li { position: relative; display: grid; gap: 0; padding: 0 0 .9375rem 1.5625rem; }
 .timeline li:last-child { padding-bottom: 0; }
 /* Rail: a 1px line joining the markers; markers carry the state together with the text beside them. */
@@ -53,32 +127,75 @@
 .timeline time { font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
 .timeline li[data-state="next"] span { color: var(--color-text-secondary); }
 
-/* Steps: a real sequence, so it is numbered; list rows separated by 1px lines (§8.5). */
-.steps { display: grid; gap: .625rem; }
-.steps h2 { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
-.steps ol { padding: 0; list-style: none; counter-reset: step; border-top: 1px solid var(--color-border); }
+/* Steps: a real sequence, numbered; rows on phones, four columns from 1024px. */
+.steps { padding-top: 3.125rem; }
+.stepsTitle { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; text-align: center; }
+.steps ol { counter-reset: step; margin-top: 1.25rem; border-top: 1px solid var(--color-border); }
 .steps li { counter-increment: step; display: grid; grid-template-columns: 1.875rem minmax(0, 1fr); padding-block: .9375rem; border-bottom: 1px solid var(--color-border); }
 .steps li::before { content: counter(step); font-weight: 600; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .steps li span { max-width: 75ch; }
 
+/* Sections: label and heading on the left, explanation on the right, then panels. */
+.section { padding-top: 3.125rem; }
+.sectionHead { display: grid; gap: .625rem; }
+.eyebrow { font-size: .9375rem; line-height: 1.5625rem; font-weight: 600; letter-spacing: -0.01em; color: var(--color-text-secondary); }
+.headline { font-size: 1.5625rem; line-height: 2.1875rem; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
+/* Text beside one panel, as in the reference's try-it section. */
+.split { display: grid; gap: 1.875rem; }
+.split > .panel { margin-top: 0; }
+.splitText { display: grid; gap: .625rem; align-content: center; }
+.sectionLead { max-width: 34rem; color: var(--color-text-secondary); }
+.panel { display: grid; justify-items: center; margin-top: 1.875rem; padding: 1.25rem; background: var(--color-page); border-radius: 1.875rem; }
+.cards { display: grid; gap: 1.875rem; margin-top: 1.875rem; }
+.card { display: grid; gap: .625rem; align-content: start; }
+.card h3 { margin-top: .625rem; font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
+.card > p { color: var(--color-text-secondary); }
+.cardVisual { display: grid; place-items: center; padding: 1.25rem; background: var(--color-page); border-radius: 1.875rem; }
+.mini {
+  display: grid; gap: .625rem; width: min(100%, 20rem); padding: .9375rem;
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .9375rem;
+}
+.miniTitle { font-weight: 600; }
+.history { width: min(100%, 50rem); padding: .9375rem 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .9375rem; }
+.historyHead { padding-bottom: .625rem; border-bottom: 1px solid var(--color-border); font-weight: 600; }
+
+.footer { margin-top: 3.125rem; padding-block: 1.875rem 3.125rem; border-top: 1px solid var(--color-border); }
+.footerInner { display: grid; gap: .625rem; }
+
 @media (min-width: 768px) {
-  .bar { padding-inline: 1.875rem; }
-  .main { padding: 2.5rem 1.875rem 3.125rem; }
-  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; }
-  .primary, .secondary { width: auto; }
+  .container { width: min(100% - 3.75rem, 82.5rem); }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; }
+  .actions :is(.primary, .secondary) { width: auto; }
+  .showcase, .panel { padding: 1.875rem; }
 }
 @media (min-width: 1024px) {
-  .main { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); column-gap: 2.5rem; row-gap: 1.875rem; align-items: start; padding-top: 3.125rem; }
-  .intro { grid-column: 1; grid-row: 1; }
-  .entry { grid-column: 1; grid-row: 2; }
-  .ticket { grid-column: 2; grid-row: 1 / span 2; }
-  .steps { grid-column: 1 / -1; }
+  .nav { display: flex; gap: .3125rem; margin-right: auto; }
+  .hero { padding-top: 6.25rem; }
+  .heroGrid { grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); column-gap: 2.5rem; align-items: start; }
+  .heroTitle { font-size: 3.375rem; line-height: 4.375rem; }
+  .showcase { grid-template-columns: 17.5rem 2.5rem minmax(0, 1fr); align-items: end; gap: 0; padding: 3.125rem; }
+  .showcase > .phone { grid-column: 1 / 3; grid-row: 1; z-index: 1; width: 17.5rem; justify-self: start; }
+  .showcase > .window { grid-column: 2 / 4; grid-row: 1; }
+  .windowBody { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+  /* The phone covers the queue's left edge, so the rows start after the overlap. */
+  .queue { display: block; padding: 0 1.25rem 0 calc(2.5rem + 1.25rem); border-right: 1px solid var(--color-border); }
+  .steps { padding-top: 6.25rem; }
+  .steps ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 1.25rem; border-top: 0; }
+  .steps li { grid-template-columns: minmax(0, 1fr); gap: .3125rem; align-content: start; border-top: 1px solid var(--color-border); border-bottom: 0; }
+  .section { padding-top: 6.25rem; }
+  .sectionHead { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 2.5rem; align-items: end; }
+  .headline { font-size: 2.75rem; line-height: 3.875rem; letter-spacing: -0.03em; }
+  .panel { margin-top: 3.125rem; padding: 3.125rem; }
+  .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 2.5rem; align-items: center; }
+  .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; margin-top: 3.125rem; }
+  .card h3 { font-size: 1.5625rem; line-height: 2.1875rem; font-weight: 700; }
+  .cardVisual { min-height: 18.75rem; }
+  .footer { margin-top: 6.25rem; }
 }
 @media (min-width: 1440px) {
-  .bar { padding-inline: 2.5rem; }
-  .main { padding-inline: 2.5rem; }
+  .container { width: min(100% - 5rem, 82.5rem); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .primary, .secondary { transition: none; }
+  .primary, .secondary, .nav a { transition: none; }
   .primary:active, .secondary:active { transform: none; }
 }
