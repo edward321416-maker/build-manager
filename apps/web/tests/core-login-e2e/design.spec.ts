@@ -38,7 +38,9 @@ async function captureLayout(page:Page,name:string){
     }
     const workspace=page.getByRole("region",{name:"수리 접수 작업",exact:true});
     await expect(workspace).toHaveCSS("background-color","rgb(255, 255, 255)");
-    await expect(workspace.getByRole("heading",{level:1})).toHaveCSS("font-size","20px");
+    // P5 (spec §2, rules 8.10): a sub-screen's top-bar title is a subheading; first screens keep the page title.
+    const sub=await page.getByTestId("unit-context").getAttribute("data-sub")==="true";
+    await expect(workspace.getByRole("heading",{level:1})).toHaveCSS("font-size",sub?"15px":"20px");
     // Design rules v1 §2.3: every status label pairs its text with the matching soft fill.
     const statusColors=await workspace.locator("span[data-work-state]").evaluateAll(items=>items.map(el=>({state:el.getAttribute("data-work-state"),background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color})));
     const statusPairs:Record<string,[string,string]>={OPEN:["rgb(99, 103, 113)","rgba(32, 38, 50, 0.04)"],DRAFT:["rgb(154, 91, 0)","rgb(255, 243, 220)"],IN_PROGRESS:["rgb(0, 86, 216)","rgb(238, 244, 255)"],COMPLETED:["rgb(23, 117, 79)","rgb(231, 245, 238)"]};
