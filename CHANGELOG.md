@@ -59,3 +59,7 @@
 ## 2026-10-13 — Fuller first page, 해요체 and the join status check
 
 - Redeployed the hosted demo from main `48d2516` (image `8474bbb5b02c`, replacing `945841c9a81b`). It brings the first-visitor page rebuilt on the layout of the reference site the operator picked (PR #137, after PR #135 allowed copying a picked site's layout), the photo-choice tile text centred and the design audit's `center` check (PR #128), 해요체 across `/core` and the Vendor job screen (PR #131), and a `/core/join` status check that no longer reads every saved request without an inspected invite (PR #134). The menu parts from PR #136 are included but not wired to any screen yet. No migration was added. The previous image's archive stays on the VM for rollback.
+
+## 2026-10-13 — Bottom tabs and a left menu on /core
+
+- Redeployed the hosted demo from main `81c6d39` (image `97a803fc87dd`, replacing `8474bbb5b02c`). On phones `/core` now has a bottom tab bar: tenants 우리 집 · 내 요청 · 알림 · 내 정보, managers 업무함 · 알림 · 더 보기 (호실 정비 이력, 입주 연결, 건물·호실 관리, 내 정보; the middle two only for an organisation admin). From 768px every role has a 248px left menu with the same items, 더 보기's rows listed directly (PR #136 and #139). Organisation choice and logout moved into 내 정보. The design rules' status list and feedback table moved to `design/DESIGN_STATUS.md` (PR #140, no screen change). No migration was added. The previous image's archive stays on the VM for rollback.
