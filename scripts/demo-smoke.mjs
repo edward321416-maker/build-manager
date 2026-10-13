@@ -168,9 +168,11 @@ async function browserChecks(origin, options, check) {
     } catch (error) {
       check(name, false, describe(error));
     } finally {
-      // Leave no demo session behind; the entry-only step never signed in, so there is nothing to wait for.
-      const signOut = page.getByRole("button", { name: "로그아웃", exact: true });
-      if (await signOut.isVisible().catch(() => false)) await signOut.click({ timeout: 5_000 }).catch(() => {});
+      // Leave no demo session behind. Since P5 the logout button sits in 내 정보, so submit the page's own logout form
+      // (the button does the same); the entry-only step never signed in and has no token, so nothing is sent.
+      const signOut = page.locator('form[action="/api/v2/session/logout"]');
+      const token = await signOut.locator('input[name="csrf"]').inputValue({ timeout: 1_000 }).catch(() => "");
+      if (token) await Promise.all([page.waitForResponse((response) => response.url().endsWith("/api/v2/session/logout"), { timeout: 5_000 }).catch(() => {}), signOut.evaluate((form) => form.submit()).catch(() => {})]);
       await context.close();
     }
   };
