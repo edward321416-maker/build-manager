@@ -95,7 +95,12 @@ No endpoint, database or server code changed.
   - test:e2e:vendor: 18/18 passed
   - design audit: 231 screens, 0 findings
 - The fix wave's test edits were saved before the e2e runs started, so those runs exercised them. The edited `usability.spec.ts` test passed. `ticket-communication.spec.ts` passed its edited lines and then failed later, at the known fixture step. The new 내 정보 check in `design.spec.ts` passed: the capture that follows it was written during the run.
-- CI: recorded on the PR.
+- CI: recorded on the PR. Two test-only fixes followed the first CI runs. Each got a local run and a delta review.
+  - Vendor T12-B01 failed in CI. The Vendor harness counted the 내 소속 field during the screen's own single-organisation choice, and P5 then moves that field into 내 정보. The harness now waits for the menu through `openTicketRow`. Local Vendor run: 18/18.
+  - Core `usability.spec.ts:138` failed in CI at its second run. P5 re-reads the to-do summaries while a request is open (before P5, tenants read them only with no request open, managers not at all), so that read can meet the cut session before the test's click.
+    - `clickAfterSessionLoss` in `presentation.ts` accepts either the click or the control already gone, and the sign-in assertions after it are unchanged.
+    - The same applies to `photos.spec.ts:33`, which failed once in four local repeats before the fix.
+    - After the fix, each test passed five local repeats.
 
 ## Known local failures
 

@@ -1,4 +1,4 @@
-import { expectSignedIn,openInspector,openTab } from "./presentation";
+import { clickAfterSessionLoss,expectSignedIn,openInspector,openTab } from "./presentation";
 import { test,expect,type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -140,7 +140,7 @@ test("a missing session during a nested ticket action clears protected content a
   await page.getByLabel("문제 설명").fill("합성 세션 안내 확인");await page.getByRole("button",{name:"접수하기",exact:true}).click();
   await expect(page.getByRole("region",{name:"지금 할 일: 추가 확인",exact:true}).getByTestId("refresh")).toBeVisible();
   await context.clearCookies(); // Real server401 after browser loses its session, without revoking a shared fixture code.
-  await page.getByTestId("refresh").click();
+  await clickAfterSessionLoss(page.getByTestId("refresh"));
   await expect(alerts(page)).toContainText("접속이 만료되었거나 코드가 유효하지 않아요");
   await expect(page.getByLabel("개발 접근 코드")).toBeVisible();
   await expect(page.getByTestId("ticket-heading")).toHaveCount(0);

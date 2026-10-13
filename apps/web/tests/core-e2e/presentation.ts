@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 export async function openInspector(page: Page) {
   await page.getByRole("button", { name: "업무 정보", exact: true }).click();
@@ -16,6 +16,14 @@ const mainMenu = (page: Page) => page.getByRole("navigation", { name: "주 메�
 /** P5: a signed-in /core shows the main menu. Before P5 the check waited for the logout button, now inside 내 정보. */
 export async function expectSignedIn(page: Page) {
   await expect(mainMenu(page)).toBeVisible();
+}
+/**
+ * Click an action right after the session is cut. P5 also re-reads the to-do summaries while a request is open, so
+ * that read may meet the lost session first and clear the screen; the control is then gone, which is also correct.
+ * Any other click failure still fails, because the control must then have disappeared.
+ */
+export async function clickAfterSessionLoss(target: Locator) {
+  await target.click({ timeout: 3000 }).catch(async () => { await expect(target).toHaveCount(0); });
 }
 /** On a phone a request or row screen hides the tab bar (rules 8.14); go back until the menu shows. */
 async function toFirstScreen(page: Page) {
