@@ -55,3 +55,7 @@
 ## 2026-10-13 — Plain names, Korean dates and larger tap targets
 
 - Redeployed the hosted demo from main `f5ff1ce` with the one name table for states, routes and policies from PR #123 (raw values and the old landlord term are gone), dates and times in the design rules section 14 format with folded repeat saves in the history from PR #125, Seoul time everywhere with the exact time next to `10분 전` from PR #127, and 50px tap targets for the `/core` controls the design audit found from PR #126 (the phone top menu links stay 40px tall by operator decision). No migration was added. The archive of the previous image was kept on the VM for rollback.
+
+## 2026-10-13 — Fuller first page, 해요체 and the join status check
+
+- Redeployed the hosted demo from main `48d2516` (image `8474bbb5b02c`, replacing `945841c9a81b`). It brings the first-visitor page rebuilt on the layout of the reference site the operator picked (PR #137, after PR #135 allowed copying a picked site's layout), text centred in buttons, tabs and labels with the design audit's `center` check (PR #128), 해요체 across `/core` and the Vendor job screen (PR #131), and a `/core/join` status check that no longer reads every saved request without an inspected invite (PR #134). The menu parts from PR #136 are included but not wired to any screen yet. No migration was added. The previous image's archive stays on the VM for rollback.
