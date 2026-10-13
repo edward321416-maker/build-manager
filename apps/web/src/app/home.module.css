@@ -66,7 +66,7 @@
 }
 .phoneTitle { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
 /* Two answers side by side; they stack once enlarged text no longer fits two (rules §12, 200%). */
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr)); gap: .625rem; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 5rem), 1fr)); gap: .625rem; }
 .tiles span {
   display: flex; align-items: center; justify-content: center; min-height: 3.125rem; padding: .9375rem;
   border: 1px solid var(--color-border-control); border-radius: .625rem; font-weight: 600; line-height: 1.25rem; text-align: center;
@@ -79,7 +79,7 @@
   border-radius: .625rem; background: var(--color-primary); color: var(--color-text-inverse); font-weight: 600; line-height: 1.25rem;
 }
 
-/* A drawn manager window: queue rows (from 1024px) beside the example ticket. */
+/* A drawn manager window: queue rows beside the example ticket once the window is 36rem or wider. */
 .window { container-type: inline-size; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .9375rem; }
 .windowBar {
   padding: .625rem .9375rem; border-bottom: 1px solid var(--color-border);
@@ -195,9 +195,9 @@
   .windowBody { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
   .queue { display: block; padding: 0 1.25rem; border-right: 1px solid var(--color-border); }
 }
-/* Where the phone covers the window's first 2.5rem, the rows start after the overlap. */
+/* Where the phone covers the window's first 2.5rem, the window's content (queue or ticket) starts after the overlap. */
 @media (min-width: 64em) {
-  .showcase .queue { padding-left: calc(2.5rem + 1.25rem); }
+  .showcase .windowBody { padding-left: 2.5rem; }
 }
 @media (min-width: 1440px) {
   .container { width: min(100% - 5rem, 82.5rem); }
