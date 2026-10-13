@@ -2,6 +2,9 @@
 /* Open-source notice: body text for the Korean line, caption size for the English licence (rules 3.2). */
 .notice { padding: 1.25rem; }
 .notice > * + * { margin-top: .625rem; }
+/* The repository link's own text is far short of 50px tall (rules §5); the padding grows its tap target without
+ * growing the visible underline (finding: design audit tap on the licence screen). */
+.sourceLink { display: inline-block; padding: 1.25rem 0; }
 .licenseText { color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; overflow-wrap: anywhere; }
 .licenseText > p + p { margin-top: .625rem; }
 @media (min-width: 768px) { .notice { padding: 1.875rem; } }
