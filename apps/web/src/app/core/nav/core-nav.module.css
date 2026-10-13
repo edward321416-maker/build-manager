@@ -1,0 +1,8 @@
+/* P5 navigation (design rules 3.2, 4, 6, 8.5, 8.10, 8.14, 8.15; spec docs/superpowers/specs/2026-10-13-navigation-shell-p5-design.md). */
+/* Open-source notice: body text for the Korean line, caption size for the English licence (rules 3.2). */
+.notice { padding: 1.25rem; }
+.notice > * + * { margin-top: .625rem; }
+.licenseText { color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; overflow-wrap: anywhere; }
+.licenseText > p + p { margin-top: .625rem; }
+@media (min-width: 768px) { .notice { padding: 1.875rem; } }
+@media (min-width: 1440px) { .notice { padding: 2.5rem; } }
