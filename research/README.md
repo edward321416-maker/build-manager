@@ -13,6 +13,7 @@
 | [ux/2026-10-10-ia-feature-audit-reference.md](ux/2026-10-10-ia-feature-audit-reference.md) | 기능 배치·메뉴 구조 점검 전 레퍼런스·연구 분석 |
 | [ux/2026-10-10-home-management-scope-owner-reporting.md](ux/2026-10-10-home-management-scope-owner-reporting.md) | 집 관리 범위, 건물주 보고·승인, 모바일 알림 채널 후속 연구 |
 | [ux/2026-10-10-menu-audit.md](ux/2026-10-10-menu-audit.md) | 기능 배치·메뉴 점검: 역할별 과업 걷기, 문제 목록과 심각도, 탭 구성 권고, 개선 순서 |
+| [ux/2026-10-14-feature-connection-gap-analysis.md](ux/2026-10-14-feature-connection-gap-analysis.md) | 기능 연결·누락 분석: 기능 사이에 끊긴 연결, 분쟁 통계·법정 관리 일, 추가·연결 후보와 순서 |
 | [interviews/landlord_guide.md](interviews/landlord_guide.md), [interviews/tenant_guide.md](interviews/tenant_guide.md) | 인터뷰 가이드 |
 
 ## 현재 근거 경계
