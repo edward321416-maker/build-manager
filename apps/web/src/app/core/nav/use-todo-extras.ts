@@ -21,6 +21,8 @@ export function useTodoExtras({ role, tickets, reads, revision }: { role: CoreRo
   const key = role && reads && targets && hasTodoReads(reads, targets) ? JSON.stringify([role, targets, Object.keys(reads).sort()]) : null;
   const [limiter] = useState(() => createReadLimiter(READ_LIMIT));
   const [state, setState] = useState<{ key: string; value: TodoExtras } | null>(null);
+  // Signed out: forget the last result, so the next sign-in on this screen (development sign-in reuses it) never shows it.
+  if (!role && state) setState(null);
   useEffect(() => {
     if (!key || !role || !reads) return;
     const run = new AbortController();

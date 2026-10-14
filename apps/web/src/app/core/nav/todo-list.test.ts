@@ -64,6 +64,15 @@ describe("to-do list (P5 spec §5)", () => {
     expect(Object.fromEntries(reasons(list))).toEqual({ visit: ["REPLY", "VISIT"], done: ["RESULT"] });
   });
 
+  it("keeps only 결과 확인 from the reads for a finished request, so a reason read before it finished does not linger", () => {
+    const manager = buildTodoList({ role: "ORG_ADMIN", summariesFailed: false, summaries: {},
+      tickets: [ticket("late", "COMPLETED", "APPROVED", sent())], extras: extras({ reasons: { late: ["OVERDUE", "VENDOR"] } }) });
+    expect(manager.items).toEqual([]);
+    const tenant = buildTodoList({ role: "TENANT", summariesFailed: false, summaries: {},
+      tickets: [ticket("done", "COMPLETED", "APPROVED", sent())], extras: extras({ reasons: { done: ["VISIT", "RESULT"] } }) });
+    expect(reasons(tenant)).toEqual([["done", ["RESULT"]]]);
+  });
+
   it("puts 기한 지남 right after urgent checks, before replies and decisions, and the Vendor check with the rest", () => {
     const list = buildTodoList({ role: "ORG_ADMIN", summariesFailed: false, summaries: summary("reply", "MANAGER"),
       tickets: [

@@ -61,8 +61,10 @@ export function buildTodoList({ role, tickets, summaries, summariesFailed, extra
   role: CoreRole; tickets: readonly CoreTicketDto[]; summaries: Readonly<Record<string, CoreCommunicationSummary>>; summariesFailed: boolean; extras?: TodoExtras;
 }): TodoList {
   const requests = tickets.flatMap((ticket): TodoTicketItem[] => {
-    const own = ticket.workStatus === "COMPLETED" ? [] : reasonsFor(role, ticket, summaries[ticket.ticketId]);
-    const reasons = [...new Set([...own, ...(extras.reasons[ticket.ticketId] ?? [])])].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+    const finished = ticket.workStatus === "COMPLETED", read = extras.reasons[ticket.ticketId] ?? [];
+    const own = finished ? [] : reasonsFor(role, ticket, summaries[ticket.ticketId]);
+    // The last read may predate the request finishing (it lands again only after the next read), so only 결과 확인 counts.
+    const reasons = [...new Set([...own, ...(finished ? read.filter(reason => reason === "RESULT") : read)])].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
     return reasons.length ? [{ kind: "ticket", ticketId: ticket.ticketId, unitId: ticket.unitId, issueType: ticket.detail.issueType, reasons, lastActivity: lastActivity(ticket) }] : [];
   });
   const links = extras.links.map((link): TodoLinkItem => ({ kind: "link", invitationId: link.invitationId, unitLabel: link.unitLabel, reasons: ["LINK"], lastActivity: link.requestedAt }));

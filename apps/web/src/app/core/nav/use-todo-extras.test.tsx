@@ -89,6 +89,22 @@ it("starts no more reads once the screen is gone", async () => {
   expect(held.calls).toHaveLength(4);
 });
 
+it("forgets the last result once signed out, so the next sign-in on the same screen never shows it", async () => {
+  const later = deferred(); let call = 0;
+  const reads: TodoReads = { outcome: async () => call++ === 0 ? { kind: "UNCONFIRMED" } as CoreTicketOutcome : later.promise };
+  await render({ role: "TENANT", tickets: [done("a")], reads, revision: 0 });
+  expect(seen.current?.reasons).toEqual({ a: ["RESULT"] });
+  await render({ role: null, tickets: [], reads: null, revision: 0 });
+  // Development sign-in reuses the screen: the next account's reads are new, its request IDs may be the same.
+  await render({ role: "TENANT", tickets: [done("a")], reads: { ...reads }, revision: 0 });
+  expect(call).toBe(2);
+  expect(seen.current).toMatchObject({ ready: false });
+  expect(seen.current?.reasons).toEqual({});
+  await act(async () => later.resolve("RESOLVED"));
+  expect(seen.current).toMatchObject({ ready: true });
+  expect(seen.current?.reasons).toEqual({});
+});
+
 it("keeps the earlier result while a changed set of requests is read, and says it is not ready yet", async () => {
   const later = deferred(); let call = 0;
   const reads: TodoReads = { outcome: async () => call++ === 0 ? { kind: "UNCONFIRMED" } as CoreTicketOutcome : later.promise };
