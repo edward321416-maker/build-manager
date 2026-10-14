@@ -9,6 +9,8 @@ export const metadata: Metadata = {
 };
 
 // Pretendard (design rules §3.1), dynamic subset: browsers download only the glyph ranges a page uses.
+// This stylesheet declares every face as font-family:'Pretendard Variable' (checked 2026-10-14, all 92 rules), so the
+// stacks in tokens.css/globals.css must name that face first — plain `Pretendard` alone never matched it.
 const PRETENDARD = "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css";
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

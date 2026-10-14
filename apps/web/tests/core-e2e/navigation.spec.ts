@@ -25,6 +25,18 @@ test("development sign-in gets the same menu without organisations or move-in li
   await expect(menu(page).getByText(/^(조직 관리자|건물 담당자)$/)).toBeVisible();
 });
 
+// Font-name fix (design rules §3.1): the CDN stylesheet layout.tsx loads declares every face as 'Pretendard Variable',
+// so the stack must name that face first for the web font to ever apply.
+test("Pretendard Variable loads from the CDN and the h1 uses it (font-name fix)", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 }); await login(page, tenantCode);
+  await page.evaluate(() => document.fonts.ready);
+  await expect.poll(async () => page.evaluate(() =>
+    [...document.fonts].some(face => face.family.replace(/^"|"$/g, "") === "Pretendard Variable" && face.status === "loaded")
+  ), { timeout: 15_000 }).toBe(true);
+  const h1Font = await page.getByRole("heading", { level: 1 }).evaluate(h => getComputedStyle(h).fontFamily);
+  expect(h1Font.replace(/^"|"$/g, "")).toMatch(/^Pretendard Variable/);
+});
+
 const bearer = (value: string) => ({ Authorization: `Bearer ${value}` });
 async function createOwn(page: Page, text: string) {
   const units = await (await page.request.get("/api/v2/core/units", { headers: bearer(tenantCode) })).json() as { id: string }[];
