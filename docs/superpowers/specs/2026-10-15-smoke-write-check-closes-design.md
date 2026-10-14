@@ -14,7 +14,7 @@
 `scripts/demo-smoke.mjs`만 바꾼다. 매시간 점검(`demo-health.yml`)은 `--http-only`라서 영향이 없다.
 
 1. 저장 단계(지금 있는 `write check saves a synthetic request before submission`)는 그대로 두고, 접수 응답(201)에서 그 접수의 `ticketId`를 읽어 둔다.
-2. 저장이 성공해 번호가 있을 때만 새 단계 `write check closes its synthetic request`를 돈다.
+2. 저장이 성공해 번호가 있을 때만 새 단계 두 개를 돈다: `write check closes its synthetic request as the manager`, 그리고 그것이 통과했을 때만 `write check confirms it as the tenant and it reads COMPLETED`(구현 때 한 단계를 역할별 두 줄로 나눔).
    - 관리자로 들어가(1280px, `관리자로 체험하기`) 페이지 안에서 앱과 같은 요청을 보낸다.
      - `GET /api/v2/core/access`로 조직 id와 CSRF 값을 받는다.
      - `POST /api/v2/core/tickets/{id}/handling`으로 `처리 시작`(`IN_PROGRESS`)과 `처리 완료`(`COMPLETED`)를 차례로 기록한다. 앞의 것이 200이 아니면 뒤의 것은 보내지 않는다.

@@ -216,6 +216,12 @@ describe("write check closes its own request", () => {
     expect(JSON.stringify(result)).not.toContain(CSRF);
   });
 
+  it("reports the work status the read-back gives, not an assumed one", async () => {
+    const fake = fakeFetch({ resolved: 201 }, { workStatus: "IN_PROGRESS" });
+    const result = await confirmAsTenant({ ticketId: TICKET, clientRequestId: "33333333-3333-4333-8333-333333333333" }, fake.impl as typeof fetch);
+    expect(result.workStatus).toBe("IN_PROGRESS");
+  });
+
   it("closes with messages the safety scan does not escalate", () => {
     for (const message of Object.values(WRITE_CHECK_CLOSE_MESSAGES)) expect(evaluateSafety({ rawText: message })).toMatchObject({ escalated: false, flags: [] });
   });
