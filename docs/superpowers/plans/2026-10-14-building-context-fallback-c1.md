@@ -445,6 +445,21 @@ Ask the operator before any demo deploy (DEV-04 IMPORTANT, DEV-12).
 
 ---
 
+### Task 5 (amendment): Manager responses for an unverified building
+
+Added on 2026-10-14 after the independent review of #147 found that the landlord passport schema turns every manager ticket response into a 503 once a fallback building has a request. Spec section "보완: 관리자 응답의 건물 칸"; the operator chose "이 PR에 같이 고치기 (추천)".
+
+**Files:**
+- Modify: `packages/api-contracts/src/building.ts` (new `UnverifiedBuildingDtoSchema`), `packages/api-contracts/src/ticket.ts` (`LandlordTicketDetailDtoSchema.building` becomes passport or unverified), `apps/web/src/server/http/presenters.ts` (`presentLandlordBuilding`)
+- Tests: `packages/api-contracts/src/contracts.test.ts`, `apps/web/src/server/http/presenters.test.ts`, `tests/postgres/core-building-context-fallback.test.ts` (manager list, detail and handling through `handleCoreFlow`)
+
+- [x] **Step 1:** Write the three tests and see them fail: the contract rejects the unverified building, the presenter throws a `ZodError`, and the HTTP list answers 503.
+- [x] **Step 2:** Add the schema and the presenter branch (only for a non-demo building with empty context), and see the tests pass.
+- [x] **Step 3:** Run every check in Task 4 Step 1 again, plus `npm run test:mobile` (the mobile app reads the same contract).
+- [x] **Step 4:** Update the acceptance record, research rows and PR body, then run a delta review in a fresh context on the change since `c15a19b`.
+
+---
+
 ## Self-Review
 
 - Spec coverage
