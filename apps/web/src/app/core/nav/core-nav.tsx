@@ -1,6 +1,6 @@
 "use client";
 import type { MouseEvent } from "react";
-import { accountLocation, isTenant, moreRows, navTabs, type NavContext, type NavIconName, type NavLocation } from "./nav-config";
+import { accountLocation, isTenant, moreRows, navTabs, VIEW_LABELS, type NavContext, type NavIconName, type NavLocation } from "./nav-config";
 import { navHref } from "./nav-location";
 import { NavIcon } from "./nav-icons";
 import styles from "./core-nav.module.css";
@@ -35,7 +35,7 @@ export function CoreNav({ ctx, location, badge, caption, onNavigate }: {
     </ul>
     <div className={styles.account} data-device="wide">
       <p className={styles.caption}>{caption}</p>
-      <ul className={styles.items}>{item("account", accountLocation(ctx.role), "내 정보", "user", accountCurrent)}</ul>
+      <ul className={styles.items}>{item("account", accountLocation(ctx.role), VIEW_LABELS.me, "user", accountCurrent)}</ul>
     </div>
   </nav>;
 }

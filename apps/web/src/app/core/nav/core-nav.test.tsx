@@ -2,7 +2,7 @@ import type { MouseEvent } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BackButton, CoreNav, plainClick } from "./core-nav";
-import { meRows, moreRows } from "./nav-config";
+import { meRows, moreRows, VIEW_LABELS } from "./nav-config";
 import { MenuList, TodoScreen, UnitsScreen } from "./nav-screens";
 
 const noop = () => undefined;
@@ -24,10 +24,12 @@ describe("main menu (rules 8.10, 8.14, 8.15, 12)", () => {
     expect(html.match(/data-filled="true"/g)).toHaveLength(1);
   });
 
-  it("puts 내 정보 in the tab bar on phones and in the account area on wide screens", () => {
+  it("puts MY in the tab bar on phones and in the account area on wide screens", () => {
     const html = nav("TENANT", { tab: "me", view: null });
-    expect(html).toMatch(/<li data-device="phone"><a href="\/core\?tab=me"/);
-    expect(html).toMatch(/data-device="wide"[^]*합성 조직 · 세입자[^]*href="\/core\?tab=me"/);
+    expect(html).toMatch(/<li data-device="phone"><a href="\/core\?tab=me"[^>]*><svg[^]*?<\/svg><span[^>]*>MY<\/span>/);
+    expect(html).toMatch(/data-device="wide"[^]*합성 조직 · 세입자[^]*href="\/core\?tab=me"[^>]*><svg[^]*?<\/svg><span[^>]*>MY<\/span>/);
+    // Managers reach the same account entry, under the same name, from the bottom of the left menu (rules 8.10).
+    expect(nav("ORG_ADMIN", { tab: "work", view: null })).toMatch(/href="\/core\?tab=more&amp;view=me"[^>]*><svg[^]*?<\/svg><span[^>]*>MY<\/span>/);
   });
 
   it("spreads a manager's 더 보기 rows into the left menu with their icons", () => {
@@ -62,9 +64,9 @@ describe("main menu (rules 8.10, 8.14, 8.15, 12)", () => {
 });
 
 describe("menu screens (rules 8.5, 8.11, 8.16)", () => {
-  it("lists 내 정보 rows with the organisation field and logout last", () => {
-    const html = renderToStaticMarkup(<MenuList label="내 정보" rows={meRows({ role: "TENANT", b1: true })} organization={<select aria-label="내 소속" />} onOpen={noop} onLogout={noop} />);
-    expect(html).toContain('aria-label="내 정보"');
+  it("lists MY rows with the organisation field and logout last", () => {
+    const html = renderToStaticMarkup(<MenuList label={VIEW_LABELS.me} rows={meRows({ role: "TENANT", b1: true })} organization={<select aria-label="내 소속" />} onOpen={noop} onLogout={noop} />);
+    expect(html).toContain('aria-label="MY"');
     expect(html).toContain('aria-label="내 소속"');
     expect(html.lastIndexOf("로그아웃")).toBeGreaterThan(html.lastIndexOf("오픈소스 라이선스"));
     expect(html).toContain('href="/core?tab=me&amp;view=licenses"');
@@ -87,7 +89,7 @@ describe("menu screens (rules 8.5, 8.11, 8.16)", () => {
   it("shows loading, empty, partial and filled to-do states", () => {
     const empty = { items: [], partial: false };
     expect(renderToStaticMarkup(<TodoScreen role="TENANT" list={empty} ready={false} units={[]} onOpen={noop} onRetry={noop} />)).toContain("불러오는 중이에요");
-    expect(renderToStaticMarkup(<TodoScreen role="TENANT" list={empty} ready units={[]} onOpen={noop} onRetry={noop} />)).toContain("지금 처리할 일이 없어요. 새 문제가 생기면 우리 집에서 접수해 주세요.");
+    expect(renderToStaticMarkup(<TodoScreen role="TENANT" list={empty} ready units={[]} onOpen={noop} onRetry={noop} />)).toContain("지금 처리할 일이 없어요. 새 문제가 생기면 홈에서 접수해 주세요.");
     expect(renderToStaticMarkup(<TodoScreen role="ORG_ADMIN" list={empty} ready units={[]} onOpen={noop} onRetry={noop} />)).toContain("지금 처리할 일이 없어요. 새 요청은 업무함에 들어와요.");
     const partial = renderToStaticMarkup(<TodoScreen role="TENANT" list={{ items: [], partial: true }} ready units={[]} onOpen={noop} onRetry={noop} />);
     expect(partial).toContain("일부를 확인하지 못했어요.");
@@ -102,7 +104,7 @@ describe("menu screens (rules 8.5, 8.11, 8.16)", () => {
     expect(filled).toContain('dateTime="2026-10-13T01:00:00Z"');
   });
 
-  it("locks every to-do row while the screen is busy or holds unsent photos, like the 내 요청 rows", () => {
+  it("locks every to-do row while the screen is busy or holds unsent photos, like the 요청 rows", () => {
     const list = { partial: false, items: (["t1", "t2"] as const).map(ticketId => ({ ticketId, unitId: "u1", issueType: "LEAK" as const, reasons: ["REPLY" as const], lastActivity: null })) };
     const rows = (html: string) => html.match(/<button[^>]*data-todo-ticket="[^"]*"[^>]*>/g) ?? [];
     const locked = rows(renderToStaticMarkup(<TodoScreen role="TENANT" list={list} ready units={[]} disabled onOpen={noop} onRetry={noop} />));

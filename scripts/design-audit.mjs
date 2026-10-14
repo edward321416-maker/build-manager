@@ -16,8 +16,9 @@
 //   center     text not in the middle of its button, link, tab, summary, option label or status label: the space above
 //              and below differs by 2px or more, or, in a box with a visible fill or border, the space left and right of
 //              any line does (rules §4). Rows read from the left only (summary rows, request-opening rows
-//              ([data-open-ticket]), to-do rows ([data-todo-ticket]), menu rows ([data-menu-row]), checkbox and radio
-//              rows, the sign-in column's sticky logout, and the sticky P5 left menu) are compared only top and bottom.
+//              ([data-open-ticket]), 홈 request rows ([data-home-card]), to-do rows ([data-todo-ticket]), menu rows
+//              ([data-menu-row]), checkbox and radio rows, the sign-in column's sticky logout, and the sticky P5 left
+//              menu) are compared only top and bottom.
 //   coverage   a requested engine did not start, or a screen that should exist could not be reached
 // Exit code 1 when any finding remains, so it can gate a design change.
 import { createRequire } from "node:module";
@@ -155,7 +156,7 @@ function inspect() {
   // the P5 left menu (sticky from 768px; the phone tab bar is fixed and stays centred). A selection tile (§8.3) is
   // marked data-tile and is centred both ways like a button.
   const mainMenu = el => el.closest('nav[aria-label="주 메뉴"]');
-  const leftStart = el => el.matches("summary, [data-open-ticket], [data-todo-ticket], [data-menu-row], .field-check label, label:has(input[type=checkbox], input[type=radio]):not([data-tile])")
+  const leftStart = el => el.matches("summary, [data-open-ticket], [data-home-card], [data-todo-ticket], [data-menu-row], .field-check label, label:has(input[type=checkbox], input[type=radio]):not([data-tile])")
     || (el.matches(".core-account .core-logout") && getComputedStyle(el.closest(".core-account")).position === "sticky")
     || (mainMenu(el) !== null && getComputedStyle(mainMenu(el)).position === "sticky");
   for (const el of new Set([...taps, ...[...document.querySelectorAll("body *")].filter(badge)])) {
@@ -247,11 +248,11 @@ try {
     if (!ticketCreated) { await browser.close(); continue; }
     for (const width of widths) {
       const t = await page(width, "tenant"); await audit(t, `${engine}-${width}-tenant-intake`);
-      // P5: the tenant's request list lives under 내 요청.
-      await t.goto(origin + "/core?tab=requests"); await t.getByRole("heading", { name: /^최근 접수/ }).waitFor({ timeout: 20000 }); await audit(t, `${engine}-${width}-tenant-requests`);
+      // P5: the tenant's request list lives under 요청.
+      await t.goto(origin + "/core?tab=requests"); await t.getByRole("region", { name: "진행 중", exact: true }).waitFor({ timeout: 20000 }); await audit(t, `${engine}-${width}-tenant-requests`);
       const open = t.locator(baseTicket ? `[data-ticket-id="${baseTicket}"] [data-open-ticket]` : "[data-open-ticket]").first();
       if (await open.count()) { await open.click(); await audit(t, `${engine}-${width}-tenant-ticket`); } else missing(`${engine}-${width}-tenant-ticket`, "no ticket row to open");
-      for (const [query, name, heading] of [["?tab=alerts", "tenant-alerts", "알림"], ["?tab=me", "tenant-me", "내 정보"], ["?tab=me&view=units", "tenant-units", "내 호실"], ["?tab=me&view=link", "tenant-link", "호실 연결"], ["?tab=me&view=licenses", "tenant-licenses", "오픈소스 라이선스"]]) {
+      for (const [query, name, heading] of [["?tab=alerts", "tenant-alerts", "알림"], ["?tab=me", "tenant-me", "MY"], ["?tab=me&view=units", "tenant-units", "내 호실"], ["?tab=me&view=link", "tenant-link", "호실 연결"], ["?tab=me&view=licenses", "tenant-licenses", "오픈소스 라이선스"]]) {
         await t.goto(origin + "/core" + query); await t.getByRole("heading", { level: 1, name: heading, exact: true }).waitFor({ timeout: 20000 });
         if (name === "tenant-alerts") await t.getByRole("region", { name: "처리할 일", exact: true }).waitFor({ timeout: 20000 });
         if (name === "tenant-link") await t.getByRole("button", { name: "연결 상태 새로고침", exact: true }).waitFor({ timeout: 20000 });
@@ -277,7 +278,7 @@ try {
       catch { missing(`${engine}-${width}-manager-filter-empty`, "the no-result filter message did not appear"); }
       await m.getByRole("combobox", { name: "긴급도 필터" }).selectOption("ALL");
       if (await row.count()) { await row.click(); await audit(m, `${engine}-${width}-manager-detail`); } else missing(`${engine}-${width}-manager-detail`, "no ticket row to open");
-      for (const [query, name, heading] of [["?tab=alerts", "manager-alerts", "알림"], ["?tab=more", "manager-more", "더 보기"], ["?tab=more&view=maintenance", "manager-maintenance", "호실 정비 이력"], ["?tab=more&view=invitations", "manager-onboarding", "입주 연결"], ["?tab=more&view=me", "manager-me", "내 정보"], ["?tab=more&view=licenses", "manager-licenses", "오픈소스 라이선스"]]) {
+      for (const [query, name, heading] of [["?tab=alerts", "manager-alerts", "알림"], ["?tab=more", "manager-more", "더 보기"], ["?tab=more&view=maintenance", "manager-maintenance", "호실 정비 이력"], ["?tab=more&view=invitations", "manager-onboarding", "입주 연결"], ["?tab=more&view=me", "manager-me", "MY"], ["?tab=more&view=licenses", "manager-licenses", "오픈소스 라이선스"]]) {
         try {
           await m.goto(origin + "/core" + query); await m.getByRole("heading", { level: 1, name: heading, exact: true }).waitFor({ timeout: 20000 });
           if (name === "manager-alerts") await m.getByRole("region", { name: "처리할 일", exact: true }).waitFor({ timeout: 20000 });

@@ -13,6 +13,9 @@ export function CoreLoginScreen({demoEntry=false}:{demoEntry?:boolean}={}){
  const [phase,setPhase]=useState<"loading"|"login"|"ready"|"unavailable"|"logout">("loading"),[error,setError]=useState("");
  const generation=useRef(0),logoutForm=useRef<HTMLFormElement>(null);
  const [logoutCsrf,setLogoutCsrf]=useState("");
+ // Set only by a manual 내 소속 choice (select), never by load()'s auto-select of a single organisation, so a plain
+ // sign-in never steals focus from the page body onto the new screen's title (final review of PR 139).
+ const [chosen,setChosen]=useState(false);
  const denied=useCallback(()=>{clearCommunicationRecovery();clearOutcomeRecovery();generation.current++;setScope(undefined);setAccess(null);setPhase("login");setError("세션이 만료되었거나 접근 권한이 변경됐어요. 다시 로그인하거나 소속을 확인해 주세요.");},[]);
  const scopedDenied=useCallback(()=>{if(scope?.generation===generation.current)denied();},[scope,denied]);
  const load=useCallback(async()=>{
@@ -36,6 +39,7 @@ export function CoreLoginScreen({demoEntry=false}:{demoEntry?:boolean}={}){
   document.addEventListener("visibilitychange",recheck);return()=>document.removeEventListener("visibilitychange",recheck);
  },[access,scope,denied]);
  const select=async(orgId:string)=>{
+  setChosen(true);
   clearCommunicationRecovery();clearOutcomeRecovery();
   // Another organisation may mean another role: start on that role's first tab, in place of this entry (rules 8.16).
   window.history.replaceState(null,"","/core");
@@ -46,8 +50,10 @@ export function CoreLoginScreen({demoEntry=false}:{demoEntry?:boolean}={}){
  };
  const logout=()=>{clearCommunicationRecovery();clearOutcomeRecovery();generation.current++;setScope(undefined);setAccess(null);setError("");setPhase("logout");logoutForm.current?.submit();};
  const current=access?.organizations.find(o=>o.id===scope?.orgId);
- // One 내 소속 field: in the sign-in column before an organisation is chosen, and in 내 정보 after (rules 8.16).
- const organizationField=access?.organizations.length?<><label><span className="core-org-label">내 소속</span><span className="core-org-field"><select aria-label="내 소속" value={scope?.orgId??""} onChange={e=>void select(e.target.value)}><option value="">소속을 선택해 주세요</option>{access.organizations.map(o=><option key={o.id} value={o.id}>{o.name} · {roleName(o.role)}</option>)}</select>{/* The current choice wraps in a select-like box, so a long organisation name is never cut. */}<span className="core-org-current" aria-hidden="true">{current?`${current.name} · ${roleName(current.role)}`:"소속을 선택해 주세요"}</span></span></label>
+ // One 내 소속 field: in the sign-in column before an organisation is chosen, and in MY after (rules 8.16). One
+ // organisation leaves nothing to choose, so it is its name as text (P5 spec §1, PR 1b).
+ const only=access?.organizations.length===1?access.organizations[0]:null;
+ const organizationField=only?<><span className="core-org-label">내 소속</span><strong className="core-org-name">{only.name} · {roleName(only.role)}</strong></>:access?.organizations.length?<><label><span className="core-org-label">내 소속</span><span className="core-org-field"><select aria-label="내 소속" value={scope?.orgId??""} onChange={e=>void select(e.target.value)}><option value="">소속을 선택해 주세요</option>{access.organizations.map(o=><option key={o.id} value={o.id}>{o.name} · {roleName(o.role)}</option>)}</select>{/* The current choice wraps in a select-like box, so a long organisation name is never cut. */}<span className="core-org-current" aria-hidden="true">{current?`${current.name} · ${roleName(current.role)}`:"소속을 선택해 주세요"}</span></span></label>
   {access.organizations.length>1?<p>소속을 바꾸면 저장하지 않은 입력과 사진 선택은 초기화돼요. 저장된 접수·사진은 해당 소속의 이력에 남아요.</p>:null}</>:null;
  return <div className="core-b1-shell" data-phase={phase} data-scoped={scope?"true":undefined}>
   {scope?null:<section className="page-shell core-flow core-account" aria-label="로그인과 내 소속">
@@ -67,7 +73,7 @@ export function CoreLoginScreen({demoEntry=false}:{demoEntry?:boolean}={}){
   </section>}
   <form ref={logoutForm} action="/api/v2/session/logout" method="post" hidden><input type="hidden" name="csrf" value={logoutCsrf}/></form>
   <div className="core-workspace">
-   {scope&&access&&current?<CoreFlowPage key={scope.orgId+scope.csrf} b1={scope} onDenied={scopedDenied} onLogout={logout} account={{caption:`${current.name} · ${roleName(current.role)}`,organization:organizationField,logout,
+   {scope&&access&&current?<CoreFlowPage key={scope.orgId+scope.csrf} b1={scope} onDenied={scopedDenied} onLogout={logout} focusTitle={chosen} account={{caption:`${current.name} · ${roleName(current.role)}`,organization:organizationField,logout,
     // Building staff have no move-in screen (spec D10); the tenant's 호실 연결 and the admin's 입주 연결 share the panel.
     linkPanel:current.role==="PROPERTY_STAFF"?undefined:<OnboardingPanel key={"onboarding-"+scope.orgId+access.csrf} embedded csrf={access.csrf} orgId={scope.orgId} manager={current.role==="ORG_ADMIN"} onRefreshAccess={()=>void load()} onDenied={denied}/>}}/>:null}
    {!scope&&phase==="ready"&&access?<OnboardingPanel key={"onboarding-none"+access.csrf} csrf={access.csrf} manager={false} onRefreshAccess={()=>void load()} onDenied={denied}/>:null}

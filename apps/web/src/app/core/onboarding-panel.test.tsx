@@ -61,3 +61,16 @@ describe("onboarding panel sections by role", () => {
     expect(html).toContain("아직 신청한 연결이 없어요");
   });
 });
+
+describe("onboarding panel inside the P5 menu", () => {
+  const props = { csrf: "c".repeat(64), orgId: "00000000-0000-4000-8000-00000000000a", onRefreshAccess: () => undefined, onDenied: () => undefined };
+  it("draws no second top bar and keeps its own refresh in the content", () => {
+    const html = renderToStaticMarkup(<OnboardingPanel {...props} manager embedded />);
+    expect(html).not.toContain("<header");
+    expect(html).toContain("연결 상태 새로고침");
+  });
+  it("on its own keeps its titled top bar", () => {
+    const html = renderToStaticMarkup(<OnboardingPanel {...props} manager={false} />);
+    expect(html).toMatch(/<header[^>]*><h1>호실 연결<\/h1>/);
+  });
+});

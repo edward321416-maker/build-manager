@@ -18,7 +18,7 @@
 .root p { max-width: 75ch; }
 .root small { font-size: .9375rem; line-height: 1.25rem; }
 .root :is(button,input,select,textarea,summary) { font: inherit; }
-.root :is(button,a,input,select,textarea,summary,h2[tabindex],[role="alert"]):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; scroll-margin-block: 1.25rem; }
+.root :is(button,a,input,select,textarea,summary,h1[tabindex],h2[tabindex],[role="alert"]):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; scroll-margin-block: 1.25rem; }
 .root button, .root :global(a.primary-button) { min-width: 3.125rem; min-height: 3.125rem; height: auto; max-width: 100%; padding: .625rem 1.25rem; border: 1px solid var(--color-border-strong); border-radius: .625rem; background: var(--color-surface); color: var(--color-text); font-size: .9375rem; font-weight: 600; line-height: 1.25rem; white-space: normal; overflow-wrap: anywhere; box-shadow: none; cursor: pointer; }
 .root button:hover:not(:disabled) { background: var(--color-fill-hover); }
 .root button.primary, .root :global(a.primary-button), .root :global(button.primary-button) { color: var(--color-text-inverse); background: var(--color-primary); border-color: var(--color-primary); }
@@ -45,7 +45,7 @@
 .root :is([role="status"],:global(.save-ok)) { color: var(--color-text); background: var(--color-fill-subtle); border-radius: .3125rem; padding: .625rem; }
 .heading { padding-bottom: 1.25rem; border-bottom: 1px solid var(--color-border); }
 .heading p { color: var(--color-text-readable); margin-top: .3125rem; }
-/* 우리 집 only: the building name beside the unit title is supplementary (rules 3.2 caption), not body text; at
+/* 홈 only: the building name beside the unit title is supplementary (rules 3.2 caption), not body text; at
  * body size the two-line title block left less than 6px before the header's bottom border (finding: design
  * audit). The title block is the header's tallest item, so it sits flush within it (rules 4 space-2) and the
  * added bottom margin becomes the real gap before the border, which a smaller line-height alone could not
@@ -200,9 +200,36 @@
 .tenantWorkspace { padding: 1.25rem; max-width: 50rem; margin-inline: auto; }
 .tenantWorkspace[data-detail="true"] { padding: 0; }
 .root .tenantHome > form { margin-top: 0; gap: 1.25rem; }
-.root .tenantRequests > h2 { display: flex; justify-content: space-between; align-items: center; gap: .625rem; }
-.root .tenantRequests > h2 small { color: var(--color-text-readable); font-weight: 400; }
+/* Fix round 1 (review): 진행 중인 요청 sits above the intake, so whatever follows it gets the section gap (rules
+ * §3.3/§4: 구역 사이 30px): the form, or in follow-up mode the follow-up context that leads that form (final review of
+ * PR 1b). Higher specificity than the rule above; the no-cards case and the form after the follow-up button keep
+ * margin-top: 0. */
+.root .tenantHome > .homeCards + * { margin-top: 1.875rem; }
+.root :is(.tenantRequests,.homeCards) h2 { display: flex; justify-content: space-between; align-items: center; gap: .625rem; }
+.root :is(.tenantRequests,.homeCards) h2 small { color: var(--color-text-readable); font-weight: 400; }
+.root .tenantRequests > section + section { margin-top: 1.875rem; }
+.root :is(.tenantRequests,.homeCards) > section > * + *, .root .homeCards > * + * { margin-top: .625rem; }
 .tenantHome > * + *, .tenantRequests > * + * { margin-top: 1.25rem; }
+/* P5 PR 1b (spec §4): the to-do line is a link shaped like a secondary button (rules 8.1); the in-progress requests are
+ * list rows (8.5), each one whole-row button like the 요청 and 알림 rows (operator decision 2026-10-14), never boxed
+ * cards (6.3). */
+/* Fix round 1 (review): `.root a:not(:global(.primary-button))` (:28, specificity 0,2,1) otherwise outranks a bare
+ * `.todoLine` class selector (0,2,0), which showed primary-blue underlined text instead of the secondary-button
+ * look. The `a` element raises this to the same 0,2,1; declared after :28, the tie resolves in its favour. Wrapped
+ * lines (200% text) stay centred like a button's (rules 4). */
+.root a.todoLine { display: inline-flex; align-items: center; justify-content: center; min-height: 3.125rem; padding: .625rem 1.25rem; border: 1px solid var(--color-border-strong); border-radius: .625rem; background: var(--color-surface); color: var(--color-text); font-size: .9375rem; line-height: 1.25rem; font-weight: 600; letter-spacing: -0.01em; text-align: center; text-decoration: none; }
+.root a.todoLine:hover { background: var(--color-fill-hover); }
+.root .homeCards > ul { list-style: none; padding: 0; border-top: 1px solid var(--color-border); }
+.root .homeCards > ul > li { margin: 0; border-bottom: 1px solid var(--color-border); }
+/* The row button (8.5): no box, 15px above and below, text from the left. Hover is `.root button:hover` (fill-hover)
+ * and disabled is `.root button:disabled` (2.4: fill-subtle, text-secondary), both more specific than this rule. The
+ * title line is the subheading style through .ticketTitle; the next step stays body text. */
+.root .homeRow { display: grid; gap: .3125rem; width: 100%; min-height: 3.125rem; padding-block: .9375rem; border: 0; border-radius: 0; background: transparent; text-align: left; font-weight: 400; line-height: 1.5625rem; letter-spacing: -0.01em; }
+.root .cardTitle { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; margin: 0; }
+/* Reserves one line of height (the row's own line-height token) while the next step is not confirmed yet, so an empty
+ * span does not collapse the row and shift whatever sits below it (CI fix: PR 143 finding B2). */
+.root .cardNext { margin: 0; min-height: 1.5625rem; color: var(--color-text-readable); }
+.root .moreLink { display: inline-flex; align-items: center; min-height: 3.125rem; }
 .root .issueChoice { display: flex; border: 0; padding: 0; margin: 0; gap: .625rem; }
 .issueChoice legend { margin-bottom: .625rem; font-size: .9375rem; }
 .root .issueChoice label { position: relative; display: flex; align-items: center; justify-content: center; flex: 1; gap: .625rem; min-height: 3.125rem; border: 1px solid var(--color-border-control); border-radius: .625rem; cursor: pointer; transition: background-color var(--motion-fast) var(--ease); }
@@ -356,3 +383,5 @@
 .root :global(.core-b1-shell[data-scoped="true"]) { grid-template-columns: minmax(0,1fr); }
 /* A sub-screen's top bar title is a subheading (rules 8.10); first screens keep their page title. */
 .root .heading[data-sub="true"] h1 { font-size: .9375rem; line-height: 1.5625rem; font-weight: 600; letter-spacing: -0.01em; }
+/* From 768px a screen the left menu lists is a first screen (rules 8.10), so its title matches 업무함's and 알림's. */
+@media (min-width: 768px) { .root .heading[data-menu-screen="true"] h1 { font-size: 1.25rem; line-height: 1.875rem; font-weight: 700; letter-spacing: -0.02em; } }

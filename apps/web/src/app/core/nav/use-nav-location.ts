@@ -22,15 +22,22 @@ const subscribe = (notify: () => void) => {
   return () => { window.removeEventListener("popstate", notify); window.removeEventListener(NAV_EVENT, notify); };
 };
 
+// The address the open request's entry was pushed over: the screen it was opened from. Kept in memory only, never in
+// `history.state` (which stays boolean-only — `coreNav`/`detail`), so leaving through that same screen's own menu
+// item can step back to it instead of stacking an identical copy, however the request was opened — its own tab, a
+// manager's 알림 to-do, or 호실 정비 이력 (fix round 1, review 2026-10-13: the earlier `samePlace` state mark covered
+// only a request opened over its own tab, not one opened from a different screen like 알림).
+let detailOrigin: string | null = null;
 /** Marks the open request with one history entry, so browser back closes it; a manager's request opens in 업무함. */
 export function showDetailEntry(tab?: TabId) {
   if (entry().detail) return;
+  detailOrigin = here();
   write("push", { coreNav: true, detail: true }, tab ? navHref({ tab, view: null }) : here());
 }
 /** Drops the request mark from the current entry when the request closed some other way, without a new entry. */
 export function hideDetailEntry() {
   const current = entry();
-  if (current.detail) write("replace", current.coreNav ? { coreNav: true } : {}, here());
+  if (current.detail) { detailOrigin = null; write("replace", current.coreNav ? { coreNav: true } : {}, here()); }
 }
 export const detailEntryOnTop = () => Boolean(entry().detail);
 
@@ -52,9 +59,17 @@ export function useNavLocation(ctx: NavContext | null, onPop: (detail: boolean) 
   /** A menu link: a new history entry; tapping the current first screen again scrolls it to the top (rules 8.14).
    * With a request entry on top, this REPLACES it instead of pushing: a push would leave a stale duplicate of the
    * target behind the request's own entry, so one browser back after the move would land on that duplicate and show
-   * the same screen again before a second back reaches the real previous screen (finding: review 2026-10-13). */
+   * the same screen again before a second back reaches the real previous screen (finding: review 2026-10-13).
+   * Moving to the place the request was opened from (`detailOrigin`) steps back instead, however it was opened —
+   * its own tab, a manager's 알림 to-do, or 호실 정비 이력 (fix round 1). */
   const go = useCallback((next: NavLocation) => {
-    if (entry().detail) write("replace", { coreNav: true }, navHref(next));
+    const top = entry();
+    if (top.detail && detailOrigin !== null && navHref(next) === detailOrigin) {
+      // The screen below is the one the request was opened from: step back to it, then show its top (rules 8.14).
+      const toTop = () => { window.removeEventListener("popstate", toTop); window.scrollTo({ top: 0 }); };
+      window.addEventListener("popstate", toTop); window.history.back(); return;
+    }
+    if (top.detail) write("replace", { coreNav: true }, navHref(next));
     else if (!sameLocation(next, location)) write("push", { coreNav: true }, navHref(next));
     window.scrollTo({ top: 0 });
   }, [location]);

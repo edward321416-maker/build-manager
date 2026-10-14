@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
-import { sdkSession } from "./session";
+import { sdkSession, twoOrgSession } from "./session";
 
 // P5 (docs/superpowers/specs/2026-10-13-navigation-shell-p5-design.md): tab bar up to 767px, left menu from 768px.
 const menu = (page: Page) => page.getByRole("navigation", { name: "주 메뉴", exact: true });
@@ -16,8 +16,8 @@ test("phone tab bar: tabs, current mark, badge, re-tap to top, request screens w
     expect(made.status()).toBe(201); const id = (await made.json()).ticketId as string;
     const page = await tenant.context.newPage(); await page.setViewportSize({ width: 390, height: 844 }); await page.goto("/core");
     await expect(page).toHaveURL(/\/core\?tab=home$/);
-    await expect(menu(page).getByRole("link")).toHaveText(["우리 집", "내 요청", /^알림/, "내 정보"]);
-    await expect(link(page, "우리 집")).toHaveAttribute("aria-current", "page");
+    await expect(menu(page).getByRole("link")).toHaveText(["홈", "요청", /^알림/, "MY"]);
+    await expect(link(page, "홈")).toHaveAttribute("aria-current", "page");
     const bar = (await menu(page).boundingBox())!;
     expect(round(bar.height)).toBe(56); expect(round(bar.y + bar.height)).toBe(844);
     expect(new Set(await menu(page).getByRole("link").evaluateAll(els => els.map(el => Math.round(el.getBoundingClientRect().width)))).size).toBe(1);
@@ -27,9 +27,9 @@ test("phone tab bar: tabs, current mark, badge, re-tap to top, request screens w
     expect(footer.y + footer.height).toBeLessThanOrEqual(bar.y + 1);
     // Tapping the current tab again goes to the top.
     await page.evaluate(() => { document.body.style.minHeight = "3000px"; scrollTo(0, 600); });
-    await link(page, "우리 집").click(); await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+    await link(page, "홈").click(); await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
     // Keyboard: Tab walks the bar in order and Enter opens the tab.
-    await link(page, "우리 집").focus(); await page.keyboard.press("Tab"); await expect(link(page, "내 요청")).toBeFocused();
+    await link(page, "홈").focus(); await page.keyboard.press("Tab"); await expect(link(page, "요청")).toBeFocused();
     await page.keyboard.press("Enter"); await expect(page).toHaveURL(/tab=requests$/);
     // The badge sits 19 right and 5 above the icon, and its count is the number of to-do rows (rules 8.15).
     const alerts = link(page, /^알림, 처리할 일 \d+건$/); await expect(alerts).toBeVisible();
@@ -63,20 +63,20 @@ test("left menu from 768px: 248px, 더 보기 rows spread with icons, account ar
     for (const width of [768, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       expect(round((await menu(page).boundingBox())!.width)).toBe(248);
-      await expect(menu(page).getByRole("link")).toHaveText(["업무함", /^알림/, "호실 정비 이력", "입주 연결", "건물·호실 관리", "내 정보"]);
+      await expect(menu(page).getByRole("link")).toHaveText(["업무함", /^알림/, "호실 정비 이력", "입주 연결", "건물·호실 관리", "MY"]);
       expect(round((await link(page, "업무함").boundingBox())!.height)).toBe(50);
       await expect(menu(page).getByText(/ · 조직 관리자$/)).toBeVisible();
     }
     await link(page, "호실 정비 이력").click(); await expect(page).toHaveURL(/tab=more&view=maintenance$/);
     await expect(link(page, "호실 정비 이력")).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("button", { name: "뒤로", exact: true })).toBeHidden();
-    await link(page, "내 정보").click(); await expect(page.getByRole("heading", { level: 1, name: "내 정보" })).toBeVisible();
-    const account = page.getByRole("region", { name: "내 정보", exact: true });
-    await expect(account.getByLabel("내 소속", { exact: true })).toBeVisible();
+    await link(page, "MY").click(); await expect(page.getByRole("heading", { level: 1, name: "MY", exact: true })).toBeVisible();
+    const account = page.getByRole("region", { name: "MY", exact: true });
+    await expect(account.getByText("내 소속", { exact: true })).toBeVisible(); await expect(account.getByRole("combobox")).toHaveCount(0);
     await account.getByRole("link", { name: "오픈소스 라이선스", exact: true }).click();
     await expect(page.getByText("Copyright (c) 2020-2026 Paweł Kuna")).toBeVisible();
     await expect(page.getByRole("button", { name: "뒤로", exact: true })).toBeVisible();
-    await expect(link(page, "내 정보")).toHaveAttribute("aria-current", "page");
+    await expect(link(page, "MY")).toHaveAttribute("aria-current", "page");
     await page.getByRole("button", { name: "뒤로", exact: true }).click(); await expect(page).toHaveURL(/tab=more&view=me$/);
     await link(page, "건물·호실 관리").click(); await expect(page).toHaveURL(/\/workspace$/);
   } finally { await manager.close(); }
@@ -102,7 +102,7 @@ test("a manager's to-do opens in 업무함 and browser back returns to 알림", 
 });
 
 test("the address keeps the menu place, wrong places fall back, and an organisation change starts on the first tab", async ({ browser }) => {
-  const tenant = await sdkSession(browser), two = await sdkSession(browser, "none");
+  const tenant = await sdkSession(browser), two = await twoOrgSession(browser);
   try {
     const page = await tenant.context.newPage(); await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/core"); await expect(page).toHaveURL(/\/core\?tab=home$/); await page.reload(); await expect(page).toHaveURL(/\/core\?tab=home$/);
@@ -111,14 +111,13 @@ test("the address keeps the menu place, wrong places fall back, and an organisat
     await page.goto("/core?tab=me&view=licenses"); await expect(page.getByText("Copyright (c) 2020-2026 Paweł Kuna")).toBeVisible();
     await expect(menu(page)).toBeHidden();
     await page.getByRole("button", { name: "뒤로", exact: true }).click(); await expect(page).toHaveURL(/\/core\?tab=me$/);
-    await expect(page.getByRole("region", { name: "내 정보", exact: true })).toBeVisible();
-    // An account in two organisations: switching from 내 정보 lands on that role's first tab (rules 8.16).
-    const actor = (await two.admin.query("SELECT authn.current_actor($1) AS id", [two.digest])).rows[0].id;
-    for (const org of [two.fixture.orgA, two.fixture.orgB]) await two.admin.query("INSERT INTO app.organization_membership(org_id,user_id,role,status) VALUES($1,$2,'ORG_ADMIN','ACTIVE')", [org, actor]);
+    await expect(page.getByRole("region", { name: "MY", exact: true })).toBeVisible();
+    // An account in two organisations: switching from MY lands on that role's first tab (rules 8.16).
     const admin = await two.context.newPage(); await admin.setViewportSize({ width: 1280, height: 900 }); await admin.goto("/core");
     await admin.getByLabel("내 소속", { exact: true }).selectOption(two.fixture.orgA); await expect(link(admin, "업무함")).toHaveAttribute("aria-current", "page");
-    await link(admin, /^알림/).click(); await link(admin, "내 정보").click();
-    await admin.getByRole("region", { name: "내 정보", exact: true }).getByLabel("내 소속", { exact: true }).selectOption(two.fixture.orgB);
+    await link(admin, /^알림/).click(); await link(admin, "MY").click();
+    await admin.getByRole("region", { name: "MY", exact: true }).getByLabel("내 소속", { exact: true }).selectOption(two.fixture.orgB);
     await expect(admin).toHaveURL(/\/core\?tab=work$/); await expect(link(admin, "업무함")).toHaveAttribute("aria-current", "page");
+    await expect(admin.getByRole("heading", { level: 1, name: "업무함" })).toBeFocused();
   } finally { await tenant.close(); await two.close(); }
 });

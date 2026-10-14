@@ -1,7 +1,7 @@
 import { openAccount,openConversation,openTicketRow } from "../core-e2e/presentation";
 import { test,expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
-import { sdkSession,base } from "./session";
+import { sdkSession,twoOrgSession,base } from "./session";
 
 test("B1 SDK public conversation keeps exact Origin, CSRF, organization and own-receipt boundaries",async({browser})=>{
   const tenant=await sdkSession(browser),manager=await sdkSession(browser,"manager"),peer=await sdkSession(browser,"tenantPeer"),other=await sdkSession(browser,"otherManager");
@@ -26,9 +26,9 @@ test("B1 SDK public conversation keeps exact Origin, CSRF, organization and own-
 });
 
 test("B1 organization change, session replacement and POST logout clear non-body recovery without auto-submit",async({browser})=>{
-  const manager=await sdkSession(browser,"manager");
+  const manager=await twoOrgSession(browser);
   try{
-    const page=await manager.context.newPage();await page.goto("/core");await openAccount(page);await expect(page.getByLabel("내 소속",{exact:true})).toBeVisible();
+    const page=await manager.context.newPage();await page.goto("/core");await page.getByLabel("내 소속",{exact:true}).selectOption(manager.fixture.orgA);await openAccount(page);await expect(page.getByLabel("내 소속",{exact:true})).toBeVisible();
     const value={ticketId:randomUUID(),clientRequestId:randomUUID(),expectedVersion:0,intent:"MANAGER_UPDATE"};
     const put=()=>page.evaluate(v=>{sessionStorage.setItem("core-communication-request:"+v.ticketId,JSON.stringify(v));sessionStorage.setItem("core-outcome-request:"+v.ticketId,JSON.stringify({sourceTicketId:v.ticketId,clientRequestId:v.clientRequestId,claimKind:"RESOLVED"}));},value);
     const count=()=>page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith("core-communication-request:")||k.startsWith("core-outcome-request:")).length);

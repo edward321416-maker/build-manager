@@ -63,7 +63,7 @@ export async function ticket(f: Fixture, route = 'GENERAL_VENDOR', text = 'Task1
 }
 export async function openTicket(page: Page, id: string, manager = false) {
   await safeGoto(page, '/core', 'open Core');
-  // The screen picks a single organisation itself, and 내 소속 then moves into 내 정보 (P5); openTicketRow waits for the menu that follows.
+  // The screen picks a single organisation itself, and 내 소속 then moves into MY (P5); openTicketRow waits for the menu that follows.
   await openTicketRow(page, id);
   if (manager) await page.getByRole('button', { name: '업무 정보', exact: true }).click();
 }

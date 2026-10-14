@@ -13,7 +13,7 @@ export async function openConversation(page: Page) {
 }
 
 const mainMenu = (page: Page) => page.getByRole("navigation", { name: "주 메뉴", exact: true });
-/** P5: a signed-in /core shows the main menu. Before P5 the check waited for the logout button, now inside 내 정보. */
+/** P5: a signed-in /core shows the main menu. Before P5 the check waited for the logout button, now inside MY. */
 export async function expectSignedIn(page: Page) {
   await expect(mainMenu(page)).toBeVisible();
 }
@@ -49,14 +49,14 @@ export async function openMoreRow(page: Page, name: string) {
   await openTab(page, "더 보기");
   await page.getByRole("region", { name: "더 보기", exact: true }).getByRole("link", { name, exact: true }).click();
 }
-/** Opens 내 정보: the tenant's tab or the wide account item, else 더 보기 › 내 정보 on a manager's phone. */
+/** Opens MY: the tenant's tab or the wide account item, else 더 보기 › MY on a manager's phone. */
 export async function openAccount(page: Page) {
-  await openMoreRow(page, "내 정보");
+  await openMoreRow(page, "MY");
 }
-/** Opens a request row on the current screen, or from 내 요청, where the tenant's list lives since P5. */
+/** Opens a request row on the current screen, or from 요청, where the tenant's list lives since P5. */
 export async function openTicketRow(page: Page, id: string) {
   await toFirstScreen(page);
-  const requests = mainMenu(page).getByRole("link", { name: "내 요청", exact: true });
+  const requests = mainMenu(page).getByRole("link", { name: "요청", exact: true });
   if (await requests.count() && await requests.getAttribute("aria-current") !== "page") await requests.click();
   await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();
 }

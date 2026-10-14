@@ -18,3 +18,12 @@ export async function sdkSession(browser:Browser,who="tenant",context?:BrowserCo
  const admin=new Client(state.admin);await admin.connect();
  return{context:ctx,headers,account,fixture:saved.fixture,csrf,cookie,digest:createHash("sha256").update(handle).digest(),admin,async close(){await admin.end();if(!context)await ctx.close();}};
 }
+
+/** An account in organisations A and B with one role (P5 PR 1b): one organisation shows only its name, so checks of the
+ * 내 소속 choice need two. */
+export async function twoOrgSession(browser:Browser,role:"ORG_ADMIN"|"PROPERTY_STAFF"|"TENANT"="ORG_ADMIN"){
+ const session=await sdkSession(browser,"none");
+ const actor=(await session.admin.query("SELECT authn.current_actor($1) AS id",[session.digest])).rows[0].id;
+ for(const org of [session.fixture.orgA,session.fixture.orgB])await session.admin.query("INSERT INTO app.organization_membership(org_id,user_id,role,status) VALUES($1,$2,$3,'ACTIVE')",[org,actor,role]);
+ return session;
+}

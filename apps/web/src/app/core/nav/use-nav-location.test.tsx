@@ -20,7 +20,10 @@ async function mount(ctx: NavContext, onPop = vi.fn()) {
   await act(async () => root!.render(<Probe ctx={ctx} onPop={onPop} api={api} />));
   return { api, onPop, shown: () => [host!.querySelector("p")!.dataset.tab, host!.querySelector("p")!.dataset.view] };
 }
-beforeEach(() => { window.history.replaceState(null, "", "/core"); vi.spyOn(window, "scrollTo").mockImplementation(() => undefined); });
+// A push drops any forward entries a previous test's real `history.back()` left dangling past the pointer (fix round
+// 1, review 2026-10-13): without this, a later test's `history.length`-relative `before` baseline can silently count
+// a dangling entry that the next push then absorbs instead of growing the stack, failing under test-order shuffling.
+beforeEach(() => { window.history.pushState(null, "", "/core"); window.history.replaceState(null, "", "/core"); vi.spyOn(window, "scrollTo").mockImplementation(() => undefined); });
 afterEach(async () => { if (root) await act(async () => root?.unmount()); root = undefined; host?.remove(); vi.restoreAllMocks(); });
 
 it("corrects a bare or wrong address in place to the role's first tab", async () => {
@@ -95,4 +98,44 @@ it("reports a browser back with the entry's request mark and re-reads the addres
   window.history.replaceState({ coreNav: true, detail: true }, "", "/core?tab=work");
   await act(async () => { window.dispatchEvent(new PopStateEvent("popstate")); });
   expect(view.onPop).toHaveBeenLastCalledWith(true);
+});
+
+it("leaving a request through its own place's menu item steps back to that place instead of stacking a copy", async () => {
+  window.history.replaceState({ coreNav: true }, "", "/core?tab=requests");
+  const view = await mount(tenant);
+  await act(async () => showDetailEntry());
+  expect(window.history.state).toEqual({ coreNav: true, detail: true });
+  await act(async () => view.api.current!.go({ tab: "requests", view: null }));
+  // The step-back defers to the eventual popstate (rules 8.14): right after the call, nothing has happened yet.
+  expect(window.scrollTo).not.toHaveBeenCalled();
+  expect(window.history.state).toEqual({ coreNav: true, detail: true });
+  const popped = new Promise(resolve => window.addEventListener("popstate", resolve, { once: true }));
+  await act(async () => { await popped; });
+  expect(window.history.state).toEqual({ coreNav: true });
+  expect(window.location.search).toBe("?tab=requests");
+  expect(window.scrollTo).toHaveBeenCalledWith({ top: 0 });
+});
+
+it("a manager's request opened from 알림 also steps back to it instead of stacking a copy (fix round 1)", async () => {
+  window.history.replaceState({ coreNav: true }, "", "/core?tab=alerts");
+  const view = await mount(admin);
+  await act(async () => showDetailEntry("work"));
+  expect(window.history.state).toEqual({ coreNav: true, detail: true });
+  expect(window.location.search).toBe("?tab=work");
+  const popped = new Promise(resolve => window.addEventListener("popstate", resolve, { once: true }));
+  await act(async () => view.api.current!.go({ tab: "alerts", view: null }));
+  await act(async () => { await popped; });
+  expect(window.history.state).toEqual({ coreNav: true });
+  expect(window.location.search).toBe("?tab=alerts");
+});
+
+it("a manager's request opened from 알림 replaces its entry when moving to 업무함, keeping 알림 behind it", async () => {
+  window.history.replaceState({ coreNav: true }, "", "/core?tab=alerts");
+  const view = await mount(admin), before = window.history.length;
+  await act(async () => showDetailEntry("work"));
+  expect(window.history.state).toEqual({ coreNav: true, detail: true });
+  await act(async () => view.api.current!.go({ tab: "work", view: null }));
+  expect(window.history.length).toBe(before + 1);
+  expect(window.history.state).toEqual({ coreNav: true });
+  expect(window.location.search).toBe("?tab=work");
 });

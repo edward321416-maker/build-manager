@@ -1,0 +1,124 @@
+import { test, expect, type Page } from "@playwright/test";
+import sharp from "sharp";
+import { accessCodes, mintOwnSession } from "./own-session";
+import { openTab } from "./presentation";
+
+// P5 PR 1b (docs/superpowers/specs/2026-10-13-navigation-shell-p5-design.md §4): 홈's to-do line and in-progress
+// requests, 요청 in two groups, and why request rows wait while photos are picked.
+let code = "";
+test.beforeAll(async () => { code = await mintOwnSession("tenant"); });
+// A list read can still be in flight when a test ends; drop it instead of failing on a route that outlived the test.
+test.afterEach(async ({ page }) => { await page.unrouteAll({ behavior: "ignoreErrors" }); });
+const bearer = (value: string) => ({ Authorization: `Bearer ${value}` });
+const menu = (page: Page) => page.getByRole("navigation", { name: "주 메뉴", exact: true });
+const pendingHint = "고른 사진이 있어서 요청을 열 수 없어요. 접수하거나 사진 선택을 취소해 주세요.";
+const png = () => sharp({ create: { width: 64, height: 48, channels: 3, background: "#759cac" } }).png().toBuffer();
+async function login(page: Page) {
+  await page.goto("/core"); await page.getByLabel("개발 접근 코드").fill(code);
+  await page.getByRole("button", { name: "들어가기", exact: true }).click(); await expect(menu(page)).toBeVisible();
+}
+/** Lists only the requests this test made. The shared fixture keeps every other file's requests, which would change the
+ * order; a controlled list exercises the screen, not persistence (as usability.spec.ts does). */
+async function onlyMine(page: Page, mine: string[]) {
+  await page.route("**/api/v2/core/tickets", async route => {
+    if (route.request().method() !== "GET") return route.continue();
+    const response = await route.fetch(), all = await response.json() as { ticketId: string }[];
+    await route.fulfill({ response, json: all.filter(ticket => mine.includes(ticket.ticketId)) });
+  });
+}
+async function create(page: Page, text: string) {
+  const units = await (await page.request.get("/api/v2/core/units", { headers: bearer(code) })).json() as { id: string }[];
+  const response = await page.request.post("/api/v2/core/tickets", { headers: bearer(code), data: { unitId: units[0].id, issueType: "LEAK", rawUserText: text } });
+  expect(response.status()).toBe(201); return (await response.json() as { ticketId: string }).ticketId;
+}
+
+test("홈 shows three in-progress requests with their next step, the to-do line and a way to all of them", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mine: string[] = []; await onlyMine(page, mine);
+  for (const n of [1, 2, 3, 4]) mine.push(await create(page, `합성 홈 진행 중 요청 ${n}`));
+  await login(page);
+  const going = page.getByRole("region", { name: "진행 중인 요청", exact: true }), cards = going.locator("[data-home-card]");
+  // All four are drafts, so the to-do order is newest first (spec §4: to-dos first, then the most recent).
+  await expect(cards).toHaveCount(3);
+  expect(await cards.evaluateAll(rows => rows.map(row => row.getAttribute("data-home-card")))).toEqual([mine[3], mine[2], mine[1]]);
+  await expect(cards.first()).toContainText("아직 보내지 않았어요. 열어서 제출해 주세요.");
+  await expect(going.getByRole("heading", { level: 2 })).toHaveText("진행 중인 요청 4건");
+  const line = page.getByRole("link", { name: "처리할 일 4건 · 알림에서 보기", exact: true });
+  await expect(line).toBeVisible();
+  await going.getByRole("link", { name: "요청에서 모두 보기", exact: true }).click();
+  await expect(page).toHaveURL(/tab=requests$/);
+  // The link sat in 홈, which is hidden now: the new screen's title takes the focus (final review of PR 1b).
+  await expect(page.getByRole("heading", { level: 1, name: "요청", exact: true })).toBeFocused();
+  await expect(page.getByRole("region", { name: "진행 중", exact: true }).locator("[data-ticket-id]")).toHaveCount(4);
+  await openTab(page, "홈"); await line.click(); await expect(page).toHaveURL(/tab=alerts$/);
+  // The whole row is the button (rules 8.5, operator decision 2026-10-14).
+  await openTab(page, "홈"); await cards.first().click();
+  await expect(page.getByTestId("ticket-heading")).toBeVisible();
+  await page.getByRole("button", { name: "뒤로", exact: true }).click(); await expect(cards).toHaveCount(3);
+  // Exactly three: every one shows, so no link to all of them (HOME_CARD_LIMIT is a `>` bound, not `>=`).
+  mine.splice(0, 1); await page.getByRole("navigation", { name: "접속 및 새로고침" }).getByRole("button", { name: "새로고침", exact: true }).click();
+  await expect(going.getByRole("heading", { level: 2 })).toHaveText("진행 중인 요청 3건"); await expect(cards).toHaveCount(3);
+  await expect(going.getByRole("link", { name: "요청에서 모두 보기", exact: true })).toHaveCount(0);
+});
+
+test("홈 shows rows before the conversation read lands and adds the next step only once it does (CI fix: PR 143 finding B2)", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mine: string[] = []; await onlyMine(page, mine);
+  mine.push(await create(page, "합성 지연된 대화 읽기"));
+  let release = () => {};
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route(/\/api\/v2\/core\/communication-summaries(\?|$)/, async route => { await held; await route.continue(); });
+  await login(page);
+  const going = page.getByRole("region", { name: "진행 중인 요청", exact: true }), cards = going.locator("[data-home-card]");
+  await expect(cards).toHaveCount(1);
+  await expect(going).toHaveAttribute("aria-busy", "true");
+  await expect(cards.first()).not.toContainText(/아직 보내지 않았어요|관리자가 확인하고 있어요|처리 중이에요/);
+  release();
+  await expect(going).not.toHaveAttribute("aria-busy", "true");
+  await expect(cards.first()).toContainText("아직 보내지 않았어요. 열어서 제출해 주세요.");
+});
+
+test("홈 keeps the rows but states no next step when the conversation states cannot be read", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mine: string[] = []; await onlyMine(page, mine);
+  mine.push(await create(page, "합성 대화 상태를 읽지 못한 요청"));
+  // client.communication.summaries reads GET /api/v2/core/communication-summaries?ticketId=… Held first so the row's
+  // height while busy can be compared with its height once the read fails (delta review: the error branch must not
+  // shrink the row that the busy branch already reserved a line for).
+  let release = () => {};
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route(/\/api\/v2\/core\/communication-summaries(\?|$)/, async route => { await held; await route.abort(); });
+  await login(page);
+  const going = page.getByRole("region", { name: "진행 중인 요청", exact: true }), cards = going.locator("[data-home-card]");
+  await expect(cards).toHaveCount(1);
+  await expect(going).toHaveAttribute("aria-busy", "true");
+  const busyHeight = (await cards.first().boundingBox())!.height;
+  release();
+  await expect(going.getByRole("alert")).toHaveText("대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.");
+  await expect(going).not.toHaveAttribute("aria-busy", "true");
+  // The reserved next-step line stays reserved on error too, so the row's height does not change between busy and error.
+  expect((await cards.first().boundingBox())!.height).toBe(busyHeight);
+  // Without the conversation states no next step is confirmed (rules 10), so the row names the request and its status only.
+  await expect(cards.first()).not.toContainText(/아직 보내지 않았어요|관리자가 확인하고 있어요|처리 중이에요/);
+  await cards.first().click(); await expect(page.getByTestId("ticket-heading")).toBeVisible();
+});
+
+test("요청 lists 진행 중 and 끝난 요청 apart and says why rows wait while photos are picked", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mine: string[] = []; await onlyMine(page, mine);
+  const open = await create(page, "합성 진행 중 요청"), done = await create(page, "합성 끝난 요청"); mine.push(open, done);
+  const manager = bearer((await accessCodes()).manager);
+  for (const status of ["IN_PROGRESS", "COMPLETED"]) expect((await page.request.post(`/api/v2/core/tickets/${done}/handling`, { headers: manager, data: { status, message: "합성 처리 기록" } })).status()).toBe(200);
+  await login(page); await openTab(page, "요청");
+  const going = page.getByRole("region", { name: "진행 중", exact: true }), ended = page.getByRole("region", { name: "끝난 요청", exact: true });
+  await expect(going.locator("[data-ticket-id]")).toHaveCount(1); await expect(going.locator(`[data-ticket-id="${open}"]`)).toBeVisible();
+  await expect(ended.locator(`[data-ticket-id="${done}"]`)).toContainText("처리 완료");
+  mine.splice(1, 1); await page.getByRole("navigation", { name: "접속 및 새로고침" }).getByRole("button", { name: "새로고침", exact: true }).click();
+  await expect(ended).toContainText("끝난 요청이 없어요.");
+  // Photos picked on 홈 keep every request shut; the lists say why (final review of PR 139).
+  await openTab(page, "홈"); await page.getByLabel("참고 사진 선택", { exact: true }).setInputFiles({ name: "pending.png", mimeType: "image/png", buffer: await png() });
+  await openTab(page, "요청"); await expect(going.locator("[data-open-ticket]")).toBeDisabled();
+  // The hidden 홈 says it too, so count only the visible copy.
+  await expect(page.getByText(pendingHint, { exact: true }).filter({ visible: true })).toHaveCount(1);
+  await openTab(page, "알림"); await expect(page.getByRole("region", { name: "처리할 일", exact: true })).toContainText(pendingHint);
+});
