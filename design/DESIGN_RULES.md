@@ -2,6 +2,7 @@
 
 build-manager의 모든 화면(웹, 앱, 소개 페이지)은 이 문서를 따릅니다. 화면을 새로 만들거나 고치기 전에 **이 문서 전체를 처음부터 끝까지 읽고** 시작합니다.
 
+- [DECISION] 2026-10-14 운영자 확인: 글꼴 이름 오류를 고칩니다. CDN 글꼴은 이름이 'Pretendard Variable'이라 지금까지 어느 화면에도 적용되지 않았습니다(3.1).
 - [DECISION] 2026-10-09 운영자 결정: 디자인 규칙을 먼저 만들고, 디자인 작업은 항상 이 규칙을 읽고 시작합니다. 레퍼런스는 최신 국내 생활 앱(토스·당근 계열)으로 잡고, AI가 만든 티가 최대한 나지 않게 합니다. 브랜드 색은 지금 `/core`의 파랑 `#0064FF`를 유지합니다. 근거와 비교 시안은 [설계 문서](../docs/superpowers/specs/2026-10-09-design-rules-v1-design.md)에 있습니다.
 - [DECISION] 2026-10-10 운영자 요청: 규칙은 글씨체, 글자 간격, 글자 크기를 비롯한 모든 디자인 요소를 숫자로 정합니다.
 - [DECISION] 2026-10-10 운영자 결정(내비게이션): 앱과 휴대폰 폭(767px 이하) 웹은 같은 하단 탭바를 쓰고, 태블릿 폭부터(768px 이상) 웹은 왼쪽 메뉴를 씁니다. 선택된 탭은 채운 아이콘·파랑·굵은 라벨로 표시합니다. 아이콘 세트는 Tabler Icons입니다. 근거와 비교한 안은 [설계 문서](../docs/superpowers/specs/2026-10-10-navigation-rules-design.md)에 있습니다.
@@ -112,7 +113,7 @@ build-manager의 모든 화면(웹, 앱, 소개 페이지)은 이 문서를 따�
 
 ### 3.1 글씨체
 
-- 웹: `Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif`. 글꼴은 `apps/web/src/app/layout.tsx`가 불러오고, 토큰은 `apps/web/src/app/tokens.css`에 있습니다.
+- 웹: `"Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif`. 글꼴은 `apps/web/src/app/layout.tsx`가 불러오고, 토큰은 `apps/web/src/app/tokens.css`에 있습니다. CDN 글꼴 파일의 이름은 'Pretendard Variable'입니다.
 - 앱: Pretendard를 넣기 전까지 플랫폼 시스템 글꼴(iOS: Apple SD Gothic Neo, Android: 시스템 기본 한글 글꼴).
 - 숫자·영문도 같은 글꼴을 씁니다. 코드처럼 보여야 하는 값(요청 번호 등)만 `ui-monospace, "SF Mono", Consolas, monospace`를 씁니다.
 - Inter, Roboto 같은 영문 기본 글꼴을 주 글꼴로 쓰지 않습니다. 글꼴 종류는 위 한 가지(필요 시 고정폭 한 가지)만 씁니다.
