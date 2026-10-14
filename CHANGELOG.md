@@ -63,3 +63,7 @@
 ## 2026-10-13 — Bottom tabs and a left menu on /core
 
 - Redeployed the hosted demo from main `81c6d39` (image `97a803fc87dd`, replacing `8474bbb5b02c`). On phones `/core` now has a bottom tab bar: tenants 우리 집 · 내 요청 · 알림 · 내 정보, managers 업무함 · 알림 · 더 보기 (호실 정비 이력, 입주 연결, 건물·호실 관리, 내 정보; the middle two only for an organisation admin). From 768px every role has a 248px left menu with the same items, 더 보기's rows listed directly (PR #136 and #139). Organisation choice and logout moved into 내 정보. The design rules' status list and feedback table moved to `design/DESIGN_STATUS.md` (PR #140, no screen change). No migration was added. The previous image's archive stays on the VM for rollback.
+
+## 2026-10-14 — 홈 · 요청 · 알림 · MY and the real Pretendard face
+
+- Redeployed the hosted demo from main `48aa7cf` (image `4718a64c05ab`, replacing `97a803fc87dd`). Tenant tabs are now 홈 · 요청 · 알림 · MY and the account entry reads MY for every role; 홈 lists up to three in-progress requests with a link to 알림 when something needs doing, 요청 shows 진행 중 and 끝난 요청 groups, and a single organisation's name is shown as plain text (PR #143). Pages now load the Pretendard face from the font CDN under its real name, `Pretendard Variable`; before, phones and other computers without Pretendard installed fell back to the system font (PR #145). No migration was added. The previous image and its archive stay on the VM for rollback; older ones were removed.
