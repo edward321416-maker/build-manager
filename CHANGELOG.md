@@ -71,3 +71,7 @@
 ## 2026-10-14 — Units without building information, and every unit past 200
 
 - Redeployed the hosted demo from main `1289a67` (image `722c8899950d`, replacing `4718a64c05ab`), which applied migrations 0025 and 0026 at start-up. A building registered on `/workspace` without Core building information now lists its units under the name `건물` with no building facts, and the manager's request responses carry such a building as unverified instead of failing (PR #147). The Core unit list now holds every unit a session can read, ordered by building name, unit label and unit id, instead of the first 200 in id order, which had left out every newly registered unit once an organisation passed 200; building access is checked once per building (PR #148). Every demo building has building information and the demo has 3 active units, so its screens did not change. The previous image and its archive stay on the VM for rollback.
+
+## 2026-10-14 — Reasons on the 알림 to-do list
+
+- Redeployed the hosted demo from main `b4d696f` (image `78829071966a`, replacing `722c8899950d`). 알림 now also lists per-request reasons: `방문 시간 확정 필요` and `결과 확인 필요` for tenants, `업체 확인 필요` and `기한 지남` for managers, and `연결 요청 확인 필요` for organisation admins; while the first read of those reasons runs, the list says `처리할 일을 더 확인하고 있어요.` (PR #150). The release also carries the docs-only deploy record PR #149. No migration was added. The previous image and its archive stay on the VM for rollback.
