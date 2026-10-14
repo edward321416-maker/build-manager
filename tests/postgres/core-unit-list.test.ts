@@ -9,8 +9,9 @@ import { createB1Fixture } from "./helpers/b1-fixture";
 let f:Awaited<ReturnType<typeof createB1Fixture>>,data:CoreFixture,db:ReturnType<typeof createPostgresDatabase>,port:ReturnType<typeof createCoreAccessPort>;
 const MANY=230;
 // Two buildings without a building context row share the fallback name 건물; each has a unit called 101호.
-// The larger unit id is inserted first, so an order without the id tie-break does not pass by insertion order.
-const bare=[randomUUID(),randomUUID()],bareUnits=[randomUUID(),randomUUID()].sort().reverse();
+// The building with the larger id is inserted first, so an order without the building tie-break does not pass by
+// insertion order (0027 keeps same-name buildings apart by building id).
+const bare=[randomUUID(),randomUUID()].sort().reverse(),bareUnits=[randomUUID(),randomUUID()];
 const archivedUnit=randomUUID(),archivedProperty=randomUUID(),unitInArchivedProperty=randomUUID();
 const padded=(i:number)=>`대량 호실 ${String(i).padStart(3,"0")}`;
 const q=(sql:string,values:unknown[])=>f.p.admin.query(sql,values);
@@ -40,15 +41,15 @@ it("lists every active unit an organisation admin can read, past 200",async()=>{
  expect(ids).not.toContain(unitInArchivedProperty);
 });
 
-it("orders the list by building name, unit label and unit id",async()=>{
+it("orders the list by building name, building, unit label and unit id",async()=>{
  const units=await list("manager");
  expect(units.filter(u=>u.buildingId===data.propertyA).map(u=>u.label).sort()).toEqual([...Array.from({length:MANY},(_,i)=>padded(i+1)),"합성 호실 1","합성 호실 2"].sort());
- // Text order is the database default collation's call, exactly as inside the function,
- // so the database sorts the returned rows again and the two orders must match.
- const resorted=(await q("SELECT x->>'id' AS id FROM jsonb_array_elements($1::jsonb) x ORDER BY x->>'buildingName',x->>'label',(x->>'id')::uuid",[JSON.stringify(units)])).rows.map(r=>r.id as string);
+ // The database sorts the returned rows again with the function's own collation (0027) and the two orders must match;
+ // core-unit-order.test.ts pins what that collation does.
+ const resorted=(await q("SELECT x->>'id' AS id FROM jsonb_array_elements($1::jsonb) x ORDER BY x->>'buildingName' COLLATE core_flow.unit_name_order,(x->>'buildingId')::uuid,x->>'label' COLLATE core_flow.unit_name_order,(x->>'id')::uuid",[JSON.stringify(units)])).rows.map(r=>r.id as string);
  expect(units.map(u=>u.id)).toEqual(resorted);
- // Same fallback name and same label: unit id decides.
- expect(units.filter(u=>u.buildingName==="건물").map(u=>u.id)).toEqual([...bareUnits].sort());
+ // Same fallback name: the building with the smaller id comes first (bare holds the larger id first).
+ expect(units.filter(u=>u.buildingName==="건물").map(u=>u.id)).toEqual([bareUnits[1],bareUnits[0]]);
 });
 
 it("gives a property staff member every unit of the assigned building and nothing else",async()=>{
