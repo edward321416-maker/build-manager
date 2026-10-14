@@ -61,6 +61,8 @@ it("lets only the latest read land, so a slow earlier one cannot bring old reaso
   await act(async () => first.resolve("UNCONFIRMED"));
   expect(call).toBe(2);
   expect(seen.current).toMatchObject({ ready: true, reasons: {} });
+  // toMatchObject accepts any reasons for {}: the stale read would bring back { a: ["RESULT"] }.
+  expect(seen.current?.reasons).toEqual({});
 });
 
 it("drops a superseded read's unstarted reads and keeps four in flight across both reads", async () => {
@@ -114,6 +116,7 @@ it("keeps the earlier result while a changed set of requests is read, and says i
   expect(seen.current).toMatchObject({ ready: false, reasons: { a: ["RESULT"] } });
   await act(async () => later.resolve("RESOLVED"));
   expect(seen.current).toMatchObject({ ready: true, reasons: {} });
+  expect(seen.current?.reasons).toEqual({});
 });
 
 it("re-reads the same requests on a new revision and stays ready while it does", async () => {
@@ -126,6 +129,7 @@ it("re-reads the same requests on a new revision and stays ready while it does",
   expect(seen.current).toMatchObject({ ready: true, reasons: { a: ["RESULT"] } });
   await act(async () => later.resolve("RESOLVED"));
   expect(seen.current).toMatchObject({ ready: true, reasons: {} });
+  expect(seen.current?.reasons).toEqual({});
 });
 
 it("does not read again when it re-renders with the same requests, reads and revision", async () => {
@@ -152,4 +156,5 @@ it("reads again when the request list is reloaded with the same requests, and st
   expect(seen.current).toMatchObject({ ready: true, reasons: { a: ["RESULT"] } });
   await act(async () => later.resolve("RESOLVED"));
   expect(seen.current).toMatchObject({ ready: true, reasons: {} });
+  expect(seen.current?.reasons).toEqual({});
 });

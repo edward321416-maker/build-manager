@@ -390,6 +390,7 @@ test('P5-T01 a Vendor job waiting on the resident puts 방문 시간 확정 필�
     await expect(todo).toBeVisible(); await expect(todo).not.toHaveAttribute('aria-busy', 'true');
     await expect(t.page.locator(`[data-todo-ticket="${c.ticketId}"]`).filter({ hasText: '방문 시간 확정 필요' })).toHaveCount(0);
     await expect(t.page.getByText('일부를 확인하지 못했어요.')).toHaveCount(0);
+    await expect(t.page.getByRole('navigation', { name: '주 메뉴', exact: true })).toBeVisible();
   } finally { await v.close(); await t.close(); }
 });
 

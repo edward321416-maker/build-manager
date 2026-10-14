@@ -111,7 +111,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
     return response;
   },[clearAccess,b1,onDenied]);
   const client=useMemo(()=>{const guarded=checkedFetch(false);return createCoreFlowClient({baseUrl:"",fetchImpl:guarded,photoFetchImpl:guarded});},[checkedFetch]);
-  const perRequestClient=useMemo(()=>createCoreFlowClient({baseUrl:"",fetchImpl:checkedFetch(true)}),[checkedFetch]);
+  const perRequestClient=useMemo(()=>{const guarded=checkedFetch(true);return createCoreFlowClient({baseUrl:"",fetchImpl:guarded,photoFetchImpl:guarded});},[checkedFetch]);
   // 연결 요청 (B1): a list read, so a 401 or 403 there signs out like the other list reads (spec §5).
   const linkRequests=useMemo(()=>b1?createCoreOnboardingClient({csrf:b1.csrf,orgId:b1.orgId,fetchImpl:checkedFetch(false)}).list:undefined,[b1,checkedFetch]);
   const tenant=session?.role==="TENANT";
@@ -357,7 +357,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
         </form>:null}</ManagerDirectCompletionGate>
         </div></ManagerInspector>:null}
       </section>:!tenant?null:<>
-        {/* P5 PR 1b (spec §4): the to-do line above the unit choice. It counts the 알림 rows, so it waits for the same read. */}
+        {/* P5 PR 1b (spec §4): the to-do line above the unit choice. It counts the 알림 rows but waits only for the
+          * conversation read, so the PR 2 reads can still change its count when they land. */}
         {tab==="home"&&conversationSummaries.ready&&todo.items.length?<a className={styles.todoLine} {...placeLink({tab:"alerts",view:null})}>처리할 일 {todo.items.length}건 · 알림에서 보기</a>:null}
         {units.length!==1?<label>건물·호실 <select aria-label="건물·호실" disabled={!units.length||Boolean(followUp)} value={unit} onChange={e=>setUnit(e.target.value)}>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>:null}
         <div className={styles.tenantHome} hidden={tab!=="home"}>
