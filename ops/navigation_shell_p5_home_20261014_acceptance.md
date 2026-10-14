@@ -23,7 +23,9 @@ Disposition: **ACCEPTED_FOR_DEVELOPMENT_MAIN**. This is PR 1b of the P5 bundle; 
   - "진행 중인 요청": at most 3 unfinished requests of the chosen unit, ordered to-dos first, then most recent activity.
     - Each row is one button with the request name, its status label and a next-step line (`nav/tenant-home.ts`).
     - "내 요청에서 모두 보기" shows when there are more than 3.
-    - The section shows once the summaries are read. If the read fails, the rows stay reachable without next-step lines, under the same alert 내 요청 uses.
+    - The rows show as soon as the request list is in.
+    - Each row's next-step line fills in only after the conversation summaries are read. Until then the line is kept empty at full height and the section is `aria-busy`, so the form below never jumps.
+    - If the read fails, the lines stay empty at the same height under the alert 요청 uses, and the rows stay reachable.
 - **내 요청**: the old 최근 접수 list is split into "진행 중" and "끝난 요청". Rows are unchanged.
 - **Lock hint**: "고른 사진이 있어서 요청을 열 수 없어요. 접수하거나 사진 선택을 취소해 주세요." on 우리 집, 내 요청 and 알림 while picked photos lock the rows.
 - **내 소속**: one organisation shows as its name and role in text; two or more keep the choice.
@@ -45,7 +47,7 @@ Disposition: **ACCEPTED_FOR_DEVELOPMENT_MAIN**. This is PR 1b of the P5 bundle; 
 | Separate 열기 button per row | Whole-row button | Final review found the rule 8.5 conflict, and the operator decided on 2026-10-14. It also cleared 22 `center` audit findings. |
 | CSS for the to-do line and the form gap | Specificity fixed, 30px section gap | Task 3 review: the plan's own CSS lost to an existing link rule and left the form flush against the rows. |
 | Tab-bar test checks 20px clearance | Same, plus a scroll check | `scroll-margin-block` on focused controls also keeps the 20px. The test checks what the user sees and fails when both guards are removed. |
-| Rows render at once | Rows render after the summaries read | Final review: a failed read must not produce an unconfirmed next step (rules 10 and 8.11). |
+| Next-step lines render at once | Rows at once; next-step lines only after the summaries read, their line reserved meanwhile | Final review: a failed read must not produce an unconfirmed next step (rules 10 and 8.11). The first fix hid the whole section until the read, which let it push a focused form off-screen (CI run 3). The rows now render at once with the line reserved. |
 
 ## FROZEN test changes
 
@@ -124,6 +126,20 @@ No endpoint, database or server code changed.
   - Widest tab label at 320px/200%: 45px in an 80px cell.
   - The local-only failures are the known list below. `ticket-outcome.spec.ts:21` stalled once at sign-in and passed when run again.
   - Task review: approved, with no missed rename.
+- CI run 3 (`d9ab8d6`) failed the tab-bar clearance test: the focused 접수하기 measured 848px against ≤404. The 진행 중인 요청 section appeared after the summaries read and pushed the form down.
+  - Fix `4571bb5`:
+    - Render the rows at once and reserve the next-step line.
+    - Mark the section `aria-busy` while loading.
+    - The test now waits for the busy mark to clear.
+    - A held-summaries test checks the rows show before the read.
+  - Delta review found that a failed read still removed the reserved line, so rows shrank by 30px. Fix `eba823f` keeps it, and a height check failed first (90→60px), then passed.
+  - Both fixes were re-reviewed clean. Locally:
+    - unit 235/235
+    - core `home`, `navigation`, `usability` 18/18
+    - the tab-bar test 5/5 repeats
+    - design audit 0 findings
+  - CI run 4 (`eba823f`): every check passed.
+  - The exact height check in `home.spec.ts` may need a small tolerance once Pretendard starts loading (the font fix PR).
 - CI: recorded on the PR.
 
 ## Known local failures
