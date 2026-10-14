@@ -9,7 +9,7 @@ Disposition: **ACCEPTED_FOR_DEVELOPMENT_MAIN**. This is PR 1b of the P5 bundle; 
 | Reference | Value |
 | --- | --- |
 | Risk tier | High-risk (DEV-04): FROZEN `/core` screens and their browser tests change |
-| Operator decisions | 2026-10-13: spec approved ("전수점검하고 통과하면 승인할게"); next plan "그래 다음 계획 ㄱ"; plan and its three new texts "이대로 진행 (추천)". 2026-10-14: the 우리 집 rows are whole-row buttons, as rule 8.5 says ("줄 전체를 누르게 (추천)"), instead of the spec's separate 열기 button |
+| Operator decisions | 2026-10-13: spec approved ("전수점검하고 통과하면 승인할게"); next plan "그래 다음 계획 ㄱ"; plan and its three new texts "이대로 진행 (추천)". 2026-10-14: the 우리 집 rows are whole-row buttons, as rule 8.5 says ("줄 전체를 누르게 (추천)"), instead of the spec's separate 열기 button. After real-size drawings, shorter tenant tab names ("3번이 베스트일듯") with the last tab MY ("my가 나을듯"): 홈 · 요청 · 알림 · MY, and the account entry is MY everywhere |
 | Spec and plan | `docs/superpowers/specs/2026-10-13-navigation-shell-p5-design.md` (amended by this PR) and `docs/superpowers/plans/2026-10-13-navigation-shell-p5-home.md` |
 | POLICY_REF | main `f08345d` (rulebooks read at `81c6d39`; `f08345d` changed records only) |
 | Base | main `81c6d39`, then main `f08345d` merged in |
@@ -30,6 +30,11 @@ Disposition: **ACCEPTED_FOR_DEVELOPMENT_MAIN**. This is PR 1b of the P5 bundle; 
 - **History**: the screen remembers, in memory only (not the address, not `history.state`), the address a request was opened over. That screen's menu item then steps one entry back, so a back press never shows the same screen twice. This also covers a manager's request opened from 알림 or 호실 정비 이력.
 - **Focus**: when an in-content control that moved the place disappears (a 더 보기 or 내 정보 row, closing a request, 모두 보기), focus goes to the new screen's title. After choosing an organisation, the new page starts at its title.
 - **Titles and bars**: from 768px, screens the left menu lists keep the first-screen title. Inside the menu, the link screens draw one top bar, and "연결 상태 새로고침" is a button in the content.
+- **Tab names (Task 10, added after the final review)**
+  - The tenant tabs are 홈 · 요청 · 알림 · MY. The account entry is MY everywhere: the tab, the manager's 더 보기 row, the wide left-menu item, the region and the title, all read from `VIEW_LABELS.me`.
+  - Copy follows the new names: "홈에서 접수해 주세요", "요청에서 모두 보기", and the /core/join hint "'MY'의 '호실 연결'".
+  - DESIGN_RULES records it in a [DECISION] line and in 8.10, 8.13, 8.14 and 8.16. The spec records it as D12.
+  - Why: on CI, 320px with text at 200% put 우리 집 at 87.1px in an 80px cell.
 - **Audit**: `scripts/design-audit.mjs` reads `[data-home-card]` rows from the left.
 
 ## Deviations from the plan, and why
@@ -106,6 +111,19 @@ No endpoint, database or server code changed.
     - `verify_repository.py --history` PASS, lint 0 errors, typecheck clean, test:web 1010/1010.
     - e2e core 55/58: the two known fixture failures, plus `manager-next-step.spec.ts:114`. That one passed on its single re-run (DEV-06; the file went 6/6, the test took 12s under the large local queue).
     - e2e sdk 33/41: the five known failures, plus `core-login-e2e/maintenance-fact.spec.ts:5` (×3). Those stopped at the known `건물·호실` select (`did not find some options`, over 200 units).
+- CI on PR #143 before Task 10
+  - Run 1 failed in two places, both fixed in `688d6cd`:
+    - The failed-summaries test ended while a ticket-list route was still in flight. Fix: `unrouteAll` with `ignoreErrors` after each test.
+    - The 320px/200% label check. Fix: it now waits for fonts and reports the widths.
+  - Run 2 showed 우리 집 at 87.1px against an 80px cell, with every Pretendard face "unloaded". That run led to the operator's tab-name decision.
+- Task 10 checks on `88b7208`:
+  - Unit tests failed first on the old names (10 failures), then passed 235/235.
+  - typecheck, lint (0 errors), the rules-gate and demo-smoke tests (101/101) and `verify_repository.py` all passed.
+  - Design audit: 231 screens, 0 findings.
+  - e2e: core 55/58, sdk 35/41, vendor 18/18.
+  - Widest tab label at 320px/200%: 45px in an 80px cell.
+  - The local-only failures are the known list below. `ticket-outcome.spec.ts:21` stalled once at sign-in and passed when run again.
+  - Task review: approved, with no missed rename.
 - CI: recorded on the PR.
 
 ## Known local failures
@@ -113,6 +131,7 @@ No endpoint, database or server code changed.
 The shared local Core fixture keeps growing. CI uses a fresh database. A reset is data deletion and needs the operator.
 
 - core `manager-work.spec.ts:13` and `ticket-communication.spec.ts:27`: over 2,000 tickets.
+- core `manager-next-step.spec.ts:114` (1440px outcome card): its list loads slowly on the large local data. In the delta run it passed on rerun. In the Task 10 run it failed twice, including at the base commit. It passed in CI run 1.
 - sdk `login.spec.ts:35` (×3), `design.spec.ts:53` and, in the delta run, `maintenance-fact.spec.ts:5` (×3): over 200 units against the units `LIMIT 200`. A test passes or fails depending on whether its new random unit falls inside the first 200.
 - sdk `design.spec.ts:107`: invitation paging.
 
@@ -121,6 +140,10 @@ The shared local Core fixture keeps growing. CI uses a fresh database. A reset i
 Revert the PR; no database or API change. Old `/core` bookmarks still open the first tab.
 
 ## Not verified, and left for later
+
+- Font bug, found through this PR's CI and not fixed here:
+  - `tokens.css` and `globals.css` name `Pretendard`, but the CDN stylesheet declares `'Pretendard Variable'`, so no page has used Pretendard.
+  - A separate PR fixes it. That PR re-runs the design audit and checks the first-visitor page `/`, which was measured with the fallback font (session 2-b6's checklist).
 
 - The rows' screen-reader names and Safari's tap focus (links are not focused on tap, so the title takes focus) were not checked on a device.
 - The 진행 중인 요청 section remounts when the request set changes while summaries reload, so a row that held focus loses it.
