@@ -34,6 +34,22 @@ describe("evidence requirements in ticket views", () => {
   });
 });
 
+describe("C1 building without context", () => {
+  // docs/superpowers/specs/2026-10-14-building-context-fallback-c1-design.md, 보완: the 0025 fallback building has no facts.
+  const fallback: Building = { id: "11111111-1111-4111-8111-111111111111", displayName: "건물", demo: false, sourceNativeIds: {}, context: [] };
+
+  it("shows the manager an unverified building instead of failing the whole response", () => {
+    const ticket = { ...leakTicket(["CEILING_WALL"]), buildingId: fallback.id };
+    expect(presentLandlordTicket(ticket, fallback).building).toEqual({
+      buildingId: fallback.id, displayName: "건물", demo: false, contextVerified: false, routingEligibleFields: [],
+    });
+  });
+
+  it("keeps the full passport for a building with context", () => {
+    expect(presentLandlordTicket(leakTicket(["CEILING_WALL"]), building).building).toMatchObject({ demo: true, primaryUse: "다세대주택", heatingType: "INDIVIDUAL" });
+  });
+});
+
 describe("P1b evidence screens", () => {
   const photoId = "0b6f7d1e-2c3a-4d5e-8f90-1a2b3c4d5e6f";
 

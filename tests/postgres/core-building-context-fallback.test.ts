@@ -2,13 +2,15 @@ import { createHash,randomBytes,randomUUID } from "node:crypto";
 import { afterAll,beforeAll,expect,it } from "vitest";
 import { createPostgresDatabase } from "@build-manager/persistence-postgres";
 import { createBuildingRegistrationPort } from "@build-manager/persistence-postgres/b3";
-import { createCoreFlowPort } from "@build-manager/persistence-postgres/core-flow";
+import { createCoreAccessPort,createCoreFlowPort } from "@build-manager/persistence-postgres/core-flow";
 import { createCoreOnboardingPort } from "@build-manager/persistence-postgres/core-onboarding";
 import { seedCoreFlowFixture,type CoreFixture } from "@build-manager/persistence-postgres/testing";
 import { performCoreAction,type CoreAction,type CoreScope,type OnboardingAction,type OnboardingResult } from "@build-manager/application";
 import { CoreManagerWorkItemsSchema,CoreUnitMaintenanceFactSchema,CoreUnitsSchema } from "@build-manager/api-contracts";
 import { selectProtocol,type Building } from "@build-manager/domain";
 import { createB1Fixture } from "./helpers/b1-fixture";
+import { handleCoreFlow } from "../../apps/web/src/server/core-flow/http";
+import type { CoreHTTPDependencies } from "../../apps/web/src/server/core-flow/container";
 
 // C1 step 1 (docs/superpowers/specs/2026-10-14-building-context-fallback-c1-design.md): a building registered through B3 has
 // no core_flow.building_context row. Its units must still work in every Core read, with the fixed name 건물 and no facts.
@@ -72,6 +74,30 @@ it("keeps the manager queue, the work read and the maintenance history whole",as
  const history=await fixtureRun("manager",s=>s.maintenance.listUnit(c.unit.id));
  expect(history.map(x=>CoreUnitMaintenanceFactSchema.parse(x).factId)).toEqual([saved.fact.factId]);
 },90_000);
+
+const origin="http://127.0.0.1:3130";
+function managerHttp(path:string,body?:unknown){
+ const d={port:createCoreFlowPort(db),revoke:async()=>{},origins:[origin],
+  b1:{current:async()=>({digest:data.accounts.manager.digest,csrf:"synthetic-proof"}),access:createCoreAccessPort(db)}} as unknown as CoreHTTPDependencies;
+ return handleCoreFlow(new Request(`${origin}/api/v2/core/${path}`,{method:body===undefined?"GET":"POST",
+  headers:{Origin:origin,"X-Core-Organization":data.accounts.manager.orgId,"X-B1-CSRF":"synthetic-proof","Content-Type":"application/json"},...(body===undefined?{}:{body:JSON.stringify(body)})}),path.split("/"),()=>d);
+}
+
+it("answers the manager's ticket list, detail and handling over HTTP with an unverified building",async()=>{
+ // Spec 보완 (independent review HIGH): the landlord passport must not turn the whole manager response into a 503.
+ const c=await registeredAndConnected("F");
+ const t=await c.act({type:"CREATE",unitId:c.unit.id,issueType:"LEAK",rawUserText:"합성 C1 HTTP 확인"});
+ const unverified={buildingId:c.property.id,displayName:"건물",demo:false,contextVerified:false,routingEligibleFields:[]};
+ const list=await managerHttp("tickets");
+ expect(list.status).toBe(200);
+ expect((await list.json() as {ticketId:string;detail:{building:unknown}}[]).find(x=>x.ticketId===t.ticket.id)?.detail.building).toEqual(unverified);
+ const detail=await managerHttp(`tickets/${t.ticket.id}`);
+ expect(detail.status).toBe(200);
+ expect((await detail.json() as {detail:{building:unknown}}).detail.building).toEqual(unverified);
+ const handling=await managerHttp(`tickets/${t.ticket.id}/handling`,{status:"IN_PROGRESS",message:"합성 처리 시작"});
+ expect(handling.status).toBe(200);
+ expect((await handling.json() as {workStatus:string}).workStatus).toBe("IN_PROGRESS");
+},60_000);
 
 it("shows the new unit to nobody outside its tenant and the organisation's managers",async()=>{
  const c=await registeredAndConnected("D");
