@@ -34,6 +34,21 @@ export const BuildingPassportDtoSchema = z
   .strict();
 export type BuildingPassportDto = z.infer<typeof BuildingPassportDtoSchema>;
 
+/**
+ * A building with no Core building context (registered on /workspace, C1 step 1). It carries no
+ * building facts, so nothing in it can read as verified or routing-eligible.
+ */
+export const UnverifiedBuildingDtoSchema = z
+  .object({
+    buildingId: z.string().trim().min(1),
+    displayName: z.string().trim().min(1),
+    demo: z.literal(false),
+    contextVerified: z.literal(false),
+    routingEligibleFields: z.array(RoutingEligibleBuildingFieldSchema).length(0),
+  })
+  .strict();
+export type UnverifiedBuildingDto = z.infer<typeof UnverifiedBuildingDtoSchema>;
+
 export const BuildingPassportListSchema = z.array(BuildingPassportDtoSchema);
 export type BuildingPassportList = z.infer<typeof BuildingPassportListSchema>;
 

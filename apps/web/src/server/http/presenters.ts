@@ -9,6 +9,7 @@ import {
   type SyntheticEvidenceType,
   type TenantQuestionDto,
   type TenantTicketStatusDto,
+  type UnverifiedBuildingDto,
 } from "@build-manager/api-contracts";
 import { assessTicket, CORE_PHOTO_REF_PREFIX, getOutstandingMoreInfo } from "@build-manager/application";
 import {
@@ -97,6 +98,26 @@ export function presentBuildingPassport(building: Building): BuildingPassportDto
       ["managementMode", "heatingType", "ownerSuppliedBoiler"].includes(key),
     ),
   });
+}
+
+/**
+ * A building without Core building context (the 0025 fallback) has no facts for a passport; the
+ * manager sees it as unverified instead of the whole response failing. Anything else must still
+ * parse as a full passport.
+ */
+function presentLandlordBuilding(
+  building: Building,
+): BuildingPassportDto | UnverifiedBuildingDto {
+  if (!building.demo && building.context.length === 0) {
+    return {
+      buildingId: building.id,
+      displayName: building.displayName,
+      demo: false,
+      contextVerified: false,
+      routingEligibleFields: [],
+    };
+  }
+  return presentBuildingPassport(building);
 }
 
 function answerValues(ticket: Ticket): RuleValues {
@@ -288,7 +309,7 @@ export function presentLandlordTicket(
 
   return LandlordTicketDetailDtoSchema.parse({
     ticketId: ticket.id,
-    building: presentBuildingPassport(building),
+    building: presentLandlordBuilding(building),
     issueType: ticket.issueType,
     protocol: publicProtocol(ticket.issueType),
     status: ticket.status,
