@@ -1,5 +1,5 @@
 import type { CoreTicketDto } from "@build-manager/api-contracts";
-import { isIntakeDraft } from "../ui/work-status-badge";
+import { intakeDisplayStatus, isIntakeDraft } from "../ui/work-status-badge";
 import { lastActivity, todoReasonName, type TodoList, type TodoReason, type TodoTicketItem } from "./todo-list";
 
 /** 홈 shows at most this many unfinished requests (P5 spec §4); the rest are one link away in 요청. */
@@ -7,12 +7,15 @@ export const HOME_CARD_LIMIT = 3;
 export type HomeCard = { ticket: CoreTicketDto; next: string };
 
 /** The request's next step in one line (spec §4): the 알림 reason names, or who has the request now. A draft's own
- * status label already reads 제출 전, so a draft with no other reason says what to do instead of repeating it. */
+ * status label already reads 제출 전, so a draft with no other reason says what to do instead of repeating it. The
+ * other lines use the same words as the request's own progress line (operator decision 2026-10-14, spec D14). */
 export function tenantNextStep(ticket: CoreTicketDto, reasons: readonly TodoReason[]): string {
   const names = reasons.filter(reason => reason !== "DRAFT").map(reason => todoReasonName("TENANT", reason));
   if (names.length) return names.join(" · ");
   if (isIntakeDraft(ticket)) return "아직 보내지 않았어요. 열어서 제출해 주세요.";
-  return ticket.workStatus === "IN_PROGRESS" ? "처리 중이에요." : "관리자가 확인하고 있어요.";
+  if (ticket.workStatus === "IN_PROGRESS") return "관리자가 처리하고 있어요.";
+  const intake = intakeDisplayStatus(ticket);
+  return intake === "APPROVED" || intake === "OVERRIDDEN" ? "처리를 기다리고 있어요." : "관리자 확인을 기다리고 있어요.";
 }
 
 /** This unit's unfinished requests: to-dos first in the 알림 order, then the most recent activity (spec §4). */
