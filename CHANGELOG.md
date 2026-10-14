@@ -74,4 +74,4 @@
 
 ## 2026-10-14 — Reasons on the 알림 to-do list
 
-- Redeployed the hosted demo from main `b4d696f` (image `78829071966a`, replacing `722c8899950d`). 알림 now also lists per-request reasons: `방문 시간 확정 필요` and `결과 확인 필요` for tenants, `업체 확인 필요` and `기한 지남` for managers, and `연결 요청 확인 필요` for organisation admins; while the first read of those reasons runs, the list says `처리할 일을 더 확인하고 있어요.` (PR #150). The release also carries the docs-only deploy record PR #149. No migration was added. The previous image and its archive stay on the VM for rollback.
+- Redeployed the hosted demo from main `b4d696f` (image `78829071966a`, replacing `722c8899950d`). 알림 now also lists per-request reasons: `방문 시간 확정 필요` and `결과 확인 필요` for tenants, `업체 확인 필요` and `기한 지남` for managers, and `연결 요청 확인 필요` for organisation admins; while the reasons for a new set of requests are being read, the list says `처리할 일을 더 확인하고 있어요.` (PR #150). The release also carries the docs-only deploy record PR #149. No migration was added. The previous image and its archive stay on the VM for rollback.
