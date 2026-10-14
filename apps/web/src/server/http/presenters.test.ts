@@ -45,6 +45,12 @@ describe("C1 building without context", () => {
     });
   });
 
+  it("still requires a full passport for a demo building or a building with some context", () => {
+    const ticket = { ...leakTicket(["CEILING_WALL"]), buildingId: fallback.id };
+    expect(() => presentLandlordTicket(ticket, { ...fallback, demo: true })).toThrow();
+    expect(() => presentLandlordTicket(ticket, { ...fallback, context: [building.context[0]!] })).toThrow();
+  });
+
   it("keeps the full passport for a building with context", () => {
     expect(presentLandlordTicket(leakTicket(["CEILING_WALL"]), building).building).toMatchObject({ demo: true, primaryUse: "다세대주택", heatingType: "INDIVIDUAL" });
   });

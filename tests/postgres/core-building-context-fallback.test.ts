@@ -87,10 +87,12 @@ it("answers the manager's ticket list, detail and handling over HTTP with an unv
  // Spec 보완 (independent review HIGH): the landlord passport must not turn the whole manager response into a 503.
  const c=await registeredAndConnected("F");
  const t=await c.act({type:"CREATE",unitId:c.unit.id,issueType:"LEAK",rawUserText:"합성 C1 HTTP 확인"});
+ const heating=await c.act({type:"CREATE",unitId:c.unit.id,issueType:"HEATING",rawUserText:"합성 C1 HTTP 난방"});
  const unverified={buildingId:c.property.id,displayName:"건물",demo:false,contextVerified:false,routingEligibleFields:[]};
  const list=await managerHttp("tickets");
  expect(list.status).toBe(200);
- expect((await list.json() as {ticketId:string;detail:{building:unknown}}[]).find(x=>x.ticketId===t.ticket.id)?.detail.building).toEqual(unverified);
+ const tickets=await list.json() as {ticketId:string;detail:{building:unknown}}[];
+ for(const id of [t.ticket.id,heating.ticket.id])expect(tickets.find(x=>x.ticketId===id)?.detail.building).toEqual(unverified);
  const detail=await managerHttp(`tickets/${t.ticket.id}`);
  expect(detail.status).toBe(200);
  expect((await detail.json() as {detail:{building:unknown}}).detail.building).toEqual(unverified);
