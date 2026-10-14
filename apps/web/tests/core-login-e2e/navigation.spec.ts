@@ -21,7 +21,11 @@ test("phone tab bar: tabs, current mark, badge, re-tap to top, request screens w
     const bar = (await menu(page).boundingBox())!;
     expect(round(bar.height)).toBe(56); expect(round(bar.y + bar.height)).toBe(844);
     expect(new Set(await menu(page).getByRole("link").evaluateAll(els => els.map(el => Math.round(el.getBoundingClientRect().width)))).size).toBe(1);
-    // Rules 8.14: the content keeps the bar's height free at the bottom.
+    // Rules 8.14: the content keeps the bar's height free at the bottom. Measure the settled page: the web font has
+    // arrived (a late swap re-flows the text) and the to-do read is done (the to-do line appears only after it).
+    await page.evaluate(async () => { await document.fonts.ready; });
+    await expect(page.locator('section[aria-label="진행 중인 요청"][aria-busy="true"]')).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /^처리할 일 \d+건 · 알림에서 보기$/ })).toBeVisible();
     await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
     const footer = (await page.locator("footer.core-environment").boundingBox())!;
     expect(footer.y + footer.height).toBeLessThanOrEqual(bar.y + 1);
