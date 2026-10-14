@@ -41,12 +41,13 @@ it("lists every active unit an organisation admin can read, past 200",async()=>{
 
 it("orders the list by building name, unit label and unit id",async()=>{
  const units=await list("manager");
- expect(units.map(u=>[u.buildingName,u.label])).toEqual([
-  ...Array.from({length:MANY},(_,i)=>["RC1 합성 건물 A",padded(i+1)]),
-  ["RC1 합성 건물 A","합성 호실 1"],["RC1 합성 건물 A","합성 호실 2"],
-  ["건물","101호"],["건물","101호"],
- ]);
- expect(units.slice(-2).map(u=>u.id)).toEqual([...bareUnits].sort());
+ expect(units.filter(u=>u.buildingId===data.propertyA).map(u=>u.label).sort()).toEqual([...Array.from({length:MANY},(_,i)=>padded(i+1)),"합성 호실 1","합성 호실 2"].sort());
+ // Text order is the database default collation's call, exactly as inside the function,
+ // so the database sorts the returned rows again and the two orders must match.
+ const resorted=(await q("SELECT x->>'id' AS id FROM jsonb_array_elements($1::jsonb) x ORDER BY x->>'buildingName',x->>'label',(x->>'id')::uuid",[JSON.stringify(units)])).rows.map(r=>r.id as string);
+ expect(units.map(u=>u.id)).toEqual(resorted);
+ // Same fallback name and same label: unit id decides.
+ expect(units.filter(u=>u.buildingName==="건물").map(u=>u.id)).toEqual([...bareUnits].sort());
 });
 
 it("gives a property staff member every unit of the assigned building and nothing else",async()=>{
@@ -62,7 +63,7 @@ it("gives a tenant only the units they live in now",async()=>{
  await q("INSERT INTO app.occupancy(id,org_id,unit_id,starts_at,status) VALUES($1,$2,$3,clock_timestamp()-interval '1 minute','ACTIVE')",[now,data.orgA,bareUnits[0]]);
  await q("INSERT INTO app.occupancy(id,org_id,unit_id,starts_at,status) VALUES($1,$2,$3,clock_timestamp()+interval '1 day','ACTIVE')",[later,data.orgA,bareUnits[1]]);
  for(const occupancy of [now,later])await q("INSERT INTO app.occupancy_member(org_id,occupancy_id,user_id,joined_at,status) VALUES($1,$2,$3,clock_timestamp()-interval '1 minute','ACTIVE')",[data.orgA,occupancy,tenant]);
- expect((await list("tenant")).map(u=>u.id)).toEqual([data.unitA,bareUnits[0]]);
+ expect((await list("tenant")).map(u=>u.id).sort()).toEqual([data.unitA,bareUnits[0]].sort());
  await q("UPDATE app.occupancy_member SET status='ENDED',ended_at=clock_timestamp() WHERE occupancy_id=$1",[now]);
  expect((await list("tenant")).map(u=>u.id)).toEqual([data.unitA]);
 });

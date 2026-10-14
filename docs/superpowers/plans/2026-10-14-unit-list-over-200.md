@@ -88,12 +88,13 @@ it("lists every active unit an organisation admin can read, past 200",async()=>{
 
 it("orders the list by building name, unit label and unit id",async()=>{
  const units=await list("manager");
- expect(units.map(u=>[u.buildingName,u.label])).toEqual([
-  ...Array.from({length:MANY},(_,i)=>["RC1 합성 건물 A",padded(i+1)]),
-  ["RC1 합성 건물 A","합성 호실 1"],["RC1 합성 건물 A","합성 호실 2"],
-  ["건물","101호"],["건물","101호"],
- ]);
- expect(units.slice(-2).map(u=>u.id)).toEqual([...bareUnits].sort());
+ expect(units.filter(u=>u.buildingId===data.propertyA).map(u=>u.label).sort()).toEqual([...Array.from({length:MANY},(_,i)=>padded(i+1)),"합성 호실 1","합성 호실 2"].sort());
+ // Text order is the database default collation's call, exactly as inside the function,
+ // so the database sorts the returned rows again and the two orders must match.
+ const resorted=(await q("SELECT x->>'id' AS id FROM jsonb_array_elements($1::jsonb) x ORDER BY x->>'buildingName',x->>'label',(x->>'id')::uuid",[JSON.stringify(units)])).rows.map(r=>r.id as string);
+ expect(units.map(u=>u.id)).toEqual(resorted);
+ // Same fallback name and same label: unit id decides.
+ expect(units.filter(u=>u.buildingName==="건물").map(u=>u.id)).toEqual([...bareUnits].sort());
 });
 
 it("gives a property staff member every unit of the assigned building and nothing else",async()=>{
@@ -109,7 +110,7 @@ it("gives a tenant only the units they live in now",async()=>{
  await q("INSERT INTO app.occupancy(id,org_id,unit_id,starts_at,status) VALUES($1,$2,$3,clock_timestamp()-interval '1 minute','ACTIVE')",[now,data.orgA,bareUnits[0]]);
  await q("INSERT INTO app.occupancy(id,org_id,unit_id,starts_at,status) VALUES($1,$2,$3,clock_timestamp()+interval '1 day','ACTIVE')",[later,data.orgA,bareUnits[1]]);
  for(const occupancy of [now,later])await q("INSERT INTO app.occupancy_member(org_id,occupancy_id,user_id,joined_at,status) VALUES($1,$2,$3,clock_timestamp()-interval '1 minute','ACTIVE')",[data.orgA,occupancy,tenant]);
- expect((await list("tenant")).map(u=>u.id)).toEqual([data.unitA,bareUnits[0]]);
+ expect((await list("tenant")).map(u=>u.id).sort()).toEqual([data.unitA,bareUnits[0]].sort());
  await q("UPDATE app.occupancy_member SET status='ENDED',ended_at=clock_timestamp() WHERE occupancy_id=$1",[now]);
  expect((await list("tenant")).map(u=>u.id)).toEqual([data.unitA]);
 });
@@ -147,7 +148,7 @@ it("keeps core_flow.units a definer function owned by bm_core_flow_owner with a 
 
 - 메모
   - `uuid` 정렬은 16바이트 비교라서, 소문자 표준 문자열을 JS로 정렬한 순서와 같다. 그래서 `[...bareUnits].sort()`와 `ORDER BY u.id`를 그대로 비교한다.
-  - 정렬 시험 데이터는 어느 정렬 규칙(`C`, `en_US.utf8`)에서도 순서가 같도록 골랐다: 라틴 글자(`RC1 …`)가 한글(`건물`)보다 앞, `대`(U+B300)가 `합`(U+D569)보다 앞, 번호는 세 자리로 채움.
+  - 글자 순서는 DB 기본 정렬 규칙이 정한다. 처음 계획은 "라틴 글자가 한글보다 앞"이라고 가정했지만, 2026-10-14 0025 위 미리 확인에서 시험 이미지의 정렬은 `건물`을 `RC1 합성 건물 A`보다 앞에 두고 `합성 호실 1`을 `대량 호실 099`와 `100` 사이에 두었다(한글을 첫 비교에서 건너뜀). 그래서 순서 시험은 돌려받은 행을 DB가 `건물 이름, 호실 이름, id`로 다시 정렬한 결과와 비교하고, 세입자 시험은 순서 없이 비교한다. 이 정렬은 지금 화면에서도 같고, 이번 범위에서 바꾸지 않는다(스펙 "남은 위험").
   - `allowedByCanUnit`은 시험 컨테이너의 관리자 연결(슈퍼유저)로 한 트랜잭션 안에서 `core_flow.session`을 부른 뒤 `can_unit`을 부르고, 끝에 되돌린다.
 
 - [ ] **Step 2: main(0025 이전) 위에서 돌려 컴파일과 실패를 확인한다**
@@ -193,7 +194,7 @@ Expected: `LEFT JOIN core_flow.building_context`, `coalesce(c.body->>'displayNam
 - [ ] **Step 2: 0025 위에서 RED를 확인한다**
 
 Run: `npx vitest run --config vitest.postgres.config.ts tests/postgres/core-unit-list.test.ts`
-Expected: FAIL 4건(1·2·3·6번)이고, 실패 이유는 모두 목록 길이 200이다(`expected [ …(200) ] to have a length of 234`, `… of 232`, 6번은 `manager` 이름표와 함께 234 대 200). 4·5·7번은 통과한다. 실패 출력을 수락 기록에 붙인다.
+Expected: FAIL 4건(1·2·3·6번)이고, 실패 이유는 모두 목록 길이 200이다(`expected [ …(200) ] to have a length of 234`, 2번은 건물 A 호실 이름 200개 대 232개, 3번 `… of 232`, 6번은 `manager` 이름표와 함께 200 대 234). 4·5·7번은 통과한다. 실패 출력을 수락 기록에 붙인다.
 
 - [ ] **Step 3: 마이그레이션 쓰기**
 
