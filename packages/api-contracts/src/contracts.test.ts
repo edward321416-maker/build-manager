@@ -303,6 +303,29 @@ describe("role-safe list responses", () => {
     );
   });
 
+  it("accepts an unverified building with no facts in a landlord ticket, and nothing that claims facts", () => {
+    // C1 step 1 (docs/superpowers/specs/2026-10-14-building-context-fallback-c1-design.md, 보완): a building without context.
+    const detailSchema = schema("LandlordTicketDetailDtoSchema");
+    const unverified = {
+      buildingId: "11111111-1111-4111-8111-111111111111",
+      displayName: "건물",
+      demo: false,
+      contextVerified: false,
+      routingEligibleFields: [],
+    };
+
+    expect(detailSchema.safeParse({ ...landlordDetail, building: unverified }).success).toBe(true);
+    for (const claim of [
+      { primaryUse: "MULTI_FAMILY_HOUSE" },
+      { demo: true },
+      { contextVerified: true },
+      { routingEligibleFields: ["heatingType"] },
+    ]) {
+      expect(detailSchema.safeParse({ ...landlordDetail, building: { ...unverified, ...claim } }).success).toBe(false);
+    }
+    expect(schema("BuildingPassportDtoSchema").safeParse(unverified).success).toBe(false);
+  });
+
   it("accepts a tenant ticket list", () => {
     const listSchema = schema("TenantTicketListSchema");
 
