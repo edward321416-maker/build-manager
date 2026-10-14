@@ -38,6 +38,8 @@ it("reflects a missing canonical address without deriving it from private text",
 it("keeps the vendor section readable for a building without context and blocks publishing without an address",async()=>{
   // C1 step 1 (docs/superpowers/specs/2026-10-14-building-context-fallback-c1-design.md, D2): no address is derived.
   const {t,handoff}=await f.prepared();
+  const command=()=>({clientRequestId:randomUUID(),expectedAssignmentVersion:handoff.assignment!.version,expectedPacketRevisionId:null,workSummary:"합성 점검",
+    sharedDetailKeys:[],allowedPhotoIds:[],accessPolicy:"TENANT_PRESENT_REQUIRED" as const,accessInstruction:null});
   const saved=(await f.p.admin.query("DELETE FROM core_flow.building_context WHERE org_id=$1 AND property_id=$2 RETURNING body",[f.data.orgA,f.data.propertyA])).rows[0].body;
   try{
     const h=await f.manager.readHandoff(f.data.accounts.manager.digest,t.ticket.id);
@@ -45,10 +47,10 @@ it("keeps the vendor section readable for a building without context and blocks 
     expect((h as unknown as {packetSource:{buildingName:string;serviceAddress:string|null;sharedDetails:{sourceType:string}[]}}).packetSource)
       .toMatchObject({buildingName:"건물",serviceAddress:null});
     expect((h as unknown as {packetSource:{sharedDetails:{sourceType:string}[]}}).packetSource.sharedDetails.some(d=>d.sourceType==="BUILDING_VERIFIED")).toBe(false);
-    await expect(f.manager.publishPacket(f.data.accounts.manager.digest,handoff.assignment!.id,{clientRequestId:randomUUID(),
-      expectedAssignmentVersion:handoff.assignment!.version,expectedPacketRevisionId:null,workSummary:"합성 점검",sharedDetailKeys:[],allowedPhotoIds:[],
-      accessPolicy:"TENANT_PRESENT_REQUIRED",accessInstruction:null})).rejects.toMatchObject({code:"INVALID_INPUT"});
+    await expect(f.manager.publishPacket(f.data.accounts.manager.digest,handoff.assignment!.id,command())).rejects.toMatchObject({code:"INVALID_INPUT"});
   }finally{
     await f.p.admin.query("INSERT INTO core_flow.building_context(org_id,property_id,body) VALUES($1,$2,$3)",[f.data.orgA,f.data.propertyA,saved]);
   }
+  // Control: the same command publishes once the stored row and its address are back, so the rejection above was ADDRESS_REQUIRED.
+  expect((await f.manager.publishPacket(f.data.accounts.manager.digest,handoff.assignment!.id,command())).currentPacket).not.toBeNull();
 });
