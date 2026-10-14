@@ -42,7 +42,8 @@ const tenantIntakeOpen=(t:CoreTicketDto)=>t.workStatus==="OPEN"&&openIntakeState
 const intakeTaskMessage=(status:IntakeState)=>status==="NEEDS_MORE_INFO"?"답한 뒤 다시 제출해 주세요.":status==="SAFETY_ESCALATED"?"아래 안내를 먼저 확인해 주세요.":"질문에 답하고 필요한 사진을 고르면 '수리 요청 제출' 버튼이 나와요.";
 function progressMessage(t:CoreTicketDto,tenant:boolean){
   if(t.workStatus==="COMPLETED")return "관리자가 완료로 기록했어요.";
-  if(t.workStatus==="IN_PROGRESS")return tenant?"관리자가 확인하고 있어요.":"처리 중이에요.";
+  // The tenant's line matches 홈's next step for the same state (operator decision 2026-10-14, P5 spec D14).
+  if(t.workStatus==="IN_PROGRESS")return tenant?"관리자가 처리하고 있어요.":"처리 중이에요.";
   switch(intakeDisplayStatus(t)){
     case "IN_PROGRESS":return tenant?"아직 보내지 않았어요. 아래 할 일을 마치고 '수리 요청 제출'을 눌러야 관리자에게 전달돼요.":"세입자가 아직 제출하지 않았어요.";
     case "NEEDS_MORE_INFO":return tenant?"관리자가 추가 확인을 요청했어요. 아래 질문에 답해 주세요.":"세입자의 추가 답변을 기다리고 있어요.";
