@@ -17,6 +17,9 @@ export const INTAKE_STATUS_NAMES: Record<TicketStatus, string> = {
 export const TODO_REASON_NAMES = {
   SAFETY: INTAKE_STATUS_NAMES.SAFETY_ESCALATED, DRAFT: INTAKE_STATUS_NAMES.IN_PROGRESS, MORE_INFO: INTAKE_STATUS_NAMES.NEEDS_MORE_INFO,
   DECIDE: "처리 방법 결정 필요", REPLY_TENANT: "내 답변 필요", REPLY_MANAGER: "관리자 답변 대기", WAITING_TENANT: "세입자 답변 대기",
+  // P5 PR 2 (spec §5): reasons read per request, from the manager's work list or from the link requests. 기한 지남 is the
+  // name the 업무함 row already shows.
+  VISIT: "방문 시간 확정 필요", RESULT: "결과 확인 필요", VENDOR: "업체 확인 필요", OVERDUE: "기한 지남", LINK: "연결 요청 확인 필요",
 } as const;
 
 /**

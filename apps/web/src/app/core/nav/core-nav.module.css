@@ -40,8 +40,10 @@
 .rowBlock { display: grid; gap: .3125rem; padding: .9375rem 1.25rem; }
 .rowBlock > span { color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; }
 .empty { padding: 1.25rem; }
-.todo li button.todoRow { display: grid; gap: .3125rem; width: 100%; min-height: 3.125rem; padding: .9375rem 1.25rem; border: 0; border-radius: 0; background: transparent; color: var(--color-text); text-align: left; font-weight: 400; }
-.todo li button.todoRow:hover:not(:disabled) { background: var(--color-fill-hover); }
+/* A to-do row is a button (a request) or a link (a link request, which opens 입주 연결). The link form beats
+ * .root a:not(.primary-button) (0,2,1) in core-design.module.css, so it keeps the row's colour and no underline. */
+.todo li button.todoRow, .todo li a.todoRow { display: grid; gap: .3125rem; width: 100%; min-height: 3.125rem; padding: .9375rem 1.25rem; border: 0; border-radius: 0; background: transparent; color: var(--color-text); text-align: left; font-weight: 400; text-decoration: none; }
+.todo li button.todoRow:hover:not(:disabled), .todo li a.todoRow:hover { background: var(--color-fill-hover); }
 /* Beats .root button:disabled (0,2,1) in core-design.module.css by specificity, so a disabled to-do row shows this
  * rule's own disabled look (secondary text on a subtle fill) instead of its normal colours (review: Task 8). */
 .todo li button.todoRow:disabled { color: var(--color-text-secondary); background: var(--color-fill-subtle); cursor: not-allowed; }
@@ -82,8 +84,8 @@
   /* Beats .content button.back (0,2,1) from here on, so the phone-only back button actually hides at this width
    * instead of losing to that higher-specificity rule (finding: review 2026-10-13). */
   .content button.back[data-device="phone"] { display: none; }
-  .menuList li a.row, .menuList li button.row, .rowBlock, .todo li button.todoRow, .empty { padding-inline: 1.875rem; }
+  .menuList li a.row, .menuList li button.row, .rowBlock, .todo li button.todoRow, .todo li a.todoRow, .empty { padding-inline: 1.875rem; }
 }
 @media (min-width: 1440px) {
-  .menuList li a.row, .menuList li button.row, .rowBlock, .todo li button.todoRow, .empty { padding-inline: 2.5rem; }
+  .menuList li a.row, .menuList li button.row, .rowBlock, .todo li button.todoRow, .todo li a.todoRow, .empty { padding-inline: 2.5rem; }
 }

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { BackButton, CoreNav, plainClick } from "./core-nav";
 import { meRows, moreRows, VIEW_LABELS } from "./nav-config";
 import { MenuList, TodoScreen, UnitsScreen } from "./nav-screens";
+import { EMPTY_TODO_LIST } from "./todo-list";
 
 const noop = () => undefined;
 const nav = (role: "TENANT" | "ORG_ADMIN", location: { tab: "home" | "alerts" | "more" | "me" | "work"; view: null | "maintenance" | "me" }, badge = 0) =>
@@ -87,16 +88,16 @@ describe("menu screens (rules 8.5, 8.11, 8.16)", () => {
   });
 
   it("shows loading, empty, partial and filled to-do states", () => {
-    const empty = { items: [], partial: false };
-    expect(renderToStaticMarkup(<TodoScreen role="TENANT" list={empty} ready={false} units={[]} onOpen={noop} onRetry={noop} />)).toContain("불러오는 중이에요");
-    expect(renderToStaticMarkup(<TodoScreen role="TENANT" list={empty} ready units={[]} onOpen={noop} onRetry={noop} />)).toContain("지금 처리할 일이 없어요. 새 문제가 생기면 홈에서 접수해 주세요.");
-    expect(renderToStaticMarkup(<TodoScreen role="ORG_ADMIN" list={empty} ready units={[]} onOpen={noop} onRetry={noop} />)).toContain("지금 처리할 일이 없어요. 새 요청은 업무함에 들어와요.");
-    const partial = renderToStaticMarkup(<TodoScreen role="TENANT" list={{ items: [], partial: true }} ready units={[]} onOpen={noop} onRetry={noop} />);
+    const empty = EMPTY_TODO_LIST;
+    expect(renderToStaticMarkup(<TodoScreen role="TENANT" list={empty} ready={false} units={[]} onOpen={noop} onOpenPlace={noop} onRetry={noop} />)).toContain("불러오는 중이에요");
+    expect(renderToStaticMarkup(<TodoScreen role="TENANT" list={empty} ready units={[]} onOpen={noop} onOpenPlace={noop} onRetry={noop} />)).toContain("지금 처리할 일이 없어요. 새 문제가 생기면 홈에서 접수해 주세요.");
+    expect(renderToStaticMarkup(<TodoScreen role="ORG_ADMIN" list={empty} ready units={[]} onOpen={noop} onOpenPlace={noop} onRetry={noop} />)).toContain("지금 처리할 일이 없어요. 새 요청은 업무함에 들어와요.");
+    const partial = renderToStaticMarkup(<TodoScreen role="TENANT" list={{ ...empty, partial: true }} ready units={[]} onOpen={noop} onOpenPlace={noop} onRetry={noop} />);
     expect(partial).toContain("일부를 확인하지 못했어요.");
     expect(partial).toContain(">다시 불러오기</button>");
-    const filled = renderToStaticMarkup(<TodoScreen role="TENANT" ready onOpen={noop} onRetry={noop}
+    const filled = renderToStaticMarkup(<TodoScreen role="TENANT" ready onOpen={noop} onOpenPlace={noop} onRetry={noop}
       units={[{ id: "u1", label: "101호", buildingName: "합성 건물" } as never]}
-      list={{ partial: false, items: [{ ticketId: "t1", unitId: "u1", issueType: "HEATING", reasons: ["REPLY", "DRAFT"], lastActivity: "2026-10-13T01:00:00Z" }] }} />);
+      list={{ ...empty, items: [{ kind: "ticket", ticketId: "t1", unitId: "u1", issueType: "HEATING", reasons: ["REPLY", "DRAFT"], lastActivity: "2026-10-13T01:00:00Z" }] }} />);
     expect(filled).toContain('data-todo-ticket="t1"');
     expect(filled).toContain("난방 · 101호");
     expect(filled).toContain("내 답변 필요");
@@ -104,13 +105,35 @@ describe("menu screens (rules 8.5, 8.11, 8.16)", () => {
     expect(filled).toContain('dateTime="2026-10-13T01:00:00Z"');
   });
 
+  it("links a link request to 입주 연결 and names the unit", () => {
+    const html = renderToStaticMarkup(<TodoScreen role="ORG_ADMIN" ready units={[]} onOpen={noop} onOpenPlace={noop} onRetry={noop}
+      list={{ ...EMPTY_TODO_LIST, items: [{ kind: "link", invitationId: "inv-1", unitLabel: "101호", reasons: ["LINK"], lastActivity: "2026-10-13T02:00:00Z" }] }} />);
+    expect(html).toMatch(/<a [^>]*data-todo-link="inv-1"[^>]*href="\/core\?tab=more&amp;view=invitations"|<a [^>]*href="\/core\?tab=more&amp;view=invitations"[^>]*data-todo-link="inv-1"/);
+    expect(html).toContain("입주 연결 · 101호");
+    expect(html).toContain("연결 요청 확인 필요");
+  });
+
+  it("says while the rest is still being read, and when a read limit was reached", () => {
+    const row = { kind: "ticket" as const, ticketId: "t1", unitId: "u1", issueType: "LEAK" as const, reasons: ["DRAFT" as const], lastActivity: null };
+    const checking = renderToStaticMarkup(<TodoScreen role="TENANT" ready units={[]} onOpen={noop} onOpenPlace={noop} onRetry={noop} list={{ ...EMPTY_TODO_LIST, checking: true }} />);
+    expect(checking).toContain("처리할 일을 더 확인하고 있어요.");
+    expect(checking).toContain('aria-busy="true"');
+    expect(checking).not.toContain("지금 처리할 일이 없어요");
+    const withRow = renderToStaticMarkup(<TodoScreen role="TENANT" ready units={[]} onOpen={noop} onOpenPlace={noop} onRetry={noop} list={{ ...EMPTY_TODO_LIST, checking: true, items: [row] }} />);
+    expect(withRow.indexOf('data-todo-ticket="t1"')).toBeLessThan(withRow.indexOf("처리할 일을 더 확인하고 있어요."));
+    const limited = renderToStaticMarkup(<TodoScreen role="ORG_ADMIN" ready units={[]} onOpen={noop} onOpenPlace={noop} onRetry={noop} list={{ ...EMPTY_TODO_LIST, items: [row], resultLimited: true, linksLimited: true }} />);
+    expect(limited).toContain("최근 끝난 요청 20건만 확인해요.");
+    expect(limited).toContain("연결 요청은 100건까지만 확인했어요. 입주 연결에서 모두 볼 수 있어요.");
+    expect(limited).not.toContain("aria-busy");
+  });
+
   it("locks every to-do row while the screen is busy or holds unsent photos, like the 요청 rows", () => {
-    const list = { partial: false, items: (["t1", "t2"] as const).map(ticketId => ({ ticketId, unitId: "u1", issueType: "LEAK" as const, reasons: ["REPLY" as const], lastActivity: null })) };
+    const list = { ...EMPTY_TODO_LIST, items: (["t1", "t2"] as const).map(ticketId => ({ kind: "ticket" as const, ticketId, unitId: "u1", issueType: "LEAK" as const, reasons: ["REPLY" as const], lastActivity: null })) };
     const rows = (html: string) => html.match(/<button[^>]*data-todo-ticket="[^"]*"[^>]*>/g) ?? [];
-    const locked = rows(renderToStaticMarkup(<TodoScreen role="TENANT" list={list} ready units={[]} disabled onOpen={noop} onRetry={noop} />));
+    const locked = rows(renderToStaticMarkup(<TodoScreen role="TENANT" list={list} ready units={[]} disabled onOpen={noop} onOpenPlace={noop} onRetry={noop} />));
     expect(locked).toHaveLength(2);
     for (const row of locked) expect(row).toMatch(/\sdisabled=""/);
-    const open = rows(renderToStaticMarkup(<TodoScreen role="TENANT" list={list} ready units={[]} onOpen={noop} onRetry={noop} />));
+    const open = rows(renderToStaticMarkup(<TodoScreen role="TENANT" list={list} ready units={[]} onOpen={noop} onOpenPlace={noop} onRetry={noop} />));
     expect(open).toHaveLength(2);
     for (const row of open) expect(row).not.toContain("disabled");
   });

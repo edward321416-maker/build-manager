@@ -30,7 +30,7 @@ import { MenuList,TodoScreen,UnitsScreen } from "./nav/nav-screens";
 import { OpenSourceNotice } from "./nav/open-source-notice";
 import { inLeftMenu,meRows,moreRows,navTitle,roleName,VIEW_LABELS,type NavLocation } from "./nav/nav-config";
 import { detailEntryOnTop,hideDetailEntry,showDetailEntry,useNavLocation } from "./nav/use-nav-location";
-import { buildTodoList } from "./nav/todo-list";
+import { buildTodoList,EMPTY_TODO_LIST } from "./nav/todo-list";
 import navStyles from "./nav/core-nav.module.css";
 
 type IntakeState=CoreTicketDto["detail"]["status"];
@@ -140,7 +140,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
     nav.go(next);
     if(next.tab==="alerts"&&session)void run(refresh);
   };
-  const todo=useMemo(()=>role?buildTodoList({role,tickets,summaries:conversationSummaries.summaries,summariesFailed:conversationSummaries.error}):{items:[],partial:false},[role,tickets,conversationSummaries.summaries,conversationSummaries.error]);
+  const todo=useMemo(()=>role?buildTodoList({role,tickets,summaries:conversationSummaries.summaries,summariesFailed:conversationSummaries.error}):EMPTY_TODO_LIST,[role,tickets,conversationSummaries.summaries,conversationSummaries.error]);
   const home=useMemo(()=>tenant?homeCards({tickets,todo,unitId:unit}):{cards:[],total:0},[tenant,tickets,todo,unit]);
   /** A menu-like link inside the content: the real address for a new tab, this page's own move for a plain click. */
   const placeLink=(to:NavLocation)=>({href:navHref(to),onClick:(event:ReactMouseEvent)=>{if(plainClick(event)){event.preventDefault();navigate(to);}}});
@@ -380,7 +380,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
         </div>
       </>}
       </div>
-      {navContext&&!selected&&!view&&tab==="alerts"?<div className={navStyles.pane}><TodoScreen role={session.role} list={todo} ready={conversationSummaries.ready} units={units} disabled={busy||pending.length>0} notice={pending.length?pendingPhotosHint:undefined} onOpen={openFromList} onRetry={()=>void run(refresh)}/></div>:null}
+      {navContext&&!selected&&!view&&tab==="alerts"?<div className={navStyles.pane}><TodoScreen role={session.role} list={todo} ready={conversationSummaries.ready} units={units} disabled={busy||pending.length>0} notice={pending.length?pendingPhotosHint:undefined} onOpen={openFromList} onOpenPlace={navigate} onRetry={()=>void run(refresh)}/></div>:null}
       {navContext&&!selected&&(tenant?tab==="me"&&!view:view==="me")?<div className={navStyles.pane}><MenuList label={VIEW_LABELS.me} rows={meRows(navContext)} organization={account?.organization} onOpen={navigate} onLogout={logout}/></div>:null}
       {navContext&&!selected&&!tenant&&tab==="more"&&!view?<div className={navStyles.pane}><MenuList label="더 보기" rows={moreRows(navContext)} onOpen={navigate} onLogout={logout}/></div>:null}
       {!tenant&&!selected&&view==="maintenance"?<ManagerMaintenanceTimeline key={maintenanceUnit} client={client} units={units} revision={revision} disabled={busy} initialUnit={maintenanceUnit} onOpenTicket={openMaintenanceTicket}/>:null}

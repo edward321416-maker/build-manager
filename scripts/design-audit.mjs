@@ -16,7 +16,7 @@
 //   center     text not in the middle of its button, link, tab, summary, option label or status label: the space above
 //              and below differs by 2px or more, or, in a box with a visible fill or border, the space left and right of
 //              any line does (rules §4). Rows read from the left only (summary rows, request-opening rows
-//              ([data-open-ticket]), 홈 request rows ([data-home-card]), to-do rows ([data-todo-ticket]), menu rows
+//              ([data-open-ticket]), 홈 request rows ([data-home-card]), to-do rows ([data-todo-ticket], [data-todo-link]), menu rows
 //              ([data-menu-row]), checkbox and radio rows, the sign-in column's sticky logout, and the sticky P5 left
 //              menu) are compared only top and bottom.
 //   coverage   a requested engine did not start, or a screen that should exist could not be reached
@@ -156,7 +156,7 @@ function inspect() {
   // the P5 left menu (sticky from 768px; the phone tab bar is fixed and stays centred). A selection tile (§8.3) is
   // marked data-tile and is centred both ways like a button.
   const mainMenu = el => el.closest('nav[aria-label="주 메뉴"]');
-  const leftStart = el => el.matches("summary, [data-open-ticket], [data-home-card], [data-todo-ticket], [data-menu-row], .field-check label, label:has(input[type=checkbox], input[type=radio]):not([data-tile])")
+  const leftStart = el => el.matches("summary, [data-open-ticket], [data-home-card], [data-todo-ticket], [data-todo-link], [data-menu-row], .field-check label, label:has(input[type=checkbox], input[type=radio]):not([data-tile])")
     || (el.matches(".core-account .core-logout") && getComputedStyle(el.closest(".core-account")).position === "sticky")
     || (mainMenu(el) !== null && getComputedStyle(mainMenu(el)).position === "sticky");
   for (const el of new Set([...taps, ...[...document.querySelectorAll("body *")].filter(badge)])) {
