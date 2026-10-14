@@ -96,6 +96,10 @@ const png = () => sharp({ create: { width: 64, height: 48, channels: 3, backgrou
 
 test("a focused control on a first screen is never under the tab bar (rules 8.14)", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 480 }); await login(page, tenantCode);
+  // 홈's rows render before the conversation read lands, but the next-step line and the to-do line above the form
+  // (both gated on the same read, cleared in the same commit) can still appear after and push the form down; wait for
+  // that read to settle first so this test checks the tab bar, not load timing.
+  await expect(page.locator('section[aria-label="진행 중인 요청"][aria-busy="true"]')).toHaveCount(0);
   await page.getByLabel("문제 설명").fill("합성 탭바 가림 확인");
   const submit = page.getByRole("button", { name: "접수하기", exact: true });
   const before = await page.evaluate(() => window.scrollY);

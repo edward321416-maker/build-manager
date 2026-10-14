@@ -61,6 +61,23 @@ test("홈 shows three in-progress requests with their next step, the to-do line 
   await expect(going.getByRole("link", { name: "요청에서 모두 보기", exact: true })).toHaveCount(0);
 });
 
+test("홈 shows rows before the conversation read lands and adds the next step only once it does (CI fix: PR 143 finding B2)", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mine: string[] = []; await onlyMine(page, mine);
+  mine.push(await create(page, "합성 지연된 대화 읽기"));
+  let release = () => {};
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route(/\/api\/v2\/core\/communication-summaries(\?|$)/, async route => { await held; await route.continue(); });
+  await login(page);
+  const going = page.getByRole("region", { name: "진행 중인 요청", exact: true }), cards = going.locator("[data-home-card]");
+  await expect(cards).toHaveCount(1);
+  await expect(going).toHaveAttribute("aria-busy", "true");
+  await expect(cards.first()).not.toContainText(/아직 보내지 않았어요|관리자가 확인하고 있어요|처리 중이에요/);
+  release();
+  await expect(going).not.toHaveAttribute("aria-busy", "true");
+  await expect(cards.first()).toContainText("아직 보내지 않았어요. 열어서 제출해 주세요.");
+});
+
 test("홈 keeps the rows but states no next step when the conversation states cannot be read", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const mine: string[] = []; await onlyMine(page, mine);

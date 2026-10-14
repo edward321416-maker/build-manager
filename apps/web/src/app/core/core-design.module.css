@@ -226,7 +226,9 @@
  * title line is the subheading style through .ticketTitle; the next step stays body text. */
 .root .homeRow { display: grid; gap: .3125rem; width: 100%; min-height: 3.125rem; padding-block: .9375rem; border: 0; border-radius: 0; background: transparent; text-align: left; font-weight: 400; line-height: 1.5625rem; letter-spacing: -0.01em; }
 .root .cardTitle { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; margin: 0; }
-.root .cardNext { margin: 0; color: var(--color-text-readable); }
+/* Reserves one line of height (the row's own line-height token) while the next step is not confirmed yet, so an empty
+ * span does not collapse the row and shift whatever sits below it (CI fix: PR 143 finding B2). */
+.root .cardNext { margin: 0; min-height: 1.5625rem; color: var(--color-text-readable); }
 .root .moreLink { display: inline-flex; align-items: center; min-height: 3.125rem; }
 .root .issueChoice { display: flex; border: 0; padding: 0; margin: 0; gap: .625rem; }
 .issueChoice legend { margin-bottom: .625rem; font-size: .9375rem; }

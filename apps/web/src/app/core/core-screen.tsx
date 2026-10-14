@@ -342,15 +342,21 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
         {tab==="home"&&conversationSummaries.ready&&todo.items.length?<a className={styles.todoLine} {...placeLink({tab:"alerts",view:null})}>처리할 일 {todo.items.length}건 · 알림에서 보기</a>:null}
         {units.length!==1?<label>건물·호실 <select aria-label="건물·호실" disabled={!units.length||Boolean(followUp)} value={unit} onChange={e=>setUnit(e.target.value)}>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>:null}
         <div className={styles.tenantHome} hidden={tab!=="home"}>
-          {/* The next steps read the conversation states, so the rows wait for that read; when it fails they name only the
-            * request and its status, since no next step is confirmed (rules 10, 8.11). Each row is one button (8.5,
-            * operator decision 2026-10-14). The rows sit above the follow-up block, which stays next to its form (spec §4). */}
-          {conversationSummaries.ready&&home.cards.length?<section className={styles.homeCards} aria-label="진행 중인 요청">
+          {/* Rows render as soon as the ticket list has entries; the titles and status badges come from that list, not
+            * from the conversation read. Only the next-step line waits for that read, so a control already focused in
+            * the form below never gets pushed down once the read lands (CI fix: PR 143 finding B2). When the read fails
+            * it names only the request and its status, since no next step is confirmed (rules 10, 8.11). Each row is one
+            * button (8.5, operator decision 2026-10-14). The rows sit above the follow-up block, which stays next to its
+            * form (spec §4). */}
+          {home.cards.length?<section className={styles.homeCards} aria-label="진행 중인 요청" aria-busy={conversationSummaries.ready?undefined:"true"}>
             <h2>진행 중인 요청 <small>{home.total}건</small></h2>
             {conversationSummaries.error?<p role="alert">{summariesFailedMessage}</p>:null}
             {pending.length?<p>{pendingPhotosHint}</p>:null}
             <ul>{home.cards.map(({ticket:t,next})=><li key={t.ticketId}><button type="button" className={styles.homeRow} data-home-card={t.ticketId} disabled={busy||pending.length>0} onClick={()=>openTenantTicket(t.ticketId)}>
-              <span className={styles.cardTitle}><span className={styles.ticketTitle}>{ticketName(t)}</span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}</span>{conversationSummaries.error?null:<span className={styles.cardNext}>{next}</span>}
+              <span className={styles.cardTitle}><span className={styles.ticketTitle}>{ticketName(t)}</span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}</span>
+              {/* Never show a next step the conversation read has not confirmed yet: an empty span of the same line
+                * height holds the row's size steady until it does (rules 10). */}
+              {!conversationSummaries.ready?<span className={styles.cardNext}/>:conversationSummaries.error?null:<span className={styles.cardNext}>{next}</span>}
             </button></li>)}</ul>
             {home.total>HOME_CARD_LIMIT?<a className={styles.moreLink} {...placeLink({tab:"requests",view:null})}>요청에서 모두 보기</a>:null}
           </section>:null}
