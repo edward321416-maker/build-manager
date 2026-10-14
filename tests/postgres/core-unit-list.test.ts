@@ -9,7 +9,8 @@ import { createB1Fixture } from "./helpers/b1-fixture";
 let f:Awaited<ReturnType<typeof createB1Fixture>>,data:CoreFixture,db:ReturnType<typeof createPostgresDatabase>,port:ReturnType<typeof createCoreAccessPort>;
 const MANY=230;
 // Two buildings without a building context row share the fallback name 건물; each has a unit called 101호.
-const bare=[randomUUID(),randomUUID()],bareUnits=[randomUUID(),randomUUID()];
+// The larger unit id is inserted first, so an order without the id tie-break does not pass by insertion order.
+const bare=[randomUUID(),randomUUID()],bareUnits=[randomUUID(),randomUUID()].sort().reverse();
 const archivedUnit=randomUUID(),archivedProperty=randomUUID(),unitInArchivedProperty=randomUUID();
 const padded=(i:number)=>`대량 호실 ${String(i).padStart(3,"0")}`;
 const q=(sql:string,values:unknown[])=>f.p.admin.query(sql,values);
@@ -84,9 +85,25 @@ async function allowedByCanUnit(name:string){
  }finally{await f.p.admin.query("ROLLBACK");}
 }
 
+// Runs after the tests above: the assignments and occupancies it adds would change their exact counts.
 it("returns exactly the units core_flow.can_unit allows, for every account",async()=>{
- await q("INSERT INTO app.property_assignment(org_id,membership_id,property_id,status) VALUES($1,$2,$3,'ACTIVE')",[data.orgA,data.accounts.staff.membershipId,bare[1]]);
- expect((await list("staff")).map(u=>u.id)).toContain(bareUnits[1]);
+ const staff=data.accounts.staff;
+ // Staff: an extra active assignment, an ended one, and a home in a building they are not assigned to.
+ await q("INSERT INTO app.property_assignment(org_id,membership_id,property_id,status) VALUES($1,$2,$3,'ACTIVE')",[data.orgA,staff.membershipId,bare[1]]);
+ await q("INSERT INTO app.property_assignment(org_id,membership_id,property_id,status,ended_at) VALUES($1,$2,$3,'ENDED',clock_timestamp())",[data.orgA,staff.membershipId,bare[0]]);
+ const home=randomUUID(),homeOccupancy=randomUUID();
+ await q("INSERT INTO app.unit(id,org_id,property_id,label,status) VALUES($1,$2,$3,'102호','ACTIVE')",[home,data.orgA,bare[0]]);
+ await q("INSERT INTO app.occupancy(id,org_id,unit_id,starts_at,status) VALUES($1,$2,$3,clock_timestamp()-interval '1 minute','ACTIVE')",[homeOccupancy,data.orgA,home]);
+ await q("INSERT INTO app.occupancy_member(org_id,occupancy_id,user_id,joined_at,status) VALUES($1,$2,$3,clock_timestamp()-interval '1 minute','ACTIVE')",[data.orgA,homeOccupancy,staff.userId]);
+ // Tenant: an occupancy still marked active whose end time has passed.
+ const past=(await q("SELECT id FROM app.unit WHERE org_id=$1 AND label='대량 호실 001'",[data.orgA])).rows[0].id as string,pastOccupancy=randomUUID();
+ await q("INSERT INTO app.occupancy(id,org_id,unit_id,starts_at,ends_at,status) VALUES($1,$2,$3,clock_timestamp()-interval '2 days',clock_timestamp()-interval '1 minute','ACTIVE')",[pastOccupancy,data.orgA,past]);
+ await q("INSERT INTO app.occupancy_member(org_id,occupancy_id,user_id,joined_at,status) VALUES($1,$2,$3,clock_timestamp()-interval '2 days','ACTIVE')",[data.orgA,pastOccupancy,data.accounts.tenantOther.userId]);
+ const staffIds=(await list("staff")).map(u=>u.id);
+ expect(staffIds).toContain(bareUnits[1]);
+ expect(staffIds).not.toContain(bareUnits[0]);
+ expect(staffIds).not.toContain(home);
+ expect((await list("tenantOther")).map(u=>u.id)).toEqual([data.unitOther]);
  for(const name of Object.keys(data.accounts)){
   const ids=(await list(name)).map(u=>u.id);
   expect([...ids].sort(),name).toEqual(await allowedByCanUnit(name));
@@ -96,4 +113,20 @@ it("returns exactly the units core_flow.can_unit allows, for every account",asyn
 it("keeps core_flow.units a definer function owned by bm_core_flow_owner with a pinned search path",async()=>{
  const row=(await q("SELECT p.prosecdef,p.proconfig,pg_get_userbyid(p.proowner) AS owner,has_function_privilege('bm_b1_web',p.oid,'EXECUTE') AS web,has_function_privilege('public',p.oid,'EXECUTE') AS everyone FROM pg_proc p WHERE p.oid='core_flow.units(bytea)'::regprocedure",[])).rows[0];
  expect(row).toEqual({prosecdef:true,proconfig:["search_path=pg_catalog"],owner:"bm_core_flow_owner",web:true,everyone:false});
+});
+
+// A call count, not a timing: a later change back to a per-unit check fails here.
+it("checks building access once per building and never runs can_unit per unit",async()=>{
+ const a=data.accounts.manager;
+ await f.p.admin.query("BEGIN");
+ try{
+  await f.p.admin.query("SET LOCAL track_functions='all'");
+  const listed=(await f.p.admin.query("SELECT jsonb_array_length(core_flow.units($1)) AS n",[Buffer.from(a.digest,"hex")])).rows[0].n as number;
+  const calls=Object.fromEntries((await f.p.admin.query("SELECT schemaname||'.'||funcname AS name,calls::int AS calls FROM pg_stat_xact_user_functions WHERE (schemaname,funcname) IN (('core_flow','can_unit'),('authn','can_read_property'))",[])).rows.map(r=>[r.name as string,r.calls as number]));
+  const buildings=(await f.p.admin.query("SELECT count(*)::int AS n FROM app.property WHERE org_id=$1",[a.orgId])).rows[0].n as number;
+  expect(calls["core_flow.can_unit"]??0).toBe(0);
+  expect(calls["authn.can_read_property"]).toBeGreaterThan(0);
+  expect(calls["authn.can_read_property"]).toBeLessThanOrEqual(buildings);
+  expect(listed).toBeGreaterThan(200);
+ }finally{await f.p.admin.query("ROLLBACK");}
 });

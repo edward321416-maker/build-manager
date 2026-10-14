@@ -1,6 +1,8 @@
 -- Unit list over 200 (docs/superpowers/specs/2026-10-14-unit-list-over-200-design.md, option A). core_flow.units cut the list
--- to 200 units in random id order and ran core_flow.can_unit once per unit of the organisation. It now returns every unit
+-- to the first 200 units in id order (unit ids are time-ordered uuidv7, so newly registered units were the ones left out)
+-- and ran core_flow.can_unit once per unit of the organisation. It now returns every unit
 -- the session can read, ordered by building name, unit label and unit id, and checks building access once per building
+-- (the readable CTE is MATERIALIZED so that holds whatever the plan)
 -- with the rules of can_unit: a manager or staff member reads the active units of every active building
 -- authn.can_read_property allows; a tenant reads the active units of active buildings they live in now. The building
 -- name keeps the 0025 fallback. Since 0025 also lists units of buildings without a building context row, those units
@@ -15,7 +17,7 @@ DECLARE s jsonb; org uuid; actor uuid; tenant boolean; result jsonb;
 BEGIN
  s:=core_flow.session(p_digest);
  org:=(s->>'orgId')::uuid; actor:=(s->>'actorId')::uuid; tenant:=s->>'role'='TENANT';
- WITH readable AS (
+ WITH readable AS MATERIALIZED (
   SELECT p.id FROM app.property p
   WHERE p.org_id=org AND p.status='ACTIVE' AND (tenant OR authn.can_read_property(p_digest,org,p.id))
  ), visible AS (
