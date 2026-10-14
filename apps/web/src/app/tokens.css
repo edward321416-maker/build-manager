@@ -26,7 +26,7 @@
   --motion-fast: 120ms;
   --motion-base: 200ms;
   --ease: cubic-bezier(.2,0,0,1);
-  --font-sans: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+  --font-sans: "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Consolas, monospace;
 }
 ::selection { background: var(--color-selection); }
