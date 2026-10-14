@@ -354,9 +354,10 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
             {pending.length?<p>{pendingPhotosHint}</p>:null}
             <ul>{home.cards.map(({ticket:t,next})=><li key={t.ticketId}><button type="button" className={styles.homeRow} data-home-card={t.ticketId} disabled={busy||pending.length>0} onClick={()=>openTenantTicket(t.ticketId)}>
               <span className={styles.cardTitle}><span className={styles.ticketTitle}>{ticketName(t)}</span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}</span>
-              {/* Never show a next step the conversation read has not confirmed yet: an empty span of the same line
-                * height holds the row's size steady until it does (rules 10). */}
-              {!conversationSummaries.ready?<span className={styles.cardNext}/>:conversationSummaries.error?null:<span className={styles.cardNext}>{next}</span>}
+              {/* Never show a next step the conversation read has not confirmed yet, whether it is still loading or it
+                * failed: an empty span of the same line height holds the row's size steady either way, so the row
+                * never shrinks when a held-back read comes back as an error (delta review finding). */}
+              {conversationSummaries.ready&&!conversationSummaries.error?<span className={styles.cardNext}>{next}</span>:<span className={styles.cardNext}/>}
             </button></li>)}</ul>
             {home.total>HOME_CARD_LIMIT?<a className={styles.moreLink} {...placeLink({tab:"requests",view:null})}>요청에서 모두 보기</a>:null}
           </section>:null}

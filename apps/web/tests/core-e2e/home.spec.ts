@@ -82,12 +82,22 @@ test("홈 keeps the rows but states no next step when the conversation states ca
   await page.setViewportSize({ width: 390, height: 844 });
   const mine: string[] = []; await onlyMine(page, mine);
   mine.push(await create(page, "합성 대화 상태를 읽지 못한 요청"));
-  // client.communication.summaries reads GET /api/v2/core/communication-summaries?ticketId=…
-  await page.route(/\/api\/v2\/core\/communication-summaries(\?|$)/, route => route.abort());
+  // client.communication.summaries reads GET /api/v2/core/communication-summaries?ticketId=… Held first so the row's
+  // height while busy can be compared with its height once the read fails (delta review: the error branch must not
+  // shrink the row that the busy branch already reserved a line for).
+  let release = () => {};
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route(/\/api\/v2\/core\/communication-summaries(\?|$)/, async route => { await held; await route.abort(); });
   await login(page);
   const going = page.getByRole("region", { name: "진행 중인 요청", exact: true }), cards = going.locator("[data-home-card]");
-  await expect(going.getByRole("alert")).toHaveText("대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.");
   await expect(cards).toHaveCount(1);
+  await expect(going).toHaveAttribute("aria-busy", "true");
+  const busyHeight = (await cards.first().boundingBox())!.height;
+  release();
+  await expect(going.getByRole("alert")).toHaveText("대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.");
+  await expect(going).not.toHaveAttribute("aria-busy", "true");
+  // The reserved next-step line stays reserved on error too, so the row's height does not change between busy and error.
+  expect((await cards.first().boundingBox())!.height).toBe(busyHeight);
   // Without the conversation states no next step is confirmed (rules 10), so the row names the request and its status only.
   await expect(cards.first()).not.toContainText(/아직 보내지 않았어요|관리자가 확인하고 있어요|처리 중이에요/);
   await cards.first().click(); await expect(page.getByTestId("ticket-heading")).toBeVisible();
