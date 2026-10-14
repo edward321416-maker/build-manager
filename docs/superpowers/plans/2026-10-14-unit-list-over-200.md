@@ -206,7 +206,9 @@ Expected: FAIL 4건(1·2·3·6번)이고, 실패 이유는 모두 목록 길이 
 -- the session can read, ordered by building name, unit label and unit id, and checks building access once per building
 -- with the rules of can_unit: a manager or staff member reads the active units of every active building
 -- authn.can_read_property allows; a tenant reads the active units of active buildings they live in now. The building
--- name keeps the 0025 fallback. Signature, owner, SECURITY DEFINER, search_path and grants stay; can_unit is unchanged.
+-- name keeps the 0025 fallback. Since 0025 also lists units of buildings without a building context row, those units
+-- shared the same 200 places; with no limit they are all listed too.
+-- Signature, owner, SECURITY DEFINER, search_path and grants stay; can_unit is unchanged.
 GRANT CREATE ON SCHEMA core_flow TO bm_core_flow_owner;
 SET LOCAL ROLE bm_core_flow_owner;
 
