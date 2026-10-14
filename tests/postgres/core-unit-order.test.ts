@@ -47,6 +47,6 @@ it("orders building names the Korean way and keeps same-name buildings together"
 });
 
 it("creates the unit name collation as an ICU Korean numeric collation owned by the Core owner",async()=>{
- const row=(await q("SELECT pg_get_userbyid(c.collowner) AS owner,c.collprovider AS provider,c.colllocale AS locale FROM pg_collation c JOIN pg_namespace n ON n.oid=c.collnamespace WHERE n.nspname='core_flow' AND c.collname='unit_name_order'",[])).rows[0];
- expect(row).toEqual({owner:"bm_core_flow_owner",provider:"i",locale:"ko-u-kn"});
+ const row=(await q("SELECT pg_get_userbyid(c.collowner) AS owner,c.collprovider AS provider,c.colllocale AS locale,c.collisdeterministic AS deterministic FROM pg_collation c JOIN pg_namespace n ON n.oid=c.collnamespace WHERE n.nspname='core_flow' AND c.collname='unit_name_order'",[])).rows[0];
+ expect(row).toEqual({owner:"bm_core_flow_owner",provider:"i",locale:"ko-u-kn",deterministic:true});
 });

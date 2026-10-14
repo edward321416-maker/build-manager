@@ -10,8 +10,9 @@ let f:Awaited<ReturnType<typeof createB1Fixture>>,data:CoreFixture,db:ReturnType
 const MANY=230;
 // Two buildings without a building context row share the fallback name 건물; each has a unit called 101호.
 // The building with the larger id is inserted first, so an order without the building tie-break does not pass by
-// insertion order (0027 keeps same-name buildings apart by building id).
-const bare=[randomUUID(),randomUUID()].sort().reverse(),bareUnits=[randomUUID(),randomUUID()];
+// insertion order (0027 keeps same-name buildings apart by building id). Unit ids run the other way, so a tie-break
+// on unit id instead of building id fails too.
+const bare=[randomUUID(),randomUUID()].sort().reverse(),bareUnits=[randomUUID(),randomUUID()].sort();
 const archivedUnit=randomUUID(),archivedProperty=randomUUID(),unitInArchivedProperty=randomUUID();
 const padded=(i:number)=>`대량 호실 ${String(i).padStart(3,"0")}`;
 const q=(sql:string,values:unknown[])=>f.p.admin.query(sql,values);
