@@ -9,7 +9,10 @@ const NOT_READY: TodoExtras = { ...NO_TODO_EXTRAS, ready: false };
 
 /** Runs the PR 2 reads (P5 spec §5) when the requests they cover change, after any change to the request list, and on
  * every refresh (`revision`); never periodically or on focus. Only the latest read lands. While a new set of requests is
- * read, the earlier result stays and `ready` is false; a re-read of the same set stays ready, so rows do not flicker. */
+ * read, the earlier result stays and `ready` is false; a re-read of the same set stays ready, so rows do not flicker.
+ * `tickets` and `reads` must be referentially stable between renders (React state and a caller-memoized reads object):
+ * a new `tickets` array means the request list was reloaded, so it reads again by design, and a new `reads` object
+ * reads again too. */
 export function useTodoExtras({ role, tickets, reads, revision }: { role: CoreRole | null; tickets: readonly CoreTicketDto[]; reads: TodoReads | null; revision: number }): TodoExtras {
   const targets = useMemo(() => role ? todoTargets(role, tickets) : null, [role, tickets]);
   const key = role && reads && targets && hasTodoReads(reads, targets) ? JSON.stringify([role, targets, Object.keys(reads).sort()]) : null;

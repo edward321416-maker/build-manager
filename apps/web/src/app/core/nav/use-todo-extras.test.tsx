@@ -75,3 +75,29 @@ it("re-reads the same requests on a new revision and stays ready while it does",
   await act(async () => later.resolve("RESOLVED"));
   expect(seen.current).toMatchObject({ ready: true, reasons: {} });
 });
+
+it("does not read again when it re-renders with the same requests, reads and revision", async () => {
+  let call = 0;
+  const tickets = [done("a")];
+  const reads: TodoReads = { outcome: async () => { call++; return { kind: "UNCONFIRMED" } as CoreTicketOutcome; } };
+  await render({ role: "TENANT", tickets, reads, revision: 0 });
+  expect(call).toBe(1);
+  expect(seen.current).toMatchObject({ ready: true, reasons: { a: ["RESULT"] } });
+  await render({ role: "TENANT", tickets, reads, revision: 0 });
+  expect(call).toBe(1);
+  expect(seen.current).toMatchObject({ ready: true, reasons: { a: ["RESULT"] } });
+});
+
+it("reads again when the request list is reloaded with the same requests, and stays ready meanwhile", async () => {
+  const later = deferred(); let call = 0;
+  const tickets = [done("a")];
+  const reads: TodoReads = { outcome: async () => call++ === 0 ? { kind: "UNCONFIRMED" } as CoreTicketOutcome : later.promise };
+  await render({ role: "TENANT", tickets, reads, revision: 0 });
+  expect(call).toBe(1);
+  expect(seen.current).toMatchObject({ ready: true, reasons: { a: ["RESULT"] } });
+  await render({ role: "TENANT", tickets: [...tickets], reads, revision: 0 });
+  expect(call).toBe(2);
+  expect(seen.current).toMatchObject({ ready: true, reasons: { a: ["RESULT"] } });
+  await act(async () => later.resolve("RESOLVED"));
+  expect(seen.current).toMatchObject({ ready: true, reasons: {} });
+});
