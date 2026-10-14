@@ -72,7 +72,7 @@ test("홈 shows rows before the conversation read lands and adds the next step o
   const going = page.getByRole("region", { name: "진행 중인 요청", exact: true }), cards = going.locator("[data-home-card]");
   await expect(cards).toHaveCount(1);
   await expect(going).toHaveAttribute("aria-busy", "true");
-  await expect(cards.first()).not.toContainText(/아직 보내지 않았어요|관리자가 확인하고 있어요|처리 중이에요/);
+  await expect(cards.first()).not.toContainText(/아직 보내지 않았어요|기다리고 있어요|처리하고 있어요/);
   release();
   await expect(going).not.toHaveAttribute("aria-busy", "true");
   await expect(cards.first()).toContainText("아직 보내지 않았어요. 열어서 제출해 주세요.");
@@ -99,7 +99,7 @@ test("홈 keeps the rows but states no next step when the conversation states ca
   // The reserved next-step line stays reserved on error too, so the row's height does not change between busy and error.
   expect((await cards.first().boundingBox())!.height).toBe(busyHeight);
   // Without the conversation states no next step is confirmed (rules 10), so the row names the request and its status only.
-  await expect(cards.first()).not.toContainText(/아직 보내지 않았어요|관리자가 확인하고 있어요|처리 중이에요/);
+  await expect(cards.first()).not.toContainText(/아직 보내지 않았어요|기다리고 있어요|처리하고 있어요/);
   await cards.first().click(); await expect(page.getByTestId("ticket-heading")).toBeVisible();
 });
 

@@ -24,9 +24,13 @@ describe("홈 next step (P5 spec §4)", () => {
     expect(tenantNextStep(draft, ["REPLY", "DRAFT"])).toBe("내 답변 필요");
   });
 
+  // Operator decision 2026-10-14 (P5 spec D14): the same words as the request's own progress line, one per state.
   it("says who has it when nothing waits on the tenant", () => {
-    expect(tenantNextStep(ticket("o", "OPEN", "READY_FOR_REVIEW", "2026-10-13T01:00:00Z"), [])).toBe("관리자가 확인하고 있어요.");
-    expect(tenantNextStep(ticket("p", "IN_PROGRESS", "APPROVED", "2026-10-13T01:00:00Z"), [])).toBe("처리 중이에요.");
+    expect(tenantNextStep(ticket("o", "OPEN", "READY_FOR_REVIEW", "2026-10-13T01:00:00Z"), [])).toBe("관리자 확인을 기다리고 있어요.");
+    expect(tenantNextStep(ticket("q", "OPEN", "PARTIAL", "2026-10-13T01:00:00Z"), [])).toBe("관리자 확인을 기다리고 있어요.");
+    expect(tenantNextStep(ticket("a", "OPEN", "APPROVED", "2026-10-13T01:00:00Z"), [])).toBe("처리를 기다리고 있어요.");
+    expect(tenantNextStep(ticket("r", "OPEN", "OVERRIDDEN", "2026-10-13T01:00:00Z"), [])).toBe("처리를 기다리고 있어요.");
+    expect(tenantNextStep(ticket("p", "IN_PROGRESS", "APPROVED", "2026-10-13T01:00:00Z"), [])).toBe("관리자가 처리하고 있어요.");
   });
 
   it("names a visit time to confirm as the request's next step", () => {
@@ -53,7 +57,7 @@ describe("홈 in-progress requests (P5 spec §4)", () => {
     expect(result.cards.map(card => card.ticket.ticketId)).toEqual(["safety", "reply", "quiet-new"]);
     expect(result.cards).toHaveLength(HOME_CARD_LIMIT);
     expect(result.total).toBe(4);
-    expect(result.cards.map(card => card.next)).toEqual(["긴급 확인 필요", "내 답변 필요", "관리자가 확인하고 있어요."]);
+    expect(result.cards.map(card => card.next)).toEqual(["긴급 확인 필요", "내 답변 필요", "관리자 확인을 기다리고 있어요."]);
   });
 
   it("skips link-request rows, which belong to no request", () => {

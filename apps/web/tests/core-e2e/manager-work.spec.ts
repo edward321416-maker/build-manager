@@ -77,6 +77,8 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   try{
     await login(tenant,codes.tenant);await openTicketRow(tenant,tickets[0]);
     await expect(tenant.getByTestId("work-status")).toHaveText("처리 중");await expect(tenant.getByRole("region",{name:"사진",exact:true}).getByRole("img")).toHaveCount(1);
+    // Operator decision 2026-10-14 (P5 spec D14): the tenant's progress line for 처리 중 uses the same words as 홈.
+    await expect(tenant.getByText("관리자가 처리하고 있어요.",{exact:true})).toBeVisible();
     for(const text of ["업무 관리","내부 메모","담당자","긴급도","합성 내부 담당 A"])await expect(tenant.getByText(text,{exact:true})).toHaveCount(0);
     const publicRead=await request.get(`/api/v2/core/tickets/${tickets[0]}`,{headers:headers("tenant")});expect(publicRead.status()).toBe(200);const publicText=await publicRead.text();for(const text of [memo,"assigneeLabel","priority","internalNotes","noteCount"])expect(publicText).not.toContain(text);
     for(const path of ["manager/work-items",`manager/tickets/${tickets[0]}/work`,`manager/tickets/${tickets[0]}/internal-notes`])expect((await request.get(`/api/v2/core/${path}`,{headers:headers("tenant")})).status()).toBe(403);
