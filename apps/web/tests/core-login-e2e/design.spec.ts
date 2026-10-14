@@ -56,11 +56,11 @@ test("neutral account and white workspace reflow without remounting drafts; mana
   try{
     const page=await tenant.context.newPage();await page.goto("/core");
     await expect(page.getByLabel("문제 설명")).toBeVisible();
-    await openAccount(page);const account=page.getByRole("region",{name:"내 정보"});
+    await openAccount(page);const account=page.getByRole("region",{name:"MY",exact:true});
     // One organisation: its name as text, nothing to choose (spec §1, PR 1b).
     await expect(account.getByRole("combobox",{name:"내 소속"})).toHaveCount(0);await expect(account.locator(".core-org-name")).toContainText("세입자");
-    await expect(page.getByRole("region",{name:"내 정보"})).not.toContainText(/B1|RC1 합성 주거 데이터/);
-    await openTab(page,"우리 집");await page.getByLabel("문제 설명").fill("합성 디자인 상태 구분 검사");
+    await expect(page.getByRole("region",{name:"MY",exact:true})).not.toContainText(/B1|RC1 합성 주거 데이터/);
+    await openTab(page,"홈");await page.getByLabel("문제 설명").fill("합성 디자인 상태 구분 검사");
     await expect(page.getByRole("button",{name:"접수하기",exact:true})).toHaveCSS("background-color","rgb(0, 100, 255)");
     await expect(page.getByRole("navigation",{name:"주 메뉴"})).not.toContainText(/B1|RC1 합성 주거 데이터/);
     await readable(page.getByRole("button",{name:"접수하기",exact:true}));
@@ -158,12 +158,12 @@ test("two organisations keep the 내 소속 choice with its focus ring on the wr
   try{
     const page=await two.context.newPage();await page.goto("/core");
     await page.getByLabel("내 소속",{exact:true}).selectOption(two.fixture.orgA);
-    await openAccount(page);const account=page.getByRole("region",{name:"내 정보"}).getByRole("combobox",{name:"내 소속"});
+    await openAccount(page);const account=page.getByRole("region",{name:"MY",exact:true}).getByRole("combobox",{name:"내 소속"});
     await account.focus();await page.keyboard.press("Tab");await page.keyboard.press("Shift+Tab");await expect(account).toBeFocused();
     expect(await account.evaluate(el=>getComputedStyle(el).outlineStyle)).toBe("solid");
     expect(await account.evaluate(el=>getComputedStyle(el).outlineColor)).toBe("rgb(0, 100, 255)");
     // The select is the transparent control; the visible ring is drawn on the wrapped current choice (rules §8.2, §2.4).
-    const currentOrg=page.getByRole("region",{name:"내 정보"}).locator(".core-org-current");
+    const currentOrg=page.getByRole("region",{name:"MY",exact:true}).locator(".core-org-current");
     await expect(currentOrg).toBeVisible();
     await expect(currentOrg).toHaveCSS("outline-style","solid");await expect(currentOrg).toHaveCSS("outline-width","2px");await expect(currentOrg).toHaveCSS("outline-color","rgb(0, 100, 255)");
   }finally{await two.close();}

@@ -50,6 +50,6 @@ test("new occupancy member cannot read manager facts or old source after isolate
   expect((await replacement.context.request.post(path,{headers:replacement.headers,data:{clientRequestId:randomUUID(),actionKind:"REPAIR",componentLabel:null}})).status()).toBe(403);expect((await replacement.context.request.post(`/api/v2/core/manager/maintenance-facts/${fact.factId}/corrections`,{headers:replacement.headers,data:{clientRequestId:randomUUID(),expectedCurrentFactId:fact.factId,actionKind:"OTHER",componentLabel:null,correctionReason:"OTHER"}})).status()).toBe(403);
   const page=await replacement.context.newPage();await page.goto("/core");await expect(page.getByTestId("unit-context")).toContainText("합성 정비 교체 호실");await expect(page.locator(`[data-ticket-id="${id}"]`)).toHaveCount(0);
   // P5: the replacement occupant gets the tenant menu and screen, never a manager's (checked at the session's width).
-  await expect(page.getByRole("navigation",{name:"주 메뉴"}).getByRole("link")).toHaveText(["우리 집","내 요청",/^알림/,"내 정보"]);await expect(page.locator("#core-tickets")).toHaveAttribute("data-role","TENANT");expect((await manager.context.request.get(path,{headers:manager.headers})).status()).toBe(200);
+  await expect(page.getByRole("navigation",{name:"주 메뉴"}).getByRole("link")).toHaveText(["홈","요청",/^알림/,"MY"]);await expect(page.locator("#core-tickets")).toHaveAttribute("data-role","TENANT");expect((await manager.context.request.get(path,{headers:manager.headers})).status()).toBe(200);
  }finally{await tenant.close();await manager.close();await replacement.close();}
 });

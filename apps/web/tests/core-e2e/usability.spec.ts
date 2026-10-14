@@ -95,7 +95,7 @@ test("an unsubmitted request reads 제출 전 in the tenant list and on the mana
   const response=page.waitForResponse(r=>r.url().endsWith("/api/v2/core/tickets")&&r.request().method()==="POST");
   await page.getByRole("button",{name:"접수하기",exact:true}).click();const ticket=await (await response).json();
   await page.getByRole("button",{name:"뒤로",exact:true}).click();
-  await openTab(page,"내 요청");
+  await openTab(page,"요청");
   const draftRow=page.locator(`[data-ticket-id="${ticket.ticketId}"] [data-work-state="DRAFT"]`);
   await expect(draftRow).toBeVisible();await expect(draftRow).toHaveText("제출 전");
   const managerContext=await browser.newContext({viewport:{width:390,height:844}}),manager=await managerContext.newPage();
@@ -117,10 +117,10 @@ test("load failure offers a read-only retry and empty lists explain the next act
   // Controlled empty/error responses exercise UI recovery, not persistence or authorization.
   await page.route("**/api/v2/core/tickets",route=>route.request().method()==="GET"?route.fulfill({json:[]}):route.continue());
   await new CoreScreen(page).login("tenant");
-  await openTab(page,"내 요청");await expect(page.getByText("진행 중인 요청이 없어요. 문제가 생기면 우리 집에서 접수해 주세요.",{exact:true})).toBeVisible();await expect(page.getByText("끝난 요청이 없어요.",{exact:true})).toBeVisible();
+  await openTab(page,"요청");await expect(page.getByText("진행 중인 요청이 없어요. 문제가 생기면 홈에서 접수해 주세요.",{exact:true})).toBeVisible();await expect(page.getByText("끝난 요청이 없어요.",{exact:true})).toBeVisible();
   await page.screenshot({path:join(privateRoot,"usability-empty-320.png"),fullPage:true});
-  // P5: the intake form lives on 우리 집, so go back there before typing.
-  await openTab(page,"우리 집");await page.getByLabel("문제 설명").fill("연결 실패에도 유지할 합성 입력");
+  // P5: the intake form lives on 홈, so go back there before typing.
+  await openTab(page,"홈");await page.getByLabel("문제 설명").fill("연결 실패에도 유지할 합성 입력");
   let submissions=0;
   await page.route("**/api/v2/core/tickets",route=>{if(route.request().method()==="POST"){submissions++;return route.abort();}return route.fulfill({json:[]});});
   await page.getByRole("button",{name:"접수하기",exact:true}).click();

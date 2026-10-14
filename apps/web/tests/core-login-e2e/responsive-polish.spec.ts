@@ -12,17 +12,18 @@ test("compact tab bar keeps the four tenant tabs in keyboard order at 320 and 39
     const nav = page.getByRole("navigation", { name: "주 메뉴", exact: true });
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 844 }); await fits(page);
-      const links = nav.getByRole("link"); await expect(links).toHaveText(["우리 집", "내 요청", /^알림/, "내 정보"]);
+      const links = nav.getByRole("link"); await expect(links).toHaveText(["홈", "요청", /^알림/, "MY"]);
       const boxes = await links.evaluateAll(els => els.map(el => el.getBoundingClientRect()).map(r => ({ x: r.x, width: r.width, height: r.height })));
       for (let i = 1; i < boxes.length; i++) expect(boxes[i].x).toBeGreaterThanOrEqual(boxes[i - 1].x + boxes[i - 1].width - 1);
       for (const box of boxes) { expect(box.width).toBeGreaterThanOrEqual(50); expect(Math.round(box.height)).toBe(56); }
-      await nav.getByRole("link", { name: "우리 집", exact: true }).focus();
-      for (const name of ["내 요청", /^알림/, "내 정보"]) { await page.keyboard.press("Tab"); await expect(nav.getByRole("link", { name })).toBeFocused(); }
-      await page.keyboard.press("Enter"); await expect(page.getByRole("heading", { level: 1, name: "내 정보" })).toBeVisible();
-      await page.getByRole("region", { name: "내 정보", exact: true }).getByRole("link", { name: "호실 연결", exact: true }).click();
+      await nav.getByRole("link", { name: "홈", exact: true }).focus();
+      // exact: a short name such as MY would otherwise match any name containing it, in any case (regexes ignore it).
+      for (const name of ["요청", /^알림/, "MY"]) { await page.keyboard.press("Tab"); await expect(nav.getByRole("link", { name, exact: true })).toBeFocused(); }
+      await page.keyboard.press("Enter"); await expect(page.getByRole("heading", { level: 1, name: "MY", exact: true })).toBeVisible();
+      await page.getByRole("region", { name: "MY", exact: true }).getByRole("link", { name: "호실 연결", exact: true }).click();
       await expect(page.getByRole("heading", { level: 1, name: "호실 연결" })).toBeVisible();
       await page.getByRole("button", { name: "뒤로", exact: true }).click();
-      await nav.getByRole("link", { name: "우리 집", exact: true }).click(); await expect(nav.getByRole("link", { name: "우리 집", exact: true })).toHaveAttribute("aria-current", "page");
+      await nav.getByRole("link", { name: "홈", exact: true }).click(); await expect(nav.getByRole("link", { name: "홈", exact: true })).toHaveAttribute("aria-current", "page");
     }
   } finally { await tenant.close(); }
 });

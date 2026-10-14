@@ -16,12 +16,12 @@ async function login(page: Page, code: string) {
 
 test("development sign-in gets the same menu without organisations or move-in links (P5 spec D11)", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); await login(page, ownTenant);
-  await menu(page).getByRole("link", { name: "내 정보", exact: true }).click();
-  await expect(page.getByRole("region", { name: "내 정보", exact: true }).locator("[data-menu-row]")).toHaveText(["내 호실", "오픈소스 라이선스", "로그아웃"]);
+  await menu(page).getByRole("link", { name: "MY", exact: true }).click();
+  await expect(page.getByRole("region", { name: "MY", exact: true }).locator("[data-menu-row]")).toHaveText(["내 호실", "오픈소스 라이선스", "로그아웃"]);
   await expect(page.getByLabel("내 소속", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "로그아웃", exact: true }).click(); await expect(page.getByLabel("개발 접근 코드")).toBeVisible();
   await page.setViewportSize({ width: 1280, height: 900 }); await login(page, (await accessCodes()).manager);
-  await expect(menu(page).getByRole("link")).toHaveText(["업무함", /^알림/, "호실 정비 이력", "내 정보"]);
+  await expect(menu(page).getByRole("link")).toHaveText(["업무함", /^알림/, "호실 정비 이력", "MY"]);
   await expect(menu(page).getByText(/^(조직 관리자|건물 담당자)$/)).toBeVisible();
 });
 
@@ -35,9 +35,9 @@ async function createOwn(page: Page, text: string) {
 test("closing a request through its own tab leaves no dead back step (final review of PR 139)", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const id = await createOwn(page, "합성 같은 탭으로 닫기"); await login(page, tenantCode); await expect(page).toHaveURL(/tab=home$/);
-  await menu(page).getByRole("link", { name: "내 요청", exact: true }).click(); await expect(page).toHaveURL(/tab=requests$/);
+  await menu(page).getByRole("link", { name: "요청", exact: true }).click(); await expect(page).toHaveURL(/tab=requests$/);
   await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click(); await expect(page.getByTestId("ticket-heading")).toBeVisible();
-  await menu(page).getByRole("link", { name: "내 요청", exact: true }).click();
+  await menu(page).getByRole("link", { name: "요청", exact: true }).click();
   await expect(page.getByTestId("ticket-heading")).toHaveCount(0); await expect(page).toHaveURL(/tab=requests$/);
   await page.goBack(); await expect(page).toHaveURL(/tab=home$/);
 });
@@ -78,9 +78,9 @@ test("opening a 더 보기 row puts focus on the new screen's title", async ({ p
 test("closing a request with the back button puts focus on the list's title", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const id = await createOwn(page, "합성 닫은 뒤 포커스"); await login(page, tenantCode);
-  await menu(page).getByRole("link", { name: "내 요청", exact: true }).click(); await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();
+  await menu(page).getByRole("link", { name: "요청", exact: true }).click(); await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();
   await page.getByRole("button", { name: "뒤로", exact: true }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "내 요청" })).toBeFocused();
+  await expect(page.getByRole("heading", { level: 1, name: "요청", exact: true })).toBeFocused();
 });
 
 test("from 768px a screen the left menu lists keeps the first-screen title (rules 8.10)", async ({ page }) => {
@@ -112,10 +112,10 @@ test("a focused control on a first screen is never under the tab bar (rules 8.14
 test("on a wide screen a menu click keeps a request with unsent photos open (spec §3)", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const id = await createOwn(page, "합성 미전송 사진과 메뉴"); await login(page, tenantCode);
-  await menu(page).getByRole("link", { name: "내 요청", exact: true }).click();
+  await menu(page).getByRole("link", { name: "요청", exact: true }).click();
   await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click(); await expect(page.getByTestId("ticket-heading")).toBeVisible();
   await page.getByLabel("참고 사진 선택", { exact: true }).setInputFiles({ name: "pending.png", mimeType: "image/png", buffer: await png() });
-  await menu(page).getByRole("link", { name: "우리 집", exact: true }).click();
+  await menu(page).getByRole("link", { name: "홈", exact: true }).click();
   await expect(page.getByTestId("ticket-heading")).toBeVisible(); await expect(page).toHaveURL(/tab=requests$/);
   await expect(page.getByText("목록으로 돌아가기 전에 미전송 사진을 저장하거나 선택 취소해 주세요.", { exact: true })).toBeVisible();
 });
@@ -129,6 +129,6 @@ test("at 320px with 200% text every tab label stays on one line inside its cell 
     const label = a.querySelector("span")!;
     return { text: label.textContent, lines: label.getClientRects().length, fits: label.getBoundingClientRect().width <= a.getBoundingClientRect().width + 0.5, width: Math.round(label.getBoundingClientRect().width * 10) / 10, cell: Math.round(a.getBoundingClientRect().width * 10) / 10, font: getComputedStyle(label).fontFamily };
   }));
-  expect(cells.map(cell => cell.text)).toEqual(["우리 집", "내 요청", "알림", "내 정보"]);
+  expect(cells.map(cell => cell.text)).toEqual(["홈", "요청", "알림", "MY"]);
   for (const cell of cells) expect(cell, JSON.stringify({ ...cell, pretendard })).toMatchObject({ lines: 1, fits: true });
 });
