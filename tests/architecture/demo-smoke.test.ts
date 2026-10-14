@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { evaluateSafety } from "@build-manager/domain";
-import { WRITE_CHECK_TEXT, certificateCheck, maskerFor } from "../../scripts/demo-smoke.mjs";
+import { WRITE_CHECK_CLOSE_MESSAGES, WRITE_CHECK_TEXT, certificateCheck, closeAsManager, confirmAsTenant, maskerFor } from "../../scripts/demo-smoke.mjs";
 
 // Spec: docs/superpowers/specs/2026-10-11-demo-ops-reliability-design.md (PR A). The script runs for real against
 // a fake demo on 127.0.0.1, so every assertion below is about its exit code and printed lines.
@@ -159,6 +159,65 @@ describe("write check", () => {
   // domain's safety scan escalated the request as urgent, and an urgent request never reads 제출 전.
   it("saves a request whose text the safety scan does not escalate", () => {
     expect(evaluateSafety({ rawText: WRITE_CHECK_TEXT })).toMatchObject({ escalated: false, flags: [] });
+  });
+});
+
+// Spec: docs/superpowers/specs/2026-10-15-smoke-write-check-closes-design.md. These two functions run inside the demo
+// page (page.evaluate) with the page's own fetch; here they get a fake one that records every request.
+describe("write check closes its own request", () => {
+  const CSRF = "c".repeat(64), ORG = "11111111-1111-4111-8111-111111111111", TICKET = "T-1/a?b";
+  type Call = { method: string; path: string; headers: Record<string, string>; body: unknown };
+  function fakeFetch(answers: Record<string, number>, ticket: { workStatus: string } = { workStatus: "COMPLETED" }) {
+    const calls: Call[] = [];
+    const impl = async (path: string, init: { method?: string; headers?: Record<string, string>; body?: string } = {}) => {
+      const method = init.method ?? "GET";
+      calls.push({ method, path, headers: init.headers ?? {}, body: init.body ? JSON.parse(init.body) : undefined });
+      if (path === "/api/v2/core/access") return new Response(JSON.stringify({ authentication: "B1", synthetic: true, csrf: CSRF, organizations: [{ id: ORG, name: "합성", role: "ORG_ADMIN" }] }), { status: answers.access ?? 200 });
+      if (method === "GET") return new Response(JSON.stringify(ticket), { status: answers.read ?? 200 });
+      const key = path.endsWith("/resolved") ? "resolved" : (JSON.parse(init.body ?? "{}") as { status: string }).status;
+      return new Response("{}", { status: answers[key] ?? 500 });
+    };
+    return { calls, impl };
+  }
+  const handling = `/api/v2/core/tickets/${encodeURIComponent(TICKET)}/handling`;
+
+  it("records 처리 시작 then 처리 완료 for the saved ticket with the page's organisation and CSRF value", async () => {
+    const fake = fakeFetch({ IN_PROGRESS: 200, COMPLETED: 200 });
+    const result = await closeAsManager({ ticketId: TICKET, ...WRITE_CHECK_CLOSE_MESSAGES }, fake.impl as typeof fetch);
+    expect(result).toEqual({ access: 200, started: 200, completed: 200 });
+    expect(fake.calls.map((c) => `${c.method} ${c.path}`)).toEqual(["GET /api/v2/core/access", `POST ${handling}`, `POST ${handling}`]);
+    expect(fake.calls[1].body).toEqual({ status: "IN_PROGRESS", message: WRITE_CHECK_CLOSE_MESSAGES.start });
+    expect(fake.calls[2].body).toEqual({ status: "COMPLETED", message: WRITE_CHECK_CLOSE_MESSAGES.complete });
+    for (const call of fake.calls.slice(1)) expect(call.headers).toMatchObject({ "x-core-organization": ORG, "x-b1-csrf": CSRF, "content-type": "application/json" });
+    expect(JSON.stringify(result)).not.toContain(CSRF);
+  });
+
+  it("does not record 처리 완료 when 처리 시작 is refused", async () => {
+    const fake = fakeFetch({ IN_PROGRESS: 409, COMPLETED: 200 });
+    expect(await closeAsManager({ ticketId: TICKET, ...WRITE_CHECK_CLOSE_MESSAGES }, fake.impl as typeof fetch)).toEqual({ access: 200, started: 409, completed: null });
+    expect(fake.calls).toHaveLength(2);
+  });
+
+  it("sends nothing when the page has no session", async () => {
+    const fake = fakeFetch({ access: 401 });
+    expect(await closeAsManager({ ticketId: TICKET, ...WRITE_CHECK_CLOSE_MESSAGES }, fake.impl as typeof fetch)).toEqual({ access: 401, started: null, completed: null });
+    expect(fake.calls).toHaveLength(1);
+  });
+
+  it("confirms the result as the tenant and reads the ticket back", async () => {
+    const fake = fakeFetch({ resolved: 201 });
+    const clientRequestId = "22222222-2222-4222-8222-222222222222";
+    const result = await confirmAsTenant({ ticketId: TICKET, clientRequestId }, fake.impl as typeof fetch);
+    expect(result).toEqual({ access: 200, resolved: 201, workStatus: "COMPLETED" });
+    const base = `/api/v2/core/tickets/${encodeURIComponent(TICKET)}`;
+    expect(fake.calls.map((c) => `${c.method} ${c.path}`)).toEqual(["GET /api/v2/core/access", `POST ${base}/outcome/resolved`, `GET ${base}`]);
+    expect(fake.calls[1].body).toEqual({ clientRequestId });
+    expect(fake.calls[1].headers).toMatchObject({ "x-core-organization": ORG, "x-b1-csrf": CSRF });
+    expect(JSON.stringify(result)).not.toContain(CSRF);
+  });
+
+  it("closes with messages the safety scan does not escalate", () => {
+    for (const message of Object.values(WRITE_CHECK_CLOSE_MESSAGES)) expect(evaluateSafety({ rawText: message })).toMatchObject({ escalated: false, flags: [] });
   });
 });
 
