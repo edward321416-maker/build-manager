@@ -82,6 +82,9 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   const [pending,setPending]=useState<PendingPhoto[]>([]),[photoMessage,setPhotoMessage]=useState("");
   // Photos stored by the intake's evidence step: reloads the photo list without remounting the intake (keyed by revision).
   const [photoRevision,setPhotoRevision]=useState(0);
+  // P5 PR 2 (spec §5): counts refreshes only, so the to-do reads run again on 새로고침, 다시 불러오기 and 알림 taps, never
+  // on a photo upload or the other reloads `revision` counts. A new request list reads again by itself (use-todo-extras.ts).
+  const [todoRevision,setTodoRevision]=useState(0);
   const [communicationVersion,setCommunicationVersion]=useState<{ticketId:string;version:number}|null>(null);
   const [managerHandoff,setManagerHandoff]=useState<ManagerVendorHandoffDto|null>(null);
   const onManagerHandoff=useCallback((value:ManagerVendorHandoffDto|null)=>setManagerHandoff(value),[]);
@@ -151,7 +154,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   // P5 PR 2 (spec §5): reads per request, the manager's work list and the link requests, after the request list loads or
   // changes and on every refresh; never periodically.
   const todoReads=useMemo(()=>role?todoReadsFor({role,b1:Boolean(b1),perRequest:perRequestClient,list:client,invitations:linkRequests}):null,[role,b1,perRequestClient,client,linkRequests]);
-  const todoExtras=useTodoExtras({role,tickets,reads:todoReads,revision});
+  const todoExtras=useTodoExtras({role,tickets,reads:todoReads,revision:todoRevision});
   const todo=useMemo(()=>role?buildTodoList({role,tickets,summaries:conversationSummaries.summaries,summariesFailed:conversationSummaries.error,extras:todoExtras}):EMPTY_TODO_LIST,[role,tickets,conversationSummaries.summaries,conversationSummaries.error,todoExtras]);
   const home=useMemo(()=>tenant?homeCards({tickets,todo,unitId:unit}):{cards:[],total:0},[tenant,tickets,todo,unit]);
   /** A menu-like link inside the content: the real address for a new tab, this page's own move for a plain click. */
@@ -224,7 +227,11 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
     try{const s=await client.session(),u=await client.units(),t=await client.tickets();setSession(s);setUnits(u);setUnit(u[0]?.id??"");setTickets(t);}
     catch(e){if(e instanceof ApiClientError&&e.status===401)clearAccess();else throw e;}
   };
-  const refresh=async()=>{const u=await client.units();setUnits(u);setUnit(current=>u.some(item=>item.id===current)?current:(u[0]?.id??""));setTickets(await client.tickets());if(selected)adopt(await client.read(selected.ticketId));setRevision(r=>r+1);};
+  // The new list and the re-read open request land together, so a refresh runs the to-do reads once, not once for each
+  // (spec §5). When the re-read fails, the new list still lands.
+  const refresh=async()=>{const u=await client.units();setUnits(u);setUnit(current=>u.some(item=>item.id===current)?current:(u[0]?.id??""));const list=await client.tickets();
+    const fresh=selected?await client.read(selected.ticketId).catch((e:unknown)=>{setTickets(list);throw e;}):null;
+    setTickets(list);if(fresh)adopt(fresh);setRevision(r=>r+1);setTodoRevision(r=>r+1);};
   const login=()=>run(async()=>{clearCommunicationRecovery();clearOutcomeRecovery();const s=await client.login(code),u=await client.units(),t=await client.tickets();setSession(s);setCode("");setUnits(u);setUnit(u[0]?.id??"");setTickets(t);});
   const selectedUnit=units.find(u=>u.id===selected?.unitId);
   const upload=async(ticketId:string,files:PendingPhoto[])=>{

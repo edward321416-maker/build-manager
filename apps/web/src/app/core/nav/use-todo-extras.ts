@@ -8,7 +8,8 @@ import { NO_TODO_EXTRAS, type TodoExtras } from "./todo-list";
 const NOT_READY: TodoExtras = { ...NO_TODO_EXTRAS, ready: false };
 
 /** Runs the PR 2 reads (P5 spec §5) when the requests they cover change, after any change to the request list, and on
- * every refresh (`revision`); never periodically or on focus. Only the latest read lands: a newer read, or leaving the
+ * every refresh (`revision`, which counts refreshes only: core-screen.tsx `todoRevision`, not the screen's general
+ * reload counter); never periodically or on focus. Only the latest read lands: a newer read, or leaving the
  * screen, cancels the one before, which starts no more reads, and all reads share four places, so a new read waits for
  * the ones still in flight. While a new set of requests is read, the earlier result stays and `ready` is false; a
  * re-read of the same set stays ready, so rows do not flicker.
