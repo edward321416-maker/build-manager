@@ -1,6 +1,6 @@
 import type { CoreTicketDto } from "@build-manager/api-contracts";
 import { isIntakeDraft } from "../ui/work-status-badge";
-import { lastActivity, todoReasonName, type TodoList, type TodoReason } from "./todo-list";
+import { lastActivity, todoReasonName, type TodoList, type TodoReason, type TodoTicketItem } from "./todo-list";
 
 /** 홈 shows at most this many unfinished requests (P5 spec §4); the rest are one link away in 요청. */
 export const HOME_CARD_LIMIT = 3;
@@ -17,8 +17,9 @@ export function tenantNextStep(ticket: CoreTicketDto, reasons: readonly TodoReas
 
 /** This unit's unfinished requests: to-dos first in the 알림 order, then the most recent activity (spec §4). */
 export function homeCards({ tickets, todo, unitId }: { tickets: readonly CoreTicketDto[]; todo: TodoList; unitId: string }): { cards: HomeCard[]; total: number } {
-  const order = new Map(todo.items.map((item, index) => [item.ticketId, index]));
-  const reasons = new Map(todo.items.map(item => [item.ticketId, item.reasons]));
+  const requests = todo.items.filter((item): item is TodoTicketItem => item.kind === "ticket");
+  const order = new Map(requests.map((item, index) => [item.ticketId, index]));
+  const reasons = new Map(requests.map(item => [item.ticketId, item.reasons]));
   const open = tickets.filter(ticket => ticket.unitId === unitId && ticket.workStatus !== "COMPLETED");
   const rank = (ticket: CoreTicketDto) => order.get(ticket.ticketId) ?? Number.MAX_SAFE_INTEGER;
   const time = (ticket: CoreTicketDto) => { const at = lastActivity(ticket); return at ? Date.parse(at) : 0; };
