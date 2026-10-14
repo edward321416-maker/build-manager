@@ -7,6 +7,8 @@ import { openTab } from "./presentation";
 // requests, 내 요청 in two groups, and why request rows wait while photos are picked.
 let code = "";
 test.beforeAll(async () => { code = await mintOwnSession("tenant"); });
+// A list read can still be in flight when a test ends; drop it instead of failing on a route that outlived the test.
+test.afterEach(async ({ page }) => { await page.unrouteAll({ behavior: "ignoreErrors" }); });
 const bearer = (value: string) => ({ Authorization: `Bearer ${value}` });
 const menu = (page: Page) => page.getByRole("navigation", { name: "주 메뉴", exact: true });
 const pendingHint = "고른 사진이 있어서 요청을 열 수 없어요. 접수하거나 사진 선택을 취소해 주세요.";

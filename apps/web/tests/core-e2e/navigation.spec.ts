@@ -123,10 +123,12 @@ test("on a wide screen a menu click keeps a request with unsent photos open (spe
 test("at 320px with 200% text every tab label stays on one line inside its cell (rules 8.14, 12)", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 }); await login(page, tenantCode);
   await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  // Measure with the page's own font (rules 3.1), not a fallback that shows while Pretendard is still loading.
+  const pretendard = await page.evaluate(async () => { await document.fonts.ready; return [...document.fonts].filter(face => face.family.includes("Pretendard")).map(face => face.status); });
   const cells = await menu(page).getByRole("link").evaluateAll(links => links.filter(a => a.getClientRects().length).map(a => {
     const label = a.querySelector("span")!;
-    return { text: label.textContent, lines: label.getClientRects().length, fits: label.getBoundingClientRect().width <= a.getBoundingClientRect().width + 0.5 };
+    return { text: label.textContent, lines: label.getClientRects().length, fits: label.getBoundingClientRect().width <= a.getBoundingClientRect().width + 0.5, width: Math.round(label.getBoundingClientRect().width * 10) / 10, cell: Math.round(a.getBoundingClientRect().width * 10) / 10, font: getComputedStyle(label).fontFamily };
   }));
   expect(cells.map(cell => cell.text)).toEqual(["우리 집", "내 요청", "알림", "내 정보"]);
-  for (const cell of cells) expect(cell).toMatchObject({ lines: 1, fits: true });
+  for (const cell of cells) expect(cell, JSON.stringify({ ...cell, pretendard })).toMatchObject({ lines: 1, fits: true });
 });
