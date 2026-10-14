@@ -1,6 +1,6 @@
 "use client";
 
-import { createCoreFlowClient,ApiClientError } from "@build-manager/api-client";
+import { createCoreFlowClient,createCoreOnboardingClient,ApiClientError } from "@build-manager/api-client";
 import { CoreCreateFollowUpSchema,type CoreCreateFollowUp,type CoreSessionDto,type CoreTicketDto,type CoreUnitDto,type ManagerVendorHandoffDto } from "@build-manager/api-contracts";
 import { useCallback,useEffect,useMemo,useRef,useState,type MouseEvent as ReactMouseEvent,type ReactNode } from "react";
 import { TicketIntake,type EvidenceStepRenderer } from "../../components/tenant/ticket-intake";
@@ -31,6 +31,8 @@ import { OpenSourceNotice } from "./nav/open-source-notice";
 import { inLeftMenu,meRows,moreRows,navTitle,roleName,VIEW_LABELS,type NavLocation } from "./nav/nav-config";
 import { detailEntryOnTop,hideDetailEntry,showDetailEntry,useNavLocation } from "./nav/use-nav-location";
 import { buildTodoList,EMPTY_TODO_LIST } from "./nav/todo-list";
+import { endsSession,todoReadsFor } from "./nav/todo-extras";
+import { useTodoExtras } from "./nav/use-todo-extras";
 import navStyles from "./nav/core-nav.module.css";
 
 type IntakeState=CoreTicketDto["detail"]["status"];
@@ -90,19 +92,25 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   const clearAccess=useCallback(()=>{accessGeneration.invalidate();clearCommunicationRecovery();clearOutcomeRecovery();setFollowUp(null);setFollowAttempt(null);setCommunicationVersion(null);setManagerHandoff(null);setSession(null);setSelected(null);setTickets([]);setUnits([]);setUnit("");setText("");setMessage("");setCode("");setNotice("");setPending([]);setPhotoMessage("");setMaintenanceUnit("");},[accessGeneration]);
   // The embedded intake/review also uses this client: a denied nested request
   // must clear the parent screen, not leave old protected content visible.
-  const client=useMemo(()=>{const guarded:typeof fetch=async(input,init)=>{
+  // P5 PR 2 (spec §5): the to-do reads per request use their own client. Its 403 means nothing is assigned there, as on
+  // the request screens, so it never clears the screen; its 401 still does (endsSession).
+  const checkedFetch=useCallback((perRequest:boolean):typeof fetch=>async(input,init)=>{
     const headers=new Headers(init?.headers);if(b1){headers.set("x-core-organization",b1.orgId);headers.set("x-b1-csrf",b1.csrf);}
     const response=await fetch(input,{...init,headers});
-    if(response.status===401||response.status===403){clearCommunicationRecovery();clearOutcomeRecovery();}
-    if(b1&&(response.status===401||response.status===403))onDenied?.();
-    if((response.status===401||response.status===403)&&!String(input).endsWith("/session")){
-      clearAccess();setError(response.status===401?sessionMessage:accessMessage);
+    if(endsSession(response.status,perRequest)){
+      clearCommunicationRecovery();clearOutcomeRecovery();
+      if(b1)onDenied?.();
+      if(!String(input).endsWith("/session")){clearAccess();setError(response.status===401?sessionMessage:accessMessage);}
     }
     if(response.status===404&&String(input).includes("/manager/")&&String(input).includes("maintenance")){
       clearAccess();setError(accessMessage);
     }
     return response;
-  };return createCoreFlowClient({baseUrl:"",fetchImpl:guarded,photoFetchImpl:guarded});},[clearAccess,b1,onDenied]);
+  },[clearAccess,b1,onDenied]);
+  const client=useMemo(()=>{const guarded=checkedFetch(false);return createCoreFlowClient({baseUrl:"",fetchImpl:guarded,photoFetchImpl:guarded});},[checkedFetch]);
+  const perRequestClient=useMemo(()=>createCoreFlowClient({baseUrl:"",fetchImpl:checkedFetch(true)}),[checkedFetch]);
+  // 연결 요청 (B1): a list read, so a 401 or 403 there signs out like the other list reads (spec §5).
+  const linkRequests=useMemo(()=>b1?createCoreOnboardingClient({csrf:b1.csrf,orgId:b1.orgId,fetchImpl:checkedFetch(false)}).list:undefined,[b1,checkedFetch]);
   const tenant=session?.role==="TENANT";
   // Tenant rows show every request's conversation state; a manager's to-dos need only unfinished requests. Opening and
   // closing a request re-reads them, as before P5, so a row shows the reply just sent.
@@ -140,7 +148,11 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
     nav.go(next);
     if(next.tab==="alerts"&&session)void run(refresh);
   };
-  const todo=useMemo(()=>role?buildTodoList({role,tickets,summaries:conversationSummaries.summaries,summariesFailed:conversationSummaries.error}):EMPTY_TODO_LIST,[role,tickets,conversationSummaries.summaries,conversationSummaries.error]);
+  // P5 PR 2 (spec §5): reads per request, the manager's work list and the link requests, after the request list loads or
+  // changes and on every refresh; never periodically.
+  const todoReads=useMemo(()=>role?todoReadsFor({role,b1:Boolean(b1),perRequest:perRequestClient,list:client,invitations:linkRequests}):null,[role,b1,perRequestClient,client,linkRequests]);
+  const todoExtras=useTodoExtras({role,tickets,reads:todoReads,revision});
+  const todo=useMemo(()=>role?buildTodoList({role,tickets,summaries:conversationSummaries.summaries,summariesFailed:conversationSummaries.error,extras:todoExtras}):EMPTY_TODO_LIST,[role,tickets,conversationSummaries.summaries,conversationSummaries.error,todoExtras]);
   const home=useMemo(()=>tenant?homeCards({tickets,todo,unitId:unit}):{cards:[],total:0},[tenant,tickets,todo,unit]);
   /** A menu-like link inside the content: the real address for a new tab, this page's own move for a plain click. */
   const placeLink=(to:NavLocation)=>({href:navHref(to),onClick:(event:ReactMouseEvent)=>{if(plainClick(event)){event.preventDefault();navigate(to);}}});
@@ -348,16 +360,17 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
             * it names only the request and its status, since no next step is confirmed (rules 10, 8.11). Each row is one
             * button (8.5, operator decision 2026-10-14). The rows sit above the follow-up block, which stays next to its
             * form (spec §4). */}
-          {home.cards.length?<section className={styles.homeCards} aria-label="진행 중인 요청" aria-busy={conversationSummaries.ready?undefined:"true"}>
+          {home.cards.length?<section className={styles.homeCards} aria-label="진행 중인 요청" aria-busy={conversationSummaries.ready&&todoExtras.ready?undefined:"true"}>
             <h2>진행 중인 요청 <small>{home.total}건</small></h2>
             {conversationSummaries.error?<p role="alert">{summariesFailedMessage}</p>:null}
             {pending.length?<p>{pendingPhotosHint}</p>:null}
             <ul>{home.cards.map(({ticket:t,next})=><li key={t.ticketId}><button type="button" className={styles.homeRow} data-home-card={t.ticketId} disabled={busy||pending.length>0} onClick={()=>openTenantTicket(t.ticketId)}>
               <span className={styles.cardTitle}><span className={styles.ticketTitle}>{ticketName(t)}</span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}</span>
-              {/* Never show a next step the conversation read has not confirmed yet, whether it is still loading or it
-                * failed: an empty span of the same line height holds the row's size steady either way, so the row
+              {/* Never show a next step the reads have not confirmed yet (the conversation read, and the PR 2 reads such as a visit
+                * time to confirm), whether they are still loading or the conversation read failed: an empty span of the same line
+                * height holds the row's size steady either way, so the row
                 * never shrinks when a held-back read comes back as an error (delta review finding). */}
-              {conversationSummaries.ready&&!conversationSummaries.error?<span className={styles.cardNext}>{next}</span>:<span className={styles.cardNext}/>}
+              {conversationSummaries.ready&&todoExtras.ready&&!conversationSummaries.error?<span className={styles.cardNext}>{next}</span>:<span className={styles.cardNext}/>}
             </button></li>)}</ul>
             {home.total>HOME_CARD_LIMIT?<a className={styles.moreLink} {...placeLink({tab:"requests",view:null})}>요청에서 모두 보기</a>:null}
           </section>:null}
