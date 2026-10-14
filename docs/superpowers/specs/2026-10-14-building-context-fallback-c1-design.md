@@ -116,6 +116,30 @@
 | D2 | 주소가 없는 건물의 업체 전달은? | 지금처럼 막는다("주소 확인 필요", `ADDRESS_REQUIRED`) | 확인되지 않은 주소를 업체에 보내지 않는다. 업체용 주소는 2단계에서 입력받는다. | 관리자의 주소 메모를 업체 주소로 쓰기 |
 | D3 | 1단계에서 화면 문구를 바꿀까? | 바꾸지 않는다 | DB만 바꿔 위험 범위를 줄인다. 디자인 규칙 작업이 따로 필요 없다. | 관리자 요청 상세에 "건물 정보가 없어 추천 없이 검토해요" 안내를 더하기 |
 
+## 보완: 관리자 응답의 건물 칸 (2026-10-14)
+
+- **발견**: PR #147(head `c15a19b`)의 새 문맥 독립 리뷰가 HIGH를 찾았고, 코드로 확인했다.
+  - 관리자 응답은 `presentLandlordTicket`이 `presentBuildingPassport`로 만든다(`apps/web/src/server/http/presenters.ts`). 이 형식(`BuildingPassportDtoSchema`)은 `demo`가 `true`여야 하고, `primaryUse`·`approvalYear`·`managementMode`·`heatingType`이 꼭 있어야 한다.
+  - 대체 건물은 이 검사를 통과하지 못한다. 검사 오류는 `DEPENDENCY_UNAVAILABLE`(503)로 바뀐다.
+  - 그래서 이름 없는 건물의 요청이 하나라도 생기면 그 조직 관리자의 `GET /api/v2/core/tickets`(목록 전체), 요청 상세, 처리·결정 POST가 모두 503이 된다. T7이 SQL 밖에서 다시 생기는 것이다. 0025 전에는 이런 요청이 생길 수 없어서 드러나지 않았다.
+- **결정**: [DECISION] 운영자가 2026-10-14에 "이 PR에 같이 고치기 (추천)"를 골랐다. 다른 안은 "0025 멈추고 형식부터 따로", "PR 닫고 다시 설계"였다.
+  - 이 절은 범위 1번과 롤백 계획의 "앱 코드는 바꾸지 않는다"를 대체한다.
+  - D3(화면 문구 그대로)는 유지한다. 보이는 화면은 바뀌지 않는다.
+- **바꾸는 것**
+  1. `packages/api-contracts/src/building.ts`에 `UnverifiedBuildingDtoSchema`를 더한다. 필드는 `buildingId`, `displayName`, `demo: false`, `contextVerified: false`, `routingEligibleFields: []`(빈 배열만)이고 `strict`다. 건물 사실 칸은 아예 없다.
+  2. `LandlordTicketDetailDtoSchema.building`은 "건물 여권 또는 확인 안 된 건물"이다. `BuildingPassportDtoSchema` 자체는 바꾸지 않는다. 옛 건물 목록 응답은 지금처럼 엄격하다.
+  3. `presentLandlordTicket`은 건물이 데모가 아니고 건물 정보(`context`)가 빈 배열일 때만 확인 안 된 건물을 돌려준다. 그 밖에는 지금처럼 건물 여권이고, 형식이 맞지 않는 예상 밖 데이터는 지금처럼 실패한다.
+  - 응답을 쓰는 화면은 `ticket.building.displayName`만 읽는다(웹 옛 관리자 목록, 모바일 관리자 홈·요청 검토). `/core`의 요청 검토는 건물 칸을 읽지 않는다. 앱 전체 타입 검사로 확인했다.
+- **위협 추가**
+  - T8: 확인 안 된 건물이 확인된 사실처럼 보인다. 막는 방법: 이 형식에는 사실 칸이 없고 `contextVerified`와 `routingEligibleFields`가 고정값이다. 시험: 사실 칸, `demo: true`, `contextVerified: true`, 추천 근거 필드가 있으면 계약이 거절한다.
+  - T7을 넓힌다: 관리자 HTTP 목록·상세·처리 응답도 200이어야 한다.
+- **시험 추가** (실패부터)
+  10. 계약: 확인 안 된 건물이 들어간 관리자 요청 상세는 통과하고, 위 T8의 네 경우는 거절된다. 건물 여권 형식은 확인 안 된 건물을 받지 않는다.
+  11. presenter: 대체 건물이면 확인 안 된 건물, 데모 건물이면 지금과 같은 건물 여권
+  12. HTTP(PostgreSQL과 실제 `handleCoreFlow`): 이름 없는 건물의 요청이 있는 조직에서 관리자 목록·상세·처리 응답이 200이고, 그 요청의 건물 칸이 확인 안 된 건물이다.
+- **롤백 보완**: 0025가 적용된 DB에서 앱 이미지만 이 PR 전으로 되돌리면 HIGH가 다시 생긴다. 앱을 되돌리기 전에 0026 되돌리기 마이그레이션이나 건물 정보 행 넣기를 먼저 한다.
+- **남은 위험 추가**: 0025 뒤에는 건물 정보 없는 호실도 `units`의 `LIMIT 200` 자리를 같이 쓴다. 호실이 200개를 넘는 조직에서는 건물 정보가 있는 호실이 목록에서 밀릴 수 있다. 개발 세션이 운영자 승인을 받은 0026(제한 없애기)이 이것을 함께 푼다.
+
 ## 남은 위험
 
 - 이름 없는 건물이 여럿이면 관리자 목록에서 구분이 어렵다(D1). 2단계 전까지의 한계다.
