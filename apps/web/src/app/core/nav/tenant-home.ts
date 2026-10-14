@@ -2,7 +2,7 @@ import type { CoreTicketDto } from "@build-manager/api-contracts";
 import { isIntakeDraft } from "../ui/work-status-badge";
 import { lastActivity, todoReasonName, type TodoList, type TodoReason } from "./todo-list";
 
-/** 우리 집 shows at most this many unfinished requests (P5 spec §4); the rest are one link away in 내 요청. */
+/** 홈 shows at most this many unfinished requests (P5 spec §4); the rest are one link away in 요청. */
 export const HOME_CARD_LIMIT = 3;
 export type HomeCard = { ticket: CoreTicketDto; next: string };
 

@@ -50,7 +50,7 @@ export function CoreLoginScreen({demoEntry=false}:{demoEntry?:boolean}={}){
  };
  const logout=()=>{clearCommunicationRecovery();clearOutcomeRecovery();generation.current++;setScope(undefined);setAccess(null);setError("");setPhase("logout");logoutForm.current?.submit();};
  const current=access?.organizations.find(o=>o.id===scope?.orgId);
- // One 내 소속 field: in the sign-in column before an organisation is chosen, and in 내 정보 after (rules 8.16). One
+ // One 내 소속 field: in the sign-in column before an organisation is chosen, and in MY after (rules 8.16). One
  // organisation leaves nothing to choose, so it is its name as text (P5 spec §1, PR 1b).
  const only=access?.organizations.length===1?access.organizations[0]:null;
  const organizationField=only?<><span className="core-org-label">내 소속</span><strong className="core-org-name">{only.name} · {roleName(only.role)}</strong></>:access?.organizations.length?<><label><span className="core-org-label">내 소속</span><span className="core-org-field"><select aria-label="내 소속" value={scope?.orgId??""} onChange={e=>void select(e.target.value)}><option value="">소속을 선택해 주세요</option>{access.organizations.map(o=><option key={o.id} value={o.id}>{o.name} · {roleName(o.role)}</option>)}</select>{/* The current choice wraps in a select-like box, so a long organisation name is never cut. */}<span className="core-org-current" aria-hidden="true">{current?`${current.name} · ${roleName(current.role)}`:"소속을 선택해 주세요"}</span></span></label>

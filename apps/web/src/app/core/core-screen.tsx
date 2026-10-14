@@ -28,7 +28,7 @@ import { navHref } from "./nav/nav-location";
 import { homeCards,HOME_CARD_LIMIT } from "./nav/tenant-home";
 import { MenuList,TodoScreen,UnitsScreen } from "./nav/nav-screens";
 import { OpenSourceNotice } from "./nav/open-source-notice";
-import { inLeftMenu,meRows,moreRows,navTitle,roleName,type NavLocation } from "./nav/nav-config";
+import { inLeftMenu,meRows,moreRows,navTitle,roleName,VIEW_LABELS,type NavLocation } from "./nav/nav-config";
 import { detailEntryOnTop,hideDetailEntry,showDetailEntry,useNavLocation } from "./nav/use-nav-location";
 import { buildTodoList } from "./nav/todo-list";
 import navStyles from "./nav/core-nav.module.css";
@@ -248,9 +248,9 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   const Workspace=b1?"section":"main";
   const managerStep=selected&&session&&session.role!=="TENANT"?managerNextStep({ticket:selected,handoff:managerHandoff?.ticketId===selected.ticketId?managerHandoff:null,vendorEnabled:Boolean(b1),handoffLoading:Boolean(b1&&managerHandoff?.ticketId!==selected.ticketId),factRecorded:factRecorded?.ticketId===selected.ticketId?factRecorded.recorded:null}):null;
   const location=nav.location,tab=location.tab,view=location.view;
-  // When the place changes from inside the content (a 더 보기 or 내 정보 row, closing a request), the control that had
+  // When the place changes from inside the content (a 더 보기 or MY row, closing a request), the control that had
   // focus is gone. Focus the new screen's title instead of leaving it on the page body (final review of PR 139). A
-  // control in a tab that is now hidden (우리 집's "내 요청에서 모두 보기") still holds focus here and loses it later,
+  // control in a tab that is now hidden (홈's "요청에서 모두 보기") still holds focus here and loses it later,
   // so it counts as gone too (final review of PR 1b).
   const place=`${tab}|${view??""}|${selected?"detail":""}`,lastPlace=useRef<string|null>(null);
   useEffect(()=>{if(!navContext)return;const before=lastPlace.current;lastPlace.current=place;if(before===null||before===place||selected)return;
@@ -265,10 +265,10 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   const ticketName=(t:CoreTicketDto)=>{const label=units.find(u=>u.id===t.unitId)?.label;return (t.detail.issueType==="HEATING"?"난방":"누수")+(label?` · ${label}`:"");};
   const unitTickets=tickets.filter(t=>t.unitId===unit);
   const requestGroups=[
-    {name:"진행 중",list:unitTickets.filter(t=>t.workStatus!=="COMPLETED"),empty:"진행 중인 요청이 없어요. 문제가 생기면 우리 집에서 접수해 주세요."},
+    {name:"진행 중",list:unitTickets.filter(t=>t.workStatus!=="COMPLETED"),empty:"진행 중인 요청이 없어요. 문제가 생기면 홈에서 접수해 주세요."},
     {name:"끝난 요청",list:unitTickets.filter(t=>t.workStatus==="COMPLETED"),empty:"끝난 요청이 없어요."},
   ];
-  // The request list area: the tenant's 우리 집 and 내 요청, the manager's 업무함, or any open request.
+  // The request list area: the tenant's 홈 and 요청, the manager's 업무함, or any open request.
   const workVisible=Boolean(selected)||(!view&&(tenant?tab==="home"||tab==="requests":tab==="work"));
   return <div className={navStyles.shell} data-nav={navContext?"on":undefined} data-sub={sub?"true":undefined}>
     {navContext&&session?<CoreNav ctx={navContext} location={location} badge={conversationSummaries.ready?todo.items.length:0} caption={account?.caption??roleName(session.role)} onNavigate={navigate}/>:null}
@@ -352,7 +352,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
             <ul>{home.cards.map(({ticket:t,next})=><li key={t.ticketId}><button type="button" className={styles.homeRow} data-home-card={t.ticketId} disabled={busy||pending.length>0} onClick={()=>openTenantTicket(t.ticketId)}>
               <span className={styles.cardTitle}><span className={styles.ticketTitle}>{ticketName(t)}</span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}</span>{conversationSummaries.error?null:<span className={styles.cardNext}>{next}</span>}
             </button></li>)}</ul>
-            {home.total>HOME_CARD_LIMIT?<a className={styles.moreLink} {...placeLink({tab:"requests",view:null})}>내 요청에서 모두 보기</a>:null}
+            {home.total>HOME_CARD_LIMIT?<a className={styles.moreLink} {...placeLink({tab:"requests",view:null})}>요청에서 모두 보기</a>:null}
           </section>:null}
           {followUp?<><FollowUpContext kind={followUp.claimKind}/><button disabled={busy||Boolean(followAttempt)} onClick={()=>openOutcome(followUp.sourceTicketId)}>원본 접수로 돌아가기</button></>:null}
           {!units.length?<p>접근 가능한 호실이 없어요. 관리자에게 소속·호실 배정을 확인한 뒤 새로고침을 눌러 주세요.</p>:null}
@@ -374,7 +374,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
       </>}
       </div>
       {navContext&&!selected&&!view&&tab==="alerts"?<div className={navStyles.pane}><TodoScreen role={session.role} list={todo} ready={conversationSummaries.ready} units={units} disabled={busy||pending.length>0} notice={pending.length?pendingPhotosHint:undefined} onOpen={openFromList} onRetry={()=>void run(refresh)}/></div>:null}
-      {navContext&&!selected&&(tenant?tab==="me"&&!view:view==="me")?<div className={navStyles.pane}><MenuList label="내 정보" rows={meRows(navContext)} organization={account?.organization} onOpen={navigate} onLogout={logout}/></div>:null}
+      {navContext&&!selected&&(tenant?tab==="me"&&!view:view==="me")?<div className={navStyles.pane}><MenuList label={VIEW_LABELS.me} rows={meRows(navContext)} organization={account?.organization} onOpen={navigate} onLogout={logout}/></div>:null}
       {navContext&&!selected&&!tenant&&tab==="more"&&!view?<div className={navStyles.pane}><MenuList label="더 보기" rows={moreRows(navContext)} onOpen={navigate} onLogout={logout}/></div>:null}
       {!tenant&&!selected&&view==="maintenance"?<ManagerMaintenanceTimeline key={maintenanceUnit} client={client} units={units} revision={revision} disabled={busy} initialUnit={maintenanceUnit} onOpenTicket={openMaintenanceTicket}/>:null}
       {!selected&&view==="units"?<div className={navStyles.pane}><UnitsScreen units={units}/></div>:null}

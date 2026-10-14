@@ -45,7 +45,7 @@
 .root :is([role="status"],:global(.save-ok)) { color: var(--color-text); background: var(--color-fill-subtle); border-radius: .3125rem; padding: .625rem; }
 .heading { padding-bottom: 1.25rem; border-bottom: 1px solid var(--color-border); }
 .heading p { color: var(--color-text-readable); margin-top: .3125rem; }
-/* 우리 집 only: the building name beside the unit title is supplementary (rules 3.2 caption), not body text; at
+/* 홈 only: the building name beside the unit title is supplementary (rules 3.2 caption), not body text; at
  * body size the two-line title block left less than 6px before the header's bottom border (finding: design
  * audit). The title block is the header's tallest item, so it sits flush within it (rules 4 space-2) and the
  * added bottom margin becomes the real gap before the border, which a smaller line-height alone could not
@@ -211,7 +211,7 @@
 .root :is(.tenantRequests,.homeCards) > section > * + *, .root .homeCards > * + * { margin-top: .625rem; }
 .tenantHome > * + *, .tenantRequests > * + * { margin-top: 1.25rem; }
 /* P5 PR 1b (spec §4): the to-do line is a link shaped like a secondary button (rules 8.1); the in-progress requests are
- * list rows (8.5), each one whole-row button like the 내 요청 and 알림 rows (operator decision 2026-10-14), never boxed
+ * list rows (8.5), each one whole-row button like the 요청 and 알림 rows (operator decision 2026-10-14), never boxed
  * cards (6.3). */
 /* Fix round 1 (review): `.root a:not(:global(.primary-button))` (:28, specificity 0,2,1) otherwise outranks a bare
  * `.todoLine` class selector (0,2,0), which showed primary-blue underlined text instead of the secondary-button

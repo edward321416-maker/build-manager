@@ -8,7 +8,7 @@ import { plainClick } from "./core-nav";
 import { todoReasonName, type TodoList } from "./todo-list";
 import styles from "./core-nav.module.css";
 
-/** 더 보기 and 내 정보 as list rows (rules 8.5, 8.16): a row opens its screen; 로그아웃 is the last row. */
+/** 더 보기 and MY as list rows (rules 8.5, 8.16): a row opens its screen; 로그아웃 is the last row. */
 export function MenuList({ label, rows, organization, onOpen, onLogout }: {
   label: string; rows: MenuRow[]; organization?: ReactNode; onOpen(to: NavLocation): void; onLogout(): void;
 }) {
@@ -28,7 +28,7 @@ export function UnitsScreen({ units }: { units: readonly CoreUnitDto[] }) {
 }
 
 /** 알림 (spec §5): one row per request with every reason; a partial read says so instead of inventing a count.
- * `disabled` locks the rows like the 내 요청 rows, so photos picked on 우리 집 never become a request's unsent photos.
+ * `disabled` locks the rows like the 요청 rows, so photos picked on 홈 never become a request's unsent photos.
  * `notice` says why the rows are locked. */
 export function TodoScreen({ role, list, ready, units, onOpen, onRetry, disabled = false, notice }: {
   role: CoreRole; list: TodoList; ready: boolean; units: readonly CoreUnitDto[]; onOpen(ticketId: string): void; onRetry(): void; disabled?: boolean; notice?: string;
@@ -45,6 +45,6 @@ export function TodoScreen({ role, list, ready, units, onOpen, onRetry, disabled
         {item.lastActivity ? <span className={styles.todoTime}><DateTime at={item.lastActivity} /></span> : null}
       </button>
     </li>)}</ul>
-    : list.partial ? null : <p className={styles.empty}>{isTenant(role) ? "지금 처리할 일이 없어요. 새 문제가 생기면 우리 집에서 접수해 주세요." : "지금 처리할 일이 없어요. 새 요청은 업무함에 들어와요."}</p>}
+    : list.partial ? null : <p className={styles.empty}>{isTenant(role) ? "지금 처리할 일이 없어요. 새 문제가 생기면 홈에서 접수해 주세요." : "지금 처리할 일이 없어요. 새 요청은 업무함에 들어와요."}</p>}
   </section>;
 }

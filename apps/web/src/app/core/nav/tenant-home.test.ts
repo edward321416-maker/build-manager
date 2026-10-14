@@ -12,7 +12,7 @@ const replyFrom = (id: string): Record<string, CoreCommunicationSummary> => ({ [
 const todoOf = (tickets: CoreTicketDto[], summaries: Record<string, CoreCommunicationSummary> = {}) =>
   buildTodoList({ role: "TENANT", tickets, summaries, summariesFailed: false });
 
-describe("우리 집 next step (P5 spec §4)", () => {
+describe("홈 next step (P5 spec §4)", () => {
   it("names every to-do reason on one line", () => {
     expect(tenantNextStep(ticket("a", "OPEN", "SAFETY_ESCALATED", "2026-10-13T01:00:00Z"), ["SAFETY", "REPLY"])).toBe("긴급 확인 필요 · 내 답변 필요");
     expect(tenantNextStep(ticket("b", "OPEN", "NEEDS_MORE_INFO", "2026-10-13T01:00:00Z"), ["MORE_INFO"])).toBe("추가 확인 필요");
@@ -30,7 +30,7 @@ describe("우리 집 next step (P5 spec §4)", () => {
   });
 });
 
-describe("우리 집 in-progress requests (P5 spec §4)", () => {
+describe("홈 in-progress requests (P5 spec §4)", () => {
   it("lists this unit's unfinished requests only, with the total", () => {
     const tickets = [ticket("mine", "OPEN", "READY_FOR_REVIEW", "2026-10-13T01:00:00Z"), ticket("other-unit", "OPEN", "READY_FOR_REVIEW", "2026-10-13T02:00:00Z", "unit-2"), ticket("done", "COMPLETED", "APPROVED", "2026-10-13T03:00:00Z")];
     const result = homeCards({ tickets, todo: todoOf(tickets), unitId: "unit-1" });

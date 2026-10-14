@@ -1,7 +1,7 @@
 import type { CoreSessionDto } from "@build-manager/api-contracts";
 
 // P5 (docs/superpowers/specs/2026-10-13-navigation-shell-p5-design.md §1): one menu definition per role draws the phone
-// tab bar, the wide-screen left menu, the 더 보기 and 내 정보 lists and the address check (design rules 8.10, 8.14, 8.16).
+// tab bar, the wide-screen left menu, the 더 보기 and MY lists and the address check (design rules 8.10, 8.14, 8.16).
 export type CoreRole = CoreSessionDto["role"];
 export type TabId = "home" | "requests" | "alerts" | "me" | "work" | "more";
 export type ViewId = "units" | "link" | "licenses" | "maintenance" | "invitations" | "me";
@@ -16,28 +16,31 @@ export type MenuRow =
   | { kind: "organization"; label: string }
   | { kind: "logout"; label: string };
 
+// The account entry is MY everywhere: the tenant's last tab, the manager's last 더 보기 row, the left menu's account item
+// and its list (operator decision 2026-10-14, rules 8.10, 8.14). Written as text, never by text-transform (rules 3.2).
+export const VIEW_LABELS: Record<ViewId, string> = {
+  units: "내 호실", link: "호실 연결", licenses: "오픈소스 라이선스", maintenance: "호실 정비 이력", invitations: "입주 연결", me: "MY",
+};
+// Short tenant names (operator decision 2026-10-14): at 320px with text at 200%, 우리 집 overflowed its 80px cell.
 const TENANT_TABS: readonly NavTab[] = [
-  { id: "home", label: "우리 집", icon: "home" },
-  { id: "requests", label: "내 요청", icon: "clipboard-list" },
+  { id: "home", label: "홈", icon: "home" },
+  { id: "requests", label: "요청", icon: "clipboard-list" },
   { id: "alerts", label: "알림", icon: "bell" },
-  { id: "me", label: "내 정보", icon: "user" },
+  { id: "me", label: VIEW_LABELS.me, icon: "user" },
 ];
 const MANAGER_TABS: readonly NavTab[] = [
   { id: "work", label: "업무함", icon: "clipboard-list" },
   { id: "alerts", label: "알림", icon: "bell" },
   { id: "more", label: "더 보기", icon: "dots" },
 ];
-export const VIEW_LABELS: Record<ViewId, string> = {
-  units: "내 호실", link: "호실 연결", licenses: "오픈소스 라이선스", maintenance: "호실 정비 이력", invitations: "입주 연결", me: "내 정보",
-};
 
 export const isTenant = (role: CoreRole) => role === "TENANT";
 export const roleName = (role: CoreRole) => role === "TENANT" ? "세입자" : role === "ORG_ADMIN" ? "조직 관리자" : "건물 담당자";
 export const navTabs = (role: CoreRole): readonly NavTab[] => isTenant(role) ? TENANT_TABS : MANAGER_TABS;
 export const firstTab = (role: CoreRole): TabId => isTenant(role) ? "home" : "work";
-/** Row screens hang under 내 정보 for the tenant and under 더 보기 for managers. */
+/** Row screens hang under MY for the tenant and under 더 보기 for managers. */
 export const rowTab = (role: CoreRole): TabId => isTenant(role) ? "me" : "more";
-/** 내 정보 is the tenant's last tab and the last 더 보기 row for managers (rules 8.14). */
+/** MY is the tenant's last tab and the last 더 보기 row for managers (rules 8.14). */
 export const accountLocation = (role: CoreRole): NavLocation => isTenant(role) ? { tab: "me", view: null } : { tab: "more", view: "me" };
 
 /** 더 보기 rows, top to bottom. Rows with an icon are also spread into the wide-screen left menu (rules 8.10, spec D9). */
@@ -53,7 +56,7 @@ export function moreRows(ctx: NavContext): MenuRow[] {
   return rows;
 }
 
-/** 내 정보 rows (rules 8.16), top to bottom; 로그아웃 is always last. */
+/** MY rows (rules 8.16), top to bottom; 로그아웃 is always last. */
 export function meRows(ctx: NavContext): MenuRow[] {
   const at = (view: ViewId): NavLocation => ({ tab: rowTab(ctx.role), view });
   const rows: MenuRow[] = [];
@@ -75,7 +78,7 @@ export function inLeftMenu(ctx: NavContext, view: ViewId): boolean {
   return moreRows(ctx).some(row => row.kind === "view" && row.to.view === view && row.icon !== undefined);
 }
 
-/** One step up: a manager's 내 정보 rows go back to 내 정보, every other row screen to its tab's first screen. */
+/** One step up: a manager's MY rows go back to MY, every other row screen to its tab's first screen. */
 export function parentOf(ctx: NavContext, location: NavLocation): NavLocation {
   if (!location.view) return location;
   const underMe = !isTenant(ctx.role) && location.view !== "me" && viewsOf(meRows(ctx)).includes(location.view);
