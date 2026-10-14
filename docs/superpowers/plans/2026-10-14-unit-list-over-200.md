@@ -320,3 +320,18 @@ gh pr merge <PR> --merge --match-head-commit <head SHA>
 ```
 
 병합 뒤 main CI를 확인하고, 인수인계 파일 `채팅방 인수인계 파일/개발.md`를 갱신한다. 데모 배포는 운영자에게 따로 묻는다.
+
+---
+
+## 실행 중 바뀐 것 (2026-10-14)
+
+위 Task의 코드는 처음 계획이다. 최종 SQL과 시험은 브랜치의 커밋을 따른다.
+
+- `93b2dd0`: 순서 시험은 DB가 돌려받은 행을 다시 정렬한 결과와 비교하고, 세입자 시험은 순서 없이 비교한다(시험 이미지의 정렬 규칙이 한글을 첫 비교에서 건너뜀).
+- `0194a1d`: 독립 리뷰(판정 With fixes) 반영
+  - `readable` CTE에 `MATERIALIZED`를 붙여 건물마다 한 번 검사를 실행 계획과 상관없이 지킨다.
+  - `can_unit` 비교 시험 데이터에 끝난 배정, 배정 없는 건물에 사는 직원, 끝 시각이 지난 입주를 더했다(스펙 시험 6).
+  - 시험 8: `track_functions`로 센 호출 횟수(`can_unit` 0번, `can_read_property`는 건물 수 이하). 0026을 빼면 `can_unit`이 236번 불려 실패한다.
+  - 이름이 같은 호실은 id가 큰 쪽을 먼저 넣는다.
+  - 200개 제한은 "무작위"가 아니라 가장 오래된 200개(`uuidv7`)였다고 스펙과 마이그레이션 주석을 바로잡았다.
+- 검사는 고정 Node로 돌린다: `export PATH="/c/Users/admin/AppData/Local/build-manager-b5-runtime/node-24.21.0/node-v24.21.0-win-x64:$PATH"`. `b5-timeout.test.ts`는 Node 버전을 확인하므로 24.14.0에서는 실패한다.
