@@ -75,3 +75,7 @@
 ## 2026-10-14 — Reasons on the 알림 to-do list
 
 - Redeployed the hosted demo from main `b4d696f` (image `78829071966a`, replacing `722c8899950d`). 알림 now also lists per-request reasons: `방문 시간 확정 필요` and `결과 확인 필요` for tenants, `업체 확인 필요` and `기한 지남` for managers, and `연결 요청 확인 필요` for organisation admins; while the reasons for a new set of requests are being read, the list says `처리할 일을 더 확인하고 있어요.` (PR #150). The release also carries the docs-only deploy record PR #149. No migration was added. The previous image and its archive stay on the VM for rollback.
+
+## 2026-10-15 — Korean unit order and matching 처리 중 wording
+
+- Redeployed the hosted demo from main `502d178` (image `e5e9ba2738af`, replacing `78829071966a`), which applied migration 0027 at start-up. The Core unit list now orders building and unit names the Korean way with numbers compared by value (`2호, 10호, 101호, 1001호`, Hangul before Latin) and keeps buildings that share a name together (PR #153). When nothing waits on the tenant, a tenant's 홈 next-step line and the request's progress line now mean the same thing for each state, with the same sentence for 처리 중; 홈 reads `관리자 확인을 기다리고 있어요.`, `처리를 기다리고 있어요.` or `관리자가 처리하고 있어요.` (PR #152). The release also carries the docs-only deploy record PR #151. Before this deploy the demo's synthetic smoke-check requests were closed, so the demo has no unfinished request and the new wording is not visible until one exists. The previous image and its archive stay on the VM for rollback.
