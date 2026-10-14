@@ -53,6 +53,7 @@ function progressMessage(t:CoreTicketDto,tenant:boolean){
 // Photos picked but not sent would become the opened request's photos, so every request stays shut until they are sent
 // or dropped; the lists say why (final review of PR 139).
 const pendingPhotosHint="고른 사진이 있어서 요청을 열 수 없어요. 접수하거나 사진 선택을 취소해 주세요.";
+const summariesFailedMessage="대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.";
 const sessionMessage="접속이 만료되었거나 코드가 유효하지 않아요. 개발 환경에서 새 코드를 발급받아 다시 들어가 주세요.";
 const accessMessage="이 계정의 접근 권한을 확인할 수 없어요. 관리자에게 소속·호실 권한을 확인한 뒤 다시 들어가 주세요.";
 function describeError(error:unknown,saving:boolean){
@@ -248,10 +249,12 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   const managerStep=selected&&session&&session.role!=="TENANT"?managerNextStep({ticket:selected,handoff:managerHandoff?.ticketId===selected.ticketId?managerHandoff:null,vendorEnabled:Boolean(b1),handoffLoading:Boolean(b1&&managerHandoff?.ticketId!==selected.ticketId),factRecorded:factRecorded?.ticketId===selected.ticketId?factRecorded.recorded:null}):null;
   const location=nav.location,tab=location.tab,view=location.view;
   // When the place changes from inside the content (a 더 보기 or 내 정보 row, closing a request), the control that had
-  // focus is gone. Focus the new screen's title instead of leaving it on the page body (final review of PR 139).
+  // focus is gone. Focus the new screen's title instead of leaving it on the page body (final review of PR 139). A
+  // control in a tab that is now hidden (우리 집's "내 요청에서 모두 보기") still holds focus here and loses it later,
+  // so it counts as gone too (final review of PR 1b).
   const place=`${tab}|${view??""}|${selected?"detail":""}`,lastPlace=useRef<string|null>(null);
   useEffect(()=>{if(!navContext)return;const before=lastPlace.current;lastPlace.current=place;if(before===null||before===place||selected)return;
-    const active=document.activeElement;if(!active||active===document.body)titleRef.current?.focus({preventScroll:true});},[navContext,place,selected]);
+    const active=document.activeElement;if(!active||active===document.body||active.closest("[hidden]"))titleRef.current?.focus({preventScroll:true});},[navContext,place,selected]);
   // After an organisation is chosen the whole page is new: start keyboard and screen reader at its title, once.
   const titleFocused=useRef(false);
   useEffect(()=>{if(focusTitle&&session&&!titleFocused.current){titleFocused.current=true;titleRef.current?.focus({preventScroll:true});}},[focusTitle,session]);
@@ -339,17 +342,20 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
         {tab==="home"&&conversationSummaries.ready&&todo.items.length?<a className={styles.todoLine} {...placeLink({tab:"alerts",view:null})}>처리할 일 {todo.items.length}건 · 알림에서 보기</a>:null}
         {units.length!==1?<label>건물·호실 <select aria-label="건물·호실" disabled={!units.length||Boolean(followUp)} value={unit} onChange={e=>setUnit(e.target.value)}>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>:null}
         <div className={styles.tenantHome} hidden={tab!=="home"}>
-          {followUp?<><FollowUpContext kind={followUp.claimKind}/><button disabled={busy||Boolean(followAttempt)} onClick={()=>openOutcome(followUp.sourceTicketId)}>원본 접수로 돌아가기</button></>:null}
-          {!units.length?<p>접근 가능한 호실이 없어요. 관리자에게 소속·호실 배정을 확인한 뒤 새로고침을 눌러 주세요.</p>:null}
-          {home.cards.length?<section className={styles.homeCards} aria-label="진행 중인 요청">
+          {/* The next steps read the conversation states, so the rows wait for that read; when it fails they name only the
+            * request and its status, since no next step is confirmed (rules 10, 8.11). Each row is one button (8.5,
+            * operator decision 2026-10-14). The rows sit above the follow-up block, which stays next to its form (spec §4). */}
+          {conversationSummaries.ready&&home.cards.length?<section className={styles.homeCards} aria-label="진행 중인 요청">
             <h2>진행 중인 요청 <small>{home.total}건</small></h2>
+            {conversationSummaries.error?<p role="alert">{summariesFailedMessage}</p>:null}
             {pending.length?<p>{pendingPhotosHint}</p>:null}
-            <ul>{home.cards.map(({ticket:t,next})=><li key={t.ticketId} data-home-card={t.ticketId}>
-              <div><p className={styles.cardTitle}><span className={styles.ticketTitle}>{ticketName(t)}</span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}</p><p className={styles.cardNext}>{next}</p></div>
-              <button type="button" aria-label={`${ticketName(t)} 열기`} disabled={busy||pending.length>0} onClick={()=>openTenantTicket(t.ticketId)}>열기</button>
-            </li>)}</ul>
+            <ul>{home.cards.map(({ticket:t,next})=><li key={t.ticketId}><button type="button" className={styles.homeRow} data-home-card={t.ticketId} disabled={busy||pending.length>0} onClick={()=>openTenantTicket(t.ticketId)}>
+              <span className={styles.cardTitle}><span className={styles.ticketTitle}>{ticketName(t)}</span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}</span>{conversationSummaries.error?null:<span className={styles.cardNext}>{next}</span>}
+            </button></li>)}</ul>
             {home.total>HOME_CARD_LIMIT?<a className={styles.moreLink} {...placeLink({tab:"requests",view:null})}>내 요청에서 모두 보기</a>:null}
           </section>:null}
+          {followUp?<><FollowUpContext kind={followUp.claimKind}/><button disabled={busy||Boolean(followAttempt)} onClick={()=>openOutcome(followUp.sourceTicketId)}>원본 접수로 돌아가기</button></>:null}
+          {!units.length?<p>접근 가능한 호실이 없어요. 관리자에게 소속·호실 배정을 확인한 뒤 새로고침을 눌러 주세요.</p>:null}
           {unit?<form onSubmit={e=>{e.preventDefault();submit();}}>
             <h2>어떤 문제가 있나요?</h2><fieldset disabled={Boolean(followAttempt)} className={styles.issueChoice}><legend>문제 유형</legend>{(["HEATING","LEAK"] as const).map(value=><label key={value} data-tile><input type="radio" name="issueType" value={value} checked={issue===value} onChange={e=>setIssue(e.target.value as "HEATING"|"LEAK")}/><span>{value==="HEATING"?"난방":"누수"}</span></label>)}</fieldset>
             <label>문제 설명 <textarea aria-label="문제 설명" readOnly={Boolean(followAttempt)} value={text} maxLength={2000} required onChange={e=>setText(e.target.value)} /></label>
@@ -358,7 +364,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
           </form>:null}
         </div>
         <div className={styles.tenantRequests} hidden={tab!=="requests"}>
-          {conversationSummaries.error?<p role="alert">대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.</p>:null}
+          {conversationSummaries.error?<p role="alert">{summariesFailedMessage}</p>:null}
           {pending.length?<p>{pendingPhotosHint}</p>:null}
           {!unit?<p>호실 배정 후 접수 이력을 볼 수 있어요.</p>:requestGroups.map(group=><section key={group.name} aria-label={group.name}>
             <h2>{group.name} <small>{group.list.length}건</small></h2>

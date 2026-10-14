@@ -45,14 +45,33 @@ test("우리 집 shows three in-progress requests with their next step, the to-d
   await expect(line).toBeVisible();
   await going.getByRole("link", { name: "내 요청에서 모두 보기", exact: true }).click();
   await expect(page).toHaveURL(/tab=requests$/);
+  // The link sat in 우리 집, which is hidden now: the new screen's title takes the focus (final review of PR 1b).
+  await expect(page.getByRole("heading", { level: 1, name: "내 요청", exact: true })).toBeFocused();
   await expect(page.getByRole("region", { name: "진행 중", exact: true }).locator("[data-ticket-id]")).toHaveCount(4);
   await openTab(page, "우리 집"); await line.click(); await expect(page).toHaveURL(/tab=alerts$/);
-  await openTab(page, "우리 집"); await cards.first().getByRole("button", { name: /열기$/ }).click();
+  // The whole row is the button (rules 8.5, operator decision 2026-10-14).
+  await openTab(page, "우리 집"); await cards.first().click();
   await expect(page.getByTestId("ticket-heading")).toBeVisible();
   await page.getByRole("button", { name: "뒤로", exact: true }).click(); await expect(cards).toHaveCount(3);
-  // Three or fewer: no link to all of them.
-  mine.splice(1, 3); await page.getByRole("navigation", { name: "접속 및 새로고침" }).getByRole("button", { name: "새로고침", exact: true }).click();
-  await expect(cards).toHaveCount(1); await expect(going.getByRole("link", { name: "내 요청에서 모두 보기", exact: true })).toHaveCount(0);
+  // Exactly three: every one shows, so no link to all of them (HOME_CARD_LIMIT is a `>` bound, not `>=`).
+  mine.splice(0, 1); await page.getByRole("navigation", { name: "접속 및 새로고침" }).getByRole("button", { name: "새로고침", exact: true }).click();
+  await expect(going.getByRole("heading", { level: 2 })).toHaveText("진행 중인 요청 3건"); await expect(cards).toHaveCount(3);
+  await expect(going.getByRole("link", { name: "내 요청에서 모두 보기", exact: true })).toHaveCount(0);
+});
+
+test("우리 집 keeps the rows but states no next step when the conversation states cannot be read", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mine: string[] = []; await onlyMine(page, mine);
+  mine.push(await create(page, "합성 대화 상태를 읽지 못한 요청"));
+  // client.communication.summaries reads GET /api/v2/core/communication-summaries?ticketId=…
+  await page.route(/\/api\/v2\/core\/communication-summaries(\?|$)/, route => route.abort());
+  await login(page);
+  const going = page.getByRole("region", { name: "진행 중인 요청", exact: true }), cards = going.locator("[data-home-card]");
+  await expect(going.getByRole("alert")).toHaveText("대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.");
+  await expect(cards).toHaveCount(1);
+  // Without the conversation states no next step is confirmed (rules 10), so the row names the request and its status only.
+  await expect(cards.first()).not.toContainText(/아직 보내지 않았어요|관리자가 확인하고 있어요|처리 중이에요/);
+  await cards.first().click(); await expect(page.getByTestId("ticket-heading")).toBeVisible();
 });
 
 test("내 요청 lists 진행 중 and 끝난 요청 apart and says why rows wait while photos are picked", async ({ page }) => {

@@ -200,28 +200,33 @@
 .tenantWorkspace { padding: 1.25rem; max-width: 50rem; margin-inline: auto; }
 .tenantWorkspace[data-detail="true"] { padding: 0; }
 .root .tenantHome > form { margin-top: 0; gap: 1.25rem; }
-/* Fix round 1 (review): 진행 중인 요청 now may sit right above the intake form; give the form the section gap (rules
- * §3.3/§4: 구역 사이 30px) only when it directly follows that section (higher specificity than the rule above), so
- * the follow-up-only and no-cards cases (where a form follows nothing or the follow-up button) keep margin-top: 0. */
-.root .tenantHome > .homeCards + form { margin-top: 1.875rem; }
+/* Fix round 1 (review): 진행 중인 요청 sits above the intake, so whatever follows it gets the section gap (rules
+ * §3.3/§4: 구역 사이 30px): the form, or in follow-up mode the follow-up context that leads that form (final review of
+ * PR 1b). Higher specificity than the rule above; the no-cards case and the form after the follow-up button keep
+ * margin-top: 0. */
+.root .tenantHome > .homeCards + * { margin-top: 1.875rem; }
 .root :is(.tenantRequests,.homeCards) h2 { display: flex; justify-content: space-between; align-items: center; gap: .625rem; }
 .root :is(.tenantRequests,.homeCards) h2 small { color: var(--color-text-readable); font-weight: 400; }
 .root .tenantRequests > section + section { margin-top: 1.875rem; }
 .root :is(.tenantRequests,.homeCards) > section > * + *, .root .homeCards > * + * { margin-top: .625rem; }
 .tenantHome > * + *, .tenantRequests > * + * { margin-top: 1.25rem; }
 /* P5 PR 1b (spec §4): the to-do line is a link shaped like a secondary button (rules 8.1); the in-progress requests are
- * list rows (8.5) with a secondary 열기 button, never boxed cards (6.3). */
+ * list rows (8.5), each one whole-row button like the 내 요청 and 알림 rows (operator decision 2026-10-14), never boxed
+ * cards (6.3). */
 /* Fix round 1 (review): `.root a:not(:global(.primary-button))` (:28, specificity 0,2,1) otherwise outranks a bare
  * `.todoLine` class selector (0,2,0), which showed primary-blue underlined text instead of the secondary-button
- * look. The `a` element raises this to the same 0,2,1; declared after :28, the tie resolves in its favour. */
-.root a.todoLine { display: inline-flex; align-items: center; justify-content: center; min-height: 3.125rem; padding: .625rem 1.25rem; border: 1px solid var(--color-border-strong); border-radius: .625rem; background: var(--color-surface); color: var(--color-text); font-size: .9375rem; line-height: 1.25rem; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; }
+ * look. The `a` element raises this to the same 0,2,1; declared after :28, the tie resolves in its favour. Wrapped
+ * lines (200% text) stay centred like a button's (rules 4). */
+.root a.todoLine { display: inline-flex; align-items: center; justify-content: center; min-height: 3.125rem; padding: .625rem 1.25rem; border: 1px solid var(--color-border-strong); border-radius: .625rem; background: var(--color-surface); color: var(--color-text); font-size: .9375rem; line-height: 1.25rem; font-weight: 600; letter-spacing: -0.01em; text-align: center; text-decoration: none; }
 .root a.todoLine:hover { background: var(--color-fill-hover); }
 .root .homeCards > ul { list-style: none; padding: 0; border-top: 1px solid var(--color-border); }
-.root .homeCards > ul > li { display: flex; align-items: center; justify-content: space-between; gap: .625rem; margin: 0; padding: .9375rem 0; border-bottom: 1px solid var(--color-border); }
-.homeCards li > div { min-width: 0; display: grid; gap: .3125rem; }
+.root .homeCards > ul > li { margin: 0; border-bottom: 1px solid var(--color-border); }
+/* The row button (8.5): no box, 15px above and below, text from the left. Hover is `.root button:hover` (fill-hover)
+ * and disabled is `.root button:disabled` (2.4: fill-subtle, text-secondary), both more specific than this rule. The
+ * title line is the subheading style through .ticketTitle; the next step stays body text. */
+.root .homeRow { display: grid; gap: .3125rem; width: 100%; min-height: 3.125rem; padding-block: .9375rem; border: 0; border-radius: 0; background: transparent; text-align: left; font-weight: 400; line-height: 1.5625rem; letter-spacing: -0.01em; }
 .root .cardTitle { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; margin: 0; }
 .root .cardNext { margin: 0; color: var(--color-text-readable); }
-.root .homeCards li > button { flex: 0 0 auto; }
 .root .moreLink { display: inline-flex; align-items: center; min-height: 3.125rem; }
 .root .issueChoice { display: flex; border: 0; padding: 0; margin: 0; gap: .625rem; }
 .issueChoice legend { margin-bottom: .625rem; font-size: .9375rem; }
