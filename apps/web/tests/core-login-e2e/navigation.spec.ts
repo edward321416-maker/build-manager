@@ -125,3 +125,35 @@ test("the address keeps the menu place, wrong places fall back, and an organisat
     await expect(admin.getByRole("heading", { level: 1, name: "업무함" })).toBeFocused();
   } finally { await tenant.close(); await two.close(); }
 });
+
+test("a refused Vendor schedule read is not a failure, an error is, and a lost session signs out (P5 PR 2)", async ({ browser }) => {
+  const tenant = await sdkSession(browser), manager = await sdkSession(browser, "manager");
+  try {
+    // A request in progress is the tenant's only kind with a Vendor schedule read (spec §5).
+    const made = await tenant.context.request.post("/api/v2/core/tickets", { headers: tenant.headers, data: { unitId: tenant.fixture.unitA, issueType: "LEAK", rawUserText: "합성 업체 일정 읽기" } });
+    expect(made.status()).toBe(201); const id = (await made.json()).ticketId as string;
+    expect((await manager.context.request.post(`/api/v2/core/tickets/${id}/handling`, { headers: manager.headers, data: { status: "IN_PROGRESS", message: "합성 처리 시작" } })).status()).toBe(200);
+    const page = await tenant.context.newPage(); await page.setViewportSize({ width: 390, height: 844 });
+    let status = 403, seen = 0;
+    await page.route("**/api/v2/core/tickets/*/vendor-scheduling", async route => {
+      if (route.request().method() !== "GET") return route.continue();
+      if (route.request().url().includes(id)) seen++;
+      await route.fulfill({ status, json: { error: { code: status === 401 ? "UNAUTHENTICATED" : status === 403 ? "FORBIDDEN" : "DEPENDENCY_UNAVAILABLE", message: "합성 응답" } } });
+    });
+    const todo = page.locator('section[aria-label="처리할 일"]');
+    await page.goto("/core?tab=alerts");
+    await expect.poll(() => seen).toBeGreaterThan(0);
+    await expect(todo).toBeVisible(); await expect(todo).not.toHaveAttribute("aria-busy", "true");
+    await expect(page.getByText("일부를 확인하지 못했어요.", { exact: true })).toHaveCount(0);
+    await expect(menu(page)).toBeVisible();
+    // Any other error makes the list partial; tapping 알림 again reads again.
+    status = 500; const before = seen;
+    await link(page, /^알림/).click(); await expect.poll(() => seen).toBeGreaterThan(before);
+    await expect(page.getByText("일부를 확인하지 못했어요.", { exact: true })).toBeVisible();
+    // A 401 on a per-request read still signs out.
+    status = 401;
+    await page.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+    await expect(page.getByText(/^세션이 만료되었거나 접근 권한이 변경됐어요/)).toBeVisible();
+    await expect(menu(page)).toHaveCount(0);
+  } finally { await tenant.close(); await manager.close(); }
+});

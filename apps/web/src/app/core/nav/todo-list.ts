@@ -4,15 +4,31 @@ import { managerRowHint } from "../manager-next-step";
 import { intakeDisplayStatus, isIntakeDraft } from "../ui/work-status-badge";
 import { isTenant, type CoreRole } from "./nav-config";
 
-/** Why a request is on the 알림 to-do list (P5 spec §5). PR 1 uses only what the request list and the conversation
- * summaries already carry; the per-request reads (visit times, results, Vendor, due dates, link requests) come in PR 2. */
-export type TodoReason = "SAFETY" | "REPLY" | "DECIDE" | "DRAFT" | "MORE_INFO";
-export type TodoItem = { ticketId: string; unitId: string; issueType: CoreTicketDto["detail"]["issueType"]; reasons: TodoReason[]; lastActivity: string | null };
-export type TodoList = { items: TodoItem[]; partial: boolean };
+/** Why a request (or a link request) is on the 알림 to-do list (P5 spec §5). SAFETY to MORE_INFO come from the request
+ * list and the conversation summaries (PR 1); the rest from reads per request, the manager's work list and the link
+ * requests (PR 2, todo-extras.ts). */
+export type TodoReason = "SAFETY" | "OVERDUE" | "REPLY" | "DECIDE" | "DRAFT" | "MORE_INFO" | "VISIT" | "RESULT" | "VENDOR" | "LINK";
+export type TodoTicketItem = { kind: "ticket"; ticketId: string; unitId: string; issueType: CoreTicketDto["detail"]["issueType"]; reasons: TodoReason[]; lastActivity: string | null };
+/** A tenant's request to join a unit, waiting for the organisation admin (invitation state REQUESTED). */
+export type TodoLinkItem = { kind: "link"; invitationId: string; unitLabel: string; reasons: TodoReason[]; lastActivity: string | null };
+export type TodoItem = TodoTicketItem | TodoLinkItem;
+/** `checking`: the PR 2 reads for these requests have not finished; `resultLimited`/`linksLimited`: a read limit was hit. */
+export type TodoList = { items: TodoItem[]; partial: boolean; checking: boolean; resultLimited: boolean; linksLimited: boolean };
+export type TodoLinkRequest = { invitationId: string; unitLabel: string; requestedAt: string | null };
+/** What the PR 2 reads found (todo-extras.ts). `ready` is false until the reads for the current requests finish. */
+export type TodoExtras = {
+  reasons: Readonly<Record<string, readonly TodoReason[]>>; links: readonly TodoLinkRequest[];
+  failed: boolean; ready: boolean; resultLimited: boolean; linksLimited: boolean;
+};
+export const NO_TODO_EXTRAS: TodoExtras = { reasons: {}, links: [], failed: false, ready: true, resultLimited: false, linksLimited: false };
+export const EMPTY_TODO_LIST: TodoList = { items: [], partial: false, checking: false, resultLimited: false, linksLimited: false };
 
-// Sort groups (spec §5): urgent checks, then the replies and decisions someone waits on, then the rest. Group 1 is kept
-// for PR 2's 기한 지남.
-const GROUP: Record<TodoReason, number> = { SAFETY: 0, REPLY: 2, DECIDE: 2, DRAFT: 3, MORE_INFO: 3 };
+// Sort groups (spec §5): urgent checks, overdue work, then the replies and decisions someone waits on, then the rest.
+const GROUP: Record<TodoReason, number> = { SAFETY: 0, OVERDUE: 1, REPLY: 2, DECIDE: 2, DRAFT: 3, MORE_INFO: 3, VISIT: 3, RESULT: 3, VENDOR: 3, LINK: 3 };
+// The order reasons read in within one row.
+const ORDER: readonly TodoReason[] = ["SAFETY", "OVERDUE", "REPLY", "DECIDE", "DRAFT", "MORE_INFO", "VISIT", "RESULT", "VENDOR", "LINK"];
+
+export const todoItemId = (item: TodoItem) => item.kind === "ticket" ? item.ticketId : item.invitationId;
 
 export const todoReasonName = (role: CoreRole, reason: TodoReason): string =>
   reason === "REPLY" ? (isTenant(role) ? TODO_REASON_NAMES.REPLY_TENANT : TODO_REASON_NAMES.REPLY_MANAGER) : TODO_REASON_NAMES[reason];
@@ -39,16 +55,22 @@ function reasonsFor(role: CoreRole, ticket: CoreTicketDto, summary: CoreCommunic
 }
 
 /** Builds the list from data the screen already loaded and never calls the server, so the badge counts only what was
- * confirmed. A failed summary read leaves the list partial: replies may be missing, never invented. */
-export function buildTodoList({ role, tickets, summaries, summariesFailed }: {
-  role: CoreRole; tickets: readonly CoreTicketDto[]; summaries: Readonly<Record<string, CoreCommunicationSummary>>; summariesFailed: boolean;
+ * confirmed. A failed summary or PR 2 read leaves the list partial: reasons may be missing, never invented. A finished
+ * request can only be on the list for 결과 확인, which only the PR 2 reads find. */
+export function buildTodoList({ role, tickets, summaries, summariesFailed, extras = NO_TODO_EXTRAS }: {
+  role: CoreRole; tickets: readonly CoreTicketDto[]; summaries: Readonly<Record<string, CoreCommunicationSummary>>; summariesFailed: boolean; extras?: TodoExtras;
 }): TodoList {
-  const items = tickets.filter(ticket => ticket.workStatus !== "COMPLETED").flatMap(ticket => {
-    const reasons = reasonsFor(role, ticket, summaries[ticket.ticketId]);
-    return reasons.length ? [{ ticketId: ticket.ticketId, unitId: ticket.unitId, issueType: ticket.detail.issueType, reasons, lastActivity: lastActivity(ticket) }] : [];
+  const requests = tickets.flatMap((ticket): TodoTicketItem[] => {
+    const finished = ticket.workStatus === "COMPLETED", read = extras.reasons[ticket.ticketId] ?? [];
+    const own = finished ? [] : reasonsFor(role, ticket, summaries[ticket.ticketId]);
+    // The last read may predate the request finishing (it lands again only after the next read), so only 결과 확인 counts.
+    const reasons = [...new Set([...own, ...(finished ? read.filter(reason => reason === "RESULT") : read)])].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+    return reasons.length ? [{ kind: "ticket", ticketId: ticket.ticketId, unitId: ticket.unitId, issueType: ticket.detail.issueType, reasons, lastActivity: lastActivity(ticket) }] : [];
   });
+  const links = extras.links.map((link): TodoLinkItem => ({ kind: "link", invitationId: link.invitationId, unitLabel: link.unitLabel, reasons: ["LINK"], lastActivity: link.requestedAt }));
+  const items: TodoItem[] = [...requests, ...links];
   const group = (item: TodoItem) => Math.min(...item.reasons.map(reason => GROUP[reason]));
   const time = (item: TodoItem) => item.lastActivity ? Date.parse(item.lastActivity) : 0;
-  items.sort((a, b) => group(a) - group(b) || time(b) - time(a) || a.ticketId.localeCompare(b.ticketId));
-  return { items, partial: summariesFailed };
+  items.sort((a, b) => group(a) - group(b) || time(b) - time(a) || todoItemId(a).localeCompare(todoItemId(b)));
+  return { items, partial: summariesFailed || extras.failed, checking: !extras.ready, resultLimited: extras.resultLimited, linksLimited: extras.linksLimited };
 }

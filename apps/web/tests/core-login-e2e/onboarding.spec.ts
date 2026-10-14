@@ -99,3 +99,17 @@ test("logged out link never posts or carries token to Auth0; other actor and CSR
   const digest=(await f.manager.admin.query("SELECT encode(token_digest,'hex') digest FROM core_onboarding.invitation WHERE unit_id=$1",[f.unit])).rows[0].digest;expect(digest===createHash("sha256").update(token).digest("hex")).toBe(true);expect(digest===token).toBe(false);
  }finally{await f.close();}
 });
+test("a link request is the admin's to-do on 알림 and opens 입주 연결 (P5 PR 2)",async({browser})=>{
+ const f=await setup(browser);try{
+  const {link,invitation}=await create(f.page),tenant=await f.tenant.context.newPage();await request(tenant,link);
+  const menu=f.page.getByRole("navigation",{name:"주 메뉴",exact:true});
+  await menu.getByRole("link",{name:/^알림/}).click();
+  const row=f.page.locator(`[data-todo-link="${invitation.invitationId}"]`);
+  await expect(row).toContainText("입주 연결 · 합성 초대 테스트 호실");await expect(row).toContainText("연결 요청 확인 필요");
+  await expect(menu.getByRole("link",{name:"알림, 처리할 일 1건",exact:true})).toBeVisible();
+  await row.click();await expect(f.page).toHaveURL(/tab=more&view=invitations$/);
+  await approve(f.page);
+  await menu.getByRole("link",{name:/^알림/}).click();
+  await expect(f.page.locator(`[data-todo-link="${invitation.invitationId}"]`)).toHaveCount(0);
+ }finally{await f.close();}
+});

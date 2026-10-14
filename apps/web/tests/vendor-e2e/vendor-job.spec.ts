@@ -373,3 +373,36 @@ test('T12-B14 actual Vendor/Tenant cross-midnight and different-year windows rem
     }
   } finally { await v.close(); await tenant.close(); }
 });
+
+test('P5-T01 a Vendor job waiting on the resident puts 방문 시간 확정 필요 on the resident 알림 until they answer', async ({ browser, fixture }) => {
+  const c = await provision(fixture), v = await vendorContext(browser, fixture, c.link), t = await actor(browser, fixture, 'tenant');
+  try {
+    await click(v.page, '작업 수락');
+    expect((await core(fixture, 'tenant', `tickets/${c.ticketId}/vendor-scheduling`)).waitingOn).toBe('TENANT');
+    await safeGoto(t.page, '/core?tab=alerts', 'open 알림');
+    const row = t.page.locator(`[data-todo-ticket="${c.ticketId}"]`);
+    await expect(row).toContainText('방문 시간 확정 필요');
+    // Once the resident sends their times the Vendor proposes next; tapping 알림 again reads again.
+    const startAt = new Date(Date.now() + 86400000).toISOString(), endAt = new Date(Date.now() + 90000000).toISOString();
+    await core(fixture, 'tenant', `tickets/${c.ticketId}/vendor-scheduling/availability`, { clientRequestId: randomUUID(), ...guards(await job(v.context)), windows: [{ startAt, endAt }] });
+    await t.page.getByRole('navigation', { name: '주 메뉴', exact: true }).getByRole('link', { name: /^알림/ }).click();
+    const todo = t.page.locator('section[aria-label="처리할 일"]');
+    await expect(todo).toBeVisible(); await expect(todo).not.toHaveAttribute('aria-busy', 'true');
+    await expect(t.page.locator(`[data-todo-ticket="${c.ticketId}"]`).filter({ hasText: '방문 시간 확정 필요' })).toHaveCount(0);
+    await expect(t.page.getByText('일부를 확인하지 못했어요.')).toHaveCount(0);
+    await expect(t.page.getByRole('navigation', { name: '주 메뉴', exact: true })).toBeVisible();
+  } finally { await v.close(); await t.close(); }
+});
+
+test('P5-T02 a declined Vendor job puts 업체 확인 필요 on the manager 알림 and opens it in 업무함', async ({ browser, fixture }) => {
+  const c = await provision(fixture), v = await vendorContext(browser, fixture, c.link), m = await actor(browser, fixture, 'manager', 1280);
+  try {
+    await click(v.page, '작업 거절'); await v.page.getByRole('radio', { name: '일정·인력 여유가 없음', exact: true }).check();
+    await click(v.page, '거절 내용 확인'); await keyboardClick(v.page, '거절하기');
+    await expect.poll(async () => (await core(fixture, 'manager', `manager/tickets/${c.ticketId}/vendor-handoff`)).assignment?.endReason).toBe('DECLINED');
+    await safeGoto(m.page, '/core?tab=alerts', 'open 알림');
+    const row = m.page.locator(`[data-todo-ticket="${c.ticketId}"]`);
+    await expect(row).toContainText('업체 확인 필요');
+    await row.click(); await expect(m.page).toHaveURL(/tab=work$/); await expect(m.page.getByTestId('ticket-heading')).toBeVisible();
+  } finally { await v.close(); await m.close(); }
+});

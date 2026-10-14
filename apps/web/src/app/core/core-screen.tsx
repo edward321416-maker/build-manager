@@ -1,6 +1,6 @@
 "use client";
 
-import { createCoreFlowClient,ApiClientError } from "@build-manager/api-client";
+import { createCoreFlowClient,createCoreOnboardingClient,ApiClientError } from "@build-manager/api-client";
 import { CoreCreateFollowUpSchema,type CoreCreateFollowUp,type CoreSessionDto,type CoreTicketDto,type CoreUnitDto,type ManagerVendorHandoffDto } from "@build-manager/api-contracts";
 import { useCallback,useEffect,useMemo,useRef,useState,type MouseEvent as ReactMouseEvent,type ReactNode } from "react";
 import { TicketIntake,type EvidenceStepRenderer } from "../../components/tenant/ticket-intake";
@@ -30,7 +30,9 @@ import { MenuList,TodoScreen,UnitsScreen } from "./nav/nav-screens";
 import { OpenSourceNotice } from "./nav/open-source-notice";
 import { inLeftMenu,meRows,moreRows,navTitle,roleName,VIEW_LABELS,type NavLocation } from "./nav/nav-config";
 import { detailEntryOnTop,hideDetailEntry,showDetailEntry,useNavLocation } from "./nav/use-nav-location";
-import { buildTodoList } from "./nav/todo-list";
+import { buildTodoList,EMPTY_TODO_LIST } from "./nav/todo-list";
+import { endsSession,todoReadsFor } from "./nav/todo-extras";
+import { useTodoExtras } from "./nav/use-todo-extras";
 import navStyles from "./nav/core-nav.module.css";
 
 type IntakeState=CoreTicketDto["detail"]["status"];
@@ -80,6 +82,9 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   const [pending,setPending]=useState<PendingPhoto[]>([]),[photoMessage,setPhotoMessage]=useState("");
   // Photos stored by the intake's evidence step: reloads the photo list without remounting the intake (keyed by revision).
   const [photoRevision,setPhotoRevision]=useState(0);
+  // P5 PR 2 (spec §5): counts refreshes only, so the to-do reads run again on 새로고침, 다시 불러오기 and 알림 taps, never
+  // on a photo upload or the other reloads `revision` counts. A new request list reads again by itself (use-todo-extras.ts).
+  const [todoRevision,setTodoRevision]=useState(0);
   const [communicationVersion,setCommunicationVersion]=useState<{ticketId:string;version:number}|null>(null);
   const [managerHandoff,setManagerHandoff]=useState<ManagerVendorHandoffDto|null>(null);
   const onManagerHandoff=useCallback((value:ManagerVendorHandoffDto|null)=>setManagerHandoff(value),[]);
@@ -90,19 +95,25 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   const clearAccess=useCallback(()=>{accessGeneration.invalidate();clearCommunicationRecovery();clearOutcomeRecovery();setFollowUp(null);setFollowAttempt(null);setCommunicationVersion(null);setManagerHandoff(null);setSession(null);setSelected(null);setTickets([]);setUnits([]);setUnit("");setText("");setMessage("");setCode("");setNotice("");setPending([]);setPhotoMessage("");setMaintenanceUnit("");},[accessGeneration]);
   // The embedded intake/review also uses this client: a denied nested request
   // must clear the parent screen, not leave old protected content visible.
-  const client=useMemo(()=>{const guarded:typeof fetch=async(input,init)=>{
+  // P5 PR 2 (spec §5): the to-do reads per request use their own client. Its 403 means nothing is assigned there, as on
+  // the request screens, so it never clears the screen; its 401 still does (endsSession).
+  const checkedFetch=useCallback((perRequest:boolean):typeof fetch=>async(input,init)=>{
     const headers=new Headers(init?.headers);if(b1){headers.set("x-core-organization",b1.orgId);headers.set("x-b1-csrf",b1.csrf);}
     const response=await fetch(input,{...init,headers});
-    if(response.status===401||response.status===403){clearCommunicationRecovery();clearOutcomeRecovery();}
-    if(b1&&(response.status===401||response.status===403))onDenied?.();
-    if((response.status===401||response.status===403)&&!String(input).endsWith("/session")){
-      clearAccess();setError(response.status===401?sessionMessage:accessMessage);
+    if(endsSession(response.status,perRequest)){
+      clearCommunicationRecovery();clearOutcomeRecovery();
+      if(b1)onDenied?.();
+      if(!String(input).endsWith("/session")){clearAccess();setError(response.status===401?sessionMessage:accessMessage);}
     }
     if(response.status===404&&String(input).includes("/manager/")&&String(input).includes("maintenance")){
       clearAccess();setError(accessMessage);
     }
     return response;
-  };return createCoreFlowClient({baseUrl:"",fetchImpl:guarded,photoFetchImpl:guarded});},[clearAccess,b1,onDenied]);
+  },[clearAccess,b1,onDenied]);
+  const client=useMemo(()=>{const guarded=checkedFetch(false);return createCoreFlowClient({baseUrl:"",fetchImpl:guarded,photoFetchImpl:guarded});},[checkedFetch]);
+  const perRequestClient=useMemo(()=>{const guarded=checkedFetch(true);return createCoreFlowClient({baseUrl:"",fetchImpl:guarded,photoFetchImpl:guarded});},[checkedFetch]);
+  // 연결 요청 (B1): a list read, so a 401 or 403 there signs out like the other list reads (spec §5).
+  const linkRequests=useMemo(()=>b1?createCoreOnboardingClient({csrf:b1.csrf,orgId:b1.orgId,fetchImpl:checkedFetch(false)}).list:undefined,[b1,checkedFetch]);
   const tenant=session?.role==="TENANT";
   // Tenant rows show every request's conversation state; a manager's to-dos need only unfinished requests. Opening and
   // closing a request re-reads them, as before P5, so a row shows the reply just sent.
@@ -140,7 +151,11 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
     nav.go(next);
     if(next.tab==="alerts"&&session)void run(refresh);
   };
-  const todo=useMemo(()=>role?buildTodoList({role,tickets,summaries:conversationSummaries.summaries,summariesFailed:conversationSummaries.error}):{items:[],partial:false},[role,tickets,conversationSummaries.summaries,conversationSummaries.error]);
+  // P5 PR 2 (spec §5): reads per request, the manager's work list and the link requests, after the request list loads or
+  // changes and on every refresh; never periodically.
+  const todoReads=useMemo(()=>role?todoReadsFor({role,b1:Boolean(b1),perRequest:perRequestClient,list:client,invitations:linkRequests}):null,[role,b1,perRequestClient,client,linkRequests]);
+  const todoExtras=useTodoExtras({role,tickets,reads:todoReads,revision:todoRevision});
+  const todo=useMemo(()=>role?buildTodoList({role,tickets,summaries:conversationSummaries.summaries,summariesFailed:conversationSummaries.error,extras:todoExtras}):EMPTY_TODO_LIST,[role,tickets,conversationSummaries.summaries,conversationSummaries.error,todoExtras]);
   const home=useMemo(()=>tenant?homeCards({tickets,todo,unitId:unit}):{cards:[],total:0},[tenant,tickets,todo,unit]);
   /** A menu-like link inside the content: the real address for a new tab, this page's own move for a plain click. */
   const placeLink=(to:NavLocation)=>({href:navHref(to),onClick:(event:ReactMouseEvent)=>{if(plainClick(event)){event.preventDefault();navigate(to);}}});
@@ -212,7 +227,11 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
     try{const s=await client.session(),u=await client.units(),t=await client.tickets();setSession(s);setUnits(u);setUnit(u[0]?.id??"");setTickets(t);}
     catch(e){if(e instanceof ApiClientError&&e.status===401)clearAccess();else throw e;}
   };
-  const refresh=async()=>{const u=await client.units();setUnits(u);setUnit(current=>u.some(item=>item.id===current)?current:(u[0]?.id??""));setTickets(await client.tickets());if(selected)adopt(await client.read(selected.ticketId));setRevision(r=>r+1);};
+  // The new list and the re-read open request land together, so a refresh runs the to-do reads once, not once for each
+  // (spec §5). When the re-read fails, the new list still lands.
+  const refresh=async()=>{const u=await client.units();setUnits(u);setUnit(current=>u.some(item=>item.id===current)?current:(u[0]?.id??""));const list=await client.tickets();
+    const fresh=selected?await client.read(selected.ticketId).catch((e:unknown)=>{setTickets(list);throw e;}):null;
+    setTickets(list);if(fresh)adopt(fresh);setRevision(r=>r+1);setTodoRevision(r=>r+1);};
   const login=()=>run(async()=>{clearCommunicationRecovery();clearOutcomeRecovery();const s=await client.login(code),u=await client.units(),t=await client.tickets();setSession(s);setCode("");setUnits(u);setUnit(u[0]?.id??"");setTickets(t);});
   const selectedUnit=units.find(u=>u.id===selected?.unitId);
   const upload=async(ticketId:string,files:PendingPhoto[])=>{
@@ -338,7 +357,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
         </form>:null}</ManagerDirectCompletionGate>
         </div></ManagerInspector>:null}
       </section>:!tenant?null:<>
-        {/* P5 PR 1b (spec §4): the to-do line above the unit choice. It counts the 알림 rows, so it waits for the same read. */}
+        {/* P5 PR 1b (spec §4): the to-do line above the unit choice. It counts the 알림 rows but waits only for the
+          * conversation read, so the PR 2 reads can still change its count when they land. */}
         {tab==="home"&&conversationSummaries.ready&&todo.items.length?<a className={styles.todoLine} {...placeLink({tab:"alerts",view:null})}>처리할 일 {todo.items.length}건 · 알림에서 보기</a>:null}
         {units.length!==1?<label>건물·호실 <select aria-label="건물·호실" disabled={!units.length||Boolean(followUp)} value={unit} onChange={e=>setUnit(e.target.value)}>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>:null}
         <div className={styles.tenantHome} hidden={tab!=="home"}>
@@ -348,16 +368,17 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
             * it names only the request and its status, since no next step is confirmed (rules 10, 8.11). Each row is one
             * button (8.5, operator decision 2026-10-14). The rows sit above the follow-up block, which stays next to its
             * form (spec §4). */}
-          {home.cards.length?<section className={styles.homeCards} aria-label="진행 중인 요청" aria-busy={conversationSummaries.ready?undefined:"true"}>
+          {home.cards.length?<section className={styles.homeCards} aria-label="진행 중인 요청" aria-busy={conversationSummaries.ready&&todoExtras.ready?undefined:"true"}>
             <h2>진행 중인 요청 <small>{home.total}건</small></h2>
             {conversationSummaries.error?<p role="alert">{summariesFailedMessage}</p>:null}
             {pending.length?<p>{pendingPhotosHint}</p>:null}
             <ul>{home.cards.map(({ticket:t,next})=><li key={t.ticketId}><button type="button" className={styles.homeRow} data-home-card={t.ticketId} disabled={busy||pending.length>0} onClick={()=>openTenantTicket(t.ticketId)}>
               <span className={styles.cardTitle}><span className={styles.ticketTitle}>{ticketName(t)}</span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}</span>
-              {/* Never show a next step the conversation read has not confirmed yet, whether it is still loading or it
-                * failed: an empty span of the same line height holds the row's size steady either way, so the row
+              {/* Never show a next step the reads have not confirmed yet (the conversation read, and the PR 2 reads such as a visit
+                * time to confirm), whether they are still loading or the conversation read failed: an empty span of the same line
+                * height holds the row's size steady either way, so the row
                 * never shrinks when a held-back read comes back as an error (delta review finding). */}
-              {conversationSummaries.ready&&!conversationSummaries.error?<span className={styles.cardNext}>{next}</span>:<span className={styles.cardNext}/>}
+              {conversationSummaries.ready&&todoExtras.ready&&!conversationSummaries.error?<span className={styles.cardNext}>{next}</span>:<span className={styles.cardNext}/>}
             </button></li>)}</ul>
             {home.total>HOME_CARD_LIMIT?<a className={styles.moreLink} {...placeLink({tab:"requests",view:null})}>요청에서 모두 보기</a>:null}
           </section>:null}
@@ -380,7 +401,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
         </div>
       </>}
       </div>
-      {navContext&&!selected&&!view&&tab==="alerts"?<div className={navStyles.pane}><TodoScreen role={session.role} list={todo} ready={conversationSummaries.ready} units={units} disabled={busy||pending.length>0} notice={pending.length?pendingPhotosHint:undefined} onOpen={openFromList} onRetry={()=>void run(refresh)}/></div>:null}
+      {navContext&&!selected&&!view&&tab==="alerts"?<div className={navStyles.pane}><TodoScreen role={session.role} list={todo} ready={conversationSummaries.ready} units={units} disabled={busy||pending.length>0} notice={pending.length?pendingPhotosHint:undefined} onOpen={openFromList} onOpenPlace={navigate} onRetry={()=>void run(refresh)}/></div>:null}
       {navContext&&!selected&&(tenant?tab==="me"&&!view:view==="me")?<div className={navStyles.pane}><MenuList label={VIEW_LABELS.me} rows={meRows(navContext)} organization={account?.organization} onOpen={navigate} onLogout={logout}/></div>:null}
       {navContext&&!selected&&!tenant&&tab==="more"&&!view?<div className={navStyles.pane}><MenuList label="더 보기" rows={moreRows(navContext)} onOpen={navigate} onLogout={logout}/></div>:null}
       {!tenant&&!selected&&view==="maintenance"?<ManagerMaintenanceTimeline key={maintenanceUnit} client={client} units={units} revision={revision} disabled={busy} initialUnit={maintenanceUnit} onOpenTicket={openMaintenanceTicket}/>:null}
