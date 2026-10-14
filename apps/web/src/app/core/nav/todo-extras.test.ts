@@ -109,6 +109,32 @@ describe("reading the PR 2 reasons", () => {
     expect(limited.linksLimited).toBe(true);
   });
 
+  it("starts no further per-request reads once the run is cancelled", async () => {
+    const run = new AbortController(); let calls = 0;
+    const reads: TodoReads = { outcome: async () => { if (++calls === 1) run.abort(); return outcome("UNCONFIRMED"); } };
+    await collectTodoExtras({ role: "TENANT", now, reads, signal: run.signal, tickets: Array.from({ length: 10 }, (_, n) => ticket(`d${n}`, "COMPLETED")) });
+    expect(calls).toBe(1);
+  });
+
+  it("stops paging link requests once the run is cancelled", async () => {
+    const run = new AbortController();
+    const pages = vi.fn(async (cursor?: string) => {
+      const n = cursor ? Number(cursor.slice(1)) : 1; if (n === 2) run.abort();
+      return { items: [invitation(`r${n}`, "REQUESTED")], nextCursor: `c${n + 1}` } as InvitationPage;
+    });
+    await collectTodoExtras({ role: "ORG_ADMIN", now, tickets: [], reads: { invitations: pages }, signal: run.signal });
+    expect(pages).toHaveBeenCalledTimes(2);
+  });
+
+  it("starts no more per-request reads after one finds the session ended", async () => {
+    let calls = 0;
+    const reads: TodoReads = { outcome: async id => { calls++; if (id === "d0") throw denied(401); await new Promise(resolve => setTimeout(resolve, 5)); return outcome("UNCONFIRMED"); } };
+    const extras = await collectTodoExtras({ role: "TENANT", now, reads, tickets: Array.from({ length: 10 }, (_, n) => ticket(`d${n}`, "COMPLETED")) });
+    // The four already in flight finish; none of the other six start.
+    expect(calls).toBe(4);
+    expect(extras.failed).toBe(false);
+  });
+
   it("treats a list read's 403 as a lost session and its other errors as a failure", async () => {
     expect(await collectTodoExtras({ role: "ORG_ADMIN", now, tickets: [], reads: { workItems: async () => { throw denied(403); } } })).toMatchObject({ failed: false });
     expect(await collectTodoExtras({ role: "ORG_ADMIN", now, tickets: [], reads: { workItems: async () => { throw denied(404); } } })).toMatchObject({ failed: true });

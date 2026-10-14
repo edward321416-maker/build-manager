@@ -46,19 +46,40 @@ function failure(error: unknown, perRequest: boolean): "none" | "signedOut" | "f
   return perRequest && (status === 403 || status === 404) ? "none" : "failed";
 }
 
-/** Runs the tasks with at most `limit` in flight. The tasks catch their own errors. */
-export async function runLimited(tasks: readonly (() => Promise<void>)[], limit: number): Promise<void> {
-  let next = 0;
-  const worker = async () => { while (next < tasks.length) await tasks[next++](); };
-  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+/** Starts a read when one of `limit` places is free. A read whose run is no longer live when its turn comes never starts. */
+export type ReadLimiter = (task: () => Promise<void>, live: () => boolean) => Promise<void>;
+
+/** Shared by every run on one screen (use-todo-extras.ts), so a new run never adds to the reads a superseded run still
+ * has in flight: at most `limit` at once in all (spec §5). The tasks catch their own errors. */
+export function createReadLimiter(limit: number): ReadLimiter {
+  let active = 0;
+  const queue: { task: () => Promise<void>; live: () => boolean; done: () => void }[] = [];
+  const pump = () => {
+    while (active < limit && queue.length) {
+      const { task, live, done } = queue.shift()!;
+      if (!live()) { done(); continue; }
+      active++;
+      const release = () => { active--; done(); pump(); };
+      void task().then(release, release);
+    }
+  };
+  return (task, live) => new Promise<void>(done => { queue.push({ task, live, done }); pump(); });
 }
 
-/** Reads what the request list and the conversation summaries cannot show (spec §5) and never throws. */
-export async function collectTodoExtras({ role, tickets, reads, now }: { role: CoreRole; tickets: readonly CoreTicketDto[]; reads: TodoReads; now: number }): Promise<TodoExtras> {
+/** Reads what the request list and the conversation summaries cannot show (spec §5) and never throws. Once `signal` is
+ * aborted (a newer run replaced this one, or the screen is gone) or a read finds the session ended, it starts no more
+ * reads. Without a `limiter` the run has four places of its own. */
+export async function collectTodoExtras({ role, tickets, reads, now, signal, limiter = createReadLimiter(READ_LIMIT) }: {
+  role: CoreRole; tickets: readonly CoreTicketDto[]; reads: TodoReads; now: number; signal?: AbortSignal; limiter?: ReadLimiter;
+}): Promise<TodoExtras> {
   const targets = todoTargets(role, tickets), reasons: Record<string, TodoReason[]> = {}, links: TodoLinkRequest[] = [];
-  let failed = false, linksLimited = false;
+  let failed = false, linksLimited = false, signedOut = false;
+  const live = () => !signedOut && !signal?.aborted;
   const add = (ticketId: string, reason: TodoReason) => { (reasons[ticketId] ??= []).push(reason); };
-  const note = (error: unknown, perRequest: boolean) => { if (failure(error, perRequest) === "failed") failed = true; };
+  const note = (error: unknown, perRequest: boolean) => {
+    const result = failure(error, perRequest);
+    if (result === "failed") failed = true; else if (result === "signedOut") signedOut = true;
+  };
   const each = <T>(ids: readonly string[], read: ((ticketId: string) => Promise<T>) | undefined, due: (value: T) => boolean, reason: TodoReason) =>
     read ? ids.map(id => async () => { try { if (due(await read(id))) add(id, reason); } catch (error) { note(error, true); } }) : [];
   const perRequest = [
@@ -68,7 +89,7 @@ export async function collectTodoExtras({ role, tickets, reads, now }: { role: C
     ...each(targets.vendor, reads.handoff, value => value.waitingOn === "MANAGER" || (value.assignment?.status === "ENDED" && value.assignment.endReason === "DECLINED"), "VENDOR"),
   ];
   const overdue = async () => {
-    if (!reads.workItems) return;
+    if (!reads.workItems || !live()) return;
     try { for (const item of await reads.workItems()) if (isOverdue(item, now)) add(item.ticketId, "OVERDUE"); } catch (error) { note(error, false); }
   };
   const requested = async () => {
@@ -76,6 +97,7 @@ export async function collectTodoExtras({ role, tickets, reads, now }: { role: C
     try {
       let cursor: string | undefined;
       for (let page = 0; page < LINK_PAGE_LIMIT; page++) {
+        if (!live()) return;
         const result = await reads.invitations(cursor);
         links.push(...result.items.filter(item => item.state === "REQUESTED").map(item => ({ invitationId: item.invitationId, unitLabel: item.unitLabel, requestedAt: item.requestedAt })));
         if (!result.nextCursor) return;
@@ -84,7 +106,7 @@ export async function collectTodoExtras({ role, tickets, reads, now }: { role: C
       linksLimited = true;
     } catch (error) { note(error, false); }
   };
-  await Promise.all([runLimited(perRequest, READ_LIMIT), overdue(), requested()]);
+  await Promise.all([...perRequest.map(task => limiter(task, live)), overdue(), requested()]);
   return { reasons, links, failed, ready: true, resultLimited: targets.resultLimited && Boolean(reads.outcome), linksLimited };
 }
 
