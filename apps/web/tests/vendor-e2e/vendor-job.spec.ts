@@ -388,7 +388,8 @@ test('P5-T01 a Vendor job waiting on the resident puts 방문 시간 확정 필�
     await t.page.getByRole('navigation', { name: '주 메뉴', exact: true }).getByRole('link', { name: /^알림/ }).click();
     const todo = t.page.locator('section[aria-label="처리할 일"]');
     await expect(todo).toBeVisible(); await expect(todo).not.toHaveAttribute('aria-busy', 'true');
-    await expect(t.page.locator(`[data-todo-ticket="${c.ticketId}"]`)).not.toContainText('방문 시간 확정 필요');
+    await expect(t.page.locator(`[data-todo-ticket="${c.ticketId}"]`).filter({ hasText: '방문 시간 확정 필요' })).toHaveCount(0);
+    await expect(t.page.getByText('일부를 확인하지 못했어요.')).toHaveCount(0);
   } finally { await v.close(); await t.close(); }
 });
 
