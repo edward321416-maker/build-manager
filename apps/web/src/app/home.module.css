@@ -1,5 +1,6 @@
-/* First-visitor page: layout from the operator-picked reference (design rules §1, 2026-10-13), values from the rules
-   (landing values: §3.2 hero/headline/lead, §4 space-20, §5 content width 82.5rem, §6.2 30px). Tokens in app/tokens.css. */
+/* First-visitor page (design rules §1 and 9.1, operator decision 2026-10-15; spec
+   docs/superpowers/specs/2026-10-15-landing-scroll-scenes-design.md). Every value is a rules token (§2–§6, §9).
+   The page is still by default; a scene moves only while ScrollScenes has set data-motion="on" on it. */
 .page {
   min-height: 100vh; background: var(--color-surface); color: var(--color-text); font-family: var(--font-sans);
   font-size: .9375rem; line-height: 1.5625rem; letter-spacing: -0.01em; word-break: keep-all; overflow-wrap: anywhere;
@@ -7,13 +8,12 @@
 /* Resets carry no element weight, so each block's own spacing below wins. */
 .page :where(h1, h2, h3, p, ol, ul, figure) { margin: 0; }
 .page :where(ol, ul) { padding: 0; list-style: none; }
-/* Anchored sections stop below the sticky 56px bar plus 20px (§7). */
-.page [id] { scroll-margin-block: calc(3.5rem + 1.25rem); }
-
+/* Anchored sections and keyboard focus stop below the sticky 56px bar plus 20px (§7). */
+.page [id], .page :is(a, button) { scroll-margin-block: calc(3.5rem + 1.25rem); }
 /* Content column: at most 82.5rem, side margins 20 / 30 / 40px (§5, §7). */
 .container { width: min(100% - 2.5rem, 82.5rem); margin-inline: auto; }
 
-/* Top bar (§8.10): 56px, wordmark, page links from 1024px, and the way in. */
+/* Top bar (§8.10): 56px, wordmark, page links from 1024px, and a secondary button so the page shows one filled blue button (§8.1). */
 .bar { position: sticky; top: 0; z-index: 10; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
 .barInner { display: flex; align-items: center; gap: .625rem; min-height: 3.5rem; }
 .wordmark { margin-right: auto; font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
@@ -29,7 +29,7 @@
 .primary, .secondary {
   display: inline-flex; align-items: center; justify-content: center; min-height: 3.125rem; padding: .625rem 1.25rem;
   border: 1px solid var(--color-border-strong); border-radius: .625rem; background: var(--color-surface); color: var(--color-text);
-  font: inherit; font-size: .9375rem; line-height: 1.25rem; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; cursor: pointer;
+  font: inherit; font-size: .9375rem; line-height: 1.25rem; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; text-align: center; cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease), transform var(--motion-fast) var(--ease);
 }
 .primary { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-text-inverse); }
@@ -39,32 +39,50 @@
 .textLink { color: var(--color-primary); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
 .page :is(a, button):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
 .caption { font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; color: var(--color-text-secondary); }
-
-/* Opening: title, then the explanation and the way in; one wide panel of drawn screens below. */
-.hero { padding-top: 3.125rem; }
-.heroGrid { display: grid; gap: 1.25rem; }
-.heroTitle { font-size: 2rem; line-height: 2.625rem; font-weight: 700; letter-spacing: -0.03em; }
-.heroSide { display: grid; gap: .625rem; align-content: start; }
-.lead { max-width: 34rem; font-size: 1.125rem; line-height: 1.75rem; letter-spacing: -0.01em; color: var(--color-text-secondary); }
-.entry { display: grid; gap: .625rem; padding-top: .625rem; }
-.entryTitle { font-size: .9375rem; line-height: 1.5625rem; font-weight: 600; letter-spacing: -0.01em; }
 .actions { display: grid; gap: .625rem; }
 .actions form { margin: 0; }
 .actions :is(.primary, .secondary) { width: 100%; }
 
-/* The wide panel (§6.2 30px): the tenant's phone overlaps the manager's queue from 1024px. */
-.showcase {
-  display: grid; justify-items: center; gap: 1.25rem; margin-top: 3.125rem; padding: 1.25rem;
-  background: var(--color-page); border-radius: 1.875rem; overflow: hidden;
-}
-.showcase > .window { width: 100%; }
+/* Scene text (§3.2). */
+.scene { padding-block: 3.125rem; }
+.eyebrow { font-size: .9375rem; line-height: 1.25rem; font-weight: 600; letter-spacing: -0.01em; color: var(--color-text-secondary); }
+.headline { margin-top: .625rem; font-size: 1.5625rem; line-height: 2.1875rem; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
+.lead { max-width: 34rem; font-size: 1.125rem; line-height: 1.75rem; letter-spacing: -0.01em; color: var(--color-text-secondary); }
+.sectionLead { margin-top: .625rem; }
 
-/* A drawn phone screen. */
-.phone {
-  display: grid; gap: .625rem; align-content: start; width: min(100%, 17.5rem); padding: 1.5625rem 1.25rem;
-  background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: 1.875rem;
+/* First scene, still: the board (§6.2 30px) with the drawing and the title, then the explanation and the way in. */
+.board { display: grid; justify-items: center; gap: 1.875rem; padding: 1.875rem 1.25rem; background: var(--color-page); border-radius: 1.875rem; }
+/* The pair spans the board, so the phone can shrink to it on a 320px screen (no sideways scroll, rules §7). */
+.pair { display: flex; align-items: center; justify-content: center; justify-self: stretch; }
+.pair > .window { display: none; }
+.heroTitle { justify-self: start; font-size: 2rem; line-height: 2.625rem; font-weight: 700; letter-spacing: -0.03em; }
+.heroSide { display: grid; gap: 1.25rem; margin-top: 1.875rem; }
+.sideTitle { font-size: 1.5625rem; line-height: 2.1875rem; font-weight: 700; letter-spacing: -0.02em; }
+
+/* Step scenes, still: text and every step with its detail, then every screen of the drawing one after another. */
+.split { display: grid; gap: 1.875rem; }
+.steps { display: grid; margin-top: 1.875rem; border-top: 1px solid var(--color-border); }
+.steps li { display: grid; gap: .3125rem; padding-block: .9375rem; border-bottom: 1px solid var(--color-border); transition: color var(--motion-base) var(--ease); }
+.stepTitle { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
+.stepDetail { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--motion-base) var(--ease); }
+.stepDetail > span { overflow: hidden; color: var(--color-text-secondary); }
+.device { display: grid; justify-items: center; padding: 1.25rem; background: var(--color-page); border-radius: 1.875rem; }
+
+/* Drawn screens (§5: phone 17.5rem; in a moving scene 35rem tall, 30rem in a step scene up to 767px; manager window
+   37.5rem × 25rem). No shadow (§6.3). */
+.phone { position: relative; width: min(100%, 17.5rem); background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: 1.875rem; overflow: hidden; }
+.window { position: relative; width: min(100%, 37.5rem); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .9375rem; overflow: hidden; }
+.pair > .phone { flex: none; width: min(17.5rem, 100%); }
+.phoneTop, .windowTop {
+  display: flex; align-items: center; min-height: 2.8125rem; padding-inline: .9375rem; border-bottom: 1px solid var(--color-border);
+  font-size: .8125rem; line-height: 1.125rem; font-weight: 600; letter-spacing: 0;
 }
-.phoneTitle { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
+.phoneTop { justify-content: center; }
+.windowTop { color: var(--color-text-secondary); }
+.screen { display: grid; gap: .625rem; align-content: start; padding: 1.25rem; transition: opacity var(--motion-base) var(--ease), transform var(--motion-base) var(--ease); }
+.screen + .screen { border-top: 1px solid var(--color-border); }
+.screenTitle { font-weight: 600; }
+.label { font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; color: var(--color-text-secondary); }
 /* Two answers side by side; they stack once enlarged text no longer fits two (rules §12, 200%). */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 5rem), 1fr)); gap: .625rem; }
 .tiles span {
@@ -72,29 +90,31 @@
   border: 1px solid var(--color-border-control); border-radius: .625rem; font-weight: 600; line-height: 1.25rem; text-align: center;
 }
 .tiles span[data-selected] { border: 2px solid var(--color-primary); background: var(--color-primary-soft); padding: calc(.9375rem - 1px); }
-.fieldLabel { font-weight: 600; line-height: 1.25rem; }
 .field { padding: .625rem .9375rem; border: 1px solid var(--color-border-control); border-radius: .625rem; }
+.note { padding: .9375rem; background: var(--color-fill-subtle); border-radius: .625rem; }
+.check { display: flex; align-items: center; gap: .625rem; }
+.check::before {
+  content: "✓"; display: grid; place-items: center; flex: none; width: 1.25rem; height: 1.25rem; border-radius: .3125rem;
+  background: var(--color-primary); color: var(--color-text-inverse); font-size: .8125rem; line-height: 1;
+}
 .fakeButton {
-  display: flex; align-items: center; justify-content: center; min-height: 3.125rem; padding: .625rem 1.25rem;
-  border-radius: .625rem; background: var(--color-primary); color: var(--color-text-inverse); font-weight: 600; line-height: 1.25rem;
+  display: flex; align-items: center; justify-content: center; min-height: 3.125rem; padding: .625rem 1.25rem; border: 1px solid var(--color-primary);
+  border-radius: .625rem; background: var(--color-primary); color: var(--color-text-inverse); font-weight: 600; line-height: 1.25rem; text-align: center;
 }
-
-/* A drawn manager window: queue rows beside the example ticket once the window is 36rem or wider. */
-.window { container-type: inline-size; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .9375rem; }
-.windowBar {
-  padding: .625rem .9375rem; border-bottom: 1px solid var(--color-border);
-  font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; color: var(--color-text-secondary);
+.fakeButton[data-kind="secondary"] { border-color: var(--color-border-strong); background: var(--color-surface); color: var(--color-text); }
+.thumbs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .625rem; }
+.thumbs span {
+  display: grid; place-items: center; aspect-ratio: 4 / 3; border-radius: .9375rem; background: var(--color-fill-subtle);
+  color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0;
 }
-.windowBody { display: grid; }
-.queue { display: none; }
-.queue li, .history li {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: .625rem; align-items: center;
-  padding-block: .9375rem; border-bottom: 1px solid var(--color-border);
-}
-.queue li:last-child, .history li:last-child { border-bottom: 0; }
+.rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: .625rem; align-items: center; padding-block: .9375rem; border-bottom: 1px solid var(--color-border); }
+.rows li:last-child { border-bottom: 0; }
+.rows .status { grid-column: 2; grid-row: 1 / span 2; }
 .rowTitle { grid-column: 1; font-weight: 600; }
 .rowMeta { grid-column: 1; font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
-.queue .status, .history .status { grid-column: 2; grid-row: 1 / span 2; }
+.homeRows li { grid-template-columns: minmax(0, 1fr); row-gap: .3125rem; }
+.homeRows .rowTitle { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; }
+.homeRows .status { grid-column: auto; grid-row: auto; }
 
 /* Status labels (§8.7): the app's own names and colour pairs. */
 .status {
@@ -107,102 +127,136 @@
 .status[data-state="urgent"] { color: var(--status-urgent-text); background: var(--status-urgent-bg); }
 .status[data-state="open"] { color: var(--color-text-secondary); background: var(--color-fill-subtle); }
 
-/* The example ticket and its handling history. */
-.ticket { display: grid; gap: .9375rem; padding: 1.25rem; }
-.ticketHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .625rem; }
-.unit { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
-.quote { padding: .9375rem; background: var(--color-fill-subtle); border-radius: .625rem; }
-.timeline { display: grid; }
-.timeline li { position: relative; display: grid; gap: 0; padding: 0 0 .9375rem 1.5625rem; }
-.timeline li:last-child { padding-bottom: 0; }
-/* Rail: a 1px line joining the markers; markers carry the state together with the text beside them. */
-.timeline li::before { content: ""; position: absolute; left: .3125rem; top: 1.25rem; bottom: -.3125rem; width: 1px; background: var(--color-border-strong); }
-.timeline li:last-child::before { display: none; }
-.timeline li::after { content: ""; position: absolute; left: 0; top: .4375rem; width: .6875rem; height: .6875rem; border-radius: 50%; box-sizing: border-box; border: 1px solid var(--color-border-control); background: var(--color-surface); }
-.timeline li[data-state="done"]::after { border-color: var(--status-done-text); background: var(--status-done-text); }
-.timeline li[data-state="current"]::after { border: 2px solid var(--status-progress-text); background: var(--status-progress-bg); }
-.timeline time { font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
-.timeline li[data-state="next"] span { color: var(--color-text-secondary); }
+/* Result and record. */
+.record { display: grid; gap: .9375rem; padding: 1.25rem; background: var(--color-page); border-radius: 1.875rem; }
+.resultCard, .history { padding: .9375rem 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .9375rem; }
+.resultCard { display: grid; gap: .625rem; }
 
-/* Steps: a real sequence, numbered; rows on phones, four columns from 1024px. */
-.steps { padding-top: 3.125rem; }
-.stepsTitle { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; text-align: center; }
-.steps ol { counter-reset: step; margin-top: 1.25rem; border-top: 1px solid var(--color-border); }
-.steps li { counter-increment: step; display: grid; grid-template-columns: 1.875rem minmax(0, 1fr); padding-block: .9375rem; border-bottom: 1px solid var(--color-border); }
-.steps li::before { content: counter(step); font-weight: 600; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; letter-spacing: 0; }
-.steps li span { max-width: 75ch; }
-
-/* Sections: label and heading on the left, explanation on the right, then panels. */
-.section { padding-top: 3.125rem; }
-.sectionHead { display: grid; gap: .625rem; }
-.eyebrow { font-size: .9375rem; line-height: 1.5625rem; font-weight: 600; letter-spacing: -0.01em; color: var(--color-text-secondary); }
-.headline { font-size: 1.5625rem; line-height: 2.1875rem; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
-/* Text beside one panel, as in the reference's try-it section. */
-.split { display: grid; gap: 1.875rem; }
-.split > .panel { margin-top: 0; }
-.splitText { display: grid; gap: .625rem; align-content: center; }
-.sectionLead { max-width: 34rem; color: var(--color-text-secondary); }
-.panel { display: grid; justify-items: center; margin-top: 1.875rem; padding: 1.25rem; background: var(--color-page); border-radius: 1.875rem; }
-.cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.875rem; margin-top: 1.875rem; }
-.card { display: grid; gap: .625rem; align-content: start; }
-.card h3 { margin-top: .625rem; font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
-.card > p { color: var(--color-text-secondary); }
-.cardVisual { display: grid; place-items: center; padding: 1.25rem; background: var(--color-page); border-radius: 1.875rem; }
-.mini {
-  display: grid; gap: .625rem; width: min(100%, 20rem); padding: .9375rem;
-  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .9375rem;
-}
-.miniTitle { font-weight: 600; }
-.history { width: min(100%, 50rem); padding: .9375rem 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .9375rem; }
-.historyHead { padding-bottom: .625rem; border-bottom: 1px solid var(--color-border); font-weight: 600; }
-
-.footer { margin-top: 3.125rem; padding-block: 1.875rem 3.125rem; border-top: 1px solid var(--color-border); }
+/* Closing: the way in. It never moves. */
+.closing { padding-block: 3.125rem; background: var(--color-page); }
+.closingInner { display: grid; gap: 1.25rem; }
+.entry { display: grid; gap: .625rem; max-width: 40rem; padding: 1.875rem 1.25rem; background: var(--color-surface); border-radius: 1.875rem; }
+.entryTitle { font-size: 1.25rem; line-height: 1.875rem; font-weight: 600; letter-spacing: -0.02em; }
+.footer { padding-block: 1.875rem 3.125rem; border-top: 1px solid var(--color-border); }
 .footerInner { display: grid; gap: .625rem; }
+/* The page shown when no mode is set. */
+.hero { padding-top: 3.125rem; }
 
 @media (min-width: 768px) {
   .container { width: min(100% - 3.75rem, 82.5rem); }
   .actions { display: flex; flex-wrap: wrap; align-items: center; }
   .actions :is(.primary, .secondary) { width: auto; }
-  .showcase, .panel { padding: 1.875rem; }
+  .board { padding: 3.125rem; }
+  .device, .record { padding: 1.875rem; }
+  .entry { padding: 1.875rem; }
 }
 @media (min-width: 1024px) {
   .nav { display: flex; gap: .3125rem; margin-right: auto; }
-  .hero { padding-top: 6.25rem; }
-  .heroGrid { grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); column-gap: 2.5rem; align-items: start; }
+  .scene, .closing { padding-block: 6.25rem; }
   .heroTitle { font-size: 3.375rem; line-height: 4.375rem; }
-  .steps { padding-top: 6.25rem; }
-  .steps ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 1.25rem; border-top: 0; }
-  .steps li { grid-template-columns: minmax(0, 1fr); gap: .3125rem; align-content: start; border-top: 1px solid var(--color-border); border-bottom: 0; }
-  .section { padding-top: 6.25rem; }
-  .sectionHead { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 2.5rem; align-items: end; }
-  .headline { font-size: 2.75rem; line-height: 3.875rem; letter-spacing: -0.03em; }
-  .panel { margin-top: 3.125rem; padding: 3.125rem; }
-  .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 2.5rem; align-items: center; }
-  .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; margin-top: 3.125rem; }
-  .card h3 { font-size: 1.5625rem; line-height: 2.1875rem; font-weight: 700; }
-  .cardVisual { min-height: 18.75rem; }
-  .footer { margin-top: 6.25rem; }
-}
-/* The phone over the manager's window. Measured in em so enlarged browser text keeps the stacked layout until the
-   window has room for the queue and the ticket (1024px at the default text size). */
-@media (min-width: 64em) {
-  .showcase { grid-template-columns: 15rem 2.5rem minmax(0, 1fr); align-items: end; gap: 0; padding: 3.125rem; }
-  .showcase > .phone { grid-column: 1 / 3; grid-row: 1; z-index: 1; width: 17.5rem; justify-self: start; }
-  .showcase > .window { grid-column: 2 / 4; grid-row: 1; }
-}
-/* The queue joins the ticket only when the window itself has room, in rem so enlarged text keeps the ticket alone. */
-@container (min-width: 36rem) {
-  .windowBody { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
-  .queue { display: block; padding: 0 1.25rem; border-right: 1px solid var(--color-border); }
-}
-/* Where the phone covers the window's first 2.5rem, the window's content (queue or ticket) starts after the overlap. */
-@media (min-width: 64em) {
-  .showcase .windowBody { padding-left: 2.5rem; }
+  .headline, .sideTitle { font-size: 2.75rem; line-height: 3.875rem; letter-spacing: -0.03em; }
+  .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 3.125rem; align-items: center; }
+  .split[data-reverse] > figure { order: -1; }
+  .pair > .window { display: block; margin-left: -3.75rem; }
+  .pair > .phone { position: relative; z-index: 1; }
 }
 @media (min-width: 1440px) {
   .container { width: min(100% - 5rem, 82.5rem); }
 }
+
+/* ---- Moving scenes (rules 9.1): only inside a scene ScrollScenes turned on. ---- */
+.scene[data-motion="on"] { padding-block: 0; }
+.scene[data-motion="on"] .stage { position: sticky; top: 3.5rem; height: calc(100vh - 3.5rem); overflow: hidden; }
+/* While ScrollScenes measures a scene, each state is read as it ends; opening the page moves nothing (rules 9.1). */
+.scene[data-measure] * { transition: none; }
+
+/* First scene: 250% of the screen. a = --a, b = --b, p = --p (rules 9.1). */
+.heroScene[data-motion="on"] { height: 250vh; }
+.heroScene[data-motion="on"] .board {
+  position: absolute; inset: .9375rem 1.25rem 1.25rem; display: block; padding: 0; transform-origin: 100% 50%;
+  transform: translateX(calc(var(--a, 0) * 2vw)) scale(calc(1 - .42 * var(--a, 0)));
+}
+/* --fit and --fit-top (ScrollScenes) shrink the drawing into the room above the title (operator decision 2026-10-15, A). */
+.heroScene[data-motion="on"] .pair {
+  position: absolute; left: 50%; top: var(--fit-top, 46%);
+  transform: translate(-50%, -50%) scale(calc(var(--fit, 1) * (1 + .1 * var(--a, 0))));
+}
+/* Absolutely placed, the pair takes its content's width, so both drawings need fixed sizes here (a percentage would
+   collapse them). */
+.heroScene[data-motion="on"] .pair > .phone { width: 17.5rem; height: 35rem; }
+.heroScene[data-motion="on"] .pair > .window { width: 37.5rem; height: 25rem; }
+.heroScene[data-motion="on"] .heroTitle { position: absolute; left: 3.125rem; right: 3.125rem; bottom: 2.8125rem; opacity: calc(1 - 4 * var(--p, 0)); }
+.heroScene[data-motion="on"] .heroSide {
+  position: absolute; left: 1.25rem; top: 50%; width: min(36rem, 44%); margin: 0;
+  opacity: var(--b, 0); transform: translateY(calc(-50% + (1 - var(--b, 0)) * 1.25rem));
+}
+/* Out of sight, out of reach for the pointer; keyboard focus shows it at once (rules 9.1). */
+.heroScene[data-motion="on"][data-side="hidden"] .heroSide { pointer-events: none; }
+.heroScene[data-motion="on"] .heroSide:focus-within { opacity: 1; transform: translateY(-50%); pointer-events: auto; }
+@media (min-width: 768px) {
+  .heroScene[data-motion="on"] .board { inset: .9375rem 1.875rem 1.25rem; }
+  .heroScene[data-motion="on"] .heroSide { left: 1.875rem; }
+}
+@media (min-width: 1440px) {
+  .heroScene[data-motion="on"] .board { inset: .9375rem 2.5rem 1.25rem; }
+  .heroScene[data-motion="on"] .heroSide { left: 2.5rem; }
+}
+@media (max-width: 767px) {
+  .heroScene[data-motion="on"] .board { inset: .625rem .625rem .9375rem; transform-origin: 50% 0; transform: scale(calc(1 - .2 * var(--a, 0))); }
+  .heroScene[data-motion="on"] .pair { top: 42%; transform: translate(-50%, -50%) scale(.82); }
+  .heroScene[data-motion="on"] .heroTitle { left: 1.5625rem; right: 1.5625rem; bottom: 1.875rem; }
+  .heroScene[data-motion="on"] .heroSide {
+    left: 1.25rem; right: 1.25rem; top: auto; bottom: 1.25rem; width: auto; padding-top: .9375rem; background: var(--color-surface);
+    transform: translateY(calc((1 - var(--b, 0)) * 1.25rem));
+  }
+  .heroScene[data-motion="on"] .heroSide:focus-within { transform: none; }
+}
+@media (max-width: 767px) and (max-height: 760px) {
+  .heroScene[data-motion="on"] .pair { transform: translate(-50%, -50%) scale(.7); }
+}
+
+/* Step scenes: 3 steps × 85% + 100% of the screen (every step scene has three steps, spec D3). */
+.stepScene[data-motion="on"] { height: calc(3 * 85vh + 100vh); }
+.stepScene[data-motion="on"] .stage { display: grid; align-items: center; }
+.stepScene[data-motion="on"] .steps li { color: var(--color-text-secondary); }
+.stepScene[data-motion="on"] .stepDetail { grid-template-rows: 0fr; }
+.stepScene[data-motion="on"] .phone { height: 35rem; }
+.stepScene[data-motion="on"] .window { height: 25rem; }
+.stepScene[data-motion="on"] .screen { position: absolute; inset: 2.8125rem 0 0; opacity: 0; transform: translateY(.625rem); }
+.stepScene[data-motion="on"] .screen + .screen { border-top: 0; }
+.stepScene[data-motion="on"][data-step="0"] [data-step-item="0"],
+.stepScene[data-motion="on"][data-step="1"] [data-step-item="1"],
+.stepScene[data-motion="on"][data-step="2"] [data-step-item="2"] { color: var(--color-text); }
+.stepScene[data-motion="on"][data-step="0"] [data-step-item="0"] .stepDetail,
+.stepScene[data-motion="on"][data-step="1"] [data-step-item="1"] .stepDetail,
+.stepScene[data-motion="on"][data-step="2"] [data-step-item="2"] .stepDetail { grid-template-rows: 1fr; }
+.stepScene[data-motion="on"][data-step="0"] [data-screen="0"],
+.stepScene[data-motion="on"][data-step="1"] [data-screen="1"],
+.stepScene[data-motion="on"][data-step="2"] [data-screen="2"] { opacity: 1; transform: none; }
+@media (max-width: 1023px) {
+  .stepScene[data-motion="on"] .stage { align-items: start; padding-top: .9375rem; }
+  .stepScene[data-motion="on"] .split { gap: 1.25rem; }
+  .stepScene[data-motion="on"] .steps { margin-top: .625rem; border-top: 0; }
+  /* Only the current step shows; the others stay readable to screen readers (§12). */
+  .stepScene[data-motion="on"] .steps li { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+  .stepScene[data-motion="on"][data-step="0"] [data-step-item="0"],
+  .stepScene[data-motion="on"][data-step="1"] [data-step-item="1"],
+  .stepScene[data-motion="on"][data-step="2"] [data-step-item="2"] { position: static; width: auto; height: auto; padding-block: .3125rem; overflow: visible; clip-path: none; white-space: normal; }
+  .stepScene[data-motion="on"] .device { padding: .9375rem; }
+}
+@media (max-width: 767px) {
+  .stepScene[data-motion="on"] .phone { height: 30rem; }
+}
+
+/* Record: 230% of the screen; row k arrives with --s (rules 9.1). */
+.recordScene[data-motion="on"] { height: 230vh; }
+.recordScene[data-motion="on"] .stage { display: grid; align-content: center; }
+.recordScene[data-motion="on"] [data-row] { opacity: var(--s, 0); transform: translateY(calc((1 - var(--s, 0)) * 1.25rem)); }
+@media (max-width: 1023px) {
+  .recordScene[data-motion="on"] .stage { align-content: start; padding-top: .9375rem; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .primary, .secondary, .nav a { transition: none; }
+  .primary, .secondary, .nav a, .screen, .steps li, .stepDetail { transition: none; }
   .primary:active, .secondary:active { transform: none; }
 }

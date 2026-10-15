@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeStep, clamp01, heroPhase, motionAllowed, recordRow, sceneFits, sceneProgress } from "./scene-motion";
+import { activeStep, clamp01, heroFit, heroPhase, motionAllowed, recordRow, sceneFits, sceneProgress } from "./scene-motion";
 
 describe("landing scroll scenes (design rules 9.1)", () => {
   it("measures progress from the scene top meeting the screen top to its end meeting the screen bottom", () => {
@@ -25,6 +25,17 @@ describe("landing scroll scenes (design rules 9.1)", () => {
     expect(heroPhase(0.53).side).toBeCloseTo(1);
     expect(heroPhase(0.29).sideShown).toBe(false);
     expect(heroPhase(0.3).sideShown).toBe(true);
+  });
+
+  it("fits the first scene's drawing into the room above its title, never larger than drawn (operator 2026-10-15, A)", () => {
+    // 1280×800: the title starts 524px down the board, so a 560px drawing gets 524 − 2×30 = 464px.
+    expect(heroFit(524, 560, 30).fit).toBeCloseTo(0.8286, 4);
+    expect(heroFit(524, 560, 30).top).toBe(262);
+    // 1440×900: there is room for the whole drawing.
+    expect(heroFit(624, 560, 30)).toEqual({ fit: 1, top: 312 });
+    // No room at all, or nothing laid out yet.
+    expect(heroFit(50, 560, 30).fit).toBe(0);
+    expect(heroFit(524, 0, 30).fit).toBe(1);
   });
 
   it("brings the record rows in one after another", () => {

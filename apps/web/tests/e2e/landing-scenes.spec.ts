@@ -86,6 +86,55 @@ test("no width scrolls sideways, at the top or in the middle of the scenes", asy
   }
 });
 
+// Operator decision 2026-10-15 (A): drawings shrink to fit rather than overlap the title or run past the scene.
+test("the first scene's drawing stays clear of its title on laptop screens, with the manager window at full width", async ({ page }) => {
+  for (const [width, height] of [[1024, 768], [1280, 800], [1280, 900], [1440, 900]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto("/");
+    await expect(scene(page, "hero")).toHaveAttribute("data-motion", "on");
+    await settle(page);
+    const found = await page.evaluate(() => {
+      const figure = document.querySelector('[data-scene="hero"] figure')!;
+      const [phone, managerWindow] = Array.from(figure.children).map(el => el.getBoundingClientRect());
+      const range = document.createRange();
+      range.selectNodeContents(document.querySelector("#home-title")!);
+      const lines = Array.from(range.getClientRects());
+      const hits = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      return {
+        overlaps: lines.filter(line => hits(line, phone) || hits(line, managerWindow)).length,
+        ratio: managerWindow.width / phone.width,
+      };
+    });
+    expect(found.overlaps, `${width}×${height} title lines over the drawing`).toBe(0);
+    // Both are scaled together, so 37.5rem against 17.5rem stays about 2.1.
+    expect(found.ratio, `${width}×${height} window to phone width`).toBeGreaterThan(2);
+  }
+});
+
+test("a step scene moves on common phones only while its tallest step and its drawing fit the stage", async ({ page }) => {
+  for (const [width, height] of [[390, 844], [375, 812]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto("/");
+    for (const name of ["tenant", "vendor"]) {
+      await expect(scene(page, name), `${name} at ${width}×${height}`).toHaveAttribute("data-motion", "on");
+      for (const p of [0.1, 0.5, 0.9]) {
+        await scrollScene(page, name, p);
+        await settle(page);
+        const past = await page.evaluate(n => {
+          const stage = document.querySelector(`[data-scene="${n}"] [data-stage]`)!.getBoundingClientRect();
+          return document.querySelector(`[data-scene="${n}"] figure`)!.getBoundingClientRect().bottom - stage.bottom;
+        }, name);
+        expect(past, `${name} drawing past the stage at ${width}×${height}, p ${p}`).toBeLessThanOrEqual(0);
+      }
+    }
+  }
+  // The manager scene's steps make it taller than a 375×667 stage, so it stays an ordinary section there.
+  await page.setViewportSize({ width: 375, height: 667 });
+  await page.goto("/");
+  await expect(scene(page, "hero")).toHaveAttribute("data-motion", "on");
+  await expect(scene(page, "manager")).toHaveAttribute("data-motion", "off");
+});
+
 test("each drawing has one name, and a narrow screen hides past steps from the eye only", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");

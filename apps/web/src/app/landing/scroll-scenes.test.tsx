@@ -39,7 +39,7 @@ afterEach(() => {
 function Page() {
   return (
     <ScrollScenes>
-      <section data-scene="hero"><div data-stage><div><h1 data-fit>title</h1><div data-fit data-hero-side>side</div></div></div></section>
+      <section data-scene="hero"><div data-stage><div><div data-board><figure>drawing</figure><h1 data-fit>title</h1></div><div data-fit data-hero-side>side</div></div></div></section>
       <section data-scene="tenant" data-steps="3"><div data-stage><div>steps</div></div></section>
       <section data-scene="record"><div data-stage><div><p data-row="0">a</p><p data-row="1">b</p></div></div></section>
     </ScrollScenes>
@@ -126,6 +126,34 @@ describe("ScrollScenes (design rules 9.1)", () => {
     tooTall("hero", "[data-hero-side]");
     await act(async () => { window.dispatchEvent(new Event("resize")); });
     expect(scene("hero").dataset.motion).toBe("off");
+  });
+
+  it("measures a step scene with each of its steps shown, so its tallest step decides", async () => {
+    await mount();
+    const tenant = scene("tenant");
+    Object.defineProperty(tenant.querySelector("[data-stage]")!, "clientHeight", { configurable: true, value: 620 });
+    // With no step chosen every step is clipped away; the second step's text makes the content taller than the stage.
+    Object.defineProperty(tenant.querySelector("[data-stage] > *")!, "offsetHeight", {
+      configurable: true, get: () => (tenant.dataset.step === "1" ? 650 : 600),
+    });
+    await act(async () => { window.dispatchEvent(new Event("resize")); });
+    expect(tenant.dataset.motion).toBe("off");
+    expect(tenant.dataset.step).toBeUndefined();
+  });
+
+  it("fits the first scene's drawing into the room above its title, and clears it when still", async () => {
+    await mount();
+    const hero = scene("hero");
+    Object.defineProperty(hero.querySelector("h1")!, "offsetTop", { configurable: true, value: 524 });
+    Object.defineProperty(hero.querySelector("figure")!, "offsetHeight", { configurable: true, value: 560 });
+    await act(async () => { window.dispatchEvent(new Event("resize")); });
+    // 30px (space-6) above the drawing and between it and the title: 524 − 60 = 464 of 560.
+    expect(hero.style.getPropertyValue("--fit")).toBe("0.8286");
+    expect(hero.style.getPropertyValue("--fit-top")).toBe("262px");
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 599 });
+    await act(async () => { window.dispatchEvent(new Event("resize")); });
+    expect(hero.style.getPropertyValue("--fit")).toBe("");
+    expect(hero.style.getPropertyValue("--fit-top")).toBe("");
   });
 
   it("stops following the scroll once it is gone", async () => {

@@ -39,6 +39,20 @@ export function heroPhase(progress: number): HeroPhase {
   };
 }
 
+/** The first scene keeps this much space (space-6, in rem) above its drawing and between the drawing and the title. */
+export const HERO_FIT_SPACE_REM = 1.875;
+
+export type HeroFit = { fit: number; top: number };
+
+/**
+ * From 768px the first scene's drawing shrinks into the room above its title, never past its drawn size
+ * (operator decision 2026-10-15, A): `fit` scales it, and `top` is the room's middle, from the board's top.
+ */
+export function heroFit(titleTop: number, drawingHeight: number, space: number): HeroFit {
+  const room = titleTop - 2 * space;
+  return { fit: drawingHeight > 0 ? clamp01(room / drawingHeight) : 1, top: space + room / 2 };
+}
+
 /** How far the record row at `index` (from 0) has arrived. */
 export function recordRow(progress: number, index: number): number {
   return clamp01((progress - RECORD_ROW_DELAY * index) / RECORD_ROW_SPAN);
