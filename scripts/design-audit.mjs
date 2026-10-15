@@ -214,6 +214,8 @@ try {
     for (const width of widths) {
       const p = await page(width); await audit(p, `${engine}-${width}-signin`);
       await p.goto(origin + "/"); await audit(p, `${engine}-${width}-home`);
+      // The landing scenes still (rules 9.1): every step and screen shows, so the audit measures all of them once.
+      await p.emulateMedia({ reducedMotion: "reduce" }); await p.goto(origin + "/"); await audit(p, `${engine}-${width}-home-static`); await p.emulateMedia({ reducedMotion: null });
       if (width === 390) { await p.goto(origin + "/core/join"); await audit(p, `${engine}-${width}-join`); await p.goto(origin + "/vendor/job"); await audit(p, `${engine}-${width}-vendor-nolink`); }
       await p.context().close();
     }
