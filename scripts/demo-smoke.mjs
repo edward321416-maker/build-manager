@@ -30,30 +30,49 @@ export const WRITE_CHECK_TEXT = "합성 배포 확인 요청 (배포 점검 스�
 export const WRITE_CHECK_CLOSE_MESSAGES = Object.freeze({ start: "배포 점검용 합성 요청이라 정리해요.", complete: "배포 점검용 합성 요청 정리를 마쳤어요." });
 
 // The next two run inside the demo page through page.evaluate, so they use nothing outside their own body: the page's
-// fetch carries its session cookie and same-origin Origin, and the headers are the ones the /core screen sends.
-// They return status codes and the work status only, never the CSRF value.
-export async function closeAsManager({ ticketId, start, complete }, fetchImpl = fetch) {
-  const accessResponse = await fetchImpl("/api/v2/core/access");
+// fetch carries its session cookie and same-origin Origin, and the headers are the ones the /core screen sends
+// (core-screen.tsx: x-core-organization and x-b1-csrf on every call, which the server requires whenever the
+// organisation header is present). Every request stops after timeoutMs. They return status codes and the work status
+// only, never the CSRF value; a session without an organisation throws NO_ORGANIZATION.
+// 처리 완료 is sent without expectedCommunicationVersion: a request this run just saved has no message thread.
+export async function closeAsManager({ ticketId, start, complete, timeoutMs = 15_000 }, fetchImpl = fetch) {
+  const call = (path, init = {}) => fetchImpl(path, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  const accessResponse = await call("/api/v2/core/access");
   if (accessResponse.status !== 200) return { access: accessResponse.status, started: null, completed: null };
   const access = await accessResponse.json();
-  const headers = { "content-type": "application/json", "x-core-organization": access.organizations[0].id, "x-b1-csrf": access.csrf };
+  const organizationId = access.organizations?.[0]?.id;
+  if (!organizationId) throw new Error("NO_ORGANIZATION");
+  const headers = { "content-type": "application/json", "x-core-organization": organizationId, "x-b1-csrf": access.csrf };
   const path = `/api/v2/core/tickets/${encodeURIComponent(ticketId)}/handling`;
-  const post = async (body) => (await fetchImpl(path, { method: "POST", headers, body: JSON.stringify(body) })).status;
+  const post = async (body) => (await call(path, { method: "POST", headers, body: JSON.stringify(body) })).status;
   const started = await post({ status: "IN_PROGRESS", message: start });
   const completed = started === 200 ? await post({ status: "COMPLETED", message: complete }) : null;
   return { access: 200, started, completed };
 }
 
-export async function confirmAsTenant({ ticketId, clientRequestId }, fetchImpl = fetch) {
-  const accessResponse = await fetchImpl("/api/v2/core/access");
+export async function confirmAsTenant({ ticketId, clientRequestId, timeoutMs = 15_000 }, fetchImpl = fetch) {
+  const call = (path, init = {}) => fetchImpl(path, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  const accessResponse = await call("/api/v2/core/access");
   if (accessResponse.status !== 200) return { access: accessResponse.status, resolved: null, workStatus: null };
   const access = await accessResponse.json();
-  const headers = { "content-type": "application/json", "x-core-organization": access.organizations[0].id, "x-b1-csrf": access.csrf };
+  const organizationId = access.organizations?.[0]?.id;
+  if (!organizationId) throw new Error("NO_ORGANIZATION");
+  const headers = { "x-core-organization": organizationId, "x-b1-csrf": access.csrf };
   const base = `/api/v2/core/tickets/${encodeURIComponent(ticketId)}`;
-  const resolved = (await fetchImpl(`${base}/outcome/resolved`, { method: "POST", headers, body: JSON.stringify({ clientRequestId }) })).status;
-  const read = await fetchImpl(base, { headers });
+  const resolved = (await call(`${base}/outcome/resolved`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ clientRequestId }) })).status;
+  const read = await call(base, { headers });
   const workStatus = read.status === 200 ? (await read.json()).workStatus ?? null : null;
   return { access: 200, resolved, workStatus };
+}
+
+// Every failure while closing names the request, so it can be closed by hand (spec T2), whatever went wrong:
+// a screen wait, a page error or a refused request.
+export async function namingTicket(shortId, body) {
+  try {
+    return await body();
+  } catch (error) {
+    throw new Error(`ticket ${shortId}: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 export function certificateCheck(validTo, now = new Date()) {
@@ -251,8 +270,10 @@ async function browserChecks(origin, options, check) {
         ]);
         const status = created.status();
         if (status !== 201) throw new Error(`ticket POST answered ${status}`);
-        // Kept before the screen checks, so a request that saved is closed below even if one of them fails.
+        // Kept before the screen checks, so a request that saved is closed below even if one of them fails. A 201 without
+        // an id fails here, so the run can never pass while leaving a request behind.
         savedTicketId = (await created.json()).ticketId ?? null;
+        if (!savedTicketId) throw new Error("ticket POST answered 201 without a ticketId");
         await page.getByRole("status").filter({ hasText: "접수 내용을 저장했어요" }).waitFor({ timeout: TIMEOUT_MS });
         const state = (await page.getByTestId("work-status").textContent({ timeout: TIMEOUT_MS }))?.trim();
         if (state !== "제출 전") throw new Error(`work status reads ${state}`);
@@ -262,16 +283,16 @@ async function browserChecks(origin, options, check) {
       // id's first six characters and the status codes, so it can be closed by hand the way it was on 2026-10-14.
       if (savedTicketId) {
         const ticketId = savedTicketId, shortId = String(ticketId).slice(0, 6);
-        const closed = await step("write check closes its synthetic request as the manager", 1280, async (page) => {
+        const closed = await step("write check closes its synthetic request as the manager", 1280, (page) => namingTicket(shortId, async () => {
           await enterManager(page);
-          const result = await page.evaluate(closeAsManager, { ticketId, ...WRITE_CHECK_CLOSE_MESSAGES });
-          if (result.started !== 200 || result.completed !== 200) throw new Error(`ticket ${shortId}: access ${result.access}, 처리 시작 ${result.started}, 처리 완료 ${result.completed}`);
-        });
-        if (closed) await step("write check confirms it as the tenant and it reads COMPLETED", 390, async (page) => {
+          const result = await page.evaluate(closeAsManager, { ticketId, ...WRITE_CHECK_CLOSE_MESSAGES, timeoutMs: TIMEOUT_MS });
+          if (result.started !== 200 || result.completed !== 200) throw new Error(`access ${result.access}, 처리 시작 ${result.started}, 처리 완료 ${result.completed}`);
+        }));
+        if (closed) await step("write check confirms it as the tenant and it reads COMPLETED", 390, (page) => namingTicket(shortId, async () => {
           await enterTenant(page);
-          const result = await page.evaluate(confirmAsTenant, { ticketId, clientRequestId: randomUUID() });
-          if (![200, 201].includes(result.resolved) || result.workStatus !== "COMPLETED") throw new Error(`ticket ${shortId}: access ${result.access}, 해결 확인 ${result.resolved}, 작업 상태 ${result.workStatus}`);
-        });
+          const result = await page.evaluate(confirmAsTenant, { ticketId, clientRequestId: randomUUID(), timeoutMs: TIMEOUT_MS });
+          if (![200, 201].includes(result.resolved) || result.workStatus !== "COMPLETED") throw new Error(`access ${result.access}, 해결 확인 ${result.resolved}, 작업 상태 ${result.workStatus}`);
+        }));
       }
     }
   } finally {

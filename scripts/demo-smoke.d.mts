@@ -8,11 +8,13 @@ export const WRITE_CHECK_TEXT: string;
 export const WRITE_CHECK_CLOSE_MESSAGES: Readonly<{ start: string; complete: string }>;
 /** Runs in the demo page as the signed-in manager: 처리 시작, then 처리 완료 only if that was accepted. Status codes only. */
 export function closeAsManager(
-  input: { ticketId: string; start: string; complete: string },
+  input: { ticketId: string; start: string; complete: string; timeoutMs?: number },
   fetchImpl?: typeof fetch,
 ): Promise<{ access: number; started: number | null; completed: number | null }>;
 /** Runs in the demo page as the signed-in tenant: confirms the result as resolved, then reads the work status back. */
 export function confirmAsTenant(
-  input: { ticketId: string; clientRequestId: string },
+  input: { ticketId: string; clientRequestId: string; timeoutMs?: number },
   fetchImpl?: typeof fetch,
 ): Promise<{ access: number; resolved: number | null; workStatus: string | null }>;
+/** Runs `body`; any error it throws is rethrown as `ticket <shortId>: <message>`. */
+export function namingTicket<T>(shortId: string, body: () => Promise<T>): Promise<T>;
