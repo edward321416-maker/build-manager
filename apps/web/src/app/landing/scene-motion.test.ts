@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeStep, clamp01, heroFit, heroPhase, motionAllowed, recordRow, sceneFits, sceneProgress } from "./scene-motion";
+import { activeStep, clamp01, heroFit, heroPhase, motionAllowed, recordRow, sceneFits, sceneProgress, screenFits } from "./scene-motion";
 
 describe("landing scroll scenes (design rules 9.1)", () => {
   it("measures progress from the scene top meeting the screen top to its end meeting the screen bottom", () => {
@@ -56,6 +56,11 @@ describe("landing scroll scenes (design rules 9.1)", () => {
   it("keeps a scene still when its content is taller than its stage", () => {
     expect(sceneFits(600, 600)).toBe(true);
     expect(sceneFits(601, 600)).toBe(false);
+    // A drawn screen's words must end at least 10px (rules 4) inside its frame.
+    expect(screenFits(345, 355, 10)).toBe(true);
+    expect(screenFits(346, 355, 10)).toBe(false);
+    // A frame not laid out yet says nothing.
+    expect(screenFits(40, 0, 10)).toBe(true);
     expect(clamp01(-1)).toBe(0);
     expect(clamp01(2)).toBe(1);
   });

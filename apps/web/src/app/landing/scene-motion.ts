@@ -65,3 +65,11 @@ export function motionAllowed(reducedMotion: boolean, viewportHeight: number): b
 export function sceneFits(contentHeight: number, stageHeight: number): boolean {
   return contentHeight <= stageHeight;
 }
+
+/** A drawn screen's words end at least this far (rules 4: 10px, in rem) inside its phone or window. */
+export const SCREEN_MARGIN_REM = 0.625;
+
+/** Whether a drawn screen's words, ending at `contentBottom`, stay inside its frame; a frame not laid out says nothing. */
+export function screenFits(contentBottom: number, frameHeight: number, margin: number): boolean {
+  return frameHeight <= 0 || contentBottom + margin <= frameHeight;
+}

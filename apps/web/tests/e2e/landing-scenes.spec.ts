@@ -115,7 +115,7 @@ test("a step scene moves on common phones only while its tallest step and its dr
   for (const [width, height] of [[390, 844], [375, 812]] as const) {
     await page.setViewportSize({ width, height });
     await page.goto("/");
-    for (const name of ["tenant", "vendor"]) {
+    for (const name of ["tenant", "manager", "vendor"]) {
       await expect(scene(page, name), `${name} at ${width}×${height}`).toHaveAttribute("data-motion", "on");
       for (const p of [0.1, 0.5, 0.9]) {
         await scrollScene(page, name, p);
@@ -133,6 +133,42 @@ test("a step scene moves on common phones only while its tallest step and its dr
   await page.goto("/");
   await expect(scene(page, "hero")).toHaveAttribute("data-motion", "on");
   await expect(scene(page, "manager")).toHaveAttribute("data-motion", "off");
+});
+
+test("no drawn screen's words run past its phone or window, so at 320px the manager scene stays still", async ({ page }) => {
+  for (const [width, height] of [[320, 844], [360, 740], [390, 844], [1440, 900]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto("/");
+    await expect(scene(page, "manager")).toHaveAttribute("data-motion", /^(on|off)$/);
+    await settle(page);
+    const clipped = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-motion="on"] [data-screen]'))
+      .filter(screen => {
+        const frame = screen.parentElement!.getBoundingClientRect();
+        return screen.lastElementChild!.getBoundingClientRect().bottom > frame.bottom;
+      })
+      .map(screen => `${screen.closest<HTMLElement>("[data-scene]")!.dataset.scene} ${screen.dataset.screen}`));
+    expect(clipped, `${width}×${height}`).toEqual([]);
+  }
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto("/");
+  await expect(scene(page, "manager")).toHaveAttribute("data-motion", "off");
+});
+
+test("opening the page starts no transition: the scenes turn on as they will look (rules 9.1)", async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as { transitionRuns?: string[] }).transitionRuns = [];
+    document.addEventListener("transitionrun", event => {
+      (window as { transitionRuns?: string[] }).transitionRuns!.push((event as TransitionEvent).propertyName);
+    }, true);
+  });
+  for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto("/");
+    await expect(scene(page, "tenant")).toHaveAttribute("data-motion", "on");
+    await settle(page);
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => (window as { transitionRuns?: string[] }).transitionRuns), `${width}×${height}`).toEqual([]);
+  }
 });
 
 test("each drawing has one name, and a narrow screen hides past steps from the eye only", async ({ page }) => {

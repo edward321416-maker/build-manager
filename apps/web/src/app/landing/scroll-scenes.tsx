@@ -1,16 +1,22 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { activeStep, HERO_FIT_SPACE_REM, heroFit, heroPhase, motionAllowed, recordRow, sceneFits, sceneProgress } from "./scene-motion";
+import {
+  activeStep, HERO_FIT_SPACE_REM, heroFit, heroPhase, motionAllowed, recordRow, SCREEN_MARGIN_REM, sceneFits, sceneProgress,
+  screenFits,
+} from "./scene-motion";
 
 /**
  * The landing page's scroll scenes (design rules 9.1). The server sends every [data-scene] still, so the page reads in
  * full without JavaScript. After mount a scene gets data-motion="on" when motion is allowed and its content fits its
  * [data-stage] (its [data-fit] parts one by one when it marks any, as the first scene does; a step scene with each of
- * its steps shown), else "off". The first scene's [data-board] drawing gets --fit and --fit-top, the room above its
+ * its steps shown, and the words of each drawn [data-screen] inside its frame), else "off". The first scene's [data-board] drawing gets --fit and --fit-top, the room above its
  * title. While on, the scroll sets --p, the first scene's --a and --b and data-side, each [data-row]'s --s, and a step
- * scene's data-step. Reduced motion, a resize or a short screen decides again.
+ * scene's data-step. Reduced motion, a resize, a short screen or the web font arriving decides again.
  */
+/** The root font size in px, so rem values follow the reader's text size. */
+const rootRem = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+
 export function ScrollScenes({ className, children }: { className?: string; children: ReactNode }) {
   const root = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -54,8 +60,7 @@ export function ScrollScenes({ className, children }: { className?: string; chil
       const drawing = board?.querySelector<HTMLElement>("figure");
       const title = board?.querySelector<HTMLElement>("h1");
       if (!drawing || !title) return;
-      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-      const { fit, top } = heroFit(title.offsetTop, drawing.offsetHeight, HERO_FIT_SPACE_REM * rem);
+      const { fit, top } = heroFit(title.offsetTop, drawing.offsetHeight, HERO_FIT_SPACE_REM * rootRem());
       scene.style.setProperty("--fit", fit.toFixed(4));
       scene.style.setProperty("--fit-top", `${Math.round(top)}px`);
     };
@@ -71,15 +76,24 @@ export function ScrollScenes({ className, children }: { className?: string; chil
         const marked = Array.from(stage.querySelectorAll<HTMLElement>("[data-fit]"));
         const content = stage.firstElementChild as HTMLElement | null;
         const parts = marked.length > 0 ? marked : content ? [content] : [];
+        // The stage's own padding is not room for the content (narrow screens pad the top of the stage).
+        const box = getComputedStyle(stage);
+        const room = stage.clientHeight - (parseFloat(box.paddingTop) || 0) - (parseFloat(box.paddingBottom) || 0);
         // A step scene shows one step at a time, so every step is measured and the tallest decides (rules 9.1).
         const steps = Number(scene.dataset.steps ?? 0);
         const states = steps > 0 ? Array.from({ length: steps }, (_, index) => String(index)) : [undefined];
         const fits = states.every(state => {
           if (state === undefined) delete scene.dataset.step; else scene.dataset.step = state;
-          return parts.every(part => sceneFits(part.offsetHeight, stage.clientHeight));
+          return parts.every(part => sceneFits(part.offsetHeight, room));
         });
         delete scene.dataset.step;
-        if (!fits) still(scene);
+        // A drawn screen that runs past its phone or window would be clipped (rules 12), so the scene stays still too.
+        const margin = SCREEN_MARGIN_REM * rootRem();
+        const screensFit = Array.from(stage.querySelectorAll<HTMLElement>("[data-screen]")).every(screen => {
+          const last = screen.lastElementChild as HTMLElement | null;
+          return !last || screenFits(last.offsetTop + last.offsetHeight, screen.clientHeight, margin);
+        });
+        if (!fits || !screensFit) still(scene);
         else if (scene.dataset.scene === "hero") fitDrawing(scene, stage);
       }
       if (frame) { window.cancelAnimationFrame(frame); frame = 0; }
@@ -92,10 +106,17 @@ export function ScrollScenes({ className, children }: { className?: string; chil
     window.addEventListener("scroll", request, { passive: true });
     window.addEventListener("resize", layout);
     reduced.addEventListener("change", layout);
+    // The web font arrives after the first measure and can wrap the words differently, so measure again then.
+    let gone = false;
+    const fonts = document.fonts as FontFaceSet | undefined;
+    fonts?.ready.then(() => { if (!gone) layout(); });
+    fonts?.addEventListener("loadingdone", layout);
     return () => {
+      gone = true;
       window.removeEventListener("scroll", request);
       window.removeEventListener("resize", layout);
       reduced.removeEventListener("change", layout);
+      fonts?.removeEventListener("loadingdone", layout);
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, []);

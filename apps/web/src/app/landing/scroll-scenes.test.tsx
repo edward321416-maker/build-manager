@@ -40,7 +40,7 @@ function Page() {
   return (
     <ScrollScenes>
       <section data-scene="hero"><div data-stage><div><div data-board><figure>drawing</figure><h1 data-fit>title</h1></div><div data-fit data-hero-side>side</div></div></div></section>
-      <section data-scene="tenant" data-steps="3"><div data-stage><div>steps</div></div></section>
+      <section data-scene="tenant" data-steps="3"><div data-stage><div>steps<div data-screen="0"><p>a</p><p>b</p></div></div></div></section>
       <section data-scene="record"><div data-stage><div><p data-row="0">a</p><p data-row="1">b</p></div></div></section>
     </ScrollScenes>
   );
@@ -133,12 +133,71 @@ describe("ScrollScenes (design rules 9.1)", () => {
     const tenant = scene("tenant");
     Object.defineProperty(tenant.querySelector("[data-stage]")!, "clientHeight", { configurable: true, value: 620 });
     // With no step chosen every step is clipped away; the second step's text makes the content taller than the stage.
+    const measuredWithTransitionsOff: boolean[] = [];
     Object.defineProperty(tenant.querySelector("[data-stage] > *")!, "offsetHeight", {
-      configurable: true, get: () => (tenant.dataset.step === "1" ? 650 : 600),
+      configurable: true,
+      get: () => { measuredWithTransitionsOff.push(tenant.dataset.measure !== undefined); return tenant.dataset.step === "1" ? 650 : 600; },
     });
     await act(async () => { window.dispatchEvent(new Event("resize")); });
     expect(tenant.dataset.motion).toBe("off");
     expect(tenant.dataset.step).toBeUndefined();
+    // Every state was read with transitions off, and they are back on once the scene is painted.
+    expect(measuredWithTransitionsOff.length).toBeGreaterThan(0);
+    expect(measuredWithTransitionsOff.every(Boolean)).toBe(true);
+    expect(tenant.dataset.measure).toBeUndefined();
+  });
+
+  it("leaves out the stage's own padding when it measures (the room the content really has)", async () => {
+    await mount();
+    const tenant = scene("tenant");
+    const stage = tenant.querySelector<HTMLElement>("[data-stage]")!;
+    Object.defineProperty(stage, "clientHeight", { configurable: true, value: 620 });
+    stage.style.paddingTop = "15px";
+    Object.defineProperty(tenant.querySelector("[data-stage] > *")!, "offsetHeight", { configurable: true, value: 610 });
+    await act(async () => { window.dispatchEvent(new Event("resize")); });
+    expect(tenant.dataset.motion).toBe("off");
+  });
+
+  it("measures again once the web font has loaded, since the words may wrap differently", async () => {
+    const listeners = new Map<string, () => void>();
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: {
+        ready: new Promise(() => {}),
+        addEventListener: (name: string, listener: () => void) => listeners.set(name, listener),
+        removeEventListener: (name: string) => listeners.delete(name),
+      },
+    });
+    try {
+      await mount();
+      const tenant = scene("tenant");
+      expect(tenant.dataset.motion).toBe("on");
+      Object.defineProperty(tenant.querySelector("[data-stage]")!, "clientHeight", { configurable: true, value: 600 });
+      Object.defineProperty(tenant.querySelector("[data-stage] > *")!, "offsetHeight", { configurable: true, value: 601 });
+      await act(async () => { listeners.get("loadingdone")?.(); });
+      expect(tenant.dataset.motion).toBe("off");
+      act(() => root.unmount());
+      expect(listeners.has("loadingdone")).toBe(false);
+      root = createRoot(host);
+    } finally {
+      delete (document as { fonts?: unknown }).fonts;
+    }
+  });
+
+  it("keeps a step scene still when a drawn screen's words run past its frame (rules 12: nothing clipped at 320px)", async () => {
+    await mount();
+    const tenant = scene("tenant");
+    const screen = tenant.querySelector<HTMLElement>("[data-screen]")!;
+    const last = screen.lastElementChild as HTMLElement;
+    Object.defineProperty(screen, "clientHeight", { configurable: true, value: 355 });
+    Object.defineProperty(last, "offsetTop", { configurable: true, value: 300 });
+    Object.defineProperty(last, "offsetHeight", { configurable: true, value: 45 });
+    await act(async () => { window.dispatchEvent(new Event("resize")); });
+    // 300 + 45 ends 10px inside the 355px frame.
+    expect(tenant.dataset.motion).toBe("on");
+    Object.defineProperty(last, "offsetHeight", { configurable: true, value: 46 });
+    await act(async () => { window.dispatchEvent(new Event("resize")); });
+    expect(tenant.dataset.motion).toBe("off");
   });
 
   it("fits the first scene's drawing into the room above its title, and clears it when still", async () => {
