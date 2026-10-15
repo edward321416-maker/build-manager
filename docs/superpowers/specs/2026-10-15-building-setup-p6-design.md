@@ -62,22 +62,22 @@
    - 기존 "사실 0개" 응답은 넓힌 형식에도 그대로 맞는다(값 두 칸이 빠지고 `contextVerified: false`, `routingEligibleFields: []`).
 2. 새 마이그레이션 `0028_core_building_info.sql`(`bm_core_flow_owner`, `SECURITY DEFINER`, `search_path=pg_catalog`, `PUBLIC` 실행 권한 없음, 웹 역할에만 실행 권한. 0015·0025처럼 `GRANT CREATE ON SCHEMA`로 시작해 끝에서 `REVOKE`)
    - `core_flow.org_buildings(p_digest bytea) RETURNS jsonb`: 조직 관리자에게 그 조직의 건물 목록. 건물마다 `buildingId`, `displayName`(저장된 이름 또는 `null`), `unitCount`, `needsInfo`(이름이나 업체용 주소가 없으면 `true`). 조직 관리자가 아니면 `FORBIDDEN`.
-   - `core_flow.building_info(p_digest bytea, p_property uuid) RETURNS jsonb`: 건물 하나의 정보. `buildingId`, `displayName`, `serviceAddress`, `heatingType`, `managementMode`(확인된 값 또는 `null`), `demo`, `version`(행이 없으면 0), `unitCount`. 조직 관리자가 아니거나 다른 조직의 건물이면 `NOT_FOUND`.
+   - `core_flow.building_info(p_digest bytea, p_property uuid) RETURNS jsonb`: 건물 하나의 정보. `buildingId`, `displayName`, `serviceAddress`, `heatingType`, `managementMode`(확인된 값 또는 `null`), `demo`, `version`(행이 없으면 0), `unitCount`. 조직 관리자가 아니면 `FORBIDDEN`, 다른 조직의 건물이면 `NOT_FOUND`.
    - `core_flow.save_building_info(p_digest bytea, p_property uuid, p_expected_version integer, p_name text, p_service_address text, p_heating text, p_management text) RETURNS jsonb`
      - 조직 관리자만. 다른 조직 건물이나 없는 건물은 `NOT_FOUND`.
-     - `demo: true`인 행은 `DEMO_BUILDING`으로 거절한다.
-     - `p_expected_version`이 저장된 `version`(행이 없으면 0)과 다르면 `BUILDING_INFO_CHANGED`로 거절한다(두 관리자가 동시에 고칠 때 덮어쓰지 않게).
+     - `demo: true`인 행은 `FORBIDDEN`으로 거절한다.
+     - `p_expected_version`이 저장된 `version`(행이 없으면 0)과 다르면 `STATE_CONFLICT`로 거절한다(두 관리자가 동시에 고칠 때 덮어쓰지 않게). 행이 아직 없는 첫 저장도 건물별 잠금으로 차례를 지킨다.
      - 입력 검사: 이름은 앞뒤 공백을 뺀 1–50자, 주소는 0–200자(빈 값이면 `null`), 둘 다 한 줄(줄바꿈·제어 문자 없음). 난방은 `INDIVIDUAL`·`CENTRAL_SHARED`·`null`, 관리는 `OWNER_DIRECT`·`MANAGEMENT_OFFICE`·`null`.
      - 행이 없으면 만들고, 있으면 바꾼다. `body`는 `{"id":<property id>,"displayName":이름,"demo":false,"sourceNativeIds":{},"context":[확인된 사실],"serviceAddress":주소,"version":n+1,"updatedAt":지금}`. 사실은 `{"key":"heatingType","value":값,"sourceType":"OWNER_VERIFIED","sourceRef":"org_admin","verified":true,"routingEligible":true,"fetchedAt":null,"updatedAt":지금}` 모양이고, `null`인 칸은 사실을 넣지 않는다.
      - 돌려주는 값은 `building_info`와 같은 모양이다.
 3. API(`apps/web/src/app/api/v2/core/buildings/route.ts`, `.../buildings/[buildingId]/route.ts`, Node 런타임·dynamic)
-   - `GET /api/v2/core/buildings`, `GET /api/v2/core/buildings/{id}`, `PUT /api/v2/core/buildings/{id}`(본문: `expectedVersion`, `displayName`, `serviceAddress`, `heatingType`, `managementMode`)
+   - `GET /api/v2/core/buildings`, `GET /api/v2/core/buildings/{id}`, `POST /api/v2/core/buildings/{id}`(본문: `expectedVersion`, `displayName`, `serviceAddress`, `heatingType`, `managementMode`). Core HTTP는 GET·POST만 받으므로 저장도 POST다.
    - 기존 Core API처럼 세션 쿠키, `x-core-organization`, 쓰기에는 `x-b1-csrf`를 확인한다.
    - 응답 계약은 `packages/api-contracts`에 둔다(`CoreBuildingSummarySchema`, `CoreBuildingInfoSchema`, `CoreBuildingInfoSaveSchema`). 각 건물 응답에 `editable`(조직 관리자, 체험 세션 아님, 체험용 건물 아님)을 함께 준다.
-   - 오류: 403 `FORBIDDEN`, 404 `NOT_FOUND`, 409 `BUILDING_INFO_CHANGED`·`DEMO_BUILDING`, 403 `DEMO_READ_ONLY`, 400 `INVALID_INPUT`
+   - 오류는 기존 Core 코드를 쓴다: 403 `FORBIDDEN`(권한 없음, 체험용 건물, 체험 세션의 저장), 404 `NOT_FOUND`, 409 `STATE_CONFLICT`(버전 충돌), 400 `INVALID_INPUT`. 화면은 저장 전에 받은 `editable`로 체험·체험용 건물을 미리 구분한다.
 4. 공개 체험은 쓰기 금지(D4)
    - 서버는 세션의 사용자가 체험 진입 대상(`demoEntrySubjects`의 값)이면 체험 세션으로 본다.
-   - `PUT /api/v2/core/buildings/{id}`와 B3의 건물·호실 만들기(`POST .../properties`, `POST .../units`)는 체험 세션이면 403 `DEMO_READ_ONLY`다. B3 쪽은 HTTP 처리(`apps/web/src/server/b3/http.ts`)에서 막고, B3 도메인·저장 코드(FROZEN)는 바꾸지 않는다.
+   - `POST /api/v2/core/buildings/{id}`와 B3의 건물·호실 만들기(`POST .../properties`, `POST .../units`)는 체험 세션이면 403 `FORBIDDEN`이고, B3의 만들기 가능 머리글은 `false`다. B3 쪽은 HTTP 처리(`apps/web/src/server/b3/http.ts`)에서 막고, B3 도메인·저장 코드(FROZEN)는 바꾸지 않는다.
 5. 시험
    - PostgreSQL(`tests/postgres/`): 세 함수의 권한(조직 관리자 통과, 건물 담당자·세입자·다른 조직 관리자 거절), 체험용 건물 거절, 버전 충돌, 입력 검사, '모름'이 사실을 지움, 저장 뒤 `core_flow.units`·업무함·정비 이력의 건물 이름, 업체 전달 원천에 주소가 들어감, 0025의 "행 없음" 동작이 그대로임
    - 도메인·응용: 저장한 난방 방식이 세입자 질문 세트를 고르고(`INDIVIDUAL` → 개별 난방 질문), `null`이면 지금처럼 `heatingUnknownV1`
