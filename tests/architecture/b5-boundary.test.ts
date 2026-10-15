@@ -149,6 +149,17 @@ function projectTask12Workflow(source: string) {
   expect(source.split(successor),"exact Task12 browser workflow successor").toHaveLength(2);
   return source.replace(successor,predecessor);
 }
+// Operator decision 2026-10-15 ("A안 승인 (추천)", docs/superpowers/specs/2026-10-15-expo-doctor-offline-design.md): only
+// the pinned Expo Doctor step runs with EXPO_OFFLINE, so Expo patch releases stop failing every PR. Require that exact
+// step once and no other EXPO_OFFLINE, then reverse only the added env block; every other byte stays hashed.
+const expoDoctorStep=(env:string)=>`      - name: Verify pinned Expo Doctor and run health checks\n        shell: bash\n        working-directory: apps/mobile\n${env}        run: |\n          DOCTOR_VERSION="$(npx --yes expo-doctor@1.20.4 --version)"\n`;
+function projectExpoDoctorOffline(source: string) {
+  const successor=expoDoctorStep(`        env:\n          EXPO_OFFLINE: "1"\n`);
+  expect(source.split(successor),"exact offline Expo Doctor step").toHaveLength(2);
+  expect(source.split("EXPO_OFFLINE"),"EXPO_OFFLINE only on the Doctor step").toHaveLength(2);
+  return source.replace(successor,expoDoctorStep(""));
+}
+const projectAppCheckWorkflow=(source:string)=>projectTask12Workflow(projectExpoDoctorOffline(source));
 const frozen: Record<string,string> = {
   ".github/workflows/app-check.yml": "ab681452c8acb317fc2d00bd43d07b23b3f4c048c9799341be70812e701dd6f3",
   ".github/workflows/repository-check.yml": "392407bd74e65887dfb68ebea5a0fa0d3cba1bbdd631905a4d28dc1f91f8bf8c",
@@ -207,7 +218,7 @@ const frozen: Record<string,string> = {
 it("AC17 frozen foundation, dependency and workflow inventory retains canonical bytes",async()=>{
   for(const [path,expected] of Object.entries(frozen)) {
     let canonical=(await readFile(path,"utf8")).replaceAll("\r\n","\n");
-    if(path===".github/workflows/app-check.yml")canonical=projectTask12Workflow(canonical);
+    if(path===".github/workflows/app-check.yml")canonical=projectAppCheckWorkflow(canonical);
     if(path==="package.json"){
       const manifest=JSON.parse(canonical);projectTask12Scripts(manifest,task12RootScripts);
       canonical=JSON.stringify(manifest,null,2)+"\n";
@@ -376,7 +387,7 @@ it("AC17 tooling advisories projection rejects an unreviewed version, unrelated 
 });
 it("AC17 Task12 projection rejects changed commands, order, log capture and unrelated workflow gates",async()=>{
   const source=(await readFile(".github/workflows/app-check.yml","utf8")).replaceAll("\r\n","\n");
-  const inventory=(candidate:string)=>expect(createHash("sha256").update(projectTask12Workflow(candidate)).digest("hex")).toBe(frozen[".github/workflows/app-check.yml"]);
+  const inventory=(candidate:string)=>expect(createHash("sha256").update(projectAppCheckWorkflow(candidate)).digest("hex")).toBe(frozen[".github/workflows/app-check.yml"]);
   inventory(source);
   for(const [before,after] of [
     ["npm run test:e2e:core 2>&1","npm run test:e2e:core -- --retries=1 2>&1"],
@@ -411,6 +422,31 @@ it("AC17 Task12 projection rejects changed commands, order, log capture and unre
   const webManifest=JSON.parse(await readFile("apps/web/package.json","utf8"));
   webManifest.scripts["test:e2e:vendor"]="playwright test --config playwright.b1.config.ts";
   expect(()=>projectTask12Scripts(webManifest,{"test:e2e:vendor":"playwright test --config playwright.vendor.config.ts"})).toThrow();
+});
+it("AC17 Expo Doctor offline projection admits only EXPO_OFFLINE=\"1\" on the pinned Doctor step",async()=>{
+  const source=(await readFile(".github/workflows/app-check.yml","utf8")).replaceAll("\r\n","\n");
+  const inventory=(candidate:string)=>expect(sha256(projectAppCheckWorkflow(candidate))).toBe(frozen[".github/workflows/app-check.yml"]);
+  inventory(source);
+  const added='        env:\n          EXPO_OFFLINE: "1"\n', exportEnv="          EXPO_PUBLIC_API_URL: http://127.0.0.1:3000\n";
+  expect(source.split(added),"the offline block exists once").toHaveLength(2);
+  expect(source.split(exportEnv),"the export step env exists once").toHaveLength(2);
+  for(const candidate of [
+    source.replace('EXPO_OFFLINE: "1"','EXPO_OFFLINE: "0"'),
+    source.replace('EXPO_OFFLINE: "1"',"EXPO_OFFLINE: 1"),
+    source.replace(added,'        env:\n          EXPO_OFFLINE: "1"\n          EXPO_DEBUG: "1"\n'),
+    source.replace(added,"").replace(exportEnv,`${exportEnv}          EXPO_OFFLINE: "1"\n`),
+    source.replace(exportEnv,`${exportEnv}          EXPO_OFFLINE: "1"\n`),
+    source.replace("permissions:\n",'env:\n  EXPO_OFFLINE: "1"\npermissions:\n'),
+    source.replace("expo-doctor@1.20.4 --version","expo-doctor@1.21.0 --version"),
+    source.replace("npx --yes expo-doctor@1.20.4 .","npx --yes expo-doctor@1.20.4 . || true"),
+    source.replace(added,""),
+  ]) {
+    expect(candidate,"negative fixture changes the workflow").not.toBe(source);
+    expect(()=>inventory(candidate)).toThrow();
+  }
+  const doctorStart=source.indexOf("      - name: Verify pinned Expo Doctor"), exportStart=source.indexOf("      - name: Export Android and iOS");
+  expect(doctorStart>0&&doctorStart<exportStart).toBe(true);
+  expect(()=>inventory(source.slice(0,exportStart)+source.slice(doctorStart,exportStart)+source.slice(exportStart))).toThrow();
 });
 it("AC01 B5 server graph excludes raw driver/demo/testing and exposes only the exact individual route",async()=>{
   const entries=(await readdir("apps/web/src/server/b5")).filter(p=>p.endsWith(".ts")&&!p.endsWith(".test.ts")).map(p=>join("apps/web/src/server/b5",p));
