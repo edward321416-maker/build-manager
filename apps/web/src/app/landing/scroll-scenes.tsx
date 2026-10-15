@@ -45,6 +45,7 @@ export function ScrollScenes({ className, children }: { className?: string; chil
       delete scene.dataset.step;
       delete scene.dataset.side;
       for (const name of ["--p", "--a", "--b"]) scene.style.removeProperty(name);
+      for (const row of scene.querySelectorAll<HTMLElement>("[data-row]")) row.style.removeProperty("--s");
     };
     const layout = () => {
       const allowed = motionAllowed(reduced.matches, window.innerHeight);
@@ -58,6 +59,7 @@ export function ScrollScenes({ className, children }: { className?: string; chil
         const parts = marked.length > 0 ? marked : content ? [content] : [];
         if (parts.some(part => !sceneFits(part.offsetHeight, stage.clientHeight))) still(scene);
       }
+      if (frame) { window.cancelAnimationFrame(frame); frame = 0; }
       paint();
     };
     layout();

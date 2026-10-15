@@ -90,6 +90,27 @@ describe("ScrollScenes (design rules 9.1)", () => {
     expect(scene("hero").dataset.motion).toBe("off");
   });
 
+  it("clears what it set when a moving scene turns still", async () => {
+    await mount();
+    scene("hero").getBoundingClientRect = box(-900, 2000);
+    scene("tenant").getBoundingClientRect = box(-550, 2000);
+    scene("record").getBoundingClientRect = box(-550, 2000);
+    await act(async () => { window.dispatchEvent(new Event("scroll")); });
+    const row = host.querySelector<HTMLElement>('[data-row="1"]')!;
+    expect(scene("hero").style.getPropertyValue("--a")).toBe("1.0000");
+    expect(scene("hero").dataset.side).toBe("shown");
+    expect(scene("tenant").dataset.step).toBe("1");
+    expect(row.style.getPropertyValue("--s")).toBe("1.0000");
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 599 });
+    await act(async () => { window.dispatchEvent(new Event("resize")); });
+    for (const name of ["hero", "tenant", "record"]) expect(scene(name).dataset.motion).toBe("off");
+    expect(scene("tenant").dataset.step).toBeUndefined();
+    expect(scene("hero").dataset.side).toBeUndefined();
+    for (const name of ["--p", "--a", "--b"]) expect(scene("hero").style.getPropertyValue(name)).toBe("");
+    expect(scene("tenant").style.getPropertyValue("--p")).toBe("");
+    expect(row.style.getPropertyValue("--s")).toBe("");
+  });
+
   it("keeps a scene still when its content is taller than its stage, the first scene measured part by part", async () => {
     await mount();
     const tooTall = (name: string, part: string) => {
