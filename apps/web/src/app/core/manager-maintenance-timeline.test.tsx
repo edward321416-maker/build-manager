@@ -38,11 +38,21 @@ it("renders component labels as text and describes tenant claims neutrally",()=>
  expect(html).not.toContain("<script>");expect(html).toContain("&lt;script&gt;");expect(html).toContain("세입자가 다시 문제가 생겼다고 응답");expect(html).toContain("이전 완료 접수에서 이어진 건");expect(html).toContain("후속 접수 있음");expect(html).not.toContain("재발 확인");
 });
 it("distinguishes timeline loading, empty, error and no authorized unit",()=>{
- const props={units:[{id:"unit",buildingId:"building",buildingName:"합성 건물",label:"합성 호실"}],unitId:"unit",items:[],loading:false,error:"",disabled:false,onUnit:noop,onRefresh:noop,onOpenTicket:noop};
+ const props={units:[{id:"unit",buildingId:"building",buildingName:"합성 건물",label:"합성 호실"}],unitId:"unit",items:[],loading:false,error:"",disabled:false,onUnit:noop,onRefresh:noop,onOpenTicket:noop,onExport:noop,exportError:false};
  const html=(changes:Partial<typeof props>={})=>renderToStaticMarkup(<MaintenanceTimelineView {...props} {...changes}/>);
  expect(html()).toContain("아직 기록된 정비 사실이 없어요.");expect(html({loading:true})).not.toContain("아직 기록된");expect(html({error:"연결 확인"})).not.toContain("아직 기록된");expect(html({error:"연결 확인"})).toContain("이력 다시 불러오기");expect(html({units:[],unitId:""})).toContain("접근 가능한 호실이 없어요");
 });
 it("keeps the supplied timeline order and only renders the approved projection fields",()=>{
- const html=renderToStaticMarkup(<MaintenanceTimelineView units={[{id:"unit",buildingId:"building",buildingName:"합성 건물",label:"합성 호실"}]} unitId="unit" items={[{...fact,componentLabel:"첫 번째 합성"},{...fact,factId:"second",componentLabel:"두 번째 합성"}]} loading={false} error="" disabled={false} onUnit={noop} onRefresh={noop} onOpenTicket={noop}/>);
+ const html=renderToStaticMarkup(<MaintenanceTimelineView units={[{id:"unit",buildingId:"building",buildingName:"합성 건물",label:"합성 호실"}]} unitId="unit" items={[{...fact,componentLabel:"첫 번째 합성"},{...fact,factId:"second",componentLabel:"두 번째 합성"}]} loading={false} error="" disabled={false} onUnit={noop} onRefresh={noop} onOpenTicket={noop} onExport={noop} exportError={false}/>);
  expect(html.indexOf("첫 번째 합성")).toBeLessThan(html.indexOf("두 번째 합성"));for(const value of ["내부 메모","담당자","긴급도","사진"])expect(html).not.toContain(value);
+});
+it("offers 엑셀로 받기 beside 이력 다시 불러오기 only when the selected unit has facts",()=>{
+ const props={units:[{id:"unit",buildingId:"building",buildingName:"합성 건물",label:"합성 호실"}],unitId:"unit",items:[fact],loading:false,error:"",disabled:false,onUnit:noop,onRefresh:noop,onOpenTicket:noop,onExport:noop,exportError:false};
+ const html=(changes:Partial<typeof props>={})=>renderToStaticMarkup(<MaintenanceTimelineView {...props} {...changes}/>);
+ expect(html()).toContain("<button>이력 다시 불러오기</button><button>엑셀로 받기</button>");
+ for(const changes of [{items:[]},{loading:true},{error:"연결 확인"},{disabled:true},{units:[],unitId:""}])expect(html(changes)).toContain('<button disabled="">엑셀로 받기</button>');
+});
+it("keeps a failed save in place as an alert",()=>{
+ const html=renderToStaticMarkup(<MaintenanceTimelineView units={[{id:"unit",buildingId:"building",buildingName:"합성 건물",label:"합성 호실"}]} unitId="unit" items={[fact]} loading={false} error="" disabled={false} onUnit={noop} onRefresh={noop} onOpenTicket={noop} onExport={noop} exportError/>);
+ expect(html).toContain('role="alert"');expect(html).toContain("파일을 만들지 못했어요. 다시 받아 주세요.");
 });
