@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import { readFile } from 'node:fs/promises';
 import { routeOnce } from '../routes';
 import { test, expect, actor, ticket, core, openTicket, issueThroughUI, vendorContext, provision, job, guards, interval, click, keyboardClick, responsive, forbiddenCopy, safeGoto, vendorPost, scheduled } from './harness';
+import type { Page } from '@playwright/test';
 
 test('T12-B01 mounted Manager issue survives own refresh; browser redeem is not Accept and reuse fails', async ({ browser, fixture }) => {
   const t = await ticket(fixture), m = await actor(browser, fixture, 'manager', 1440);
@@ -405,4 +406,36 @@ test('P5-T02 a declined Vendor job puts 업체 확인 필요 on the manager 알�
     await expect(row).toContainText('업체 확인 필요');
     await row.click(); await expect(m.page).toHaveURL(/tab=work$/); await expect(m.page.getByTestId('ticket-heading')).toBeVisible();
   } finally { await v.close(); await m.close(); }
+});
+
+test('C1 each role saves the confirmed visit as a calendar file with only its own details', async ({ browser, fixture }) => {
+  const access = 'Task12 synthetic access code 4821';
+  const c = await provision(fixture, false, access), v = await vendorContext(browser, fixture, c.link), tenant = await actor(browser, fixture, 'tenant'), manager = await actor(browser, fixture, 'manager', 1280);
+  const ics = (value: string) => value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
+  const utc = (at: string) => new Date(at).toISOString().replace(/\.\d{3}Z$/, 'Z').replace(/[-:]/g, '');
+  const save = async (page: Page) => {
+    // The toast lasts 3 seconds (design rules 8.9), so it is checked before waiting for the saved file.
+    const waiting = page.waitForEvent('download'); await page.getByRole('button', { name: '캘린더에 추가', exact: true }).click();
+    await expect(page.locator('[data-toast]')).toHaveText('캘린더 파일을 받았어요. 파일을 열어 캘린더에 추가해 주세요.');
+    const file = await waiting; expect(file.suggestedFilename()).toMatch(/^방문일정_\d{4}-\d{2}-\d{2}\.ics$/);
+    return (await readFile((await file.path())!)).toString('utf8').replace(/\r\n /g, '');
+  };
+  try {
+    await keyboardClick(v.page, '작업 수락');
+    const j = await scheduled(fixture, v.context, c.ticketId), address = ics(j.currentPacket.serviceAddress);
+    await v.page.reload(); const vendorFile = await save(v.page);
+    await openTicket(tenant.page, c.ticketId); const tenantFile = await save(tenant.page);
+    await openTicket(manager.page, c.ticketId, true); const managerFile = await save(manager.page);
+    for (const text of [vendorFile, tenantFile, managerFile]) {
+      expect(text.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n')).toBe(true); expect(text.endsWith('END:VCALENDAR\r\n')).toBe(true);
+      expect(text).toContain(`UID:${j.appointment.id}@build-manager\r\n`); expect(text).toContain(`DTSTART:${utc(j.appointment.startAt)}\r\n`); expect(text).toContain(`DTEND:${utc(j.appointment.endAt)}\r\n`);
+      // Only named fields go in: no access instruction, tenant text, vendor name or work summary in any role's file.
+      for (const hidden of [access, 'Task12 synthetic private resident text', 'Task12 synthetic Vendor', 'Task12 synthetic minimum packet']) expect(text).not.toContain(hidden);
+    }
+    expect(vendorFile).toContain(`LOCATION:${address}\r\n`); expect(vendorFile).toContain(`작업 번호 ${ics(j.currentPacket.jobReference)}`);
+    // The tenant's place comes from the request's own unit on /core, the manager's from the packet: both building and unit.
+    const unit = `LOCATION:${ics([j.currentPacket.buildingName, j.currentPacket.unitLabel].filter(Boolean).join(' '))}\r\n`;
+    expect(tenantFile).toContain(unit); expect(managerFile).toContain(unit);
+    expect(tenantFile).not.toContain(address); expect(managerFile).not.toContain(address); expect(managerFile).toContain(`요청 번호 ${c.ticketId}`);
+  } finally { await v.close(); await tenant.close(); await manager.close(); }
 });

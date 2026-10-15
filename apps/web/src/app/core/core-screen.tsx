@@ -21,6 +21,7 @@ import { createRequestFence,sendFollowUp } from "./follow-up-request";
 import { VendorHandoffManager,ManagerDirectCompletionGate } from "./vendor-handoff-manager";
 import { managerNextStep,type ManagerStepTarget } from "./manager-next-step";
 import { VendorHandoffTenant } from "./vendor-handoff-tenant";
+import { visitPlace } from "../../lib/visit-calendar";
 import { historyLines } from "./history-lines";
 import { DateTime } from "../../components/date-time";
 import { BackButton,CoreNav,plainClick } from "./nav/core-nav";
@@ -327,7 +328,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
         </section>
         {/* Menu audit F-04: the manager's next action, by state, at the top; its button opens the folded section that holds it. */}
         {managerStep?<TaskZone tenant={false} label="다음 할 일" heading="다음 할 일" message={managerStep.title}><p>{managerStep.detail}</p>{managerStep.action?<button type="button" onClick={()=>goToStep(managerStep.action!.target)}>{managerStep.action.label}</button>:null}</TaskZone>:null}
-        {b1&&session.role==="TENANT"?<VendorHandoffTenant key={`vendor-tenant-${b1.orgId}-${selected.ticketId}`} client={client} ticketId={selected.ticketId} revision={revision}/>:null}
+        {b1&&session.role==="TENANT"?<VendorHandoffTenant key={`vendor-tenant-${b1.orgId}-${selected.ticketId}`} client={client} ticketId={selected.ticketId} revision={revision} issueType={selected.detail.issueType} place={selectedUnit?visitPlace(selectedUnit.buildingName,selectedUnit.label):null}/>:null}
         <TicketOutcome key={`outcome-${selected.ticketId}`} client={client} ticket={selected} tenant={session.role==="TENANT"} revision={revision} onFollowUp={beginFollowUp} onOpen={openOutcome}/>
         <TicketCommunication key={selected.ticketId} client={client} ticketId={selected.ticketId} tenant={session.role==="TENANT"} revision={revision} completed={selected.workStatus==="COMPLETED"} onVersion={setCommunicationVersion}>
         {/* Tenant-only children render right after the conversation's own to-do, so a pending reply stays first. */}

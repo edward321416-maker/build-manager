@@ -5,6 +5,8 @@
  * formula gets a leading apostrophe (OWASP CSV Injection); quoting every cell keeps a quote-and-comma trick from moving a
  * formula to the start of a new cell.
  */
+import { downloadFile } from "./download-file";
+
 export const CSV_BOM=String.fromCharCode(0xfeff);
 const FORMULA_START=new Set(["=","+","-","@","\t","\r","\n","＝","＋","－","＠"]);
 // Path and reserved characters, control characters and invisible format characters such as bidi overrides.
@@ -13,9 +15,5 @@ export function csvCell(value:string):string{const text=FORMULA_START.has(value.
 export function csvText(header:readonly string[],rows:readonly (readonly string[])[]):string{return CSV_BOM+[header,...rows].map(row=>row.map(csvCell).join(",")).join("\r\n")+"\r\n";}
 /** `정비이력_해솔빌라_101동1203호_2026-10-15.csv`: unsafe characters become `_` and spaces go. */
 export function csvFileName(parts:readonly string[],date:string):string{return [...parts.map(part=>part.replace(FILE_NAME_UNSAFE,"_").replace(/\s+/gu,"")),date].join("_")+".csv";}
-/** Saves the text through a temporary link. The object URL is released a minute later so a slow save can still read it. */
-export function downloadCsv(fileName:string,text:string):void{
-  const url=URL.createObjectURL(new Blob([text],{type:"text/csv;charset=utf-8"})),link=document.createElement("a");
-  link.href=url;link.download=fileName;link.hidden=true;document.body.append(link);
-  try{link.click();}finally{link.remove();setTimeout(()=>URL.revokeObjectURL(url),60_000);}
-}
+/** Saves the CSV text as a file (download-file.ts). */
+export function downloadCsv(fileName:string,text:string):void{downloadFile(fileName,text,"text/csv;charset=utf-8");}
