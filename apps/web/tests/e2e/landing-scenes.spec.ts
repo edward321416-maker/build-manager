@@ -39,16 +39,20 @@ test("the first scene keeps its explanation out of sight until it shrinks, and s
   await expect(hero).toHaveAttribute("data-motion", "on");
   await expect(hero).toHaveAttribute("data-side", "hidden");
   await expect.poll(() => opacity(page, "[data-hero-side]")).toBe("0");
+  const textTop = () => page.locator("[data-hero-side] p").first().evaluate(el => Math.round(el.getBoundingClientRect().top));
   await page.locator("[data-hero-side] a").first().focus();
   await expect.poll(() => opacity(page, "[data-hero-side]")).toBe("1");
   // The board is still full size here, so the explanation needs its own surface to keep its words off the drawing's.
   expect(await page.locator("[data-hero-side]").evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
+  const focusedTop = await textTop();
   // Focus, not scrolling, revealed it: the scene still reports the explanation as hidden.
   await expect(hero).toHaveAttribute("data-side", "hidden");
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await scrollScene(page, "hero", 0.8);
   await expect(hero).toHaveAttribute("data-side", "shown");
   await expect.poll(() => opacity(page, "[data-hero-side]")).toBe("1");
+  // The panel the keyboard brought did not move the words: they sit where the scroll puts them.
+  await expect.poll(async () => Math.abs((await textTop()) - focusedTop), "explanation moved by the panel").toBeLessThanOrEqual(1);
 });
 
 test("reduced motion shows every scene still, with every step and every screen", async ({ page }) => {
