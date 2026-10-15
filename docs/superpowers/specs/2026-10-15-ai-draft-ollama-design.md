@@ -1,7 +1,7 @@
 # AI 초안 + 집주인 한 번 승인 (Ollama, 공개 데모 먼저)
 
-- 작성: 2026-10-15 (Asia/Seoul). 작성자: Claude Opus 5.5 (Claude Code, AI 작성). 사람 검토: 운영자 검토 대기.
-- 상태: **설계서(DRAFT, 운영자 검토 대기)**. 구현은 이 설계서 승인 뒤 계획서로 나눠 진행한다.
+- 작성: 2026-10-15 (Asia/Seoul). 작성자: Claude Opus 5.5 (Claude Code, AI 작성). 사람 검토: 운영자 승인 2026-10-15("승인할게").
+- 상태: **설계서(APPROVED, 2026-10-15)**. 구현은 계획서로 나눠 진행한다. PR 1 계획: [AI 초안 모델 시험](../plans/2026-10-15-ai-draft-eval.md). 모델 내려받기(두 모델 합계 약 15GB)도 같은 승인에 포함됐다.
 - 위험 등급: **고위험**([개발 규칙](../../../development/DEVELOPMENT_RULES.md) DEV-01). AI가 사용자에게 보여 주는 판단·문구, 프롬프트, 안전 게이트를 새로 만든다. 그래서 위협·남용 사례(9절)와 되돌리기 계획(10절)을 넣었다(DEV-04).
 - 기준: `POLICY_REF` = `main` `cb3c4f7`. `TARGET_REF` = 같은 커밋에서 연 브랜치 `docs/ai-draft-ollama-spec`. 따른 규칙: [개발 규칙](../../../development/DEVELOPMENT_RULES.md) 1.0.3, [디자인 규칙](../../../design/DESIGN_RULES.md) v1, [레퍼런스 규칙](../../../references/REFERENCE_RULES.md) 1.1.0, [AI 안전 경계](../../../product/ai_safety_boundary.md).
 - 상위 기획: [차별성 기획](2026-10-15-differentiation-ai-assistant-design.md)(승인됨) 7절 3단계 "AI 비서 30초 시연".
