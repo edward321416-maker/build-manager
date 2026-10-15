@@ -1,0 +1,3 @@
+/* 10px from the lines around it in any visit box (design rules §4, 8.1); the button keeps its own width. */
+.calendar { display: grid; gap: .625rem; justify-items: start; margin-block: .625rem; min-width: 0; }
+.calendar p { margin: 0; }
