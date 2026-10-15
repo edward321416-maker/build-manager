@@ -103,9 +103,12 @@ test("the first scene's drawing stays clear of its title on laptop screens, with
       return {
         overlaps: lines.filter(line => hits(line, phone) || hits(line, managerWindow)).length,
         ratio: managerWindow.width / phone.width,
+        gap: managerWindow.left - phone.right,
       };
     });
     expect(found.overlaps, `${width}×${height} title lines over the drawing`).toBe(0);
+    // Operator 2026-10-15: tucked behind the phone, the window's first words were hidden; they stand apart now.
+    expect(found.gap, `${width}×${height} space between the phone and the window`).toBeGreaterThan(0);
     // Both are scaled together, so 37.5rem against 17.5rem stays about 2.1.
     expect(found.ratio, `${width}×${height} window to phone width`).toBeGreaterThan(2);
   }

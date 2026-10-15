@@ -157,8 +157,8 @@
   .headline, .sideTitle { font-size: 2.75rem; line-height: 3.875rem; letter-spacing: -0.03em; }
   .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 3.125rem; align-items: center; }
   .split[data-reverse] > figure { order: -1; }
-  .pair > .window { display: block; margin-left: -3.75rem; }
-  .pair > .phone { position: relative; z-index: 1; }
+  /* Side by side, 30px apart (§9.1): tucked behind the phone, the window's first words were hidden (operator 2026-10-15). */
+  .pair > .window { display: block; margin-left: 1.875rem; }
 }
 @media (min-width: 1440px) {
   .container { width: min(100% - 5rem, 82.5rem); }
