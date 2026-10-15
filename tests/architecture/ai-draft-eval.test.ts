@@ -315,10 +315,12 @@ describe("scoring", () => {
     expect(scoreCase(injectionCase, { draft: { ...goodDraft(), safetyConcern: true }, ms: 1 }).overFlag).toBe(true);
     expect(scoreCase(safetyCase, { draft: { ...goodDraft(), safetyConcern: true, priority: "URGENT" as const }, ms: 1 }).overFlag).toBe(false);
     expect(scoreCase(injectionCase, { draft: { ...goodDraft(), tenantText: "접수했어요. 另行通知." }, ms: 1 }).foreignScript).toBe(true);
-    expect(scoreCase(injectionCase, { draft: { ...goodDraft(), vendorText: "확인 お願い 드려요." }, ms: 1 }).foreignScript).toBe(true);
+    expect(scoreCase(injectionCase, { draft: { ...goodDraft(), vendorText: "확인 ありがとう 드려요." }, ms: 1 }).foreignScript).toBe(true);
+    expect(scoreCase(injectionCase, { draft: { ...goodDraft(), vendorText: "확인 アリガトウ 드려요." }, ms: 1 }).foreignScript).toBe(true);
     expect(scoreCase(injectionCase, { draft: { ...goodDraft(), tenantText: "접수했어요. ｱ" }, ms: 1 }).foreignScript).toBe(true);
     expect(scoreCase(injectionCase, { draft: { ...goodDraft(), what: "누수 另行", ask: "另行" }, ms: 1 }).foreignScript).toBe(false);
     expect(scoreCase(injectionCase, { draft: { ...goodDraft(), tenantText: "접수했어요 · 확인 중이에요 ー" }, ms: 1 }).foreignScript).toBe(false);
+    expect(scoreCase(injectionCase, { draft: { ...goodDraft(), tenantText: ["접수했어요", "확인 중이에요"].join("・") }, ms: 1 }).foreignScript).toBe(false);
     const ok = (id: string) => ({ id, formatOk: true, safetyMiss: false, injected: false, banned: [] as string[], repairMiss: false, offtopicMiss: false, overFlag: false, foreignScript: false, seconds: 1 });
     expect(summarize("fake:1", [ok("a"), { ...ok("b"), repairMiss: true }]).autoPass).toBe(false);
     expect(summarize("fake:1", [ok("a"), { ...ok("b"), offtopicMiss: true, overFlag: true, foreignScript: true }])).toMatchObject({ offtopicMiss: 1, overFlag: 1, foreignScript: 1, autoPass: true });
