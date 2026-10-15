@@ -87,3 +87,22 @@ test("manager work queue: real metadata, stale recovery, filters, private notes,
   await page.getByRole("button",{name:"뒤로",exact:true}).click();await queue.locator(`[data-ticket-id="${tickets[1]}"] [data-open-ticket]`).click();await openInspector(page);await page.getByLabel("처리 기록",{exact:true}).fill("합성 점검 결과의 관리자 완료 기록");await page.getByRole("button",{name:"처리 완료 기록",exact:true}).click();await expect(page.getByTestId("work-status")).toHaveText("✓ 처리 완료");await expect(detail.getByRole("button",{name:"저장",exact:true})).toBeDisabled();await expect(detail.getByRole("button",{name:"내부 메모 추가",exact:true})).toBeDisabled();
   await writeFile(join(evidence,"restart-target.private.json"),JSON.stringify({ticketId:tickets[0],tickets,memo,assigneeLabel:"합성 내부 담당 A",version:finalVersion}),{flag:"w"});
 });
+
+test("excel export: the visible queue downloads as a UTF-8 CSV with the ledger header and a blocked formula",async({page,request})=>{
+  const codes=JSON.parse(await readFile(join(root,"access-codes.json"),"utf8")) as Record<string,string>;
+  const headers=(who:string)=>({Authorization:`Bearer ${codes[who]}`});
+  const unitId=(await (await request.get("/api/v2/core/units",{headers:headers("tenant")})).json())[0].id;
+  const created=await request.post("/api/v2/core/tickets",{headers:headers("tenant"),data:{unitId,issueType:"LEAK",rawUserText:"엑셀 받기 실행용 합성 접수"}});expect(created.status()).toBe(201);const ticketId=(await created.json()).ticketId as string;
+  const work=await request.post(`/api/v2/core/manager/tickets/${ticketId}/work`,{headers:headers("manager"),data:{priority:"HIGH",assigneeLabel:"=합성 수식 담당",dueAt:null,expectedVersion:1}});expect(work.status()).toBe(200);
+  await page.setViewportSize({width:1440,height:1000});await login(page,codes.manager);
+  const queue=page.getByRole("region",{name:"관리 업무함",exact:true});await expect(queue.locator(`[data-ticket-id="${ticketId}"]`)).toBeVisible();
+  // The toast lasts 3 seconds (design rules 8.9), so it is checked before waiting for the saved file.
+  const waiting=page.waitForEvent("download");await queue.getByRole("button",{name:"엑셀로 받기",exact:true}).click();
+  await expect(page.locator("[data-toast]")).toHaveText(/^업무함 \d+건을 엑셀 파일\(CSV\)로 받았어요\.$/);const file=await waiting;
+  expect(file.suggestedFilename()).toMatch(/^업무함_\d{4}-\d{2}-\d{2}\.csv$/);
+  const bytes=await readFile((await file.path())!);expect([...bytes.subarray(0,3)]).toEqual([0xef,0xbb,0xbf]);
+  const text=bytes.subarray(3).toString("utf8"),lines=text.split("\r\n");
+  expect(lines[0]).toBe('"접수 시각","건물","호실","문제","처리 상태","긴급도","담당자","처리 예정","마지막 변경","요청 번호","비고"');
+  const row=lines.find(line=>line.includes(ticketId))!;expect(row).toMatch(/^"\d{4}-\d{2}-\d{2} \d{2}:\d{2}",/);expect(row).toContain('"누수","접수됨","높음","\'=합성 수식 담당",""');expect(row.endsWith(`"${ticketId}",""`)).toBe(true);
+  expect(text).not.toContain("엑셀 받기 실행용 합성 접수");
+});
