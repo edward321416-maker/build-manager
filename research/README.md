@@ -16,6 +16,7 @@
 | [ux/2026-10-14-feature-connection-gap-analysis.md](ux/2026-10-14-feature-connection-gap-analysis.md) | 기능 연결·누락 분석: 기능 사이에 끊긴 연결, 분쟁 통계·법정 관리 일, 추가·연결 후보와 순서 |
 | [ux/2026-10-15-platform-roles-reference.md](ux/2026-10-15-platform-roles-reference.md) | 역할별 기기 나누기 점검: 관리자 데스크탑형 웹과 관리자·세입자 앱, 국내외 레퍼런스 비교 |
 | [ux/2026-10-15-integrations-export-calendar-ai.md](ux/2026-10-15-integrations-export-calendar-ai.md) | 연동 기능 연구: 엑셀 내보내기·가져오기, 일정 파일, Google 드라이브·캘린더 연결, AI 연결(MCP), 개인정보 다운로드 규칙 |
+| [ux/2026-10-15-landlord-excel-ledgers.md](ux/2026-10-15-landlord-excel-ledgers.md) | 집주인·건물 관리인의 엑셀 장부 모양: 국내 수리·하자·임대 대장 양식과 임대관리 앱의 엑셀, E1 열 순서·비고 칸 결정 |
 | [interviews/landlord_guide.md](interviews/landlord_guide.md), [interviews/tenant_guide.md](interviews/tenant_guide.md) | 인터뷰 가이드 |
 
 ## 현재 근거 경계
