@@ -10,12 +10,15 @@
 | [sources/claim_registry.csv](sources/claim_registry.csv) | 주장 레지스트리(`CLM-`) |
 | [sources/provenance_backfill_plan.md](sources/provenance_backfill_plan.md), [sources/s1_row_source_map.csv](sources/s1_row_source_map.csv) | 출처 보강 계획과 S1 행 출처 대응표 |
 | [competitors/README.md](competitors/README.md) | 경쟁·벤치마크 색인 |
+| [competitors/2026-10-15-ai-use-advancers-and-operators.md](competitors/2026-10-15-ai-use-advancers-and-operators.md) | AI·신기술 활용 조사: 모두의 창업 진출작과 심사 기준, 국내외 임대·유지보수 서비스의 AI 쓰임새 |
 | [ux/2026-10-10-ia-feature-audit-reference.md](ux/2026-10-10-ia-feature-audit-reference.md) | 기능 배치·메뉴 구조 점검 전 레퍼런스·연구 분석 |
 | [ux/2026-10-10-home-management-scope-owner-reporting.md](ux/2026-10-10-home-management-scope-owner-reporting.md) | 집 관리 범위, 건물주 보고·승인, 모바일 알림 채널 후속 연구 |
 | [ux/2026-10-10-menu-audit.md](ux/2026-10-10-menu-audit.md) | 기능 배치·메뉴 점검: 역할별 과업 걷기, 문제 목록과 심각도, 탭 구성 권고, 개선 순서 |
 | [ux/2026-10-14-feature-connection-gap-analysis.md](ux/2026-10-14-feature-connection-gap-analysis.md) | 기능 연결·누락 분석: 기능 사이에 끊긴 연결, 분쟁 통계·법정 관리 일, 추가·연결 후보와 순서 |
 | [ux/2026-10-15-platform-roles-reference.md](ux/2026-10-15-platform-roles-reference.md) | 역할별 기기 나누기 점검: 관리자 데스크탑형 웹과 관리자·세입자 앱, 국내외 레퍼런스 비교 |
+| [ux/2026-10-15-landlord-work-protocols.md](ux/2026-10-15-landlord-work-protocols.md) | 직접 관리하는 원룸 집주인의 업무 흐름: 민원·수리, 월세·미납, 갱신, 퇴실·보증금, 정기 점검과 법 기한, AI 비서가 맡을 단계 |
 | [ux/2026-10-15-integrations-export-calendar-ai.md](ux/2026-10-15-integrations-export-calendar-ai.md) | 연동 기능 연구: 엑셀 내보내기·가져오기, 일정 파일, Google 드라이브·캘린더 연결, AI 연결(MCP), 개인정보 다운로드 규칙 |
+| [ux/2026-10-15-landlord-excel-ledgers.md](ux/2026-10-15-landlord-excel-ledgers.md) | 집주인·건물 관리인의 엑셀 장부 모양: 국내 수리·하자·임대 대장 양식과 임대관리 앱의 엑셀, E1 열 순서·비고 칸 결정 |
 | [interviews/landlord_guide.md](interviews/landlord_guide.md), [interviews/tenant_guide.md](interviews/tenant_guide.md) | 인터뷰 가이드 |
 
 ## 현재 근거 경계
