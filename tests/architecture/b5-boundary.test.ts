@@ -278,7 +278,7 @@ it("AC17 Expo 2026-10-13 patch projection rejects lock drift, a tampered fixture
     (candidate:DependencyLock)=>{candidate.packages["node_modules/jest-expo"].version="57.0.7";},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/expo-splash-screen"].integrity="sha512-unreviewed";},
     // apps/mobile, expo and @expo/cli moved again on 2026-10-15, so these three cases use entries only this record covers.
-    (candidate:DependencyLock)=>{(candidate.packages["node_modules/babel-preset-expo"].dependencies as Record<string,string>)["unreviewed"]="*";},
+    (candidate:DependencyLock)=>{(candidate.packages["node_modules/@expo/fingerprint"].dependencies as Record<string,string>)["unreviewed"]="*";},
     (candidate:DependencyLock)=>{(candidate.packages["node_modules/react-native-web"].dependencies as Record<string,string>)["unreviewed"]="*";},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/devcert"].hasInstallScript=true;},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/react-native-web"].version="0.21.2";},

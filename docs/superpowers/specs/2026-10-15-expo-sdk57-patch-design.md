@@ -22,7 +22,7 @@
 - AC17
   - `tests/architecture/expo-sdk57-patch-20261015-lock.json`: 13개 항목의 이전 값과 새 값의 해시
   - 시험은 검토 기록을 최신 것부터(10-15 → 10-13 → 도구 경고 10-10 → 10-08 → 보안 갱신 10-10 → Sharp) 되돌린 뒤 원래 고정 해시와 비교합니다. 매니페스트도 10-15, 10-13 순서로 바뀐 줄만 글자 그대로 되돌립니다.
-  - 10-15 기록 전용 부정 시험을 더합니다. 이번에 다시 바뀐 항목을 쓰던 예전 부정 시험은 그 기록만 검토한 다른 항목으로 옮겨 원래 의도를 지킵니다: 10-08 시험의 expo-asset·expo-linking(→ @expo/metro-config, @expo/require-utils, @expo/router-server), 10-13 시험의 apps/mobile·expo·@expo/cli(→ babel-preset-expo, react-native-web, @expo/devcert)와 매니페스트의 expo(→ expo-splash-screen). 독립 리뷰가 10-13 시험의 세 사례를 찾아 고쳤습니다.
+  - 10-15 기록 전용 부정 시험을 더합니다. 이번에 다시 바뀐 항목을 쓰던 예전 부정 시험은 그 기록만 검토한 다른 항목으로 옮겨 원래 의도를 지킵니다: 10-08 시험의 expo-asset·expo-linking(→ @expo/metro-config, @expo/require-utils, @expo/router-server), 10-13 시험의 apps/mobile·expo·@expo/cli(→ @expo/fingerprint, react-native-web, @expo/devcert)와 매니페스트의 expo(→ expo-splash-screen). 10-13 시험의 세 사례는 독립 리뷰가 찾았고, 그 뒤 고쳤습니다.
 
 ## 위협·남용 사례
 
