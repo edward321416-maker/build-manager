@@ -85,13 +85,35 @@ function projectExpoSdk57Patch20261013Manifest(source:string) {
   }
   return source;
 }
-type ReviewedSources={expo20261013:string;tooling:string;expo:string;security:string};
+// Operator decision 2026-10-15 ("패치 올리기 (추천)") after Expo's 2026-10-14 SDK 57 patch releases failed Expo Doctor
+// on every PR. `npx expo install --fix` raised @expo/ui ~57.0.24, expo ~57.0.29, expo-linking ~57.0.13 and expo-router
+// ~57.0.27 in the manifest; expo-constants 57.0.22 already fit its ~57.0.20 range, so only the lock moved for it.
+// The reviewed fixture holds every lock entry that update changed (none were added or removed); reverse exactly those.
+const expoPatch20261015Fixture="tests/architecture/expo-sdk57-patch-20261015-lock.json";
+const expoPatch20261015Paths=["apps/mobile",...["@expo/cli","@expo/metro-runtime","@expo/prebuild-config","@expo/ui","@expo/xcpretty","expo","expo-asset","expo-constants","expo-linking","expo-modules-autolinking","expo-modules-core","expo-router"].map(name=>`node_modules/${name}`)];
+function projectExpoSdk57Patch20261015(lock:DependencyLock,fixtureSource:string) {
+  projectReviewedLock(lock,fixtureSource,"89d8ddac93a717238603acf0ce639849c9df6f40632be6fc53fd03874655aceb",expoPatch20261015Paths);
+}
+function projectExpoSdk57Patch20261015Manifest(source:string) {
+  for(const [name,successor,original] of [["@expo/ui","~57.0.24","~57.0.23"],["expo","~57.0.29","~57.0.28"],["expo-linking","~57.0.13","~57.0.11"],["expo-router","~57.0.27","~57.0.26"]]) {
+    const line=`    "${name}": "${successor}",\n`;
+    expect(source.split(line),`${name} ${successor}`).toHaveLength(2);
+    source=source.replace(line,`    "${name}": "${original}",\n`);
+  }
+  return source;
+}
+// Every reviewed manifest change, newest first, back to the frozen bytes.
+function projectReviewedMobileManifest(source:string) {
+  return projectExpoSdk57Patch20261013Manifest(projectExpoSdk57Patch20261015Manifest(source));
+}
+type ReviewedSources={expo20261015:string;expo20261013:string;tooling:string;expo:string;security:string};
 async function reviewedSources():Promise<ReviewedSources> {
   const read=async(path:string)=>(await readFile(path,"utf8")).replaceAll("\r\n","\n");
-  return {expo20261013:await read(expoPatch20261013Fixture),tooling:await read(toolingAdvisoriesFixture),expo:await read(expoPatchFixture),security:await read(securityUpdateFixture)};
+  return {expo20261015:await read(expoPatch20261015Fixture),expo20261013:await read(expoPatch20261013Fixture),tooling:await read(toolingAdvisoriesFixture),expo:await read(expoPatchFixture),security:await read(securityUpdateFixture)};
 }
 // Every reviewed lock change, newest first, then the original Sharp directive.
 function projectReviewedLocks(lock:DependencyLock,sources:ReviewedSources) {
+  projectExpoSdk57Patch20261015(lock,sources.expo20261015);
   projectExpoSdk57Patch20261013(lock,sources.expo20261013);projectToolingAdvisories20261010(lock,sources.tooling);
   projectExpoSdk57Patch(lock,sources.expo);projectSecurityUpdate20261010(lock,sources.security);projectSharpLock(lock);
 }
@@ -190,7 +212,7 @@ it("AC17 frozen foundation, dependency and workflow inventory retains canonical 
       const manifest=JSON.parse(canonical);projectTask12Scripts(manifest,task12RootScripts);
       canonical=JSON.stringify(manifest,null,2)+"\n";
     }
-    if(path==="apps/mobile/package.json")canonical=projectExpoSdk57Patch20261013Manifest(canonical);
+    if(path==="apps/mobile/package.json")canonical=projectReviewedMobileManifest(canonical);
     // The operator's RC1 photo directive explicitly permits only this existing
     // codec as a pinned direct dependency. Reverse that exact additive delta,
     // then retain every original B5 hash and all other dependency bytes.
@@ -228,13 +250,14 @@ it("AC17 exact Expo SDK57 projection rejects package, fixture and unrelated lock
   const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock, sources=await reviewedSources();
   const fixture=sources.expo, inventory=(candidate:DependencyLock,expo=fixture)=>lockInventory(candidate,{...sources,expo});
   inventory(structuredClone(lock));
-  // These entries are reviewed only by the 2026-10-08 fixture, so each case reaches that projection, not a newer one.
+  // These entries are reviewed only by the 2026-10-08 fixture, so each case reaches that projection, not a newer one
+  // (expo-asset and expo-linking moved again on 2026-10-15, so their cases now use other 2026-10-08-only entries).
   for(const mutate of [
-    (candidate:DependencyLock)=>{candidate.packages["node_modules/expo-asset"].version="57.0.99";},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/metro-config"].version="57.0.99";},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/config-plugins"].integrity="sha512-unreviewed";},
-    (candidate:DependencyLock)=>{(candidate.packages["node_modules/expo-asset"].dependencies as Record<string,string>)["unreviewed"]="*";},
+    (candidate:DependencyLock)=>{(candidate.packages["node_modules/@expo/require-utils"].dependencies as Record<string,string>)["unreviewed"]="*";},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/image-utils"].hasInstallScript=true;},
-    (candidate:DependencyLock)=>{delete candidate.packages["node_modules/expo-linking"];},
+    (candidate:DependencyLock)=>{delete candidate.packages["node_modules/@expo/router-server"];},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/unreviewed"]={version:"1.0.0"};},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/typescript"].version="0.0.0";},
     (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/sudo-prompt"].version="9.3.3";},
@@ -269,13 +292,47 @@ it("AC17 Expo 2026-10-13 patch projection rejects lock drift, a tampered fixture
   const removedFixture=JSON.parse(fixture);removedFixture.pop();
   expect(()=>inventory(structuredClone(lock),JSON.stringify(removedFixture,null,2)+"\n")).toThrow();
   const manifest=(await readFile("apps/mobile/package.json","utf8")).replaceAll("\r\n","\n");
-  const manifestInventory=(candidate:string)=>expect(sha256(projectExpoSdk57Patch20261013Manifest(candidate))).toBe(frozen["apps/mobile/package.json"]);
+  const manifestInventory=(candidate:string)=>expect(sha256(projectReviewedMobileManifest(candidate))).toBe(frozen["apps/mobile/package.json"]);
   manifestInventory(manifest);
+  // Lines only the 2026-10-13 review covers (expo itself moved again on 2026-10-15).
   for(const [before,after] of [
     ['"jest-expo": "57.0.6"','"jest-expo": "57.0.7"'],
-    ['"expo": "~57.0.28"','"expo": "~57.0.29"'],
+    ['"expo-splash-screen": "~57.0.10"','"expo-splash-screen": "~57.0.11"'],
     ['"typescript": "~6.0.3"','"typescript":"~6.0.3"'],
     ['    "jest-expo": "57.0.6",\n','    "jest-expo": "57.0.6",\n    "jest-expo": "57.0.6",\n'],
+  ]) {
+    expect(manifest.includes(before),"negative fixture targets real bytes").toBe(true);
+    expect(()=>manifestInventory(manifest.replace(before,after))).toThrow();
+  }
+});
+it("AC17 Expo 2026-10-15 patch projection rejects lock drift, a tampered fixture and any other manifest bytes",async()=>{
+  const lock=JSON.parse(await readFile("package-lock.json","utf8")) as DependencyLock, sources=await reviewedSources();
+  const fixture=sources.expo20261015, inventory=(candidate:DependencyLock,expo20261015=fixture)=>lockInventory(candidate,{...sources,expo20261015});
+  inventory(structuredClone(lock));
+  for(const mutate of [
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/expo-constants"].version="57.0.23";},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/@expo/xcpretty"].integrity="sha512-unreviewed";},
+    (candidate:DependencyLock)=>{(candidate.packages["apps/mobile"].dependencies as Record<string,string>)["expo-linking"]="~57.0.14";},
+    (candidate:DependencyLock)=>{(candidate.packages["node_modules/expo-router"].dependencies as Record<string,string>)["unreviewed"]="*";},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/expo-modules-core"].hasInstallScript=true;},
+    (candidate:DependencyLock)=>{delete candidate.packages["node_modules/@expo/metro-runtime"];},
+    (candidate:DependencyLock)=>{candidate.packages["node_modules/unreviewed-20261015"]={version:"1.0.0"};},
+  ]) {
+    const candidate=structuredClone(lock);mutate(candidate);
+    expect(()=>inventory(candidate)).toThrow();
+  }
+  const changedFixture=JSON.parse(fixture);changedFixture[1].before.version="57.0.28";
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(changedFixture,null,2)+"\n")).toThrow();
+  const removedFixture=JSON.parse(fixture);removedFixture.pop();
+  expect(()=>inventory(structuredClone(lock),JSON.stringify(removedFixture,null,2)+"\n")).toThrow();
+  const manifest=(await readFile("apps/mobile/package.json","utf8")).replaceAll("\r\n","\n");
+  const manifestInventory=(candidate:string)=>expect(sha256(projectReviewedMobileManifest(candidate))).toBe(frozen["apps/mobile/package.json"]);
+  manifestInventory(manifest);
+  for(const [before,after] of [
+    ['"expo": "~57.0.29"','"expo": "~57.0.30"'],
+    ['"expo-linking": "~57.0.13"','"expo-linking": "~57.0.12"'],
+    ['"expo-constants": "~57.0.20"','"expo-constants": "~57.0.22"'],
+    ['    "@expo/ui": "~57.0.24",\n','    "@expo/ui": "~57.0.24",\n    "@expo/ui": "~57.0.24",\n'],
   ]) {
     expect(manifest.includes(before),"negative fixture targets real bytes").toBe(true);
     expect(()=>manifestInventory(manifest.replace(before,after))).toThrow();
