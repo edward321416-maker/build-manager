@@ -4,9 +4,7 @@ import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
 import { CoreMaintenanceFactCreateSchema,CoreMaintenanceFactCorrectionSchema,type CoreMaintenanceFactCreate,type CoreMaintenanceFactCorrection,type CoreTicketDto,type CoreMaintenanceActionKind,type CoreMaintenanceCorrectionReason,type CoreMaintenanceFactDetail,type CoreUnitMaintenanceFact,type CoreUnitDto } from "@build-manager/api-contracts";
 import { DateTime } from "../../components/date-time";
 import styles from "./manager-maintenance-timeline.module.css";
-const actionLabels:Record<CoreMaintenanceActionKind,string>={INSPECTION:"점검",REPAIR:"수리",PART_REPLACEMENT:"부품 교체",ADJUSTMENT:"조정",OTHER:"기타"};
-const reasonLabels:Record<CoreMaintenanceCorrectionReason,string>={ACTION_CLASSIFICATION:"작업 분류 정정",COMPONENT_LABEL:"부품·위치 명칭 정정",OTHER:"기타 정정"};
-const outcomeLabels:Record<CoreUnitMaintenanceFact["tenantOutcome"],string>={UNCONFIRMED:"세입자 응답 미확인",RESOLVED:"세입자가 해결됐다고 응답",UNRESOLVED:"세입자가 아직 문제가 있다고 응답",RECURRENCE_CLAIM:"세입자가 다시 문제가 생겼다고 응답"};
+import { actionLabels,outcomeLabels,reasonLabels } from "./maintenance-labels";
 export type EditorViewProps={completed:boolean;detail:CoreMaintenanceFactDetail|null;loading:boolean;error:string;notice:string;busy:boolean;editing:boolean;uncertain:boolean;reviewRequired:boolean;action:CoreMaintenanceActionKind;label:string;reason:CoreMaintenanceCorrectionReason;onAction(v:CoreMaintenanceActionKind):void;onLabel(v:string):void;onReason(v:CoreMaintenanceCorrectionReason):void;onSubmit():void;onEdit():void;onRefresh():void;onRetry():void;onReview():void;onOpenTicket(id:string):void;onViewUnit(id:string):void};
 export function MaintenanceEditorView(p:EditorViewProps){
  if(!p.completed)return null;
