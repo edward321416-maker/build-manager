@@ -126,7 +126,7 @@ DEMO_ORIGIN=https://<ip-with-dashes>.sslip.io node scripts/demo-smoke.mjs --http
 - HTTP checks: the first page, `/core`, `/vendor/job`, one static chunk, `/api/v2/core/access` (401 when signed out), `/demo/landlord` (404), the closed `/_next/image` route and, over HTTPS, a certificate with at least 7 days left.
 - Browser checks: both demo entry buttons, then the manager work queue at 1280 px and the tenant repair intake at 390 px, with no 5xx responses or page errors.
 - `--expect-text <path> <text>` proves that a release reached the site, for example a chunk file that only the new image has. In Git Bash on Windows, add `MSYS_NO_PATHCONV=1`, or Git Bash rewrites `/_next/...` into a Windows path.
-- `--write-check` saves one synthetic repair request on the demo. Use it only right after a deploy.
+- `--write-check` saves one synthetic repair request on the demo, then closes it: the demo manager records 처리 시작 and 처리 완료, and the demo tenant confirms the result, so nothing is left on 알림. Use it only right after a deploy. If closing fails, the run fails and names the request's first six id characters and the status codes; close it by hand the same way.
 - `.github/workflows/demo-health.yml` runs the HTTP checks every hour with the repository secret `DEMO_ORIGIN` and retries a failed check once a minute later. If the retry also fails, GitHub notifies the user who last changed its cron line. GitHub turns scheduled workflows off in a public repository after 60 days without activity; turn it back on with `gh workflow enable demo-health.yml`.
 
 ## Boundaries

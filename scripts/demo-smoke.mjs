@@ -4,8 +4,10 @@
 // Prints one PASS/FAIL line per check, then SMOKE PASS or SMOKE FAIL. The address never appears in the output.
 // Exit 0 = every check passed, 1 = a check failed, 2 = usage error (nothing was requested).
 //   --http-only    skip the browser; the hourly .github/workflows/demo-health.yml runs this.
-//   --write-check  save one synthetic repair request, so use it only right after a deploy.
+//   --write-check  save one synthetic repair request, then close it as the manager and confirm it as the tenant;
+//                  use it only right after a deploy.
 //   --expect-text  prove a release reached the site, e.g. a chunk file that only the new image has.
+import { randomUUID } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { connect } from "node:tls";
@@ -23,6 +25,55 @@ const USAGE = "USAGE: DEMO_ORIGIN=https://<host> node scripts/demo-smoke.mjs [--
 // The write check's synthetic request text. It must stay clear of the domain's safety text scan (evaluate-safety.ts),
 // or the request is escalated as urgent and never reads 제출 전.
 export const WRITE_CHECK_TEXT = "합성 배포 확인 요청 (배포 점검 스크립트)";
+// The write check closes what it saved (spec: docs/superpowers/specs/2026-10-15-smoke-write-check-closes-design.md).
+// Like WRITE_CHECK_TEXT, these must not match the safety text scan.
+export const WRITE_CHECK_CLOSE_MESSAGES = Object.freeze({ start: "배포 점검용 합성 요청이라 정리해요.", complete: "배포 점검용 합성 요청 정리를 마쳤어요." });
+
+// The next two run inside the demo page through page.evaluate, so they use nothing outside their own body: the page's
+// fetch carries its session cookie and same-origin Origin, and the headers are the ones the /core screen sends
+// (core-screen.tsx: x-core-organization and x-b1-csrf on every call, which the server requires whenever the
+// organisation header is present). Every request stops after timeoutMs. They return status codes and the work status
+// only, never the CSRF value; a session without an organisation throws NO_ORGANIZATION.
+// 처리 완료 is sent without expectedCommunicationVersion: a request this run just saved has no message thread.
+export async function closeAsManager({ ticketId, start, complete, timeoutMs = 15_000 }, fetchImpl = fetch) {
+  const call = (path, init = {}) => fetchImpl(path, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  const accessResponse = await call("/api/v2/core/access");
+  if (accessResponse.status !== 200) return { access: accessResponse.status, started: null, completed: null };
+  const access = await accessResponse.json();
+  const organizationId = access.organizations?.[0]?.id;
+  if (!organizationId) throw new Error("NO_ORGANIZATION");
+  const headers = { "content-type": "application/json", "x-core-organization": organizationId, "x-b1-csrf": access.csrf };
+  const path = `/api/v2/core/tickets/${encodeURIComponent(ticketId)}/handling`;
+  const post = async (body) => (await call(path, { method: "POST", headers, body: JSON.stringify(body) })).status;
+  const started = await post({ status: "IN_PROGRESS", message: start });
+  const completed = started === 200 ? await post({ status: "COMPLETED", message: complete }) : null;
+  return { access: 200, started, completed };
+}
+
+export async function confirmAsTenant({ ticketId, clientRequestId, timeoutMs = 15_000 }, fetchImpl = fetch) {
+  const call = (path, init = {}) => fetchImpl(path, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  const accessResponse = await call("/api/v2/core/access");
+  if (accessResponse.status !== 200) return { access: accessResponse.status, resolved: null, workStatus: null };
+  const access = await accessResponse.json();
+  const organizationId = access.organizations?.[0]?.id;
+  if (!organizationId) throw new Error("NO_ORGANIZATION");
+  const headers = { "x-core-organization": organizationId, "x-b1-csrf": access.csrf };
+  const base = `/api/v2/core/tickets/${encodeURIComponent(ticketId)}`;
+  const resolved = (await call(`${base}/outcome/resolved`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ clientRequestId }) })).status;
+  const read = await call(base, { headers });
+  const workStatus = read.status === 200 ? (await read.json()).workStatus ?? null : null;
+  return { access: 200, resolved, workStatus };
+}
+
+// Every failure while closing names the request, so it can be closed by hand (spec T2), whatever went wrong:
+// a screen wait, a page error or a refused request.
+export async function namingTicket(shortId, body) {
+  try {
+    return await body();
+  } catch (error) {
+    throw new Error(`ticket ${shortId}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
 
 export function certificateCheck(validTo, now = new Date()) {
   const days = Math.floor((Date.parse(validTo) - now.getTime()) / DAY_MS);
@@ -165,8 +216,10 @@ async function browserChecks(origin, options, check) {
       await page.goto(new URL("/core", origin).href, { timeout: TIMEOUT_MS });
       await body(page);
       check(name, true);
+      return true;
     } catch (error) {
       check(name, false, describe(error));
+      return false;
     } finally {
       // Leave no demo session behind. Since P5 the logout button sits in the account list (MY from 2026-10-14; a demo
       // deployed before that still calls it 내 정보), so submit the page's own logout form, which needs no menu name and
@@ -178,24 +231,29 @@ async function browserChecks(origin, options, check) {
     }
   };
   const enter = (page, role) => page.getByRole("button", { name: role, exact: true }).click({ timeout: TIMEOUT_MS });
+  const enterManager = async (page) => {
+    await enter(page, "관리자로 체험하기");
+    const organization = page.getByLabel("내 소속", { exact: true });
+    const queue = page.getByRole("heading", { name: "업무함", exact: true });
+    await Promise.race([organization.waitFor({ timeout: TIMEOUT_MS }), queue.waitFor({ timeout: TIMEOUT_MS })]).catch(() => {});
+    if (await organization.count()) {
+      const values = await organization.locator("option").evaluateAll((items) => items.map((item) => item.value).filter(Boolean));
+      if (values.length === 1) await organization.selectOption(values[0]);
+    }
+    await queue.waitFor({ timeout: TIMEOUT_MS });
+  };
+  const enterTenant = async (page) => {
+    await enter(page, "세입자로 체험하기");
+    await page.getByRole("heading", { name: "어떤 문제가 있나요?", exact: true }).waitFor({ timeout: TIMEOUT_MS });
+  };
+  let savedTicketId = null;
   try {
     await step("both demo entry buttons at 390 px", 390, async (page) => {
       for (const role of ["관리자로 체험하기", "세입자로 체험하기"]) await page.getByRole("button", { name: role, exact: true }).waitFor({ timeout: TIMEOUT_MS });
     });
-    await step("manager entry opens the work queue at 1280 px", 1280, async (page) => {
-      await enter(page, "관리자로 체험하기");
-      const organization = page.getByLabel("내 소속", { exact: true });
-      const queue = page.getByRole("heading", { name: "업무함", exact: true });
-      await Promise.race([organization.waitFor({ timeout: TIMEOUT_MS }), queue.waitFor({ timeout: TIMEOUT_MS })]).catch(() => {});
-      if (await organization.count()) {
-        const values = await organization.locator("option").evaluateAll((items) => items.map((item) => item.value).filter(Boolean));
-        if (values.length === 1) await organization.selectOption(values[0]);
-      }
-      await queue.waitFor({ timeout: TIMEOUT_MS });
-    });
+    await step("manager entry opens the work queue at 1280 px", 1280, enterManager);
     await step("tenant entry opens the repair intake at 390 px", 390, async (page) => {
-      await enter(page, "세입자로 체험하기");
-      await page.getByRole("heading", { name: "어떤 문제가 있나요?", exact: true }).waitFor({ timeout: TIMEOUT_MS });
+      await enterTenant(page);
       await page.getByRole("button", { name: "접수하기", exact: true }).waitFor({ timeout: TIMEOUT_MS });
     });
     if (options.writeCheck) {
@@ -212,11 +270,30 @@ async function browserChecks(origin, options, check) {
         ]);
         const status = created.status();
         if (status !== 201) throw new Error(`ticket POST answered ${status}`);
+        // Kept before the screen checks, so a request that saved is closed below even if one of them fails. A 201 without
+        // an id fails here, so the run can never pass while leaving a request behind.
+        savedTicketId = (await created.json()).ticketId ?? null;
+        if (!savedTicketId) throw new Error("ticket POST answered 201 without a ticketId");
         await page.getByRole("status").filter({ hasText: "접수 내용을 저장했어요" }).waitFor({ timeout: TIMEOUT_MS });
         const state = (await page.getByTestId("work-status").textContent({ timeout: TIMEOUT_MS }))?.trim();
         if (state !== "제출 전") throw new Error(`work status reads ${state}`);
         await page.getByRole("region", { name: "지금 할 일: 추가 확인", exact: true }).waitFor({ timeout: TIMEOUT_MS });
       });
+      // Only the request this run saved is closed; its id came from this run's own 201 answer. A failure names the
+      // id's first six characters and the status codes, so it can be closed by hand the way it was on 2026-10-14.
+      if (savedTicketId) {
+        const ticketId = savedTicketId, shortId = String(ticketId).slice(0, 6);
+        const closed = await step("write check closes its synthetic request as the manager", 1280, (page) => namingTicket(shortId, async () => {
+          await enterManager(page);
+          const result = await page.evaluate(closeAsManager, { ticketId, ...WRITE_CHECK_CLOSE_MESSAGES, timeoutMs: TIMEOUT_MS });
+          if (result.started !== 200 || result.completed !== 200) throw new Error(`access ${result.access}, 처리 시작 ${result.started}, 처리 완료 ${result.completed}`);
+        }));
+        if (closed) await step("write check confirms it as the tenant and it reads COMPLETED", 390, (page) => namingTicket(shortId, async () => {
+          await enterTenant(page);
+          const result = await page.evaluate(confirmAsTenant, { ticketId, clientRequestId: randomUUID(), timeoutMs: TIMEOUT_MS });
+          if (![200, 201].includes(result.resolved) || result.workStatus !== "COMPLETED") throw new Error(`access ${result.access}, 해결 확인 ${result.resolved}, 작업 상태 ${result.workStatus}`);
+        }));
+      }
     }
   } finally {
     await browser.close();
