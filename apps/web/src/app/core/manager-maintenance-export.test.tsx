@@ -33,6 +33,13 @@ it("saves the selected unit's facts in timeline order with the unit in the file 
   expect(lines[2]).toContain('"2026-09-22 11:00"');expect(lines[2]).toContain('"부품·위치 명칭 미기록","세입자 응답 미확인","1회"');
   expect(document.body.querySelector("[data-toast]")?.textContent).toBe("정비 이력 2건을 엑셀 파일(CSV)로 받았어요.");
 });
+// A change event for the unit already chosen (scripts, assistive tools) must not leave the list loading: no new read
+// starts for the same unit, so the screen keeps what it has (found by the browser test of the export).
+it("keeps the facts when the unit already chosen is chosen again",async()=>{
+  await mount();const select=host!.querySelector('select[aria-label="정비 이력 건물·호실"]') as HTMLSelectElement;
+  await act(async()=>{select.value="unit";select.dispatchEvent(new Event("change",{bubbles:true}));});await act(async()=>{for(let i=0;i<8;i++)await Promise.resolve();});
+  expect(host!.textContent).not.toContain("불러오는 중");expect(host!.querySelectorAll("[data-fact-id]")).toHaveLength(2);expect(exportButton().disabled).toBe(false);
+});
 it("keeps a failed save in place as an alert and shows no toast",async()=>{
   save.mockImplementationOnce(()=>{throw new Error("blocked");});
   await mount();await act(async()=>exportButton().click());
