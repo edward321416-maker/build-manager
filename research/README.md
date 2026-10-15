@@ -14,6 +14,7 @@
 | [ux/2026-10-10-home-management-scope-owner-reporting.md](ux/2026-10-10-home-management-scope-owner-reporting.md) | 집 관리 범위, 건물주 보고·승인, 모바일 알림 채널 후속 연구 |
 | [ux/2026-10-10-menu-audit.md](ux/2026-10-10-menu-audit.md) | 기능 배치·메뉴 점검: 역할별 과업 걷기, 문제 목록과 심각도, 탭 구성 권고, 개선 순서 |
 | [ux/2026-10-14-feature-connection-gap-analysis.md](ux/2026-10-14-feature-connection-gap-analysis.md) | 기능 연결·누락 분석: 기능 사이에 끊긴 연결, 분쟁 통계·법정 관리 일, 추가·연결 후보와 순서 |
+| [ux/2026-10-15-platform-roles-reference.md](ux/2026-10-15-platform-roles-reference.md) | 역할별 기기 나누기 점검: 관리자 데스크탑형 웹과 관리자·세입자 앱, 국내외 레퍼런스 비교 |
 | [interviews/landlord_guide.md](interviews/landlord_guide.md), [interviews/tenant_guide.md](interviews/tenant_guide.md) | 인터뷰 가이드 |
 
 ## 현재 근거 경계
