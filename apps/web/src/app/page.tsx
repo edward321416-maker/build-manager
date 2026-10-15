@@ -27,7 +27,7 @@ const MANAGER_STEPS: readonly Step[] = [
 ];
 const VENDOR_STEPS: readonly Step[] = [
   { title: "링크로 작업을 열고 수락해요", detail: "접수 요약과 관리자가 고른 사진만 보여요. 수락하거나 사유를 골라 거절해요." },
-  { title: "세입자가 보낸 시간 안에서 방문을 정해요", detail: "세입자가 가능한 시간을 보내면 그 안에서 방문 일정이 확정돼요." },
+  { title: "세입자와 방문 시간을 정해요", detail: "세입자가 가능한 시간을 보내면 업체가 그 시간을 참고해 제안하고, 세입자가 확정해요." },
   { title: "방문하고 사진과 함께 보고해요", detail: "방문을 시작하고, 작업 내용과 사진을 보고하면 관리자가 검토해요." },
 ];
 
@@ -58,12 +58,12 @@ function Landing({ entry }: { entry: Entry }) {
         <section className={styles.closing} aria-labelledby="closing-title">
           <div className={`${styles.container} ${styles.closingInner}`}>
             <h2 id="closing-title" className={styles.headline}>오늘 들어온 수리 요청부터<br />{" "}여기서 받아 보세요</h2>
-            <div id="entry" className={styles.entry}>
+            <section id="entry" className={styles.entry} aria-labelledby="entry-title">
               <h3 id="entry-title" className={styles.entryTitle}>{entry.title}</h3>
               <p>{entry.text}</p>
               {entry.actions}
               {entry.note}
-            </div>
+            </section>
           </div>
         </section>
       </ScrollScenes>

@@ -41,6 +41,8 @@ test("the first scene keeps its explanation out of sight until it shrinks, and s
   await expect.poll(() => opacity(page, "[data-hero-side]")).toBe("0");
   await page.locator("[data-hero-side] a").first().focus();
   await expect.poll(() => opacity(page, "[data-hero-side]")).toBe("1");
+  // The board is still full size here, so the explanation needs its own surface to keep its words off the drawing's.
+  expect(await page.locator("[data-hero-side]").evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
   // Focus, not scrolling, revealed it: the scene still reports the explanation as hidden.
   await expect(hero).toHaveAttribute("data-side", "hidden");
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
