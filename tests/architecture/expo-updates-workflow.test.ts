@@ -32,7 +32,7 @@ describe("expo updates workflow", () => {
     const triggers = /^on:\n([\s\S]*?)(?=^\S)/m.exec(config)?.[1] ?? "";
     expect(triggers.match(/^ +[^\s-][^:]*:/gm)).toEqual(["  schedule:", "  workflow_dispatch:"]);
     expect(triggers.match(/cron:.*$/gm)).toEqual(['cron: "41 0 * * 1"']);
-    expect(config.match(/^\s*if:.*$/gm)).toEqual(["    if: github.repository == 'edward321416-maker/build-manager'"]);
+    expect(config.match(/^\s*(?:-\s+)?["']?if["']?\s*:.*$/gm)).toEqual(["    if: github.repository == 'edward321416-maker/build-manager'"]);
     expect(config).not.toMatch(/pull_request|workflow_run|repository_dispatch/);
   });
 
@@ -40,7 +40,7 @@ describe("expo updates workflow", () => {
     expect(config).toMatch(/^permissions:\n {2}contents: read\n(?! )/m);
     expect(config).not.toMatch(/:\s*write\b/);
     expect(config).not.toMatch(/\bsecrets\b/);
-    const actions = config.match(/uses:\s*\S+/g) ?? [];
+    const actions = config.match(/["']?uses["']?\s*:\s*\S+/g) ?? [];
     expect(actions).toHaveLength(2);
     const appCheck = read(".github/workflows/app-check.yml");
     for (const action of actions) {
