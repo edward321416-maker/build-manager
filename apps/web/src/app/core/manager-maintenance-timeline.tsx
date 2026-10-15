@@ -4,9 +4,10 @@ import { ApiClientError,type CoreFlowClient } from "@build-manager/api-client";
 import { CoreMaintenanceFactCreateSchema,CoreMaintenanceFactCorrectionSchema,type CoreMaintenanceFactCreate,type CoreMaintenanceFactCorrection,type CoreTicketDto,type CoreMaintenanceActionKind,type CoreMaintenanceCorrectionReason,type CoreMaintenanceFactDetail,type CoreUnitMaintenanceFact,type CoreUnitDto } from "@build-manager/api-contracts";
 import { DateTime } from "../../components/date-time";
 import styles from "./manager-maintenance-timeline.module.css";
-const actionLabels:Record<CoreMaintenanceActionKind,string>={INSPECTION:"점검",REPAIR:"수리",PART_REPLACEMENT:"부품 교체",ADJUSTMENT:"조정",OTHER:"기타"};
-const reasonLabels:Record<CoreMaintenanceCorrectionReason,string>={ACTION_CLASSIFICATION:"작업 분류 정정",COMPONENT_LABEL:"부품·위치 명칭 정정",OTHER:"기타 정정"};
-const outcomeLabels:Record<CoreUnitMaintenanceFact["tenantOutcome"],string>={UNCONFIRMED:"세입자 응답 미확인",RESOLVED:"세입자가 해결됐다고 응답",UNRESOLVED:"세입자가 아직 문제가 있다고 응답",RECURRENCE_CLAIM:"세입자가 다시 문제가 생겼다고 응답"};
+import { actionLabels,outcomeLabels,reasonLabels } from "./maintenance-labels";
+import { Toast,useToastMessage } from "../../components/toast";
+import { csvFileName,csvText,downloadCsv } from "../../lib/csv-file";
+import { MAINTENANCE_EXPORT_HEADER,exportDate,maintenanceExportRows } from "./export-rows";
 export type EditorViewProps={completed:boolean;detail:CoreMaintenanceFactDetail|null;loading:boolean;error:string;notice:string;busy:boolean;editing:boolean;uncertain:boolean;reviewRequired:boolean;action:CoreMaintenanceActionKind;label:string;reason:CoreMaintenanceCorrectionReason;onAction(v:CoreMaintenanceActionKind):void;onLabel(v:string):void;onReason(v:CoreMaintenanceCorrectionReason):void;onSubmit():void;onEdit():void;onRefresh():void;onRetry():void;onReview():void;onOpenTicket(id:string):void;onViewUnit(id:string):void};
 export function MaintenanceEditorView(p:EditorViewProps){
  if(!p.completed)return null;
@@ -41,8 +42,9 @@ export function MaintenanceFactCard({fact,onOpenTicket}:{fact:CoreUnitMaintenanc
    {fact.followUpTicketId?<button onClick={()=>onOpenTicket(fact.followUpTicketId!)}>후속 접수 있음</button>:null}</div>
  </article>;
 }
-export function MaintenanceTimelineView({units,unitId,items,loading,error,disabled,onUnit,onRefresh,onOpenTicket}:{units:CoreUnitDto[];unitId:string;items:CoreUnitMaintenanceFact[];loading:boolean;error:string;disabled:boolean;onUnit(id:string):void;onRefresh():void;onOpenTicket(id:string):void}){
- return <section className={styles.timeline} aria-label="호실 정비 이력"><div className={styles.heading}><div><h2>호실 정비 이력</h2><p>완료 접수에서 관리자가 따로 기록한 사실이에요. 원본 완료 시각 순으로 최근 100건까지 표시해요.</p></div><button disabled={disabled||loading||!unitId} onClick={onRefresh}>이력 다시 불러오기</button></div>
+export function MaintenanceTimelineView({units,unitId,items,loading,error,disabled,onUnit,onRefresh,onOpenTicket,onExport,exportError}:{units:CoreUnitDto[];unitId:string;items:CoreUnitMaintenanceFact[];loading:boolean;error:string;disabled:boolean;onUnit(id:string):void;onRefresh():void;onOpenTicket(id:string):void;onExport():void;exportError:boolean}){
+ return <section className={styles.timeline} aria-label="호실 정비 이력"><div className={styles.heading}><div><h2>호실 정비 이력</h2><p>완료 접수에서 관리자가 따로 기록한 사실이에요. 원본 완료 시각 순으로 최근 100건까지 표시해요.</p></div><div className={styles.headingActions}><button disabled={disabled||loading||!unitId} onClick={onRefresh}>이력 다시 불러오기</button><button disabled={disabled||loading||!unitId||Boolean(error)||items.length===0} onClick={onExport}>엑셀로 받기</button></div></div>
+  {exportError?<p role="alert">파일을 만들지 못했어요. 다시 받아 주세요.</p>:null}
   <label>건물·호실<select aria-label="정비 이력 건물·호실" disabled={disabled||!units.length} value={unitId} onChange={e=>onUnit(e.target.value)}>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>
   {!units.length?<p>접근 가능한 호실이 없어요. 배정 상태를 확인하고 새로고침해 주세요.</p>:loading?<p role="status">호실 정비 이력 불러오는 중…</p>:error?<p role="alert">{error}</p>:items.length===0?<div className={styles.empty}><h3>아직 기록된 정비 사실이 없어요.</h3><p>완료된 접수에서 관리자가 정비 사실을 남기면 이곳에 표시돼요. 완료 접수만으로 자동 기록되지 않아요.</p></div>:<div className={styles.cards}>{items.map(f=><MaintenanceFactCard key={f.factId} fact={f} onOpenTicket={onOpenTicket}/>)}</div>}
  </section>;
@@ -94,5 +96,8 @@ export function ManagerMaintenanceTimeline({client,units,revision,disabled,onOpe
  const [selected,setSelected]=useState(initialUnit??units[0]?.id??""),[items,setItems]=useState<CoreUnitMaintenanceFact[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(""),[refresh,setRefresh]=useState(0);
  const unitId=units.some(u=>u.id===selected)?selected:(units[0]?.id??"");
  useEffect(()=>{let live=true;void Promise.resolve().then(async()=>{if(!live)return;setLoading(true);setItems([]);setError("");try{const rows=unitId?await client.maintenance.listUnit(unitId):[];if(live)setItems(rows);}catch{if(live){setItems([]);setError("이력을 불러오지 못했어요. 현재 배정과 연결을 확인하고 다시 불러와 주세요.");}}finally{if(live)setLoading(false);}});return()=>{live=false;};},[client,unitId,revision,refresh]);
- return <MaintenanceTimelineView units={units} unitId={unitId} items={items} loading={loading} error={error} disabled={disabled} onUnit={id=>{setLoading(true);setItems([]);setSelected(id);}} onRefresh={()=>{setLoading(true);setItems([]);setRefresh(v=>v+1);}} onOpenTicket={onOpenTicket}/>;
+ const [exportError,setExportError]=useState(false),[toast,showToast]=useToastMessage();
+ // The file holds the facts on screen for the selected unit, in timeline order (E1 spec).
+ const exportFacts=()=>{const unit=units.find(u=>u.id===unitId);if(!unit)return;try{downloadCsv(csvFileName(["정비이력",unit.buildingName,unit.label],exportDate(new Date())),csvText(MAINTENANCE_EXPORT_HEADER,maintenanceExportRows(items)));setExportError(false);showToast(`정비 이력 ${items.length}건을 엑셀 파일(CSV)로 받았어요.`);}catch{showToast("");setExportError(true);}};
+ return <><MaintenanceTimelineView units={units} unitId={unitId} items={items} loading={loading} error={error} disabled={disabled} onUnit={id=>{if(id===unitId)return;setLoading(true);setItems([]);setExportError(false);setSelected(id);}} onRefresh={()=>{setLoading(true);setItems([]);setExportError(false);setRefresh(v=>v+1);}} onOpenTicket={onOpenTicket} onExport={exportFacts} exportError={exportError}/><Toast message={toast}/></>;
 }

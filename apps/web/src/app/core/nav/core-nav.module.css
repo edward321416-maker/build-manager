@@ -68,7 +68,8 @@
   .shell .nav .badge { position: absolute; top: 0; left: calc(50% + .4375rem); }
   .shell[data-nav="on"]:not([data-sub="true"]) .content { padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px)); }
   .shell[data-sub="true"] .nav { display: none; }
-  :global(html):has(.shell[data-nav="on"]:not([data-sub="true"])) { scroll-padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px)); }
+  /* --toast-bottom puts a toast 10px above the tab bar (rules 8.9) only while the tab bar shows; toasts live on <body>. */
+  :global(html):has(.shell[data-nav="on"]:not([data-sub="true"])) { scroll-padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px)); --toast-bottom: calc(4.125rem + env(safe-area-inset-bottom, 0px)); }
 }
 @media (min-width: 768px) {
   /* Left menu (8.10): 248px; items 50 high, 15 inside left and right, icon 20, 5 to the label; account area last. */
