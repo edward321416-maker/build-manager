@@ -9,6 +9,8 @@ import { absoluteDateTime } from "../../lib/date-text";
 import { DateTime } from "../../components/date-time";
 import { BLOCKER_LABELS,OMISSION_LABELS,WAITING_LABELS } from "../../lib/vendor-blocker";
 import { ACCESS_POLICY_NAMES,SHARED_DETAIL_SOURCE_NAMES,buildingValueName } from "../../components/status-names";
+import { VisitCalendarButton } from "../../components/visit-calendar-button";
+import { managerVisitCalendar,visitCalendarFileName,visitStillAhead } from "../../lib/visit-calendar";
 export type VendorPacketDraft={vendorLabel:string;workSummary:string;sharedDetailKeys:string[];allowedPhotoIds:string[];accessPolicy:VendorAccessPolicy;accessInstruction:string};
 type PendingLinkRequest={kind:"ISSUE"|"REISSUE";assignmentId:string;input:Parameters<CoreVendorHandoffClient["issueLink"]>[1]};
 type ManagerAction="CLOSEOUT"|"CORRECTION"|"MORE_WORK"|"REASSIGN";
@@ -79,6 +81,7 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     </div>:null}
     {appointment?<div role="group" aria-label="방문 일정">
       <p>방문 일정 · {formatVendorInterval(appointment.startAt,appointment.endAt,at)} · {appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?"세입자가 동의한 시간 안에서 업체가 선택":"세입자 확정"}</p>
+      {packet&&visitStillAhead(appointment,at)?<VisitCalendarButton fileName={visitCalendarFileName(appointment)} build={()=>managerVisitCalendar(appointment,packet,p.ticket.ticketId,p.now??new Date())} disabled={blocked}/>:null}
       {canReschedule?(p.rescheduleReview?<div role="group" aria-label="방문 일정 변경 확인">
         <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 세입자와 업체가 새로 일정을 조율해요.</p>
         <button type="button" disabled={blocked} onClick={p.onReschedule}>일정 변경하기</button>
