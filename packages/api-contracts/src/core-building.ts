@@ -3,7 +3,8 @@ import { HeatingTypeSchema,ManagementModeSchema } from "./building";
 
 // P6 + C1 step 2 (docs/superpowers/specs/2026-10-15-building-setup-p6-design.md): organisation admins describe their buildings.
 const uuid=z.string().uuid();
-const singleLine=(max:number)=>z.string().trim().min(1).max(max).refine(value=>!/[\u0000-\u001f\u007f]/.test(value),{message:"INVALID_INPUT"});
+// The same filter as the vendor packet's plainSingle (vendor-handoff.ts): a saved name or address is sent to the vendor.
+const singleLine=(max:number)=>z.string().trim().min(1).max(max).refine(value=>!/[\p{Cc}\p{Cf}]/u.test(value),{message:"INVALID_INPUT"});
 export const CoreBuildingSummarySchema=z.object({buildingId:uuid,displayName:z.string().min(1).nullable(),unitCount:z.number().int().min(0),needsInfo:z.boolean()}).strict();
 export const CoreBuildingListSchema=z.object({editable:z.boolean(),items:z.array(CoreBuildingSummarySchema)}).strict();
 export const CoreBuildingInfoSchema=z.object({buildingId:uuid,displayName:z.string().min(1).nullable(),serviceAddress:z.string().min(1).nullable(),

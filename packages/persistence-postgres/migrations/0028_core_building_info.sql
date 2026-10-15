@@ -65,13 +65,15 @@ CREATE FUNCTION core_flow.save_building_info(p_digest bytea,p_property uuid,p_ex
  p_service_address text,p_heating text,p_management text) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE s jsonb; org uuid; b jsonb; current_version integer; at_text text; facts jsonb:='[]'::jsonb;
+ invisible CONSTANT text:='[\u0000-\u001f\u007f-\u009f­؀-؅؜۝܏࢐-࢑࣢᠎​-‏‪-‮⁠-⁤⁦-⁯﻿￹-￻\U000110bd\U000110cd\U00013430-\U0001343f\U0001bca0-\U0001bca3\U0001d173-\U0001d17a\U000e0001\U000e0020-\U000e007f]';
 BEGIN
  s:=core_flow.require_org_admin(p_digest); org:=(s->>'orgId')::uuid;
  PERFORM 1 FROM app.property p WHERE p.org_id=org AND p.id=p_property AND p.status='ACTIVE' AND authn.can_read_property(p_digest,org,p.id);
  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='NOT_FOUND'; END IF;
+ -- invisible: Unicode Cc and Cf (17.0), the same set the vendor packet's /[\p{Cc}\p{Cf}]/u refuses.
  IF p_expected_version IS NULL OR p_expected_version<0
-  OR p_name IS NULL OR p_name<>btrim(p_name) OR char_length(p_name) NOT BETWEEN 1 AND 50 OR p_name ~ '[[:cntrl:]]'
-  OR (p_service_address IS NOT NULL AND (p_service_address<>btrim(p_service_address) OR char_length(p_service_address) NOT BETWEEN 1 AND 200 OR p_service_address ~ '[[:cntrl:]]'))
+  OR p_name IS NULL OR p_name<>btrim(p_name) OR char_length(p_name) NOT BETWEEN 1 AND 50 OR p_name ~ invisible
+  OR (p_service_address IS NOT NULL AND (p_service_address<>btrim(p_service_address) OR char_length(p_service_address) NOT BETWEEN 1 AND 200 OR p_service_address ~ invisible))
   OR (p_heating IS NOT NULL AND p_heating NOT IN ('INDIVIDUAL','CENTRAL_SHARED'))
   OR (p_management IS NOT NULL AND p_management NOT IN ('OWNER_DIRECT','MANAGEMENT_OFFICE'))
  THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;

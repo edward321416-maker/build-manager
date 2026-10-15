@@ -11,9 +11,9 @@ Disposition: **ACCEPTED_FOR_DEVELOPMENT_MAIN** once CI passes on the final head.
 | Risk tier | High-risk: new migration with permission-checking `SECURITY DEFINER` functions, a manager response contract change, building facts that drive tenant questions and route recommendations, and the FROZEN B3 HTTP boundary (DEV-01) |
 | Operator decisions | 2026-10-15, in session: "4번 ㄱㄱ"; "정보 입력 + 새 화면 먼저 (추천)"; "추천에 쓴다 (추천)"; "A. 목록 → 건물 화면 (추천)"; "체험에서는 보기만 (추천)"; design "승인 (추천)" |
 | Design and plan | [Design](../docs/superpowers/specs/2026-10-15-building-setup-p6-design.md) (API lines corrected to the implementation: POST and the existing Core error codes), [plan](../docs/superpowers/plans/2026-10-15-building-info-save.md) (written after the approval, before the implementation) |
-| Policy | `POLICY_REF` main `2b872de`; the rulebooks are unchanged since `446ee50` |
-| Base | main `2b872de` |
-| Independent review | Recorded below before the merge |
+| Policy | `POLICY_REF` main `7969f4c`; the rulebooks are unchanged since `446ee50` |
+| Base | Implemented on main `2b872de`; main `7969f4c` (#168) merged in at `bb4f45f` before the PR |
+| Independent review | Fresh-context review agent, read-only, on `b134a40`: **With fixes**, no blocking or high findings. MEDIUM: the save filter refused only ASCII controls while the vendor packet refuses `\p{Cc}\p{Cf}`, so a pasted zero-width space or direction override in an address could later fail the manager's vendor handoff read (503); fixed in contract and SQL with tests. LOW: demo detection fails open if the demo configuration is switched off while a demo cookie lives (retained risk below); record counts and base (fixed here); spec lines on empty address and route files (fixed); the vendor-source check used `building_body` instead of `vendor_handoff_source` (the test now calls the real source). Nits (unpaged list, whole-body replace) are recorded as risks. |
 | PR | Recorded in the PR body with its final head and that head's CI |
 
 ## Change
@@ -37,9 +37,9 @@ Disposition: **ACCEPTED_FOR_DEVELOPMENT_MAIN** once CI passes on the final head.
 | T2 | Property staff or a tenant edits building info | ORG_ADMIN only, in SQL and in the route | Postgres and HTTP 403 |
 | T3 | A public demo visitor defaces names or addresses other visitors see | Demo sessions cannot save or register (403), and demo buildings cannot be saved by anyone | HTTP and B3 tests |
 | T4 | A wrong heating answer leads to wrong questions or route advice | Recommendations always need manager review; `null` (모름) keeps today's behaviour | Domain check in the Postgres file |
-| T5 | The vendor address reaches the wrong people | Only the existing vendor handoff reads it; tenant responses and the building list never carry it; nothing logs it | Response shapes |
+| T5 | The vendor address reaches the wrong people | Only the existing vendor handoff reads it; tenant responses and the building list never carry it; nothing logs it | Response shapes; `vendor_handoff_source` carries the saved name and address for the manager's ticket |
 | T6 | Two admins overwrite each other | Version check and a per-building advisory lock for the first save | Two-admin test, five rounds |
-| T7 | Long, multi-line or control-character input | Contract (`trim`, length, no control characters) and SQL checks, parameterised SQL | Contract and SQL bound tests |
+| T7 | Long, multi-line, control or invisible format characters | Contract (`trim`, length, no `\p{Cc}\p{Cf}`, the vendor packet's own rule) and the same set in SQL (Unicode 17.0 ranges), parameterised SQL | Contract and SQL bound tests (zero-width space, direction override, U+0085, soft hyphen, BOM, tag character) |
 | T8 | The manager response 503s once facts exist (C1 step 1 hand-over) | Widened response first, tested with zero, one and two facts | Contract and presenter tests |
 
 ## Verification
@@ -47,14 +47,14 @@ Disposition: **ACCEPTED_FOR_DEVELOPMENT_MAIN** once CI passes on the final head.
 All local runs on 2026-10-15 KST with Node 24.21.0 and npm 11.19.0.
 
 1. Response widening first failure: the contract test rejected one- and two-fact buildings, and the presenter threw a ZodError on a non-demo building with a fact. After: contracts 53/53, presenters 9/9. The old presenter expectation "a building with some context must fail" is replaced on purpose (design D2).
-2. Save path first failure: `tests/postgres/core-building-info.test.ts` failed structurally (no `buildings` scope, no functions), then 6/6.
+2. Save path first failure: `tests/postgres/core-building-info.test.ts` failed structurally (no `buildings` scope, no functions), then 6/6; with the HTTP test added in task 3 the file has 7 tests, 7/7.
    - One assertion first failed because the test read `building_body` without the organisation setting the vendor path uses; the test now sets `app.org_id` in a transaction (test fix, not a code change).
 3. Demo marker first failure: the B1 access test lacked `demo`, then 5/5. B3 demo guard first failure: 201 for a demo session, then 35/35.
-4. The HTTP route was written before its HTTP test ran. Its failure was shown afterwards by mutation (route removed, demo save allowed, demo shown editable, body unchecked: all killed). The ORG_ADMIN check in the route survives removal because the SQL function refuses the same sessions (equivalent).
+4. The HTTP route was written before its HTTP test ran. Its failure was shown afterwards by mutation: of 5 route mutants, 4 were killed (route removed, demo save allowed, demo shown editable, body unchecked); the ORG_ADMIN check in the route survives removal because the SQL function refuses the same sessions (equivalent). The same delta run re-ran the lock mutant from item 5 (6 mutants, 5 killed).
 5. Migration mutation, 9 copies: org-admin check removed, demo save allowed, version check removed, first-save lock removed, property permission skipped, control characters allowed, heating unchecked, facts not routing-eligible, helper executable by the web role. 8 killed at first. The surviving lock mutant ran under one admin session whose digest lock already serialised both saves; with a second admin session and five rounds the test kills it. All files were restored byte for byte.
 6. Related Postgres suites: `core-building-context-fallback`, `core-unit-list`, `core-unit-order`, `vendor-handoff-foundation` 42/42.
 7. DEV-06 / DEV-04 at the implementation head `5e34965` (base `2b872de`), run one after another on 2026-10-15 to 10-16 KST:
-   - `test:shared`: 53 files, 674 tests passed.
+   - `test:shared`: 53 files, 674 tests passed. After merging main (`bb4f45f`) the full run timed out 7 graph-boundary tests at 5 s (#119, parallel load); the four files run one at a time passed 39/39, and typecheck and the targeted web tests (56/56) passed.
    - `test:web`: the first run failed under host load from other sessions (a local model run and folder deletion): forks workers timed out on start and the photo decoding test hit its 5 s limit. The one allowed rerun passed 96 files, 1103 tests (DEV-06).
    - `lint`: 0 errors (8 existing warnings, none in a changed file). `typecheck`: exit 0. `build:web`: compiled. `check:deps`: exit 0.
    - `test:postgres`: 50 files, 658 of 659 passed. The failure was `tests/postgres/core-flow.test.ts` "pins RC1 owner, membership, FORCE RLS and exact capability exposure", which pins every `core_flow` function: the six 0028 functions were not in it. The pin now lists them, with web execute only on `building_info`, `org_buildings` and `save_building_info` (intended change, not a fixture fix); that file then passed 8/8. The full suite runs again as the PR's `postgres-integration` job.
@@ -73,5 +73,8 @@ All local runs on 2026-10-15 KST with Node 24.21.0 and npm 11.19.0.
 - The building list is not paged.
 - No rename or delete for buildings and units.
 - Org-admin facts are not checked against public registers; `OWNER_VERIFIED` means "an admin confirmed it".
+- Demo detection reads the demo configuration at request time. If demo entry is switched off (or its subject list stops parsing) while a demo session cookie is still valid (up to 1 hour), that session is treated as a normal admin and could save; the demo is synthetic and the window is short (review LOW, accepted).
+- A save replaces the whole stored body of a non-demo building; future non-demo facts written elsewhere would need merging first.
 - Not verified: any screen (PR 2), the hosted demo.
+- Review fixes (after `b134a40`): contract and SQL now refuse `\p{Cc}\p{Cf}` (first failure: contract 1 test and the SQL bounds test, then contracts 54/54 and the Postgres file 7/7), and the vendor-source check calls `core_flow.vendor_handoff_source`.
 - AI-written (Claude Opus 5.5, Claude Code). Human review: NOT_RUN.

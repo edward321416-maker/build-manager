@@ -303,6 +303,17 @@ describe("role-safe list responses", () => {
     );
   });
 
+  it("refuses building info text the vendor contract would refuse (control and format characters)", () => {
+    // P6 + C1 step 2 review (MEDIUM): a saved name or address reaches the vendor packet, which rejects \p{Cc}\p{Cf}.
+    const save = schema("CoreBuildingInfoSaveSchema");
+    const ok = { expectedVersion: 0, displayName: "합성 햇살빌라", serviceAddress: "합성 예시로 12", heatingType: null, managementMode: null };
+    expect(save.safeParse(ok).success).toBe(true);
+    for (const bad of ["​", "‮", "\u0085", "­", "﻿", "\u0007", "\n"]) {
+      expect(save.safeParse({ ...ok, displayName: `합성${bad}빌라` }).success, JSON.stringify(bad)).toBe(false);
+      expect(save.safeParse({ ...ok, serviceAddress: `합성${bad}예시로` }).success, JSON.stringify(bad)).toBe(false);
+    }
+  });
+
   it("accepts a non-demo building with zero, one or two verified fields, and nothing that misstates them", () => {
     // C1 step 1 (docs/superpowers/specs/2026-10-14-building-context-fallback-c1-design.md): a building without context.
     // P6 + C1 step 2 (docs/superpowers/specs/2026-10-15-building-setup-p6-design.md): org-admin facts on a non-demo building.

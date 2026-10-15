@@ -56,12 +56,10 @@ it("stores owner-verified facts the tenant's questions, the unit list and the ve
  expect(selectProtocol(building,"HEATING").id).toBe("HEATING_INDIVIDUAL_V1");
  const created=await tenant(s=>performCoreAction(s,{type:"CREATE",unitId:b.unit.id,issueType:"HEATING",rawUserText:"합성 P6 난방 접수"},{now:()=>new Date().toISOString()},{next:()=>randomUUID()}));
  expect(created.ticket.protocolId).toBe("HEATING_INDIVIDUAL_V1");
- // The vendor source reads building_body (0025) inside the organisation's scope; do the same here.
- await f.p.admin.query("BEGIN");
- try{
-  await f.p.admin.query("SELECT set_config('app.org_id',$1,true)",[data.orgA]);
-  expect((await f.p.admin.query("SELECT core_flow.building_body($1,$2)->>'serviceAddress' a",[data.orgA,b.property.id])).rows[0].a).toBe("합성 예시로 12");
- }finally{await f.p.admin.query("COMMIT");}
+ // The vendor packet's source (0019/0025, owner-only) carries the saved name and address for the manager's ticket.
+ const source=(await f.p.admin.query("SELECT core_flow.vendor_handoff_source($1,$2,NULL,false) s",[Buffer.from(data.accounts.manager.digest,"hex"),created.ticket.id])).rows[0].s;
+ expect(source.building).toMatchObject({displayName:"합성 햇살빌라",serviceAddress:"합성 예시로 12"});
+ expect(source.unitLabel).toBe("합성 P6 B 101");
  await run("manager",s=>s.buildings.save(b.property.id,input({expectedVersion:1,heatingType:null})));
  expect(selectProtocol(await tenant(s=>s.building(b.unit.id)) as Building,"HEATING").id).toBe("HEATING_UNKNOWN_V1");
 },90_000);
@@ -106,7 +104,10 @@ it("rejects a stale version, including two admins saving a new building at once"
 
 it("rejects input outside the bounds",async()=>{
  const b=await registered("E");
- for(const bad of [{displayName:""},{displayName:" 합성"},{displayName:"합성\n건물"},{displayName:"가".repeat(51)},{serviceAddress:""},{serviceAddress:"가".repeat(201)},{serviceAddress:"합성\t주소"},{heatingType:"DISTRICT"},{managementMode:"THIRD_PARTY_MANAGER"},{expectedVersion:-1}] as unknown as Partial<CoreBuildingInfoInput>[])
+ // Format characters too (review MEDIUM): the vendor packet refuses \p{Cc}\p{Cf}, so the database must never store them.
+ for(const bad of [{displayName:""},{displayName:" 합성"},{displayName:"합성\n건물"},{displayName:"가".repeat(51)},{serviceAddress:""},{serviceAddress:"가".repeat(201)},{serviceAddress:"합성\t주소"},
+  {displayName:"합성​건물"},{displayName:"합성‮건물"},{serviceAddress:"합성\u0085주소"},{serviceAddress:"합성­주소"},{serviceAddress:"합성\u{e0041}주소"},
+  {heatingType:"DISTRICT"},{managementMode:"THIRD_PARTY_MANAGER"},{expectedVersion:-1}] as unknown as Partial<CoreBuildingInfoInput>[])
   await expect(run("manager",s=>s.buildings.save(b.property.id,input(bad))),JSON.stringify(bad)).rejects.toMatchObject({code:"INVALID_INPUT"});
  expect(await run("manager",s=>s.buildings.save(b.property.id,input({displayName:"가".repeat(50),serviceAddress:"가".repeat(200)})))).toMatchObject({version:1});
 },60_000);

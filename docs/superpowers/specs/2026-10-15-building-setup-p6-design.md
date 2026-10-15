@@ -67,10 +67,10 @@
      - 조직 관리자만. 다른 조직 건물이나 없는 건물은 `NOT_FOUND`.
      - `demo: true`인 행은 `FORBIDDEN`으로 거절한다.
      - `p_expected_version`이 저장된 `version`(행이 없으면 0)과 다르면 `STATE_CONFLICT`로 거절한다(두 관리자가 동시에 고칠 때 덮어쓰지 않게). 행이 아직 없는 첫 저장도 건물별 잠금으로 차례를 지킨다.
-     - 입력 검사: 이름은 앞뒤 공백을 뺀 1–50자, 주소는 0–200자(빈 값이면 `null`), 둘 다 한 줄(줄바꿈·제어 문자 없음). 난방은 `INDIVIDUAL`·`CENTRAL_SHARED`·`null`, 관리는 `OWNER_DIRECT`·`MANAGEMENT_OFFICE`·`null`.
+     - 입력 검사: 이름은 앞뒤 공백이 없는 1–50자, 주소는 앞뒤 공백이 없는 1–200자 또는 `null`(빈 글자는 거절하므로 화면은 빈 칸을 `null`로 보낸다). 둘 다 유니코드 제어·서식 문자(`\p{Cc}\p{Cf}`, 업체 전달 계약과 같은 기준)가 없어야 한다. 난방은 `INDIVIDUAL`·`CENTRAL_SHARED`·`null`, 관리는 `OWNER_DIRECT`·`MANAGEMENT_OFFICE`·`null`.
      - 행이 없으면 만들고, 있으면 바꾼다. `body`는 `{"id":<property id>,"displayName":이름,"demo":false,"sourceNativeIds":{},"context":[확인된 사실],"serviceAddress":주소,"version":n+1,"updatedAt":지금}`. 사실은 `{"key":"heatingType","value":값,"sourceType":"OWNER_VERIFIED","sourceRef":"org_admin","verified":true,"routingEligible":true,"fetchedAt":null,"updatedAt":지금}` 모양이고, `null`인 칸은 사실을 넣지 않는다.
      - 돌려주는 값은 `building_info`와 같은 모양이다.
-3. API(`apps/web/src/app/api/v2/core/buildings/route.ts`, `.../buildings/[buildingId]/route.ts`, Node 런타임·dynamic)
+3. API(기존 Core 경로 `apps/web/src/app/api/v2/core/[...path]/route.ts` → `apps/web/src/server/core-flow/http.ts`, Node 런타임·dynamic)
    - `GET /api/v2/core/buildings`, `GET /api/v2/core/buildings/{id}`, `POST /api/v2/core/buildings/{id}`(본문: `expectedVersion`, `displayName`, `serviceAddress`, `heatingType`, `managementMode`). Core HTTP는 GET·POST만 받으므로 저장도 POST다.
    - 기존 Core API처럼 세션 쿠키, `x-core-organization`, 쓰기에는 `x-b1-csrf`를 확인한다.
    - 응답 계약은 `packages/api-contracts`에 둔다(`CoreBuildingSummarySchema`, `CoreBuildingInfoSchema`, `CoreBuildingInfoSaveSchema`). 각 건물 응답에 `editable`(조직 관리자, 체험 세션 아님, 체험용 건물 아님)을 함께 준다.
