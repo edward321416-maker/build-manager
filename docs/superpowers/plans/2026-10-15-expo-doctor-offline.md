@@ -6,7 +6,7 @@
 
 **Goal:** CI `mobile-health`의 Expo Doctor가 Expo의 새 패치판 때문에 실패하지 않게 하고, 새 패치판 소식은 매주 정기 실행의 실패 알림으로 받는다.
 
-**Architecture:** Doctor 단계에만 `EXPO_OFFLINE: "1"`을 더한다. AC17은 그 3줄만 글자 그대로 되돌리는 투영으로 허용한다. 새 정기 워크플로가 매주 온라인 `npx expo install --check`를 돌린다.
+**Architecture:** Doctor 단계에만 `EXPO_OFFLINE: "1"`을 더한다. AC17은 그 2줄만 글자 그대로 되돌리는 투영으로 허용한다. 새 정기 워크플로가 매주 온라인 `npx expo install --check`를 돌린다.
 
 **Tech Stack:** GitHub Actions(ubuntu-24.04), Node 24.21.0, npm 11.19.0, Expo Doctor 1.20.4, @expo/cli 57.0.30, vitest(`vitest.shared.config.ts`).
 
@@ -43,6 +43,13 @@
 - [ ] `apps/mobile`에서 온라인 `npx --yes expo-doctor@1.20.4 .` → 실패 기대, `EXPO_OFFLINE=1` → 통과 기대, 온라인 `npx expo install --check` → 실패 기대
 - [ ] 같은 복제본의 `node_modules/expo/bundledNativeModules.json`에서 `expo-router` 값 하나를 바꾸고 `EXPO_OFFLINE=1` Doctor → 실패 기대, 되돌리고 → 통과 기대
 - [ ] 결과를 수락 기록에 적고 복제본을 지운다.
+
+### Task 3b: 독립 리뷰 반영(리뷰 뒤 추가)
+
+- [x] 매주 점검: `EXPO_NO_CACHE: "1"`, 출력 저장, 오프라인 전환 경고("Networking has been disabled", "Unable to reach well-known versions endpoint", "offline-mode")에서 실패. 워크플로의 단계 글자를 그대로 꺼내 정상·서버 닿지 않음(DNS 실패 흉내)·패키지 뒤처짐 세 경우로 돌림
+- [x] 워크플로 시험 강화(트리거 전체, `if:` 하나, `uses:` 공백, `secrets[...]`, 마지막 단계 전체 고정), 변형 28개
+- [x] AC17 시험: 단계를 실제로 옮기는 경우와 복사하는 경우를 따로
+- [x] 기록: "3줄" → "2줄", 재현 때 @expo/cli 57.0.29, 검사 시점
 
 ### Task 4: 검사와 기록
 

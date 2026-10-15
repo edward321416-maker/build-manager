@@ -444,9 +444,15 @@ it("AC17 Expo Doctor offline projection admits only EXPO_OFFLINE=\"1\" on the pi
     expect(candidate,"negative fixture changes the workflow").not.toBe(source);
     expect(()=>inventory(candidate)).toThrow();
   }
-  const doctorStart=source.indexOf("      - name: Verify pinned Expo Doctor"), exportStart=source.indexOf("      - name: Export Android and iOS");
-  expect(doctorStart>0&&doctorStart<exportStart).toBe(true);
-  expect(()=>inventory(source.slice(0,exportStart)+source.slice(doctorStart,exportStart)+source.slice(exportStart))).toThrow();
+  const doctorStart=source.indexOf("      - name: Verify pinned Expo Doctor"), exportStart=source.indexOf("      - name: Export Android and iOS"), exportEnd=source.indexOf("\n\n  postgres-integration:")+1;
+  expect(doctorStart>0&&doctorStart<exportStart&&exportStart<exportEnd).toBe(true);
+  const doctorBlock=source.slice(doctorStart,exportStart), exportBlock=source.slice(exportStart,exportEnd);
+  // The Doctor step copied once more, then moved after the export step.
+  expect(()=>inventory(source.slice(0,exportStart)+doctorBlock+source.slice(exportStart))).toThrow();
+  const moved=source.slice(0,doctorStart)+exportBlock+doctorBlock+source.slice(exportEnd);
+  expect(moved.length).toBe(source.length);
+  expect(moved.indexOf("      - name: Export Android and iOS")).toBeLessThan(moved.indexOf("      - name: Verify pinned Expo Doctor"));
+  expect(()=>inventory(moved)).toThrow();
 });
 it("AC01 B5 server graph excludes raw driver/demo/testing and exposes only the exact individual route",async()=>{
   const entries=(await readdir("apps/web/src/server/b5")).filter(p=>p.endsWith(".ts")&&!p.endsWith(".test.ts")).map(p=>join("apps/web/src/server/b5",p));

@@ -46,4 +46,15 @@ jobs:
       - name: Compare the mobile packages with Expo's live SDK list
         shell: bash
         working-directory: apps/mobile
-        run: npx expo install --check
+        env:
+          EXPO_NO_CACHE: "1"
+        # When Expo's service cannot be reached (DNS failure or connect timeout), @expo/cli switches itself to offline
+        # mode, compares with the installed expo package's own list and still exits 0. Such a run says nothing about
+        # patch releases, so it fails on those messages instead of passing.
+        run: |
+          set -o pipefail
+          npx expo install --check 2>&1 | tee "$RUNNER_TEMP/expo-install-check.log"
+          if grep -Eq "Networking has been disabled|Unable to reach well-known versions endpoint|offline-mode" "$RUNNER_TEMP/expo-install-check.log"; then
+            echo "::error::Expo's version service could not be reached, so this run cannot tell whether a patch release is out."
+            exit 1
+          fi
