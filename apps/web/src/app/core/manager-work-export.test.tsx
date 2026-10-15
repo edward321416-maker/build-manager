@@ -31,7 +31,7 @@ it("saves the rows the filters show, in screen order, under the ledger header",a
   await act(async()=>exportButton()!.click());
   expect(save).toHaveBeenCalledTimes(1);const [name,text]=save.mock.calls[0];
   expect(name).toMatch(/^업무함_\d{4}-\d{2}-\d{2}\.csv$/);
-  const lines=text.slice(1).split("\r\n");expect(text.charAt(0)).toBe("﻿");expect(lines[0]).toBe(header);
+  const lines=text.slice(1).split("\r\n");expect(text.charCodeAt(0)).toBe(0xfeff);expect(lines[0]).toBe(header);
   expect(lines.slice(1,3).map(line=>line.includes(open.ticketId)?"open":line.includes(done.ticketId)?"done":"?")).toEqual(["open","done"]);
   await choose("처리 상태","COMPLETED");await act(async()=>exportButton()!.click());
   const filtered=save.mock.calls[1][1].slice(1).split("\r\n");expect(filtered).toHaveLength(3);expect(filtered[1]).toContain(done.ticketId);
@@ -45,6 +45,18 @@ it("cannot be pressed while loading, after a load error, with no rows or while t
   await mount(async()=>{throw new Error("synthetic");});expect(exportButton()!.disabled).toBe(true);await act(async()=>root!.unmount());root=undefined;host!.remove();
   await mount(async()=>[]);expect(exportButton()!.disabled).toBe(true);await act(async()=>root!.unmount());root=undefined;host!.remove();
   await mount(async()=>[open],true);expect(exportButton()!.disabled).toBe(true);
+});
+// After a failed reload the earlier rows stay in memory (so `visible` is not empty) but the list gives way to the error;
+// the button must not export rows nobody can see.
+it("cannot be pressed after a failed reload even though the earlier rows are still held",async()=>{
+  host=document.createElement("div");document.body.append(host);root=createRoot(host);
+  const list=vi.fn<()=>Promise<CoreManagerWorkItem[]>>().mockResolvedValueOnce([open]).mockRejectedValueOnce(new Error("synthetic"));
+  const client={manager:{list},communication:{summaries:vi.fn(async()=>[])}} as unknown as CoreFlowClient;
+  const render=(revision:number)=>act(async()=>root!.render(<ManagerWorkQueue client={client} units={units} revision={revision} onOpen={()=>{}} disabled={false}/>));
+  await render(0);await flush();expect(exportButton()!.disabled).toBe(false);
+  await render(1);await flush();
+  expect(list).toHaveBeenCalledTimes(2);expect(host!.textContent).toContain("업무함을 불러오지 못했어요.");
+  expect(exportButton()!.disabled).toBe(true);
 });
 it("keeps a failed save in place as an alert and shows no toast",async()=>{
   save.mockImplementationOnce(()=>{throw new Error("blocked");});

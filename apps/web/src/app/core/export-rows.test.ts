@@ -27,5 +27,7 @@ it("keeps Seoul time and the Seoul download date whatever zone the browser is in
 it("keeps the given order and never adds tenant text",()=>{
   const second={...item,ticketId:"a83d77b0-41c5-4f0e-8d7a-6b2e9f3c1c02"};
   expect(workExportRows([second,item]).map(row=>row[9])).toEqual([second.ticketId,item.ticketId]);
-  expect(JSON.stringify(workExportRows([item]))).not.toMatch(/rawUserText|메모|연락처/);
+  // Extra fields a future response might carry never reach a row: rows are built from named fields only.
+  const extra={...item,rawUserText:"세입자가 쓴 합성 설명",tenantName:"합성 세입자",tenantPhone:"합성 연락처",internalNote:"합성 내부 메모"} as unknown as CoreManagerWorkItem;
+  expect(JSON.stringify(workExportRows([extra]))).not.toMatch(/세입자가 쓴|합성 세입자|합성 연락처|내부 메모/);
 });

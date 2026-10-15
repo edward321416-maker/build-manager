@@ -29,9 +29,9 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selected
   const visible=items.filter(x=>(!unit||x.unitId===unit)&&(status==="ALL"||x.workStatus===status)&&(priority==="ALL"||x.priority===priority)).sort((a,b)=>compareManagerWork(a,b,now));
   const [fileError,setFileError]=useState(false),[toast,showToast]=useToastMessage();
   // The file holds exactly the rows the filters show, in screen order (E1 spec).
-  const exportVisible=()=>{try{downloadCsv(csvFileName(["업무함"],exportDate(new Date())),csvText(WORK_EXPORT_HEADER,workExportRows(visible)));setFileError(false);showToast(`업무함 ${visible.length}건을 엑셀 파일(CSV)로 받았어요.`);}catch{setFileError(true);}};
+  const exportVisible=()=>{try{downloadCsv(csvFileName(["업무함"],exportDate(new Date())),csvText(WORK_EXPORT_HEADER,workExportRows(visible)));setFileError(false);showToast(`업무함 ${visible.length}건을 엑셀 파일(CSV)로 받았어요.`);}catch{showToast("");setFileError(true);}};
   return <section aria-label="관리 업무함" className={styles.queue}>
-    <div className={styles.title}><div><h2>접수 목록</h2><p>미완료 · 기한 지남 · 긴급도 순</p></div><span className={styles.titleActions}>{error||conversation.error?<button disabled={loading||disabled} onClick={()=>{setLoading(true);setRefresh(v=>v+1);}}>업무함 다시 불러오기</button>:null}<button disabled={loading||error||disabled||visible.length===0} onClick={exportVisible}>엑셀로 받기</button><Toast message={toast}/></span></div>
+    <div className={styles.title}><div><h2>접수 목록</h2><p>미완료 · 기한 지남 · 긴급도 순</p></div><span className={styles.titleActions}>{error||conversation.error?<button disabled={loading||disabled} onClick={()=>{setLoading(true);setFileError(false);setRefresh(v=>v+1);}}>업무함 다시 불러오기</button>:null}<button disabled={loading||error||disabled||visible.length===0} onClick={exportVisible}>엑셀로 받기</button><Toast message={toast}/></span></div>
     <div className={styles.filters}>
       <label>호실<select aria-label="건물·호실" value={unit} onChange={e=>setUnit(e.target.value)}><option value="">모든 호실</option>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>
       <label>상태<select aria-label="처리 상태" value={status} onChange={e=>setStatus(e.target.value)}><option value="ALL">전체</option>{Object.entries(WORK_STATUS_NAMES).map(([value,name])=><option key={value} value={value}>{name}</option>)}</select></label>
