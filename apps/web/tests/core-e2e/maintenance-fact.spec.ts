@@ -79,3 +79,16 @@ test("real timeline distinguishes loading, retryable error and empty unit withou
  await routeOnce(page,"**/maintenance-timeline",async route=>{await gate;await route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:{code:"DEPENDENCY_UNAVAILABLE",message:"합성 장애"}})});});await openMoreRow(page,"호실 정비 이력");await expect(timeline(page).getByText("호실 정비 이력 불러오는 중…",{exact:true})).toBeVisible();release();await expect(timeline(page).getByRole("alert")).toBeVisible();await timeline(page).getByRole("button",{name:"이력 다시 불러오기",exact:true}).click();await expect(timeline(page).getByRole("alert")).toHaveCount(0);
  const state=JSON.parse(await readFile(join(root,"state.json"),"utf8"));await timeline(page).getByLabel("정비 이력 건물·호실").selectOption(state.fixture.unitOther);await expect(timeline(page).getByText("아직 기록된 정비 사실이 없어요.",{exact:true})).toBeVisible();await openTab(page,"업무함");await expect(page.getByRole("region",{name:"관리 업무함",exact:true})).toBeVisible();
 });
+test("excel export: the unit history downloads as a UTF-8 CSV that starts with the completion date",async({page,request})=>{
+ const s=await setup(request),fact=await s.post(s.factPath,{clientRequestId:randomUUID(),actionKind:"REPAIR",componentLabel:"=합성 수식 부품"},"manager",201);
+ await page.setViewportSize({width:1440,height:1000});await login(page);await openMoreRow(page,"호실 정비 이력");
+ const rows=timeline(page);await rows.getByLabel("정비 이력 건물·호실").selectOption(s.unit);await expect(rows.locator(`[data-fact-id="${fact.factId}"]`)).toBeVisible();
+ // The toast lasts 3 seconds (design rules 8.9), so it is checked before waiting for the saved file.
+ const waiting=page.waitForEvent("download");await rows.getByRole("button",{name:"엑셀로 받기",exact:true}).click();
+ await expect(page.locator("[data-toast]")).toHaveText(/^정비 이력 \d+건을 엑셀 파일\(CSV\)로 받았어요\.$/);const file=await waiting;
+ expect(file.suggestedFilename()).toMatch(/^정비이력_.+_\d{4}-\d{2}-\d{2}\.csv$/);
+ const bytes=await readFile((await file.path())!);expect([...bytes.subarray(0,3)]).toEqual([0xef,0xbb,0xbf]);
+ const lines=bytes.subarray(3).toString("utf8").split("\r\n");
+ expect(lines[0]).toBe('"관리자 처리 완료","건물","호실","문제","조치","부품·위치","세입자 응답","정정","사실 기록","근거 요청 번호","비고"');
+ const row=lines.find(line=>line.includes(s.id))!;expect(row).toMatch(/^"\d{4}-\d{2}-\d{2} \d{2}:\d{2}",/);expect(row).toContain('"수리","\'=합성 수식 부품"');expect(row.endsWith(`"${s.id}",""`)).toBe(true);
+});

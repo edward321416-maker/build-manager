@@ -2,7 +2,7 @@
    radii by role (15 group, 10 inner box), rule tokens and type styles. */
 .timeline,.editor{min-width:0;max-width:100%;padding:1.25rem;border:1px solid var(--color-border);border-radius:.9375rem;background:var(--color-surface);overflow-wrap:anywhere}
 .timeline{margin:1.25rem}.editor{margin-top:1.25rem}
-.heading{display:flex;justify-content:space-between;align-items:start;gap:.625rem}.heading h2,.editor h2{margin:0}
+.heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:start;gap:.625rem}.heading>div:first-child{flex:1 1 12rem;min-width:0}.headingActions{display:flex;flex-wrap:wrap;gap:.625rem}.heading h2,.editor h2{margin:0}
 .hint,.heading p{margin-top:.625rem;color:var(--color-text-secondary);font-size:.9375rem;line-height:1.5625rem}
 /* Facts are list rows split by 1px lines inside the history group, not boxes in a box (rules §6.3, §8.5). */
 .cards{display:grid;margin-top:1.25rem;border-bottom:1px solid var(--color-border)}
@@ -14,6 +14,6 @@
 .fields{display:grid;gap:1.25rem;margin-top:1.25rem;padding:0;border:0;min-width:0}.fields p{margin:0}
 .revisions{padding-left:1.25rem}.revisions li{margin-top:.625rem}.revisions p{font-size:.8125rem;line-height:1.125rem;letter-spacing:0}
 .empty{padding:1.875rem 0}
-@media(max-width:767px){.heading{display:block}.actions{flex-direction:column}.actions button{width:100%}}
+@media(max-width:767px){.heading{display:block}.headingActions{margin-top:.625rem}.actions{flex-direction:column}.actions button{width:100%}}
 @media(min-width:768px){.timeline{margin:1.875rem;padding:1.5625rem}}
 @media(min-width:1440px){.timeline{margin:2.5rem}}
