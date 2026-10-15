@@ -1,0 +1,60 @@
+# Weekly online check of the mobile packages against Expo's live SDK list (spec:
+# docs/superpowers/specs/2026-10-15-expo-doctor-offline-design.md). PRs run the pinned Expo Doctor with EXPO_OFFLINE, so
+# Expo patch releases no longer fail them; this run is how we hear about those releases. It fails when Expo expects newer
+# versions than package-lock.json has, and GitHub then notifies the user who last changed the cron line. Taking a patch
+# release is a separate, operator-approved change (`npx expo install --fix`, DEV-10). GitHub turns scheduled workflows
+# off in a public repository after 60 days without activity; turn this one back on with
+# `gh workflow enable expo-updates.yml`.
+name: Expo updates
+
+on:
+  schedule:
+    # Mondays 00:41 UTC (09:41 in Seoul); minute 41 avoids the top-of-hour delays.
+    - cron: "41 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: expo-updates
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.repository == 'edward321416-maker/build-manager'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.21.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Verify exact runtime
+        shell: bash
+        run: |
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "11.19.0"
+      - name: Install
+        shell: bash
+        run: |
+          npm ci
+      - name: Compare the mobile packages with Expo's live SDK list
+        shell: bash
+        working-directory: apps/mobile
+        env:
+          EXPO_NO_CACHE: "1"
+        # When Expo's service cannot be reached (DNS failure or connect timeout), @expo/cli switches itself to offline
+        # mode, compares with the installed expo package's own list and still exits 0. Such a run says nothing about
+        # patch releases, so it fails on those messages instead of passing.
+        run: |
+          set -o pipefail
+          npx expo install --check 2>&1 | tee "$RUNNER_TEMP/expo-install-check.log"
+          if grep -Eq "Networking has been disabled|Unable to reach well-known versions endpoint|offline-mode" "$RUNNER_TEMP/expo-install-check.log"; then
+            echo "::error::Expo's version service could not be reached, so this run cannot tell whether a patch release is out."
+            exit 1
+          fi
