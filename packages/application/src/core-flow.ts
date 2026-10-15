@@ -20,7 +20,15 @@ export type CoreEvent = { id: string; kind: string; actorRole: CoreSession["role
 export type CoreRecord = { ticket: Ticket; building: Building; workStatus: CoreWorkStatus; version: number; events: CoreEvent[] };
 export type CorePhoto = {photoId:string;uploadId:string;createdAt:string;mime:"image/jpeg"|"image/png";byteSize:number;width:number;height:number};
 export type CorePhotoInput = {uploadId:string;mime:CorePhoto["mime"];width:number;height:number;bytes:Uint8Array};
+// P6 + C1 step 2 (docs/superpowers/specs/2026-10-15-building-setup-p6-design.md): organisation admins describe their buildings.
+export type CoreHeatingType = "INDIVIDUAL" | "CENTRAL_SHARED";
+export type CoreManagementMode = "OWNER_DIRECT" | "MANAGEMENT_OFFICE";
+export type CoreBuildingSummary = { buildingId: string; displayName: string | null; unitCount: number; needsInfo: boolean };
+export type CoreBuildingInfo = { buildingId: string; displayName: string | null; serviceAddress: string | null; heatingType: CoreHeatingType | null; managementMode: CoreManagementMode | null; demo: boolean; version: number; unitCount: number };
+export type CoreBuildingInfoInput = { expectedVersion: number; displayName: string; serviceAddress: string | null; heatingType: CoreHeatingType | null; managementMode: CoreManagementMode | null };
+export type CoreBuildingScope = { list(): Promise<CoreBuildingSummary[]>; read(buildingId: string): Promise<CoreBuildingInfo>; save(buildingId: string, input: CoreBuildingInfoInput): Promise<CoreBuildingInfo> };
 export type CoreScope = {
+  buildings: CoreBuildingScope;
   maintenance: CoreMaintenanceFactScope;
   outcome: CoreOutcomeScope;
   communication: CoreTicketCommunicationScope;

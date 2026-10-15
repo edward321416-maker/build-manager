@@ -7,6 +7,7 @@ import { getCoreFlowContainer,type CoreHTTPDependencies } from "./container";
 import { handlePhotoRequest,PhotoRequestError } from "./photos";
 import { handleOnboarding } from "./onboarding";
 import { handleManagerVendorHandoff,handleTenantVendorScheduling,isManagerVendorHandoffRoute,isTenantVendorSchedulingRoute } from "./vendor-handoff";
+import { CoreBuildingListSchema,CoreBuildingInfoSchema,CoreBuildingInfoSaveSchema } from "@build-manager/api-contracts";
 import { CoreManagerWorkItemsSchema,CoreManagerWorkItemSchema,CoreManagerWorkUpdateSchema,CoreManagerInternalNotesSchema,CoreManagerInternalNoteSchema,CoreManagerInternalNoteCreateSchema } from "@build-manager/api-contracts";
 import { sendCoreCommunication } from "@build-manager/application";
 import { CoreCommunicationPageSchema,CoreCommunicationSendSchema,CorePublicMessageSchema,CoreCommunicationSummariesSchema } from "@build-manager/api-contracts";
@@ -66,9 +67,10 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
     }else if(communicationSummaries){
       if([...url.searchParams.keys()].some(k=>k!=="ticketId")||summaryIds.length>50||summaryIds.some(id=>!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id)))fail("INVALID_INPUT");
     }else if([...url.searchParams.keys()].some(k=>k!=="unitId" || route!=="tickets" || request.method!=="GET") || url.searchParams.getAll("unitId").length>1)fail("INVALID_INPUT");
-    let hash:string,port=d.port,organization:string|undefined;
+    let hash:string,port=d.port,organization:string|undefined,demoSession=false;
     if(d.b1){
       const current=await d.b1.current(request);
+      demoSession=current.demo===true;
       if(route==="access"&&request.method==="GET")return json(CoreAccessSchema.parse({authentication:"B1",synthetic:true,csrf:current.csrf,organizations:await d.b1.access.organizations(current.digest)}));
       if(route==="login"||route==="logout")fail("NOT_FOUND");
       const org=request.headers.get("x-core-organization");
@@ -133,6 +135,19 @@ export async function handleCoreFlow(request:Request,segments:string[],resolve:(
           return json(CoreManagerInternalNoteSchema.parse(await scope.manager.appendNote(id,input.body)),201);
         }
         fail("NOT_FOUND");
+      }
+      // P6 + C1 step 2: organisation admins only (B1), never written from a login-free demo session (D4).
+      if(segments[0]==="buildings"){
+        if(!d.b1)fail("NOT_FOUND");
+        if(scope.session.role!=="ORG_ADMIN")fail("FORBIDDEN");
+        if(segments.length===1&&request.method==="GET")return json(CoreBuildingListSchema.parse({editable:!demoSession,items:await scope.buildings.list()}));
+        const id=segments[1];
+        if(segments.length!==2)fail("NOT_FOUND");
+        if(!id||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id))fail("INVALID_INPUT");
+        if(request.method==="GET"){const info=await scope.buildings.read(id);return json(CoreBuildingInfoSchema.parse({...info,editable:!demoSession&&!info.demo}));}
+        if(demoSession)fail("FORBIDDEN");
+        const info=await scope.buildings.save(id,parse(CoreBuildingInfoSaveSchema,await body(request)));
+        return json(CoreBuildingInfoSchema.parse({...info,editable:!info.demo}));
       }
       if(route==="session" && request.method==="GET")return json(CoreSessionSchema.parse({role:scope.session.role,synthetic:true}));
       if(route==="logout" && request.method==="POST"){
