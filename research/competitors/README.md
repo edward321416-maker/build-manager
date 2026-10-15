@@ -29,16 +29,24 @@ The [IA reference note](../ux/2026-10-10-ia-feature-audit-reference.md) §6 comp
 - [FACT] 더빌딩솔루션 and 온자리 product statements used there were re-read at their official pages (SRC-113, SRC-116). Their other claims in the table below remain TO VERIFY.
 - The [home-management follow-up](../ux/2026-10-10-home-management-scope-owner-reporting.md) adds 랜들리's delegation flow (SRC-135), 안심이's move-in/move-out records (SRC-136) and Property Meld's owner documentation (SRC-134) as benchmarks for owner reporting and move-in/move-out features.
 
+## AI use at domestic services and Modu Startup selectees (2026-10-15)
+
+The [AI-use note](2026-10-15-ai-use-advancers-and-operators.md) re-opened official pages on 2026-10-15 (SRC-186–SRC-189, SRC-196) and press reports on Modu Startup selectees and audition criteria (SRC-179–SRC-185).
+
+- [FACT] 더빌딩솔루션 describes AI call answering, summaries, type/urgency classification and unit tickets; LH 내집속속 describes photo-based vision-AI classification; 온자리 describes watermarked, hashed move-in/move-out photos and lists AI photo comparison as in preparation (CLM-174–CLM-176).
+- [FACT] On 2026-10-15 ansim2.com no longer showed the move-in/move-out wording recorded under SRC-136; that service's state is UNKNOWN (CLM-177).
+- [HYPOTHESIS] AI intake, photo classification and move-in/move-out photo comparison cannot alone differentiate build-manager (CLM-182).
+
 ## Unverified / legacy leads
 
 The following earlier leads remain **TO VERIFY** and are not used as current canonical competitor facts:
 
 | Region | Candidate lead | Starting point | State |
 | --- | --- | --- | --- |
-| Korea | LH 집속속 | https://myhomesok2.lh.or.kr/ | TO VERIFY |
+| Korea | LH 내집속속 (formerly listed as 집속속) | https://myhomesok2.lh.or.kr/ | Landing page re-read 2026-10-15 (SRC-187, CLM-175); other claims TO VERIFY |
 | Korea | 더빌딩솔루션 | https://www.thebldgs.com/ | TO VERIFY |
-| Korea | 온자리 | https://www.on-jari.com/ | TO VERIFY |
-| Korea | 안심이 | https://ansim2.com/ | TO VERIFY |
+| Korea | 온자리 | https://www.on-jari.com/ | Home page re-read 2026-10-15 (SRC-188, CLM-176); other claims TO VERIFY |
+| Korea | 안심이 | https://ansim2.com/ | 2026-10-15 page no longer shows the move-in/move-out service (SRC-189, CLM-177); state UNKNOWN |
 | International | HomeLantern | https://www.homelantern.app/ | TO VERIFY |
 | International | Residia AI | https://residia.ai/ | TO VERIFY |
 

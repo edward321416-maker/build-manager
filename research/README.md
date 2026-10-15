@@ -10,6 +10,7 @@
 | [sources/claim_registry.csv](sources/claim_registry.csv) | 주장 레지스트리(`CLM-`) |
 | [sources/provenance_backfill_plan.md](sources/provenance_backfill_plan.md), [sources/s1_row_source_map.csv](sources/s1_row_source_map.csv) | 출처 보강 계획과 S1 행 출처 대응표 |
 | [competitors/README.md](competitors/README.md) | 경쟁·벤치마크 색인 |
+| [competitors/2026-10-15-ai-use-advancers-and-operators.md](competitors/2026-10-15-ai-use-advancers-and-operators.md) | AI·신기술 활용 조사: 모두의 창업 진출작과 심사 기준, 국내외 임대·유지보수 서비스의 AI 쓰임새 |
 | [ux/2026-10-10-ia-feature-audit-reference.md](ux/2026-10-10-ia-feature-audit-reference.md) | 기능 배치·메뉴 구조 점검 전 레퍼런스·연구 분석 |
 | [ux/2026-10-10-home-management-scope-owner-reporting.md](ux/2026-10-10-home-management-scope-owner-reporting.md) | 집 관리 범위, 건물주 보고·승인, 모바일 알림 채널 후속 연구 |
 | [ux/2026-10-10-menu-audit.md](ux/2026-10-10-menu-audit.md) | 기능 배치·메뉴 점검: 역할별 과업 걷기, 문제 목록과 심각도, 탭 구성 권고, 개선 순서 |
