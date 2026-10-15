@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BuildingPassportDtoSchema, UnverifiedBuildingDtoSchema } from "./building";
+import { BuildingPassportDtoSchema, OrgBuildingDtoSchema } from "./building";
 import {
   EvidenceStatusSchema,
   IssueTypeSchema,
@@ -75,7 +75,7 @@ const SubmittedSyntheticEvidenceDtoSchema = z
 export const LandlordTicketDetailDtoSchema = z
   .object({
     ticketId: z.string().trim().min(1),
-    building: z.union([BuildingPassportDtoSchema, UnverifiedBuildingDtoSchema]),
+    building: z.union([BuildingPassportDtoSchema, OrgBuildingDtoSchema]),
     issueType: IssueTypeSchema,
     protocol: ProtocolSchema,
     status: TicketStatusSchema,

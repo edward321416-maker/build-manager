@@ -45,10 +45,18 @@ describe("C1 building without context", () => {
     });
   });
 
-  it("still requires a full passport for a demo building or a building with some context", () => {
+  it("shows the manager the verified facts of a non-demo building and still a full passport for a demo one", () => {
+    // P6 + C1 step 2 (docs/superpowers/specs/2026-10-15-building-setup-p6-design.md): org-admin facts no longer fail the response.
     const ticket = { ...leakTicket(["CEILING_WALL"]), buildingId: fallback.id };
+    const fact = (key: string, value: string, verified = true) => ({ key, value, sourceType: "OWNER_VERIFIED" as const, sourceRef: "org_admin", verified, routingEligible: verified, fetchedAt: null, updatedAt: "2026-10-15T00:00:00.000Z" });
+    expect(presentLandlordTicket(ticket, { ...fallback, displayName: "합성 햇살빌라", context: [fact("heatingType", "INDIVIDUAL")] }).building).toEqual({
+      buildingId: fallback.id, displayName: "합성 햇살빌라", demo: false, heatingType: "INDIVIDUAL", contextVerified: false, routingEligibleFields: ["heatingType"],
+    });
+    expect(presentLandlordTicket(ticket, { ...fallback, context: [fact("heatingType", "INDIVIDUAL"), fact("managementMode", "MANAGEMENT_OFFICE")] }).building).toEqual({
+      buildingId: fallback.id, displayName: "건물", demo: false, managementMode: "MANAGEMENT_OFFICE", heatingType: "INDIVIDUAL", contextVerified: true, routingEligibleFields: ["managementMode", "heatingType"],
+    });
+    expect(presentLandlordTicket(ticket, { ...fallback, context: [fact("heatingType", "INDIVIDUAL", false)] }).building).toMatchObject({ contextVerified: false, routingEligibleFields: [] });
     expect(() => presentLandlordTicket(ticket, { ...fallback, demo: true })).toThrow();
-    expect(() => presentLandlordTicket(ticket, { ...fallback, context: [building.context[0]!] })).toThrow();
   });
 
   it("keeps the full passport for a building with context", () => {
