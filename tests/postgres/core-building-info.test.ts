@@ -106,7 +106,7 @@ it("rejects input outside the bounds",async()=>{
  const b=await registered("E");
  // Format characters too (review MEDIUM): the vendor packet refuses \p{Cc}\p{Cf}, so the database must never store them.
  for(const bad of [{displayName:""},{displayName:" 합성"},{displayName:"합성\n건물"},{displayName:"가".repeat(51)},{serviceAddress:""},{serviceAddress:"가".repeat(201)},{serviceAddress:"합성\t주소"},
-  {displayName:"합성​건물"},{displayName:"합성‮건물"},{serviceAddress:"합성\u0085주소"},{serviceAddress:"합성­주소"},{serviceAddress:"합성\u{e0041}주소"},
+  ...[0x200b,0x202e].map(point=>({displayName:`합성${String.fromCodePoint(point)}건물`})),...[0x85,0xad,0xe0041].map(point=>({serviceAddress:`합성${String.fromCodePoint(point)}주소`})),
   {heatingType:"DISTRICT"},{managementMode:"THIRD_PARTY_MANAGER"},{expectedVersion:-1}] as unknown as Partial<CoreBuildingInfoInput>[])
   await expect(run("manager",s=>s.buildings.save(b.property.id,input(bad))),JSON.stringify(bad)).rejects.toMatchObject({code:"INVALID_INPUT"});
  expect(await run("manager",s=>s.buildings.save(b.property.id,input({displayName:"가".repeat(50),serviceAddress:"가".repeat(200)})))).toMatchObject({version:1});
@@ -145,8 +145,17 @@ it("answers the building routes over HTTP and refuses writes from a demo session
  expect((await http("manager",`buildings/${b.property.id}/extra`)).status).toBe(404);
 },60_000);
 
+it("refuses exactly the characters the vendor packet refuses, over every code point",async()=>{
+ // Review LOW: has_invisible lists Unicode Cc and Cf as code point ranges; it must equal the vendor's /[\p{Cc}\p{Cf}]/u.
+ const vendor=/[\p{Cc}\p{Cf}]/u,expected:number[]=[];
+ for(let point=1;point<=0x10ffff;point++)if((point<0xd800||point>0xdfff)&&vendor.test(String.fromCodePoint(point)))expected.push(point);
+ const found=(await f.p.admin.query("SELECT coalesce(array_agg(point ORDER BY point),'{}') AS points FROM generate_series(1,1114111) AS point WHERE (point<55296 OR point>57343) AND core_flow.has_invisible(chr(point))")).rows[0].points as number[];
+ expect(found.length).toBeGreaterThan(100);
+ expect(found).toEqual(expected);
+},180_000);
+
 it("adds owner-only definer functions and gives the web role only the three entry points",async()=>{
- const names=["building_info","building_info_json","org_buildings","require_org_admin","save_building_info","verified_fact"];
+ const names=["building_info","building_info_json","has_invisible","org_buildings","require_org_admin","save_building_info","verified_fact"];
  const rows=(await f.p.admin.query("SELECT proname,prosecdef,proconfig,pg_get_userbyid(proowner) owner,has_function_privilege('bm_b1_web',oid,'EXECUTE') web,has_function_privilege('public',oid,'EXECUTE') pub FROM pg_proc WHERE pronamespace='core_flow'::regnamespace AND proname=ANY($1) ORDER BY proname",[names])).rows;
  expect(rows).toEqual(names.map(proname=>({proname,prosecdef:true,proconfig:["search_path=pg_catalog"],owner:"bm_core_flow_owner",web:["building_info","org_buildings","save_building_info"].includes(proname),pub:false})));
  expect((await f.p.admin.query("SELECT has_schema_privilege('bm_core_flow_owner','core_flow','CREATE') c")).rows[0].c).toBe(false);

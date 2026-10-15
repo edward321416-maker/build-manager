@@ -308,7 +308,7 @@ describe("role-safe list responses", () => {
     const save = schema("CoreBuildingInfoSaveSchema");
     const ok = { expectedVersion: 0, displayName: "합성 햇살빌라", serviceAddress: "합성 예시로 12", heatingType: null, managementMode: null };
     expect(save.safeParse(ok).success).toBe(true);
-    for (const bad of ["​", "‮", "\u0085", "­", "﻿", "\u0007", "\n"]) {
+    for (const bad of [0x200b, 0x202e, 0x85, 0xad, 0xfeff, 0x07, 0x0a].map((point) => String.fromCodePoint(point))) {
       expect(save.safeParse({ ...ok, displayName: `합성${bad}빌라` }).success, JSON.stringify(bad)).toBe(false);
       expect(save.safeParse({ ...ok, serviceAddress: `합성${bad}예시로` }).success, JSON.stringify(bad)).toBe(false);
     }

@@ -21,6 +21,19 @@ LANGUAGE sql IMMUTABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
  LIMIT 1
 $$;
 
+-- True when the text holds a Unicode control (Cc) or format (Cf) character, Unicode 17.0: the same set the vendor packet's
+-- /[\p{Cc}\p{Cf}]/u refuses, so a saved name or address can always be sent to a vendor. Code points, not escapes, keep the
+-- list visible and editor-safe; tests/postgres/core-building-info.test.ts compares it with the JS rule over every code point.
+CREATE FUNCTION core_flow.has_invisible(p_text text) RETURNS boolean
+LANGUAGE sql IMMUTABLE SECURITY DEFINER SET search_path=pg_catalog AS $$
+ SELECT EXISTS(SELECT 1 FROM regexp_split_to_table(p_text,'') AS t(ch), LATERAL (SELECT ascii(t.ch) AS cp) c
+  WHERE c.cp<=0x1F OR c.cp BETWEEN 0x7F AND 0x9F OR c.cp=0xAD OR c.cp BETWEEN 0x600 AND 0x605 OR c.cp=0x61C OR c.cp=0x6DD
+   OR c.cp=0x70F OR c.cp BETWEEN 0x890 AND 0x891 OR c.cp=0x8E2 OR c.cp=0x180E OR c.cp BETWEEN 0x200B AND 0x200F
+   OR c.cp BETWEEN 0x202A AND 0x202E OR c.cp BETWEEN 0x2060 AND 0x2064 OR c.cp BETWEEN 0x2066 AND 0x206F OR c.cp=0xFEFF
+   OR c.cp BETWEEN 0xFFF9 AND 0xFFFB OR c.cp=0x110BD OR c.cp=0x110CD OR c.cp BETWEEN 0x13430 AND 0x1343F
+   OR c.cp BETWEEN 0x1BCA0 AND 0x1BCA3 OR c.cp BETWEEN 0x1D173 AND 0x1D17A OR c.cp=0xE0001 OR c.cp BETWEEN 0xE0020 AND 0xE007F)
+$$;
+
 CREATE FUNCTION core_flow.building_info_json(p_digest bytea,p_org uuid,p_property uuid) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE b jsonb; heating text; management text;
@@ -65,15 +78,13 @@ CREATE FUNCTION core_flow.save_building_info(p_digest bytea,p_property uuid,p_ex
  p_service_address text,p_heating text,p_management text) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog AS $$
 DECLARE s jsonb; org uuid; b jsonb; current_version integer; at_text text; facts jsonb:='[]'::jsonb;
- invisible CONSTANT text:='[\u0000-\u001f\u007f-\u009f­؀-؅؜۝܏࢐-࢑࣢᠎​-‏‪-‮⁠-⁤⁦-⁯﻿￹-￻\U000110bd\U000110cd\U00013430-\U0001343f\U0001bca0-\U0001bca3\U0001d173-\U0001d17a\U000e0001\U000e0020-\U000e007f]';
 BEGIN
  s:=core_flow.require_org_admin(p_digest); org:=(s->>'orgId')::uuid;
  PERFORM 1 FROM app.property p WHERE p.org_id=org AND p.id=p_property AND p.status='ACTIVE' AND authn.can_read_property(p_digest,org,p.id);
  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='NOT_FOUND'; END IF;
- -- invisible: Unicode Cc and Cf (17.0), the same set the vendor packet's /[\p{Cc}\p{Cf}]/u refuses.
  IF p_expected_version IS NULL OR p_expected_version<0
-  OR p_name IS NULL OR p_name<>btrim(p_name) OR char_length(p_name) NOT BETWEEN 1 AND 50 OR p_name ~ invisible
-  OR (p_service_address IS NOT NULL AND (p_service_address<>btrim(p_service_address) OR char_length(p_service_address) NOT BETWEEN 1 AND 200 OR p_service_address ~ invisible))
+  OR p_name IS NULL OR p_name<>btrim(p_name) OR char_length(p_name) NOT BETWEEN 1 AND 50 OR core_flow.has_invisible(p_name)
+  OR (p_service_address IS NOT NULL AND (p_service_address<>btrim(p_service_address) OR char_length(p_service_address) NOT BETWEEN 1 AND 200 OR core_flow.has_invisible(p_service_address)))
   OR (p_heating IS NOT NULL AND p_heating NOT IN ('INDIVIDUAL','CENTRAL_SHARED'))
   OR (p_management IS NOT NULL AND p_management NOT IN ('OWNER_DIRECT','MANAGEMENT_OFFICE'))
  THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='INVALID_INPUT'; END IF;
@@ -95,8 +106,9 @@ BEGIN
  RETURN core_flow.building_info_json(p_digest,org,p_property);
 END $$;
 
-REVOKE ALL ON FUNCTION core_flow.require_org_admin(bytea),core_flow.verified_fact(jsonb,text),core_flow.building_info_json(bytea,uuid,uuid),
- core_flow.org_buildings(bytea),core_flow.building_info(bytea,uuid),core_flow.save_building_info(bytea,uuid,integer,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION core_flow.require_org_admin(bytea),core_flow.verified_fact(jsonb,text),core_flow.has_invisible(text),
+ core_flow.building_info_json(bytea,uuid,uuid),core_flow.org_buildings(bytea),core_flow.building_info(bytea,uuid),
+ core_flow.save_building_info(bytea,uuid,integer,text,text,text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION core_flow.org_buildings(bytea),core_flow.building_info(bytea,uuid),
  core_flow.save_building_info(bytea,uuid,integer,text,text,text,text) TO bm_b1_web;
 RESET ROLE;
