@@ -28,7 +28,7 @@ test.describe("web demo entry", () => {
     await resetDemo(request);
     await page.goto("/");
 
-    await page.getByRole("link", { name: "세입자 데모 시작" }).click();
+    await page.locator("#entry").getByRole("link", { name: "세입자 데모 시작" }).click();
 
     await expect(page).toHaveURL(/\/demo\/tenant$/);
     await expect(
@@ -43,7 +43,7 @@ test.describe("web demo entry", () => {
     await resetDemo(request);
     await page.goto("/");
 
-    await page.getByRole("link", { name: "임대인 데모 시작" }).click();
+    await page.locator("#entry").getByRole("link", { name: "임대인 데모 시작" }).click();
 
     await expect(page).toHaveURL(/\/demo\/landlord$/);
     await expect(
@@ -61,7 +61,7 @@ test.describe("web milestone golden path", () => {
 
     // The reviewer starts where a reviewer actually lands.
     await page.goto("/");
-    await page.getByRole("link", { name: "세입자 데모 시작" }).click();
+    await page.locator("#entry").getByRole("link", { name: "세입자 데모 시작" }).click();
 
     await page.locator(`#building-${BUILDING_A}`).check();
     await page.locator("#issue-HEATING").check();
@@ -94,7 +94,7 @@ test.describe("web milestone golden path", () => {
 
     // The landlord arrives the same way and finds that exact ticket listed.
     await page.goto("/");
-    await page.getByRole("link", { name: "임대인 데모 시작" }).click();
+    await page.locator("#entry").getByRole("link", { name: "임대인 데모 시작" }).click();
     await expect(page).toHaveURL(/\/demo\/landlord$/);
     await expect(page.getByTestId("ticket-count")).toHaveText("1");
 
