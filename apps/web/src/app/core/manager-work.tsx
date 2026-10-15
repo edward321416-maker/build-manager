@@ -10,6 +10,9 @@ import styles from "./manager-work.module.css";
 import { CommunicationBadge,useCommunicationSummaries } from "./ticket-communication";
 import { DateTime } from "../../components/date-time";
 import { instantToSeoulInput,seoulInputToInstant } from "../../lib/date-text";
+import { Toast,useToastMessage } from "../../components/toast";
+import { csvFileName,csvText,downloadCsv } from "../../lib/csv-file";
+import { WORK_EXPORT_HEADER,exportDate,workExportRows } from "./export-rows";
 
 // The due date is entered and shown in Seoul time, whatever zone the browser is in (operator decision 2026-10-12).
 const seoulDueInput=(value:string|null)=>value?instantToSeoulInput(value):"";
@@ -24,8 +27,11 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selected
   useEffect(()=>{let live=true;void client.manager.list().then(rows=>{if(live){setItems(rows);setError(false);setNow(Date.now());}}).catch(()=>{if(live)setError(true);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[client,revision,refresh]);
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),60_000);return()=>clearInterval(timer);},[]);
   const visible=items.filter(x=>(!unit||x.unitId===unit)&&(status==="ALL"||x.workStatus===status)&&(priority==="ALL"||x.priority===priority)).sort((a,b)=>compareManagerWork(a,b,now));
+  const [fileError,setFileError]=useState(false),[toast,showToast]=useToastMessage();
+  // The file holds exactly the rows the filters show, in screen order (E1 spec).
+  const exportVisible=()=>{try{downloadCsv(csvFileName(["업무함"],exportDate(new Date())),csvText(WORK_EXPORT_HEADER,workExportRows(visible)));setFileError(false);showToast(`업무함 ${visible.length}건을 엑셀 파일(CSV)로 받았어요.`);}catch{setFileError(true);}};
   return <section aria-label="관리 업무함" className={styles.queue}>
-    <div className={styles.title}><div><h2>접수 목록</h2><p>미완료 · 기한 지남 · 긴급도 순</p></div>{error||conversation.error?<button disabled={loading||disabled} onClick={()=>{setLoading(true);setRefresh(v=>v+1);}}>업무함 다시 불러오기</button>:null}</div>
+    <div className={styles.title}><div><h2>접수 목록</h2><p>미완료 · 기한 지남 · 긴급도 순</p></div><span className={styles.titleActions}>{error||conversation.error?<button disabled={loading||disabled} onClick={()=>{setLoading(true);setRefresh(v=>v+1);}}>업무함 다시 불러오기</button>:null}<button disabled={loading||error||disabled||visible.length===0} onClick={exportVisible}>엑셀로 받기</button><Toast message={toast}/></span></div>
     <div className={styles.filters}>
       <label>호실<select aria-label="건물·호실" value={unit} onChange={e=>setUnit(e.target.value)}><option value="">모든 호실</option>{units.map(u=><option key={u.id} value={u.id}>{u.buildingName} · {u.label}</option>)}</select></label>
       <label>상태<select aria-label="처리 상태" value={status} onChange={e=>setStatus(e.target.value)}><option value="ALL">전체</option>{Object.entries(WORK_STATUS_NAMES).map(([value,name])=><option key={value} value={value}>{name}</option>)}</select></label>
@@ -33,6 +39,7 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selected
       <p className={styles.count} aria-live="polite">{visible.length}건 표시</p>
     </div>
     {conversation.error?<p role="alert">대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.</p>:null}
+    {fileError?<p role="alert">파일을 만들지 못했어요. 다시 받아 주세요.</p>:null}
     {error?<p role="alert">업무함을 불러오지 못했어요. 연결을 확인하고 새로고침을 눌러 주세요.</p>:loading?<p role="status">업무함 불러오는 중…</p>:visible.length===0?<p>{items.length?"선택한 조건의 업무가 없어요. 필터를 전체로 바꿔 주세요.":"접근 가능한 접수 내역이 없어요. 새 접수가 들어오면 새로고침으로 확인해 주세요."}</p>:<ul className={styles.items}>{visible.map(item=><li key={item.ticketId} data-ticket-id={item.ticketId} data-work-state={item.workStatus}>
       <button data-open-ticket className={styles.row} aria-current={selectedId===item.ticketId?"true":undefined} disabled={disabled} onClick={()=>onOpen(item.ticketId)}>
         <span className={styles.priority} data-priority={item.priority}><span className={styles.srOnly}>긴급도 </span>{priorityLabels[item.priority]}</span>
