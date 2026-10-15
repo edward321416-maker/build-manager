@@ -1,0 +1,475 @@
+[
+  {
+    "path": "apps/mobile",
+    "before": {
+      "name": "@build-manager/mobile",
+      "version": "0.0.0",
+      "dependencies": {
+        "@build-manager/api-client": "0.0.0",
+        "@build-manager/api-contracts": "0.0.0",
+        "@expo/ui": "~57.0.23",
+        "expo": "~57.0.28",
+        "expo-constants": "~57.0.20",
+        "expo-device": "~57.0.2",
+        "expo-font": "~57.0.4",
+        "expo-glass-effect": "~57.0.4",
+        "expo-image": "~57.0.5",
+        "expo-linking": "~57.0.11",
+        "expo-router": "~57.0.26",
+        "expo-splash-screen": "~57.0.10",
+        "expo-status-bar": "~57.0.1",
+        "expo-symbols": "~57.0.3",
+        "expo-system-ui": "~57.0.4",
+        "expo-web-browser": "~57.0.3",
+        "react": "19.2.3",
+        "react-dom": "19.2.3",
+        "react-native": "0.86.3",
+        "react-native-gesture-handler": "~2.32.0",
+        "react-native-reanimated": "4.5.1",
+        "react-native-safe-area-context": "~5.7.0",
+        "react-native-screens": "~4.26.0",
+        "react-native-web": "~0.21.0",
+        "react-native-worklets": "0.10.1"
+      },
+      "devDependencies": {
+        "@testing-library/react-native": "14.0.1",
+        "@types/jest": "29.5.14",
+        "@types/react": "~19.2.2",
+        "eslint": "9.39.4",
+        "eslint-config-expo": "~57.0.2",
+        "jest-expo": "57.0.6",
+        "typescript": "~6.0.3"
+      }
+    },
+    "successorSha256": "07ec510040eff4b9968f5a43ffafeaffac518e7441ee25b177a3ba06d629bb10"
+  },
+  {
+    "path": "node_modules/@expo/cli",
+    "before": {
+      "version": "57.0.29",
+      "resolved": "https://registry.npmjs.org/@expo/cli/-/cli-57.0.29.tgz",
+      "integrity": "sha512-OBmtg+74j6dEEQjKTgRDjQBvLSkKyP2cDTuGIrJTdgG4gZ1HCEBZj18Kyk9UfdYRXgJdixSVAQMCZK6/Q6l2QQ==",
+      "license": "MIT",
+      "dependencies": {
+        "@expo/code-signing-certificates": "^0.0.6",
+        "@expo/config": "~57.0.10",
+        "@expo/config-plugins": "~57.0.10",
+        "@expo/devcert": "^1.2.1",
+        "@expo/env": "~2.4.3",
+        "@expo/image-utils": "^0.11.6",
+        "@expo/inline-modules": "^0.1.8",
+        "@expo/json-file": "^11.0.1",
+        "@expo/log-box": "^57.0.4",
+        "@expo/metro": "~56.0.2",
+        "@expo/metro-config": "~57.0.13",
+        "@expo/metro-file-map": "^57.0.4",
+        "@expo/osascript": "^2.7.1",
+        "@expo/package-manager": "^1.13.1",
+        "@expo/plist": "^0.8.1",
+        "@expo/prebuild-config": "^57.0.18",
+        "@expo/require-utils": "^57.0.6",
+        "@expo/router-server": "^57.0.12",
+        "@expo/schema-utils": "^57.0.2",
+        "@expo/spawn-async": "^1.8.0",
+        "@expo/ws-tunnel": "^2.0.0",
+        "@expo/xcpretty": "^4.4.4",
+        "@react-native/dev-middleware": "0.86.3",
+        "accepts": "^1.3.8",
+        "agent-cli-detector": "0.1.7",
+        "arg": "^5.0.2",
+        "bplist-creator": "0.1.0",
+        "bplist-parser": "^0.3.1",
+        "chalk": "^4.0.0",
+        "ci-info": "^3.3.0",
+        "compression": "^1.7.4",
+        "connect": "^3.7.0",
+        "debug": "^4.3.4",
+        "dnssd-advertise": "^1.1.4",
+        "expo-server": "^57.0.3",
+        "fetch-nodeshim": "^0.4.10",
+        "getenv": "^2.0.0",
+        "glob": "^13.0.0",
+        "lan-network": "^0.2.1",
+        "multitars": "^1.0.2",
+        "node-forge": "^1.3.3",
+        "npm-package-arg": "^11.0.0",
+        "ora": "^3.4.0",
+        "picomatch": "^4.0.4",
+        "pretty-format": "^29.7.0",
+        "progress": "^2.0.3",
+        "prompts": "^2.3.2",
+        "resolve-from": "^5.0.0",
+        "sandbox-cli-detector": "^0.2.0",
+        "semver": "^7.6.0",
+        "send": "^0.19.0",
+        "slugify": "^1.3.4",
+        "stacktrace-parser": "^0.1.10",
+        "structured-headers": "^0.4.1",
+        "terminal-link": "^2.1.1",
+        "toqr": "^0.1.1",
+        "wrap-ansi": "^7.0.0",
+        "ws": "^8.12.1",
+        "zod": "^3.25.76"
+      },
+      "bin": {
+        "expo-internal": "main.js"
+      },
+      "peerDependencies": {
+        "expo": "*",
+        "expo-router": "*",
+        "react-native": "*"
+      },
+      "peerDependenciesMeta": {
+        "expo-router": {
+          "optional": true
+        },
+        "react-native": {
+          "optional": true
+        }
+      }
+    },
+    "successorSha256": "9a285e5d54618c16c8679b37f04ae95cabb54167f02894db16683799922ffc98"
+  },
+  {
+    "path": "node_modules/@expo/metro-runtime",
+    "before": {
+      "version": "57.0.16",
+      "resolved": "https://registry.npmjs.org/@expo/metro-runtime/-/metro-runtime-57.0.16.tgz",
+      "integrity": "sha512-x43WgZoICpp37BhDV7vixe0bNxbVPPGaBLHYc98ZJ8MU+UC2dk39Y2XvkfYMRRbAUSIkCIJiwdERnptlPg0Ckw==",
+      "license": "MIT",
+      "dependencies": {
+        "@expo/log-box": "^57.0.4",
+        "anser": "^1.4.9",
+        "pretty-format": "^29.7.0",
+        "stacktrace-parser": "^0.1.10",
+        "whatwg-fetch": "^3.0.0"
+      },
+      "peerDependencies": {
+        "@expo/log-box": "^57.0.4",
+        "expo": "*",
+        "react": "*",
+        "react-dom": "*",
+        "react-native": "*"
+      },
+      "peerDependenciesMeta": {
+        "react-dom": {
+          "optional": true
+        }
+      }
+    },
+    "successorSha256": "4af99908a5f81b0031e2690e975540eff6dfe78192a0a7263fa5b34c2be21b31"
+  },
+  {
+    "path": "node_modules/@expo/prebuild-config",
+    "before": {
+      "version": "57.0.18",
+      "resolved": "https://registry.npmjs.org/@expo/prebuild-config/-/prebuild-config-57.0.18.tgz",
+      "integrity": "sha512-q/Jijt1H2GT1TlD+C9UOLmErjujjieUs+Rpdo6+L5IBRaW+gXJY0oFqlpyKvOwziQIv4AYL7vZFn6I+OyRgRXQ==",
+      "license": "MIT",
+      "dependencies": {
+        "@expo/config": "~57.0.10",
+        "@expo/config-plugins": "~57.0.10",
+        "@expo/config-types": "^57.0.2",
+        "@expo/image-utils": "^0.11.6",
+        "@expo/json-file": "^11.0.1",
+        "@react-native/normalize-colors": "0.86.3",
+        "debug": "^4.3.1",
+        "expo-modules-autolinking": "~57.0.15",
+        "resolve-from": "^5.0.0",
+        "semver": "^7.6.0"
+      }
+    },
+    "successorSha256": "c2a2d4c065079c20d16182f4eaf722024af461b745fa2167628f441efac13a20"
+  },
+  {
+    "path": "node_modules/@expo/ui",
+    "before": {
+      "version": "57.0.23",
+      "resolved": "https://registry.npmjs.org/@expo/ui/-/ui-57.0.23.tgz",
+      "integrity": "sha512-5QW1uzs8cGBlBKQvzNLDmmAeTCiJn4HVCYC2tddyOtXnXsUKGY7Rvgw6otr9Q2rPcOY5mC34wJIspViamvptww==",
+      "license": "MIT",
+      "dependencies": {
+        "sf-symbols-typescript": "^2.1.0",
+        "vaul": "^1.1.2"
+      },
+      "peerDependencies": {
+        "@babel/core": "*",
+        "expo": "*",
+        "react": "*",
+        "react-dom": "*",
+        "react-native": "*",
+        "react-native-worklets": "*"
+      },
+      "peerDependenciesMeta": {
+        "@babel/core": {
+          "optional": true
+        },
+        "react-dom": {
+          "optional": true
+        },
+        "react-native-worklets": {
+          "optional": true
+        }
+      }
+    },
+    "successorSha256": "e54fb393edf3eb74a8ce96ea3a3c1f290fd94ee6a1d6c638e2a1f13f8d8c915d"
+  },
+  {
+    "path": "node_modules/@expo/xcpretty",
+    "before": {
+      "version": "4.4.6",
+      "resolved": "https://registry.npmjs.org/@expo/xcpretty/-/xcpretty-4.4.6.tgz",
+      "integrity": "sha512-uRaZZ/IsX1WkFW69xxTZtMeRvI5ziD9yoian+FMqdhITkU6NGvIWd5uRMh2Gbo/6xstpQ4v0GtF1V5YatTwzDA==",
+      "license": "MIT",
+      "dependencies": {
+        "@babel/code-frame": "^7.20.0",
+        "chalk": "^4.1.0",
+        "js-yaml": "^4.1.0"
+      },
+      "bin": {
+        "excpretty": "build/cli.js"
+      }
+    },
+    "successorSha256": "d31c1be877911eaf76112b18e955f08ff557d1fc8905553e7abaeaa7616c9883"
+  },
+  {
+    "path": "node_modules/expo",
+    "before": {
+      "version": "57.0.28",
+      "resolved": "https://registry.npmjs.org/expo/-/expo-57.0.28.tgz",
+      "integrity": "sha512-Bh9PgT1wLdcSOi8uXvUtHYh12zz9kx3zjD8Pm7O8EAsZW0W42dVog3/UhY2qJnlOkSDpTQJTnX8jsi2J5xn2OA==",
+      "license": "MIT",
+      "dependencies": {
+        "@babel/runtime": "^7.20.0",
+        "@expo/cli": "^57.0.29",
+        "@expo/config": "~57.0.10",
+        "@expo/config-plugins": "~57.0.10",
+        "@expo/devtools": "~57.0.1",
+        "@expo/dom-webview": "~57.0.1",
+        "@expo/fingerprint": "^0.20.14",
+        "@expo/local-build-cache-provider": "^57.0.9",
+        "@expo/log-box": "^57.0.4",
+        "@expo/metro": "~56.0.2",
+        "@expo/metro-config": "~57.0.13",
+        "@ungap/structured-clone": "^1.3.0",
+        "babel-preset-expo": "~57.0.15",
+        "expo-asset": "~57.0.19",
+        "expo-constants": "~57.0.21",
+        "expo-file-system": "~57.0.7",
+        "expo-font": "~57.0.4",
+        "expo-keep-awake": "~57.0.2",
+        "expo-modules-autolinking": "~57.0.15",
+        "expo-modules-core": "~57.0.22",
+        "pretty-format": "^29.7.0",
+        "react-refresh": "^0.14.2",
+        "whatwg-url-minimum": "^0.1.2"
+      },
+      "bin": {
+        "expo": "bin/cli",
+        "expo-modules-autolinking": "bin/autolinking",
+        "fingerprint": "bin/fingerprint"
+      },
+      "peerDependencies": {
+        "@expo/dom-webview": "*",
+        "@expo/metro-runtime": "*",
+        "react": "*",
+        "react-dom": "*",
+        "react-native": "*",
+        "react-native-web": "*",
+        "react-native-webview": "*"
+      },
+      "peerDependenciesMeta": {
+        "@expo/dom-webview": {
+          "optional": true
+        },
+        "@expo/metro-runtime": {
+          "optional": true
+        },
+        "react-dom": {
+          "optional": true
+        },
+        "react-native-web": {
+          "optional": true
+        },
+        "react-native-webview": {
+          "optional": true
+        }
+      }
+    },
+    "successorSha256": "c5ee41734adb99c4d84b5ae83f0bce8fb50ecacf2b72edacb23265cb141c0321"
+  },
+  {
+    "path": "node_modules/expo-asset",
+    "before": {
+      "version": "57.0.19",
+      "resolved": "https://registry.npmjs.org/expo-asset/-/expo-asset-57.0.19.tgz",
+      "integrity": "sha512-y9ymKidyPBDUFXljbvo7LNgivQvMhEJEoEXi6aLRugUxRDUvAKoZsy+KB5UXSjLMS7l7JNDwYKk5thovI0MLog==",
+      "license": "MIT",
+      "dependencies": {
+        "@expo/image-utils": "^0.11.6",
+        "expo-constants": "~57.0.21"
+      },
+      "peerDependencies": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+      }
+    },
+    "successorSha256": "4ba798cb63f11de888ee78a4c3a4b6e0fd748b1f06dbff7e38e7665a436973ab"
+  },
+  {
+    "path": "node_modules/expo-constants",
+    "before": {
+      "version": "57.0.21",
+      "resolved": "https://registry.npmjs.org/expo-constants/-/expo-constants-57.0.21.tgz",
+      "integrity": "sha512-D5fV2GELYGbNkoiEVZZp5zrUXZDaAx6ZzErDzGirm3jCjOhaE8iU/GyJiB0ZQE+K4Bg8gY82nIQ/RZR8CJLVjA==",
+      "license": "MIT",
+      "dependencies": {
+        "@expo/env": "~2.4.3"
+      },
+      "peerDependencies": {
+        "expo": "*",
+        "react-native": "*"
+      }
+    },
+    "successorSha256": "80aeb58b5533e23b954b8e67cc57550a726b2b441ce99fec74c79d173db64dc5"
+  },
+  {
+    "path": "node_modules/expo-linking",
+    "before": {
+      "version": "57.0.12",
+      "resolved": "https://registry.npmjs.org/expo-linking/-/expo-linking-57.0.12.tgz",
+      "integrity": "sha512-oKLva5FOBx4txZa9LFu6RaHGAy1lFCyoOM91uU9H+gZi1iskjuSxV12GgS9H+yGGe2aSLufh6IfwSWrjEIsOuA==",
+      "license": "MIT",
+      "dependencies": {
+        "expo-constants": "~57.0.21",
+        "invariant": "^2.2.4"
+      },
+      "peerDependencies": {
+        "react": "*",
+        "react-native": "*"
+      }
+    },
+    "successorSha256": "d33c9c6c23ecfb84df73bd9cb15719562a042fc1dc8ea9edc844ce493d1cde7d"
+  },
+  {
+    "path": "node_modules/expo-modules-autolinking",
+    "before": {
+      "version": "57.0.15",
+      "resolved": "https://registry.npmjs.org/expo-modules-autolinking/-/expo-modules-autolinking-57.0.15.tgz",
+      "integrity": "sha512-TY7Sy7MaIBFNMTTsmNtrkdyFwG3abE4gU2WJ6B4Qh9zXOMhtghHvVYTPh9bujHOY/2bscj8dOTqXnZ8iTVtwmg==",
+      "license": "MIT",
+      "dependencies": {
+        "@expo/require-utils": "^57.0.6",
+        "@expo/spawn-async": "^1.8.0",
+        "chalk": "^4.1.0",
+        "commander": "^7.2.0"
+      },
+      "bin": {
+        "expo-modules-autolinking": "bin/expo-modules-autolinking.js"
+      }
+    },
+    "successorSha256": "3fbcab16ea7675f35a715e00ae585b97e2a23f310a0ae2e086cd7c239bcfffb7"
+  },
+  {
+    "path": "node_modules/expo-modules-core",
+    "before": {
+      "version": "57.0.22",
+      "resolved": "https://registry.npmjs.org/expo-modules-core/-/expo-modules-core-57.0.22.tgz",
+      "integrity": "sha512-IQTSHU690fleLZ6b36OCqt04KFStxA/k7El2vweOWhlFZ58hpNSQMK2Fosc1nIvlOnqqVRDcTAq+prJEOHLmBg==",
+      "license": "MIT",
+      "dependencies": {
+        "@expo/expo-modules-macros-plugin": "0.6.1",
+        "expo-modules-jsi": "~57.1.2",
+        "invariant": "^2.2.4"
+      },
+      "peerDependencies": {
+        "react": "*",
+        "react-native": "*",
+        "react-native-worklets": "^0.7.4 || ^0.8.0 || ^0.9.0 || ^0.10.0"
+      },
+      "peerDependenciesMeta": {
+        "react-native-worklets": {
+          "optional": true
+        }
+      }
+    },
+    "successorSha256": "419f2f2016b1c9ee2b82ed16c2da83727088230c7914aa79ff10631972b93a45"
+  },
+  {
+    "path": "node_modules/expo-router",
+    "before": {
+      "version": "57.0.26",
+      "resolved": "https://registry.npmjs.org/expo-router/-/expo-router-57.0.26.tgz",
+      "integrity": "sha512-iSF+LEbbvGkYGA2j8qWvF1woxrA7EWHZF+SNdTPR7dmi6myPOJsDGdwfWlXA74Gns8T7AuyfuDsxIsqEJ45BhQ==",
+      "license": "MIT",
+      "dependencies": {
+        "@expo/log-box": "^57.0.4",
+        "@expo/metro-runtime": "^57.0.16",
+        "@expo/schema-utils": "^57.0.2",
+        "@expo/ui": "^57.0.23",
+        "@radix-ui/react-slot": "^1.2.0",
+        "@radix-ui/react-tabs": "^1.1.12",
+        "@react-native-masked-view/masked-view": "^0.3.2",
+        "client-only": "^0.0.1",
+        "color": "^4.2.3",
+        "debug": "^4.3.4",
+        "escape-string-regexp": "^4.0.0",
+        "expo-glass-effect": "^57.0.4",
+        "expo-server": "^57.0.3",
+        "expo-symbols": "^57.0.3",
+        "fast-deep-equal": "^3.1.3",
+        "invariant": "^2.2.4",
+        "nanoid": "^3.3.18",
+        "query-string": "^7.1.3",
+        "react-fast-compare": "^3.2.2",
+        "react-is": "^19.1.0",
+        "react-native-drawer-layout": "^4.2.2",
+        "react-native-screens": "^4.26.0",
+        "server-only": "^0.0.1",
+        "sf-symbols-typescript": "^2.1.0",
+        "shallowequal": "^1.1.0",
+        "standard-navigation": "^0.0.5",
+        "vaul": "^1.1.2"
+      },
+      "peerDependencies": {
+        "@expo/log-box": "^57.0.4",
+        "@expo/metro-runtime": "^57.0.16",
+        "@testing-library/react-native": ">= 13.2.0",
+        "expo": "*",
+        "expo-constants": "^57.0.21",
+        "expo-linking": "^57.0.12",
+        "react": "*",
+        "react-dom": "*",
+        "react-native": "*",
+        "react-native-gesture-handler": "*",
+        "react-native-reanimated": "*",
+        "react-native-safe-area-context": ">= 5.4.0",
+        "react-native-screens": "^4.26.0",
+        "react-native-web": "*",
+        "react-server-dom-webpack": "~19.0.4 || ~19.1.5 || ~19.2.4"
+      },
+      "peerDependenciesMeta": {
+        "@testing-library/react-native": {
+          "optional": true
+        },
+        "react-dom": {
+          "optional": true
+        },
+        "react-native-gesture-handler": {
+          "optional": true
+        },
+        "react-native-reanimated": {
+          "optional": true
+        },
+        "react-native-web": {
+          "optional": true
+        },
+        "react-server-dom-webpack": {
+          "optional": true
+        }
+      }
+    },
+    "successorSha256": "418418fe7e0d031fd2e0c23cf857bbf570bd8b4444f31efabf1d9556a85ee0fd"
+  }
+]
