@@ -520,9 +520,8 @@ import { activeStep, heroPhase, motionAllowed, recordRow, sceneFits, sceneProgre
  * The landing page's scroll scenes (design rules 9.1). The server sends every [data-scene] still, so the page reads in
  * full without JavaScript. After mount a scene gets data-motion="on" when motion is allowed and its content fits its
  * [data-stage] (its [data-fit] parts one by one when it marks any, as the first scene does), else "off". While on, the
- * scroll sets --p, the first scene's --a and
- * --b and data-side, each [data-row]'s --s, and a step scene's data-step. Reduced motion, a resize or a short screen
- * decides again.
+ * scroll sets --p, the first scene's --a and --b and data-side, each [data-row]'s --s, and a step scene's data-step.
+ * Reduced motion, a resize or a short screen decides again.
  */
 export function ScrollScenes({ className, children }: { className?: string; children: ReactNode }) {
   const root = useRef<HTMLElement>(null);
