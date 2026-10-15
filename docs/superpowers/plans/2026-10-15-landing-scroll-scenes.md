@@ -25,7 +25,7 @@
   - 장면 칸: 위쪽 막대(56px = 3.5rem) 아래에 붙고 높이 `100vh − 3.5rem`.
   - 첫 장면 250vh, 단계 장면 `3 × 85vh + 100vh`, 기록 장면 230vh.
   - 휴대폰 그림 17.5rem × 35rem(움직일 때), 관리자 창 37.5rem × 25rem(움직일 때). 그림자는 쓰지 않는다(6.3).
-- **움직이지 않는 경우**(규칙 9.1): `prefers-reduced-motion: reduce`, 화면 높이 600px 미만, 구역 내용이 장면 칸보다 큼(첫 장면 제외), 자바스크립트 없음. 서버는 늘 움직이지 않는 모양으로 그린다.
+- **움직이지 않는 경우**(규칙 9.1): `prefers-reduced-motion: reduce`, 화면 높이 600px 미만, 구역 내용이 장면 칸보다 큼(첫 장면은 제목과 설명을 하나씩 잰다), 자바스크립트 없음. 서버는 늘 움직이지 않는 모양으로 그린다.
 - **입구**: 첫 장면 설명 아래에는 모드별 버튼(actions)만, 마지막 입구에는 제목·설명·버튼·안내 전체가 놓인다. 위쪽 막대 버튼은 보조 버튼이다. 채운 파란 버튼은 한 화면에 하나만 보인다.
 - **접근성**
   - 모든 글은 처음부터 문서에 있다.
@@ -133,11 +133,11 @@ Expected: 바뀐 파일 없음, 맨 위 커밋은 이 계획 커밋, 그 아래�
 ```markdown
 
 ### 9.1 소개용 웹사이트의 스크롤 장면
-- 소개용 웹사이트 페이지(지금은 `/`)만 스크롤에 따라 장면을 바꿉니다. 앱과 웹 서비스 화면은 위 규칙 그대로입니다.
+- 소개용 웹사이트 페이지(지금은 `/`)만 스크롤에 따라 장면을 바꿉니다. 위의 '상태가 바뀔 때만'과 시차 스크롤 금지의 예외입니다. 앱과 웹 서비스 화면은 위 규칙 그대로입니다.
 - 장면 칸은 위쪽 막대 아래에 붙고(화면 높이 − 56px), 진행값 p(0–1)는 구역을 지나간 비율입니다. 스크롤을 멈추면 멈추고, 처음 열 때는 움직이지 않습니다. `transform`·`opacity`만 바꾸고, 그림에 그림자를 쓰지 않습니다.
-- 첫 장면(화면 높이의 250%): a = p/0.45, b = (p − 0.28)/0.25(0–1로 자름). 768px 이상: 판 `scale(1 − 0.42a)`·`translateX(2a vw)`, 그림 `scale(1 + 0.1a)`, 제목 투명도 1 − 4p, 설명 투명도 b·`translateY((1 − b)×20px)`. 768px 미만: 판 `scale(1 − 0.2a)`, 휴대폰 그림 `scale(0.82)`(화면 높이 760px 이하 0.7). p < 0.3이면 설명을 숨기되, 키보드로 닿으면 바로 보여 줍니다.
-- 단계 장면(단계 수×85% + 100%): 지금 단계 = floor(p×단계 수). 그림 화면과 목록 설명은 `motion-base`로 바뀌고 그림은 10px 아래에서 올라옵니다.
-- 쌓이는 장면(230%): k번째 줄은 s = (p − 0.14k)/0.12로 투명도 s, `translateY((1 − s)×20px)`.
+- 첫 장면(화면 높이의 250%): a = p/0.45, b = (p − 0.28)/0.25(0–1로 자름). 768px 이상: 판 `scale(1 − 0.42a)`·`translateX(2a vw)`, 그림 `scale(1 + 0.1a)`, 제목 투명도 1 − 4p, 설명 투명도 b·`translateY((1 − b)×20px)`. 768px 미만: 판 `scale(1 − 0.2a)`, 휴대폰 그림 `scale(0.82)`(화면 높이 760px 이하 0.7). p < 0.3이면 설명을 숨기고 마우스로 누를 수 없게 하되, 키보드로 닿으면 바로 보여 줍니다.
+- 단계 장면(단계 수×85% + 100%): 지금 단계 = floor(p×단계 수)(마지막 단계를 넘지 않음). 그림 화면과 목록 설명은 `motion-base`로 바뀌고 그림은 10px 아래에서 올라옵니다.
+- 쌓이는 장면(230%): k번째 줄은 s = (p − 0.14k)/0.12(0–1로 자름)로 투명도 s, `translateY((1 − s)×20px)`.
 - 움직이지 않는 경우: `prefers-reduced-motion: reduce`, 화면 높이 600px 미만, 구역 내용이 장면 칸보다 큼, 자바스크립트 없음. 이때는 보통 구역으로 모든 단계와 그림 화면을 차례로 보여 줍니다.
 ```
 
@@ -146,7 +146,7 @@ Expected: 바뀐 파일 없음, 맨 위 커밋은 이 계획 커밋, 그 아래�
 `design/DESIGN_STATUS.md`에서 첫 화면 `/`를 말하는 줄(10행 "… 첫 화면 `/`, `/core`, `/vendor/job`은 2026-10-10에 규칙으로 옮겼습니다. …")이 들어 있는 목록의 끝에 더한다. 그 목록의 들여쓰기와 말투를 따른다.
 
 ```markdown
-- 첫 화면 `/`은 2026-10-15 운영자 결정으로 토스 배치와 스크롤 장면(규칙 9.1)으로 바뀝니다. 남은 일: 실제 현장 사진이 생기면 첫 장면 그림 판을 사진으로 바꿀지 정합니다(8.12).
+- 첫 화면 `/`은 2026-10-15 운영자 결정으로 토스 배치와 스크롤 장면([규칙 9.1](DESIGN_RULES.md#91-소개용-웹사이트의-스크롤-장면))으로 바꿨습니다. 남은 일: 실제 현장 사진이 생기면 첫 장면 그림 판을 사진으로 바꿀지 정합니다([8.12](DESIGN_RULES.md#812-사진)).
 ```
 
 - [ ] **Step 6: 스펙 바로잡기 두 곳**
@@ -370,6 +370,7 @@ Co-Authored-By: Claude Opus 5.5 <작업 환경이 정한 주소>"
   - `[data-scene="<이름>"]`: 장면. 첫 장면은 `data-scene="hero"`다.
   - `data-steps="<수>"`: 단계 장면에만 붙인다.
   - `[data-stage]`: 장면 칸. 그 첫 자식이 내용 묶음이다.
+  - `[data-fit]`: 장면 칸 안에서 하나씩 잴 부분. 있으면 내용 묶음 대신 이것들을 잰다. 첫 장면의 제목과 설명에 붙인다(움직일 때 둘 다 절대 위치라 내용 묶음의 높이가 0이 되기 때문이다).
   - `[data-row="<k>"]`: 쌓이는 줄.
   - 부품이 붙이는 것: 장면의 `data-motion="on|off"`, `data-step`, 첫 장면의 `data-side="shown|hidden"`, CSS 변수 `--p`, `--a`, `--b`, 줄의 `--s`.
 
@@ -417,7 +418,7 @@ afterEach(() => {
 function Page() {
   return (
     <ScrollScenes>
-      <section data-scene="hero"><div data-stage><div>hero</div></div></section>
+      <section data-scene="hero"><div data-stage><div><h1 data-fit>title</h1><div data-fit data-hero-side>side</div></div></div></section>
       <section data-scene="tenant" data-steps="3"><div data-stage><div>steps</div></div></section>
       <section data-scene="record"><div data-stage><div><p data-row="0">a</p><p data-row="1">b</p></div></div></section>
     </ScrollScenes>
@@ -468,16 +469,21 @@ describe("ScrollScenes (design rules 9.1)", () => {
     expect(scene("hero").dataset.motion).toBe("off");
   });
 
-  it("keeps a scene still when its content is taller than its stage, but never the first scene", async () => {
+  it("keeps a scene still when its content is taller than its stage, the first scene measured part by part", async () => {
     await mount();
-    for (const name of ["hero", "tenant"]) {
-      const stage = scene(name).querySelector<HTMLElement>("[data-stage]")!;
-      Object.defineProperty(stage, "clientHeight", { configurable: true, value: 600 });
-      Object.defineProperty(stage.firstElementChild!, "offsetHeight", { configurable: true, value: 601 });
-    }
+    const tooTall = (name: string, part: string) => {
+      Object.defineProperty(scene(name).querySelector("[data-stage]")!, "clientHeight", { configurable: true, value: 600 });
+      Object.defineProperty(scene(name).querySelector(part)!, "offsetHeight", { configurable: true, value: 601 });
+    };
+    tooTall("tenant", "[data-stage] > *");
+    tooTall("hero", "[data-stage] > *");
     await act(async () => { window.dispatchEvent(new Event("resize")); });
     expect(scene("tenant").dataset.motion).toBe("off");
+    // The first scene's group holds only parts placed on their own, so its own height says nothing.
     expect(scene("hero").dataset.motion).toBe("on");
+    tooTall("hero", "[data-hero-side]");
+    await act(async () => { window.dispatchEvent(new Event("resize")); });
+    expect(scene("hero").dataset.motion).toBe("off");
   });
 
   it("stops following the scroll once it is gone", async () => {
@@ -513,7 +519,8 @@ import { activeStep, heroPhase, motionAllowed, recordRow, sceneFits, sceneProgre
 /**
  * The landing page's scroll scenes (design rules 9.1). The server sends every [data-scene] still, so the page reads in
  * full without JavaScript. After mount a scene gets data-motion="on" when motion is allowed and its content fits its
- * [data-stage] (the first scene is never measured), else "off". While on, the scroll sets --p, the first scene's --a and
+ * [data-stage] (its [data-fit] parts one by one when it marks any, as the first scene does), else "off". While on, the
+ * scroll sets --p, the first scene's --a and
  * --b and data-side, each [data-row]'s --s, and a step scene's data-step. Reduced motion, a resize or a short screen
  * decides again.
  */
@@ -558,10 +565,12 @@ export function ScrollScenes({ className, children }: { className?: string; chil
       for (const scene of scenes) {
         if (!allowed) { still(scene); continue; }
         scene.dataset.motion = "on";
-        if (scene.dataset.scene === "hero") continue;
         const stage = scene.querySelector<HTMLElement>("[data-stage]");
-        const content = stage?.firstElementChild as HTMLElement | null | undefined;
-        if (stage && content && !sceneFits(content.offsetHeight, stage.clientHeight)) still(scene);
+        if (!stage) continue;
+        const marked = Array.from(stage.querySelectorAll<HTMLElement>("[data-fit]"));
+        const content = stage.firstElementChild as HTMLElement | null;
+        const parts = marked.length > 0 ? marked : content ? [content] : [];
+        if (parts.some(part => !sceneFits(part.offsetHeight, stage.clientHeight))) still(scene);
       }
       paint();
     };
@@ -1056,9 +1065,9 @@ export function HeroScene({ title, lead, actions, drawing }: { title: Lines; lea
         <div className={styles.container}>
           <div className={styles.board}>
             {drawing}
-            <h1 id="home-title" className={styles.heroTitle}><TwoLines lines={title} /></h1>
+            <h1 id="home-title" className={styles.heroTitle} data-fit><TwoLines lines={title} /></h1>
           </div>
-          <div className={styles.heroSide} data-hero-side>
+          <div className={styles.heroSide} data-hero-side data-fit>
             <p className={styles.sideTitle}><TwoLines lines={["세입자와 관리자가", "같은 요청을 함께 봐요"]} /></p>
             <p className={styles.lead}>{lead}</p>
             {actions}
@@ -1597,6 +1606,7 @@ npm run test:e2e:vendor -- demo-entry.spec.ts
 | `MIN_MOTION_HEIGHT = 600`을 `500`으로 | `scene-motion.test.ts` "moves only when …" |
 | `motionAllowed`에서 `!reducedMotion &&`를 지움 | `scene-motion.test.ts` "moves only when …", `scroll-scenes.test.tsx` "keeps every scene still for reduced motion …" |
 | `scroll-scenes.tsx`에서 `sceneFits` 검사 줄을 지움 | `scroll-scenes.test.tsx` "keeps a scene still when its content is taller …" |
+| `scroll-scenes.tsx`에서 `marked.length > 0 ? marked :`를 지워 늘 내용 묶음만 잼 | `scroll-scenes.test.tsx` "keeps a scene still when its content is taller …" |
 | `scroll-scenes.tsx` 해제에서 `removeEventListener("scroll", request)`를 지움 | `scroll-scenes.test.tsx` "stops following the scroll once it is gone" |
 | `home.module.css` 좁은 화면 지난 단계 규칙의 `position: absolute; … clip-path: inset(50%)`를 `display: none`으로 | `landing-scenes.spec.ts` "each drawing has one name, and a narrow screen …" |
 
@@ -1680,7 +1690,7 @@ gh pr merge <번호> --merge --match-head-commit <head SHA>
   - 규칙 변경 → Task 1, 테스트 절 → Task 2–6, 디자인 점검 → Task 6
 - **이름 일관성**
   - Task 2가 만드는 것: `sceneProgress`, `activeStep`, `heroPhase`, `recordRow`, `motionAllowed`, `sceneFits`, `clamp01`. Task 3이 같은 이름으로 쓴다.
-  - Task 3이 읽는 마크업: `data-scene`, `data-steps`, `data-stage`, `data-row`. Task 5가 만든다.
+  - Task 3이 읽는 마크업: `data-scene`, `data-steps`, `data-stage`, `data-fit`, `data-row`. Task 5가 만든다.
   - Task 4가 쓰는 선택자: `data-scene`, `data-hero-side`, `data-screen`, `data-step-item`, `#entry`. Task 5가 만든다.
 - **스펙과 다르게 정한 것**(Task 1 Step 6에서 스펙을 바로잡음)
   - 첫 장면 설명 아래에는 버튼만 둔다.
