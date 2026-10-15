@@ -7,6 +7,8 @@ import { IntervalFields,draftsToIntervals,emptyIntervalDraft,intervalToDraft,typ
 import { formatVendorInterval,intervalWithin } from "../../../lib/vendor-time";
 import { BLOCKER_LABELS,OMISSION_LABELS } from "../../../lib/vendor-blocker";
 import { ACCESS_POLICY_NAMES,SHARED_DETAIL_SOURCE_NAMES,buildingValueName } from "../../../components/status-names";
+import { VisitCalendarButton } from "../../../components/visit-calendar-button";
+import { vendorVisitCalendar,visitCalendarFileName,visitStillAhead } from "../../../lib/visit-calendar";
 import styles from "./vendor-job.module.css";
 
 const RAW=/^[A-Za-z0-9_-]{43}$/;
@@ -686,6 +688,7 @@ function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,
       <h3>확정된 방문 일정</h3>
       <p>{label(appointment.startAt,appointment.endAt)}</p>
       <p>{appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?"세입자가 부재 중 출입에 동의한 시간 안에서 정한 방문이에요.":"세입자가 확정한 방문 시간이에요."}</p>
+      {job.currentPacket&&visitStillAhead(appointment,at)?<VisitCalendarButton fileName={visitCalendarFileName(appointment)} build={()=>vendorVisitCalendar(appointment,job.currentPacket!,now())} disabled={submitting}/>:null}
       {future(appointment.startAt)&&round?.status==="CONFIRMED"?(schedule.rescheduling?<div className={styles.confirm} role="group" aria-labelledby="vendor-reschedule-confirm">
         <h3 id="vendor-reschedule-confirm">방문 일정을 바꿀까요?</h3>
         <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 세입자와 새로 일정을 조율해야 해요.</p>
