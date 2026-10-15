@@ -1504,7 +1504,7 @@ npm run typecheck
 npm run lint
 ```
 
-Expected: 모두 통과(`page.test.tsx` 12개, `landing` 13개). lint 오류 0.
+Expected: 모두 통과(`page.test.tsx` 12개, `landing` 14개: 계산 6개와 스크롤 부품 8개). lint 오류 0.
 
 - [ ] **Step 8: 브라우저 시험(GREEN)**
 
