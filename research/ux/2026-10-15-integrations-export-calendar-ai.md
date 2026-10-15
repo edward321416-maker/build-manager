@@ -4,7 +4,7 @@
 - 상태: 연구 노트. 구현 권한이 아니며, 제품 반영은 운영자 결정이 필요하다([RES-01](../RESEARCH_RULES.md#res-01-시작-전), [RES-09](../RESEARCH_RULES.md#res-09-반영공개)).
 - 기준: `POLICY_REF` = `main` `1d88457`. `TARGET_REF` = `main` `1d88457`의 코드(읽기만 함). 따른 규칙: [연구 규칙](../RESEARCH_RULES.md) 1.0.0, [레퍼런스 규칙](../../references/REFERENCE_RULES.md) 1.1.0, [AI 작성·전달 사전 규칙](../../governance/ai_delivery_rules.md) 1.0.0. 위험 등급은 [개발 규칙](../../development/DEVELOPMENT_RULES.md) DEV-01을 인용만 했다.
 - 앞선 연구: [역할별 기기 나누기 점검](2026-10-15-platform-roles-reference.md), [집 관리 범위·건물주 보고](2026-10-10-home-management-scope-owner-reporting.md)(건물주 월간 보고 O1 결정), [IA 사전 연구](2026-10-10-ia-feature-audit-reference.md)(관리자 습관 가설에 "엑셀·메모").
-- 주장 `CLM-152`–`CLM-164`, 출처 `SRC-168`–`SRC-177`을 [출처 레지스트리](../sources/source_registry.csv)와 [주장 레지스트리](../sources/claim_registry.csv)에 등록했다. `SRC-153`(AppFolio 앱 설명)은 다시 인용했다.
+- 주장 `CLM-152`–`CLM-166`, 출처 `SRC-168`–`SRC-178`을 [출처 레지스트리](../sources/source_registry.csv)와 [주장 레지스트리](../sources/claim_registry.csv)에 등록했다. `SRC-153`(AppFolio 앱 설명)은 다시 인용했다.
 
 ## 요약
 
@@ -16,6 +16,7 @@
 - [FACT] MCP는 AI 앱이 외부 데이터와 도구에 연결되는 공개 규약이다(최신 명세 2026-07-28). 사용자 동의·데이터 보호·도구 안전을 핵심 원칙으로 두지만, 명세 스스로 "MCP itself cannot enforce these security principles at the protocol level"이라고 적는다. 지키는 책임은 만드는 쪽에 있다(CLM-159).
 - [FACT] 개인정보 보호 고시는 개인정보 다운로드 상황을 확인·점검하는 주기·방법·사후조치를 내부 관리계획으로 정하게 한다(CLM-160).
 - [HYPOTHESIS] 권하는 순서: ① 엑셀 내보내기(업무함·정비 이력·월간 보고) → ② 확정된 방문 일정을 캘린더 파일로 → ③ 엑셀로 호실·세입자 한꺼번에 등록(건물 정보 2단계와 함께) → ④ Google 계정 연결(드라이브·캘린더)은 실제 로그인 뒤 → ⑤ AI 연결(MCP)은 마지막. 앞의 둘은 외부 계정 연결 없이 만들 수 있다(CLM-162).
+- [DECISION] 2026-10-15 운영자가 8절의 권하는 안 Q1–Q4를 승인했다(SRC-178, CLM-166). 순서와 범위만 정했고, 구현은 시안·스펙 승인 뒤다.
 
 ## 1. 연구 질문과 도울 결정
 
@@ -120,7 +121,7 @@
 4. D1·C2 Google 연결. 실제 로그인(앱 v2·Auth0)이 생긴 뒤, 운영자가 Google 개발자 계정·검수를 정할 때.
 5. A1 AI 연결(MCP). 실제 로그인, 개인정보 처리방침, AI 고지가 갖춰진 뒤. 처음에는 읽기만 하는 도구부터.
 
-## 8. 운영자 결정 (DECISION_REQUIRED)
+## 8. 운영자 결정 (2026-10-15 승인)
 
 | ID | 질문 | 권하는 안 | 다른 안 |
 | --- | --- | --- | --- |
@@ -129,7 +130,12 @@
 | Q3 | 엑셀에 개인정보(세입자 이름·연락처)를 넣을까? | 처음에는 빼고 호실·요청·상태·날짜만. 넣는 것은 실서비스 전 다운로드 기록과 함께 | 처음부터 넣기 |
 | Q4 | Google 계정 연결(D1·C2)은 언제? | 실제 로그인 뒤 별도 스펙. 그 전에는 내려받기만. Google 로그인을 더할지는 D01(Database-only Web identity path)을 다시 여는 결정이라 그때 따로 정한다 | 지금 시작 |
 
-- 권하는 안은 아직 결정이 아니다. 결정 전에는 스펙·구현에 넣지 않는다([AI 작성·전달 사전 규칙](../../governance/ai_delivery_rules.md) R02). E1을 고르면 화면 배치는 실제 크기 시안으로 먼저 보여 준다.
+- [DECISION] 2026-10-15 운영자가 "두 연구의 권하는 안 승인"을 골랐다(SRC-178, CLM-166). Q1–Q4는 위 표의 권하는 안대로 정해졌다.
+  - Q1: 우리 앱이 엑셀·캘린더·드라이브와 이어지는 것부터, AI 비서 연결(MCP)은 마지막.
+  - Q2: E1 엑셀 내보내기 → C1 방문 일정 파일 순서.
+  - Q3: 엑셀에는 처음에 세입자 이름·연락처를 넣지 않는다. 넣는 것은 실서비스 전에 다운로드 기록과 함께 정한다.
+  - Q4: Google 계정 연결은 실제 로그인 뒤 별도 스펙. Google 로그인을 더할지는 그때 D01을 다시 열어 정한다.
+- 이 결정은 순서와 범위다. 구현은 아직 승인되지 않았다. E1·C1을 만들 때는 실제 크기 시안과 스펙을 먼저 보여 주고 승인을 받는다([개발 규칙](../../development/DEVELOPMENT_RULES.md) DEV-03·DEV-04, [AI 작성·전달 사전 규칙](../../governance/ai_delivery_rules.md) R02).
 
 ## 9. 반증과 한계
 
@@ -218,9 +224,9 @@
 ```text
 POLICY_REF: main 1d88457
 TARGET_REF: main 1d88457 (코드 읽기, 실행 NOT_RUN)
-DECISIONS: 운영자 요청 2026-10-15는 결정 아님. Q1–Q4 DECISION_REQUIRED
+DECISIONS: 운영자 요청 2026-10-15는 연구 요청. Q1–Q4는 2026-10-15 권하는 안대로 승인(SRC-178, CLM-166); 구현은 시안·스펙 승인 뒤
 SCOPE: research/ 노트와 레지스트리만. 코드·규칙·화면 변경 없음
 CHECKS: 원문 열람 2026-10-15; verify_repository.py는 PR 전에 실행
-STATUS: DECISION_REQUIRED
+STATUS: READY_TO_SEND (결정 기록 포함)
 ARTIFACT: research/ux/2026-10-15-integrations-export-calendar-ai.md
 ```
