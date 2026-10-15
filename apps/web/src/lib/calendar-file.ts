@@ -7,8 +7,11 @@ export type CalendarEvent={uid:string;start:string;end:string;stamp:string;summa
 const encoder=new TextEncoder();
 /** `2026-10-17T05:00:00.000Z` → `20261017T050000Z`; throws on a value that is not an instant. */
 export function icsUtc(at:string):string{const time=Date.parse(at);if(!Number.isFinite(time))throw new RangeError("INVALID_INSTANT");return new Date(time).toISOString().replace(/\.\d{3}Z$/,"Z").replace(/[-:]/g,"");}
-/** TEXT escaping (RFC 5545 3.3.11): backslash, semicolon, comma and line breaks; other control characters become spaces. */
-export function icsText(value:string):string{return value.replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r\n|\r|\n/g,"\\n").replace(/\p{Cc}/gu," ");}
+/**
+ * TEXT escaping (RFC 5545 3.3.11): backslash, semicolon, comma and line breaks; other control characters and the Unicode
+ * line and paragraph separators (which some readers split lines on) become spaces.
+ */
+export function icsText(value:string):string{return value.replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r\n|\r|\n/g,"\\n").replace(/[\p{Cc}\u2028\u2029]/gu," ");}
 /** Folds one content line into lines of at most 75 octets; each continuation line starts with one space (RFC 5545 3.1). */
 export function icsFold(line:string):string{
   const lines:string[]=[];let current="",size=0;

@@ -13,12 +13,19 @@ it("escapes TEXT so a value can never start a new property (RFC 5545 3.3.11)",()
   expect(icsText("a\\b;c,d:e")).toBe("a\\\\b\\;c\\,d:e");
   expect(icsText("x\r\nURL:https://example.invalid\ny\rz")).toBe("x\\nURL:https://example.invalid\\ny\\nz");
   expect(icsText(`tab${String.fromCharCode(9)}bell${String.fromCharCode(7)}`)).toBe("tab bell ");
+  // Readers that split lines on the Unicode line and paragraph separators (Python's splitlines) must not see a new property.
+  expect(icsText(`해솔빌라${String.fromCharCode(0x2028)}URL:x${String.fromCharCode(0x2029)}y`)).toBe("해솔빌라 URL:x y");
 });
 it("folds at 75 octets with a leading space and never splits a character",()=>{
   const line="SUMMARY:"+"해솔빌라 101동 1203호 누수 방문 ".repeat(6);const folded=icsFold(line);
   for(const part of folded.split("\r\n")){expect(bytes(part)).toBeLessThanOrEqual(75);expect(new TextDecoder("utf-8",{fatal:true}).decode(new TextEncoder().encode(part))).toBe(part);}
   expect(folded.split("\r\n").length).toBeGreaterThan(1);expect(folded.split("\r\n").slice(1).every(part=>part.startsWith(" "))).toBe(true);expect(unfold(folded)).toBe(line);
   expect(icsFold("VERSION:2.0")).toBe("VERSION:2.0");
+});
+it("folds four-octet characters (emoji, surrogate pairs) whole",()=>{
+  const line="SUMMARY:"+String.fromCodePoint(0x1f6bf).repeat(40),folded=icsFold(line);
+  for(const part of folded.split("\r\n")){expect(bytes(part)).toBeLessThanOrEqual(75);expect(new TextDecoder("utf-8",{fatal:true}).decode(new TextEncoder().encode(part))).toBe(part);}
+  expect(unfold(folded)).toBe(line);
 });
 it("writes one event with the required properties in order, CRLF line ends and no alarm",()=>{
   const text=calendarFile(event),lines=unfold(text).split("\r\n");

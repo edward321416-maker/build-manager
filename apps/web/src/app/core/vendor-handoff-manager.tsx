@@ -65,6 +65,8 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
   const choose=(values:string[],key:string,checked:boolean)=>checked?[...values,key]:values.filter(v=>v!==key);
   const at=p.now??new Date(),appointment=p.handoff?.appointment?.status==="SCHEDULED"?p.handoff.appointment:null;
   const canReschedule=Boolean(p.onReschedule&&appointment&&assignment?.status==="ACTIVE"&&p.handoff?.currentRound?.status==="CONFIRMED"&&Date.parse(appointment.startAt)>at.getTime());
+  // The change button sits right of 캘린더에 추가 in one row (C1); the change check replaces it below that row.
+  const changeButton=canReschedule&&!p.rescheduleReview?<button type="button" disabled={blocked} onClick={()=>p.onRescheduleReview?.(true)}>방문 일정 변경</button>:null;
   return <section id="vendor-handoff" tabIndex={-1} className={styles.panel} aria-label="업체 연결 및 작업 요청">
     <h2>업체 연결 / 작업 요청</h2>
     {p.loading?<p role="status">업체 연결 상태 불러오는 중…</p>:null}
@@ -81,12 +83,12 @@ export function VendorHandoffManagerView(p:VendorHandoffViewProps){
     </div>:null}
     {appointment?<div role="group" aria-label="방문 일정">
       <p>방문 일정 · {formatVendorInterval(appointment.startAt,appointment.endAt,at)} · {appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?"세입자가 동의한 시간 안에서 업체가 선택":"세입자 확정"}</p>
-      {packet&&visitStillAhead(appointment,at)?<VisitCalendarButton fileName={visitCalendarFileName(appointment)} build={()=>managerVisitCalendar(appointment,packet,p.ticket.ticketId,p.now??new Date())} disabled={blocked}/>:null}
-      {canReschedule?(p.rescheduleReview?<div role="group" aria-label="방문 일정 변경 확인">
+      {packet&&visitStillAhead(appointment,at)?<VisitCalendarButton fileName={visitCalendarFileName(appointment)} build={()=>managerVisitCalendar(appointment,packet,p.ticket.ticketId,p.clock?.()??p.now??new Date())} disabled={blocked}>{changeButton}</VisitCalendarButton>:changeButton}
+      {canReschedule&&p.rescheduleReview?<div role="group" aria-label="방문 일정 변경 확인">
         <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 세입자와 업체가 새로 일정을 조율해요.</p>
         <button type="button" disabled={blocked} onClick={p.onReschedule}>일정 변경하기</button>
         <button type="button" disabled={p.busy} onClick={()=>p.onRescheduleReview?.(false)}>돌아가기</button>
-      </div>:<button type="button" disabled={blocked} onClick={()=>p.onRescheduleReview?.(true)}>방문 일정 변경</button>):null}
+      </div>:null}
     </div>:null}
     {p.handoff?.currentReport?<section className={styles.preview} aria-label="업체 작업 보고">
       <h3>업체 작업 보고 · {p.handoff.currentReport.revision}차</h3>

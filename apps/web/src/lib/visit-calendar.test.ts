@@ -1,5 +1,5 @@
 import { expect,it } from "vitest";
-import { managerVisitCalendar,tenantVisitCalendar,vendorVisitCalendar,visitCalendarFileName,visitStillAhead,type CalendarPacket } from "./visit-calendar";
+import { managerVisitCalendar,tenantVisitCalendar,vendorVisitCalendar,visitCalendarFileName,visitPlace,visitStillAhead,type CalendarPacket } from "./visit-calendar";
 
 const visit={id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",startAt:"2026-10-17T05:00:00Z",endAt:"2026-10-17T07:00:00Z",confirmationMode:"TENANT_CONFIRMED" as const};
 // A full packet as the screens hold it: the extra fields must never reach a file.
@@ -33,6 +33,14 @@ it("gives the manager the unit, the request number and how the time was set, wit
 it("uses the building alone when there is no unit label",()=>{
   expect(field(managerVisitCalendar(visit,{...packet,unitLabel:null} as CalendarPacket,"t",now),"LOCATION")).toBe("LOCATION:해솔빌라");
   expect(field(vendorVisitCalendar(visit,{...packet,unitLabel:null} as CalendarPacket,now),"SUMMARY")).toBe("SUMMARY:방문 · 누수 · 해솔빌라");
+});
+it("leaves out an empty building name instead of a stray space or separator",()=>{
+  expect(visitPlace("","101동 1203호")).toBe("101동 1203호");expect(visitPlace("해솔빌라","")).toBe("해솔빌라");expect(visitPlace("",null)).toBeNull();
+  const manager=managerVisitCalendar(visit,{...packet,buildingName:""} as CalendarPacket,"t",now);
+  expect(field(manager,"LOCATION")).toBe("LOCATION:101동 1203호");expect(field(manager,"SUMMARY")).toBe("SUMMARY:업체 방문 · 누수 · 101동 1203호");
+  const nothing=managerVisitCalendar(visit,{...packet,buildingName:"",unitLabel:null} as CalendarPacket,"t",now);
+  expect(field(nothing,"LOCATION")).toBeNull();expect(field(nothing,"SUMMARY")).toBe("SUMMARY:업체 방문 · 누수");
+  expect(field(vendorVisitCalendar(visit,{...packet,buildingName:"",unitLabel:null} as CalendarPacket,now),"SUMMARY")).toBe("SUMMARY:방문 · 누수");
 });
 it("names the file by the visit's Seoul date whatever zone the browser is in",()=>{
   expect(withZone("America/Los_Angeles",()=>visitCalendarFileName({startAt:"2026-10-16T16:30:00Z"}))).toBe("방문일정_2026-10-17.ics");

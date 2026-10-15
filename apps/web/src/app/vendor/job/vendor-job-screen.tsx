@@ -678,6 +678,9 @@ function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,
   const authorized=job.effectiveMode==="PREAUTHORIZED_ENTRY_WINDOW"?windows.filter(item=>availability!.authorizedWindowIds.includes(item.id)):[];
   const liveSlots=open?job.proposal?.slots.filter(slot=>future(slot.startAt))??[]:[];
   const proposing=open&&!liveSlots.length,roomForWindow=schedule.drafts.some(blankDraft)||schedule.drafts.length<5;
+  // The change button sits right of 캘린더에 추가 in one row (C1); the change check replaces it below that row.
+  const changeable=Boolean(appointment&&future(appointment.startAt)&&round?.status==="CONFIRMED");
+  const changeButton=changeable&&!schedule.rescheduling?<button type="button" disabled={submitting} onClick={()=>onSchedule({rescheduling:true})}>방문 일정 변경</button>:null;
   if(schedule.status==="uncertain"&&schedule.sent)return <div className={styles.confirm} role="group" aria-label="방문 일정 결과 확인">
     <p role="alert">{UNCERTAIN_SCHEDULE[schedule.sent.kind]}</p>
     <button type="button" onClick={onRetrySchedule}>같은 요청으로 결과 확인</button>
@@ -688,13 +691,13 @@ function VisitScheduling({job,schedule,now,submitting,onSchedule,onProposeSlots,
       <h3>확정된 방문 일정</h3>
       <p>{label(appointment.startAt,appointment.endAt)}</p>
       <p>{appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?"세입자가 부재 중 출입에 동의한 시간 안에서 정한 방문이에요.":"세입자가 확정한 방문 시간이에요."}</p>
-      {job.currentPacket&&visitStillAhead(appointment,at)?<VisitCalendarButton fileName={visitCalendarFileName(appointment)} build={()=>vendorVisitCalendar(appointment,job.currentPacket!,now())} disabled={submitting}/>:null}
-      {future(appointment.startAt)&&round?.status==="CONFIRMED"?(schedule.rescheduling?<div className={styles.confirm} role="group" aria-labelledby="vendor-reschedule-confirm">
+      {job.currentPacket&&visitStillAhead(appointment,at)?<VisitCalendarButton fileName={visitCalendarFileName(appointment)} build={()=>vendorVisitCalendar(appointment,job.currentPacket!,now())} disabled={submitting}>{changeButton}</VisitCalendarButton>:changeButton}
+      {changeable&&schedule.rescheduling?<div className={styles.confirm} role="group" aria-labelledby="vendor-reschedule-confirm">
         <h3 id="vendor-reschedule-confirm">방문 일정을 바꿀까요?</h3>
         <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 세입자와 새로 일정을 조율해야 해요.</p>
         <button type="button" disabled={submitting} onClick={onReschedule}>일정 변경하기</button>
         <button type="button" disabled={submitting} onClick={()=>onSchedule({rescheduling:false})}>돌아가기</button>
-      </div>:<button type="button" disabled={submitting} onClick={()=>onSchedule({rescheduling:true})}>방문 일정 변경</button>):null}
+      </div>:null}
     </div>:null}
     {windows.length?<div>
       <h3>세입자가 알려 준 가능한 시간</h3>

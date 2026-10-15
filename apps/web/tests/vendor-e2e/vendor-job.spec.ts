@@ -409,7 +409,8 @@ test('P5-T02 a declined Vendor job puts 업체 확인 필요 on the manager 알�
 });
 
 test('C1 each role saves the confirmed visit as a calendar file with only its own details', async ({ browser, fixture }) => {
-  const c = await provision(fixture), v = await vendorContext(browser, fixture, c.link), tenant = await actor(browser, fixture, 'tenant'), manager = await actor(browser, fixture, 'manager', 1280);
+  const access = 'Task12 synthetic access code 4821';
+  const c = await provision(fixture, false, access), v = await vendorContext(browser, fixture, c.link), tenant = await actor(browser, fixture, 'tenant'), manager = await actor(browser, fixture, 'manager', 1280);
   const ics = (value: string) => value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
   const utc = (at: string) => new Date(at).toISOString().replace(/\.\d{3}Z$/, 'Z').replace(/[-:]/g, '');
   const save = async (page: Page) => {
@@ -428,9 +429,13 @@ test('C1 each role saves the confirmed visit as a calendar file with only its ow
     for (const text of [vendorFile, tenantFile, managerFile]) {
       expect(text.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n')).toBe(true); expect(text.endsWith('END:VCALENDAR\r\n')).toBe(true);
       expect(text).toContain(`UID:${j.appointment.id}@build-manager\r\n`); expect(text).toContain(`DTSTART:${utc(j.appointment.startAt)}\r\n`); expect(text).toContain(`DTEND:${utc(j.appointment.endAt)}\r\n`);
-      expect(text).not.toContain('Task12 synthetic private resident text');
+      // Only named fields go in: no access instruction, tenant text, vendor name or work summary in any role's file.
+      for (const hidden of [access, 'Task12 synthetic private resident text', 'Task12 synthetic Vendor', 'Task12 synthetic minimum packet']) expect(text).not.toContain(hidden);
     }
     expect(vendorFile).toContain(`LOCATION:${address}\r\n`); expect(vendorFile).toContain(`작업 번호 ${ics(j.currentPacket.jobReference)}`);
+    // The tenant's place comes from the request's own unit on /core, the manager's from the packet: both building and unit.
+    const unit = `LOCATION:${ics([j.currentPacket.buildingName, j.currentPacket.unitLabel].filter(Boolean).join(' '))}\r\n`;
+    expect(tenantFile).toContain(unit); expect(managerFile).toContain(unit);
     expect(tenantFile).not.toContain(address); expect(managerFile).not.toContain(address); expect(managerFile).toContain(`요청 번호 ${c.ticketId}`);
   } finally { await v.close(); await tenant.close(); await manager.close(); }
 });

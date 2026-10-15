@@ -99,10 +99,10 @@ export async function issueThroughUI(page: Page, id: string, preauthorized = fal
   const link = await input.inputValue(); expect(Boolean(link.split('#')[1])).toBe(true);
   return link;
 }
-export async function provision(f: Fixture, preauthorized = false) {
+export async function provision(f: Fixture, preauthorized = false, accessInstruction: string | null = null) {
   const t = await ticket(f);
   let m = await core(f, 'manager', `manager/tickets/${t.ticketId}/vendor-assignment`, { clientRequestId: randomUUID(), expectedTicketVersion: t.version, vendorLabel: 'Task12 synthetic Vendor' }, 201);
-  m = await core(f, 'manager', `manager/vendor-assignments/${m.assignment.id}/packet-revisions`, { clientRequestId: randomUUID(), expectedAssignmentVersion: m.assignment.version, expectedPacketRevisionId: null, workSummary: 'Task12 synthetic minimum packet', sharedDetailKeys: [], allowedPhotoIds: [], accessPolicy: preauthorized ? 'TENANT_PREAUTHORIZATION_ALLOWED' : 'TENANT_PRESENT_REQUIRED', accessInstruction: null }, 201);
+  m = await core(f, 'manager', `manager/vendor-assignments/${m.assignment.id}/packet-revisions`, { clientRequestId: randomUUID(), expectedAssignmentVersion: m.assignment.version, expectedPacketRevisionId: null, workSummary: 'Task12 synthetic minimum packet', sharedDetailKeys: [], allowedPhotoIds: [], accessPolicy: preauthorized ? 'TENANT_PREAUTHORIZATION_ALLOWED' : 'TENANT_PRESENT_REQUIRED', accessInstruction }, 201);
   const link = await core(f, 'manager', `manager/vendor-assignments/${m.assignment.id}/link`, { clientRequestId: randomUUID(), expectedAssignmentVersion: m.assignment.version, expectedPacketRevisionId: m.currentPacket.id }, 201);
   return { ticketId: t.ticketId, assignmentId: m.assignment.id, packetId: m.currentPacket.id, link: link.link };
 }

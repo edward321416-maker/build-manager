@@ -22,12 +22,14 @@ beforeEach(()=>{save.mockReset();window.sessionStorage.clear();window.history.re
 afterEach(async()=>{if(root)await act(async()=>root?.unmount());root=undefined;host?.remove();document.body.querySelectorAll("[data-toast]").forEach(node=>node.remove());});
 async function mount(at:string){
   host=document.createElement("div");document.body.append(host);root=createRoot(host);
-  const client={session:vi.fn(async()=>({assignmentId,expiresAt:"2026-10-14T00:00:00.000Z",csrf:"S".repeat(42)+"z"})),job:vi.fn(async()=>job()),
+  // A change that never answers keeps the screen submitting.
+  const client={session:vi.fn(async()=>({assignmentId,expiresAt:"2026-10-14T00:00:00.000Z",csrf:"S".repeat(42)+"z"})),job:vi.fn(async()=>job()),reschedule:vi.fn(()=>new Promise(()=>{})),
     sourcePhotoPath:(id:string)=>`/api/v2/vendor/job/source-photos/${id}`,completionPhotoPath:(id:string)=>`/api/v2/vendor/job/completion-photos/${id}`};
   await act(async()=>root!.render(<VendorJobScreen client={client as unknown as VendorJobClient} now={()=>new Date(at)}/>));
   await act(async()=>{for(let i=0;i<12;i++)await Promise.resolve();});
 }
-const calendar=()=>Array.from(host!.querySelectorAll("button")).find(button=>button.textContent==="캘린더에 추가");
+const named=(name:string)=>Array.from(host!.querySelectorAll("button")).find(button=>button.textContent===name);
+const calendar=()=>named("캘린더에 추가");
 
 it("lets the vendor save the confirmed visit with the service address and the job number, never the access instruction",async()=>{
   await mount("2026-10-06T03:00:00Z");await act(async()=>calendar()!.click());
@@ -38,4 +40,10 @@ it("lets the vendor save the confirmed visit with the service address and the jo
 });
 it("drops the button once the visit has ended",async()=>{
   await mount("2026-10-07T06:00:00Z");expect(host!.textContent).toContain("확정된 방문 일정");expect(calendar()).toBeUndefined();
+});
+it("sits left of 방문 일정 변경 in one row, stays during the change check and cannot be pressed while the change is sent",async()=>{
+  await mount("2026-10-06T03:00:00Z");const change=named("방문 일정 변경")!;
+  expect(calendar()!.parentElement).toBe(change.parentElement);expect(calendar()!.compareDocumentPosition(change)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await act(async()=>change.click());expect(calendar()!.disabled).toBe(false);
+  await act(async()=>named("일정 변경하기")!.click());expect(calendar()!.disabled).toBe(true);
 });

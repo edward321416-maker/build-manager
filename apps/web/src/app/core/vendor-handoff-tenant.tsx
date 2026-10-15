@@ -97,6 +97,9 @@ function LoadedVendorHandoffTenant({client,ticketId,now=systemNow,issueType,plac
   const selectedSlot=liveSlots.find(slot=>slot.id===slotId)??null;
   const locked=busy||pending!==null;
   const label=(startAt:string,endAt:string)=>formatVendorInterval(startAt,endAt,at);
+  // The change button sits right of 캘린더에 추가 in one row (C1); the change check replaces it below that row.
+  const changeable=Boolean(appointment&&future(appointment.startAt)&&round?.status==="CONFIRMED");
+  const changeButton=appointment&&changeable&&rescheduleFor!==appointment.id?<button type="button" disabled={locked} onClick={()=>setRescheduleFor(appointment.id)}>방문 일정 변경</button>:null;
 
   const submitAvailability=()=>{
     if(!guards)return;
@@ -131,12 +134,12 @@ function LoadedVendorHandoffTenant({client,ticketId,now=systemNow,issueType,plac
       <h3>확정된 방문 일정</h3>
       <p>{label(appointment.startAt,appointment.endAt)}</p>
       <p>{appointment.confirmationMode==="PREAUTHORIZED_ENTRY"?"출입에 동의한 시간 안에서 정해진 방문 시간이에요.":"직접 확정한 방문 시간이에요."}</p>
-      {issueType&&visitStillAhead(appointment,at)?<VisitCalendarButton fileName={visitCalendarFileName(appointment)} build={()=>tenantVisitCalendar(appointment,issueType,place,now())} disabled={locked}/>:null}
-      {future(appointment.startAt)&&round?.status==="CONFIRMED"?(rescheduleFor===appointment.id?<div role="group" aria-label="방문 일정 변경 확인">
+      {issueType&&visitStillAhead(appointment,at)?<VisitCalendarButton fileName={visitCalendarFileName(appointment)} build={()=>tenantVisitCalendar(appointment,issueType,place,now())} disabled={locked}>{changeButton}</VisitCalendarButton>:changeButton}
+      {changeable&&rescheduleFor===appointment.id?<div role="group" aria-label="방문 일정 변경 확인">
         <p>방문 일정을 바꾸면 기존 방문 일정은 취소되고, 새로 가능한 시간을 다시 보내야 해요.</p>
         <button type="button" disabled={locked} onClick={reschedule}>일정 변경하기</button>
         <button type="button" disabled={locked} onClick={()=>setRescheduleFor(null)}>돌아가기</button>
-      </div>:<button type="button" disabled={locked} onClick={()=>setRescheduleFor(appointment.id)}>방문 일정 변경</button>):null}
+      </div>:null}
     </section>:null}
     {notice?<p role="status">{notice}</p>:null}
     {error?<p role="alert">{error}</p>:null}

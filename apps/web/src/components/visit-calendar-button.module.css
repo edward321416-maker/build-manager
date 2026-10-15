@@ -1,3 +1,8 @@
-/* 10px from the lines around it in any visit box (design rules §4, 8.1); the button keeps its own width. */
+/* 10px from the lines around it in any visit box, none below it as the box's last line, and 10px between its parts
+ * (design rules §4, 8.1); each button keeps its own width. */
 .calendar { display: grid; gap: .625rem; justify-items: start; margin-block: .625rem; min-width: 0; }
-.calendar p { margin: 0; }
+.calendar:last-child { margin-bottom: 0; }
+.actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .625rem; min-width: 0; }
+.actions > button { margin: 0; }
+/* The failure is a box on every screen (8.11); /core already boxes alerts, /vendor/job does not. */
+.calendar [role="alert"] { margin: 0; padding: .9375rem; background: var(--color-danger-soft); border: 1px solid var(--color-danger); border-radius: .625rem; color: var(--color-text); }

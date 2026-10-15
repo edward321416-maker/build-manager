@@ -19,13 +19,15 @@ const handoff=():ManagerVendorHandoffDto=>({ticketId:"ticket-5f0c",assignment:{i
 let root:Root|undefined,host:HTMLDivElement|undefined;
 beforeEach(()=>save.mockReset());
 afterEach(async()=>{if(root)await act(async()=>root?.unmount());root=undefined;host?.remove();document.body.querySelectorAll("[data-toast]").forEach(node=>node.remove());});
-async function mount(at:string){
+async function mount(at:string,clock:()=>Date=()=>new Date(at)){
   host=document.createElement("div");document.body.append(host);root=createRoot(host);
-  const client={vendorHandoff:{readHandoff:vi.fn(async()=>handoff()),reschedule:vi.fn()},photos:async()=>[]} as unknown as CoreFlowClient;
-  await act(async()=>root!.render(<VendorHandoffManager client={client} ticket={ticket} revision={0} now={()=>new Date(at)} onHandoff={()=>{}} onChanged={()=>{}}/>));
+  // A change that never answers keeps the screen busy.
+  const client={vendorHandoff:{readHandoff:vi.fn(async()=>handoff()),reschedule:vi.fn(()=>new Promise(()=>{}))},photos:async()=>[]} as unknown as CoreFlowClient;
+  await act(async()=>root!.render(<VendorHandoffManager client={client} ticket={ticket} revision={0} now={clock} onHandoff={()=>{}} onChanged={()=>{}}/>));
   await act(async()=>{for(let i=0;i<12;i++)await Promise.resolve();});
 }
-const calendar=()=>Array.from(host!.querySelectorAll("button")).find(button=>button.textContent==="캘린더에 추가");
+const named=(name:string)=>Array.from(host!.querySelectorAll("button")).find(button=>button.textContent===name);
+const calendar=()=>named("캘린더에 추가");
 
 it("lets the manager save the confirmed visit with the unit and the request number, never the address or access",async()=>{
   await mount("2026-10-06T03:00:00Z");await act(async()=>calendar()!.click());
@@ -35,4 +37,14 @@ it("lets the manager save the confirmed visit with the unit and the request numb
 });
 it("drops the button once the visit has ended",async()=>{
   await mount("2026-10-07T06:00:00Z");expect(host!.textContent).toContain("방문 일정 ·");expect(calendar()).toBeUndefined();
+});
+it("stamps the file with the time of the click, not of the last render",async()=>{
+  let at=new Date("2026-10-06T03:00:00Z");await mount("2026-10-06T03:00:00Z",()=>at);
+  at=new Date("2026-10-06T03:30:00Z");await act(async()=>calendar()!.click());expect(save.mock.calls[0][1]).toContain("DTSTAMP:20261006T033000Z\r\n");
+});
+it("sits left of 방문 일정 변경 in one row, stays during the change check and cannot be pressed while the change is sent",async()=>{
+  await mount("2026-10-06T03:00:00Z");const change=named("방문 일정 변경")!;
+  expect(calendar()!.parentElement).toBe(change.parentElement);expect(calendar()!.compareDocumentPosition(change)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await act(async()=>change.click());expect(calendar()!.disabled).toBe(false);
+  await act(async()=>named("일정 변경하기")!.click());expect(calendar()!.disabled).toBe(true);
 });
