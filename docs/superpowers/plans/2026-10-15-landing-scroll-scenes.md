@@ -396,12 +396,14 @@ const changes = new Set<() => void>();
 beforeEach(() => {
   reduced = false;
   changes.clear();
+  // A getter, so the component reads the setting as it is now when the change event fires.
   vi.stubGlobal("matchMedia", (query: string) => ({
-    matches: query.includes("reduce") ? reduced : false, media: query,
+    get matches() { return query.includes("reduce") ? reduced : false; }, media: query,
     addEventListener: (_: string, listener: () => void) => changes.add(listener),
     removeEventListener: (_: string, listener: () => void) => changes.delete(listener),
   }));
-  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { callback(0); return 1; });
+  // Paints at once; returning 0 leaves no frame pending, so every later scroll paints again.
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { callback(0); return 0; });
   vi.stubGlobal("cancelAnimationFrame", () => {});
   Object.defineProperty(window, "innerHeight", { configurable: true, value: 900 });
   host = document.createElement("div");
