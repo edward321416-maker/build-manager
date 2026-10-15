@@ -79,7 +79,7 @@ END:VCALENDAR
 | --- | --- |
 | `apps/web/src/lib/calendar-file.ts` (새) | iCalendar 글자 만들기: TEXT 이스케이프, 75바이트 접기, UTC 시각, 필수 속성. 화면을 모르는 순수 함수 |
 | `apps/web/src/lib/download-file.ts` (새) | `downloadFile(이름, 글자, 형식)`. E1의 `downloadCsv`가 이것을 쓰게 바꾼다(동작 같음, 기존 시험 그대로 통과) |
-| `apps/web/src/app/core/visit-calendar.ts` (새) | 세 역할의 일정 내용(제목·장소·메모)과 파일 이름 |
+| `apps/web/src/lib/visit-calendar.ts` (새) | 세 역할의 일정 내용(제목·장소·메모)과 파일 이름. 업체 화면(`app/vendor`)도 쓰므로 `lib`에 둔다 |
 | `apps/web/src/components/visit-calendar-button.tsx` (새) | 버튼, 토스트, 실패 안내. 세 화면이 같이 씀 |
 | 세 화면 파일과 `core-screen.tsx` | 버튼 연결, 세입자 화면에 호실·문제 넘기기 |
 
