@@ -44,7 +44,10 @@ export function BuildingsScreen({ client, orgId, units, place, revision, disable
   const [infoProblem, setInfoProblem] = useStepMessage<Exclude<InfoProblem, null>>(step);
   const [addProblem, setAddProblem] = useStepMessage<Exclude<AddProblem, null>>(step);
   const [unitProblem, setUnitProblem] = useStepMessage<Exclude<UnitProblem, null>>(step);
-  const [notice, setNotice] = useState<{ id: string; text: string } | null>(null);
+  // A notice about the unit list carries the list it was about, so it goes once the units are read again (delta review N1).
+  const [notice, setNotice] = useState<{ id: string; text: string; units?: readonly CoreUnitDto[] } | null>(null);
+  const unitsNow = useRef(units);
+  useEffect(() => { unitsNow.current = units; }, [units]);
   // The last info save sent, so a reload after an unknown result can tell whether exactly that save landed.
   const attempt = useRef<{ id: string; input: CoreBuildingInfoSave } | null>(null);
   const [toast, showToast] = useToastMessage();
@@ -77,7 +80,7 @@ export function BuildingsScreen({ client, orgId, units, place, revision, disable
    * building, since the toast alone would claim a list that did not change (review LOW 5). */
   const refreshAfterWrite = useCallback(async (buildingId: string) => {
     setListRead(n => n + 1);
-    try { await onUnitsChanged(); } catch { setNotice({ id: buildingId, text: UNITS_STALE }); }
+    try { await onUnitsChanged(); } catch { setNotice({ id: buildingId, text: UNITS_STALE, units: unitsNow.current }); }
   }, [onUnitsChanged]);
   // Moves after a write happen only while the screen is still there (a 401 clears it, review open question).
   const back = (from: BuildingPlace) => { if (alive.current) onBack(from); };
@@ -107,7 +110,8 @@ export function BuildingsScreen({ client, orgId, units, place, revision, disable
     setAddProblem(null);
     let createdId: string;
     try { createdId = (await client.buildings.create(orgId, buildingName)).id; }
-    catch (error) { setAddProblem(status(error) === 400 ? "invalid" : "uncertain"); return; }
+    // An unknown result reads the list again at once, so a user who already left sees a building that was made (delta L1).
+    catch (error) { const invalid = status(error) === 400; setAddProblem(invalid ? "invalid" : "uncertain"); if (!invalid) setListRead(n => n + 1); return; }
     try { await client.buildings.save(createdId, { expectedVersion: 0, displayName: buildingName, serviceAddress: null, heatingType: null, managementMode: null }); }
     catch { setListRead(n => n + 1); setNotice({ id: createdId, text: PARTIAL }); replace(from, { kind: "building", id: createdId }); return; }
     setListRead(n => n + 1); replace(from, { kind: "building", id: createdId }); showToast("건물을 추가했어요");
@@ -137,7 +141,7 @@ export function BuildingsScreen({ client, orgId, units, place, revision, disable
     body = <div className={styles.workspace} data-detail={place.kind === "building" ? "true" : undefined}>
       <div className={`${styles.pane} ${styles.listPane}`}>{listView}</div>
       {place.kind === "building" ? <div className={`${styles.pane} ${styles.detailPane}`}>{infoView(value =>
-        <BuildingDetail info={value} units={units} notice={notice?.id === value.buildingId ? notice.text : null} disabled={locked}
+        <BuildingDetail info={value} units={units} notice={notice?.id === value.buildingId && (!notice.units || notice.units === units) ? notice.text : null} disabled={locked}
           onEdit={() => onOpen({ kind: "edit", id: value.buildingId })} onAddUnit={() => onOpen({ kind: "addUnit", id: value.buildingId })} />)}</div> : null}
     </div>;
   } else if (place.kind === "add") {

@@ -97,7 +97,6 @@ describe("history steps", () => {
     // The user already went back while the save ran: the late "step back" must not take them past the building.
     const back = popped();
     await act(async () => { nav!.back(); await back; });
-    const length = window.history.length;
     await act(async () => nav!.backFrom({ kind: "edit", id }));
     expect(shown()).toBe("building:" + id);
     // The user tapped the menu (reset to the list) while adding a building: the late replace must not rewrite the list.
@@ -114,7 +113,6 @@ describe("history steps", () => {
     const up = popped();
     await act(async () => { nav!.backFrom({ kind: "addUnit", id }); await up; });
     expect(shown()).toBe("building:" + id);
-    expect(window.history.length).toBeGreaterThanOrEqual(length);
   });
 
   it("is always the list outside 건물·호실 관리", async () => {

@@ -150,7 +150,7 @@ describe("building screen flows (P6 PR 2)", () => {
     await type(field("업체에 알려 줄 주소"), "합성 주소 2");
     await press(button("저장하기"));
     await press(button("새로 불러오기"));
-    expect(alertText()).toBe("저장되지 않았어요. 입력한 내용을 확인하고 다시 저장해 주세요.");
+    expect(alertText()).toBe("아직 저장되지 않았어요. 입력한 내용을 확인하고 다시 저장해 주세요.");
     expect(field("업체에 알려 줄 주소").value).toBe("합성 주소 2");
     expect(p.onBack).not.toHaveBeenCalled();
   });
@@ -198,8 +198,10 @@ describe("building screen flows (P6 PR 2)", () => {
     await press(button("건물 추가하기"));
     expect(client.buildings.save).not.toHaveBeenCalled();
     expect(alertText()).toContain("건물을 추가했는지 확인하지 못했어요.");
-    await press(button("목록 새로 불러오기"));
+    // The list is read again at once, so a user who already left sees a building that was made (delta review L1).
     expect(client.buildings.list).toHaveBeenCalledTimes(2);
+    await press(button("목록 새로 불러오기"));
+    expect(client.buildings.list).toHaveBeenCalledTimes(3);
     expect(p.onBack).toHaveBeenCalledWith({ kind: "add" });
   });
 
@@ -222,6 +224,9 @@ describe("building screen flows (P6 PR 2)", () => {
     expect(toast()).toBe("호실을 추가했어요");
     await rerender({ ...p, place: { kind: "building", id: a } });
     expect(alertText()).toBe("호실 목록을 새로 불러오지 못했어요. 위의 새로고침을 눌러 주세요.");
+    // Once the units arrive again (the screen's 새로고침), the notice is no longer true and goes (delta review N1).
+    await rerender({ ...p, place: { kind: "building", id: a }, units: [...units, { id: "u4", buildingId: a, buildingName: "합성 햇살빌라", label: "103호" }] });
+    expect(alertText()).toBeNull();
   });
 
   it("adds a unit, refreshes and goes back; a duplicate name stays on the form", async () => {

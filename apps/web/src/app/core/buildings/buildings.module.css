@@ -39,8 +39,9 @@
 .facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .3125rem .9375rem; padding: .9375rem 0; border-bottom: 1px solid var(--color-border); }
 .facts > div:last-child { border-bottom: 0; }
 .facts dt { color: var(--color-text-secondary); }
-/* A short value sits at the right like the mockup; one too long for the row wraps onto its own line (flex-wrap) and reads
- * left-aligned like all text (rules 3.3; review LOW 8), never ragged on the left. */
+/* A value that fits on one line sits at the right like the approved mockup (beside the name, or on its own line when it
+ * cannot share the row); a value that needs several lines takes the full row and its lines are left-aligned (rules 3.3;
+ * review LOW 8), never ragged on the left. */
 .facts dd { max-width: 100%; margin: 0 0 0 auto; font-weight: 600; text-align: left; overflow-wrap: anywhere; }
 .facts dd[data-missing="true"] { color: var(--status-wait-text); }
 
@@ -71,8 +72,9 @@
 @media (min-width: 1120px) {
   .workspace[data-detail="true"] .bar button.addUnit { color: var(--color-text); background: var(--color-surface); border-color: var(--color-border-strong); }
   .workspace[data-detail="true"] .bar button.addUnit:hover:not(:disabled) { background: var(--color-fill-hover); }
-  /* Side by side, the demo's read-only note shows once, under the building (review nit). */
-  .workspace[data-detail="true"] > .listPane [data-read-only] { display: none; }
+  /* Side by side, the demo's read-only note shows once, under the building, and only once the building shows its own
+   * (while it loads or fails, the list keeps it; delta review L5). */
+  .workspace[data-detail="true"]:has(> .detailPane [data-read-only]) > .listPane [data-read-only] { display: none; }
 }
 
 /* Forms (8.2): label above, 5px to the field, help or error 5px below, 20px between items, at most 40rem wide. */
