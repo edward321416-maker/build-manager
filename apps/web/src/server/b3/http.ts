@@ -20,6 +20,7 @@ import {
 } from "@build-manager/api-contracts";
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { isDemoEntrySession } from "../b1/demo-entry-config";
 import { privateHeaders } from "../b1/errors";
 import { requireCurrentSession } from "../b1/session";
 import { toB3ErrorResponse } from "./errors";
@@ -91,10 +92,14 @@ export async function handleB3Http(
       assertIds(kind, params);
     }
 
-    const current = await requireCurrentSession(await d.readSession(request), d.sessions);
+    const session = await d.readSession(request);
+    const current = await requireCurrentSession(session, d.sessions);
+    // P6 D4 (docs/superpowers/specs/2026-10-15-building-setup-p6-design.md): the shared login-free demo can read but not register.
+    const demo = isDemoEntrySession(session);
 
     if (request.method === "POST") {
       csrf(request.headers.get("x-b1-csrf"), current.csrf);
+      if (demo) throw new B3Error("FORBIDDEN");
       noQuery(request);
       assertIds(kind, params);
       const body = await readB3Json(request);
@@ -123,21 +128,21 @@ export async function handleB3Http(
 
     if (kind === "properties") {
       const value = await listOrganizationProperties(d, current.digest, params.orgId, pageQuery(request));
-      const allowed = await canCreateOrganizationProperty(d, current.digest, params.orgId);
+      const allowed = !demo && await canCreateOrganizationProperty(d, current.digest, params.orgId);
       return NextResponse.json(value, {
         headers: headers({ "X-B3-Can-Create-Property": allowed ? "true" : "false" }),
       });
     }
     if (kind === "property") {
       const value = await getOrganizationProperty(d, current.digest, params.orgId, params.propertyId);
-      const allowed = await canCreatePropertyUnit(d, current.digest, params.orgId, params.propertyId);
+      const allowed = !demo && await canCreatePropertyUnit(d, current.digest, params.orgId, params.propertyId);
       return NextResponse.json(value, {
         headers: headers({ "X-B3-Can-Create-Unit": allowed ? "true" : "false" }),
       });
     }
     if (kind === "units") {
       const value = await listPropertyUnits(d, current.digest, params.orgId, params.propertyId, pageQuery(request));
-      const allowed = await canCreatePropertyUnit(d, current.digest, params.orgId, params.propertyId);
+      const allowed = !demo && await canCreatePropertyUnit(d, current.digest, params.orgId, params.propertyId);
       return NextResponse.json(value, {
         headers: headers({ "X-B3-Can-Create-Unit": allowed ? "true" : "false" }),
       });

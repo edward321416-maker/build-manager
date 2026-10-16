@@ -62,6 +62,11 @@ export function createCoreFlowPort(database: PostgresDatabase,orgId?:string): Co
             notes:id=>call("SELECT core_flow.list_internal_notes($1,$2) AS value",[hash,id]),
             appendNote:(id,body)=>call("SELECT core_flow.append_internal_note($1,$2,$3) AS value",[hash,id,body]),
           },
+          buildings:{
+            list:()=>call("SELECT core_flow.org_buildings($1) AS value",[hash]),
+            read:id=>call("SELECT core_flow.building_info($1,$2) AS value",[hash,id]),
+            save:(id,input)=>call("SELECT core_flow.save_building_info($1,$2,$3,$4,$5,$6,$7) AS value",[hash,id,input.expectedVersion,input.displayName,input.serviceAddress,input.heatingType,input.managementMode]),
+          },
           units:()=>call("SELECT core_flow.units($1) AS value",[hash]),
           building:unit=>call("SELECT core_flow.building($1,$2) AS value",[hash,unit]),
           read:(id,lock=false)=>call("SELECT core_flow.read_ticket($1,$2,$3) AS value",[hash,id,lock]),

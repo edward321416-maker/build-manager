@@ -1,15 +1,16 @@
 import {
   BuildingPassportDtoSchema,
   LandlordTicketDetailDtoSchema,
+  OrgBuildingDtoSchema,
   TenantTicketStatusDtoSchema,
   type BuildingPassportDto,
   type LandlordTicketDetailDto,
+  type OrgBuildingDto,
   type Protocol as PublicProtocol,
   type SyntheticEvidenceRequirementDto,
   type SyntheticEvidenceType,
   type TenantQuestionDto,
   type TenantTicketStatusDto,
-  type UnverifiedBuildingDto,
 } from "@build-manager/api-contracts";
 import { assessTicket, CORE_PHOTO_REF_PREFIX, getOutstandingMoreInfo } from "@build-manager/application";
 import {
@@ -101,23 +102,25 @@ export function presentBuildingPassport(building: Building): BuildingPassportDto
 }
 
 /**
- * A building without Core building context (the 0025 fallback) has no facts for a passport; the
- * manager sees it as unverified instead of the whole response failing. Anything else must still
- * parse as a full passport.
+ * A demo building keeps its full passport. Any other building (the 0025 fallback with no facts, or one an
+ * organisation admin described, P6 + C1 step 2) shows only its verified heating and management facts, so it
+ * never fails the whole manager response; unexpected values still fail the parse.
  */
 function presentLandlordBuilding(
   building: Building,
-): BuildingPassportDto | UnverifiedBuildingDto {
-  if (!building.demo && building.context.length === 0) {
-    return {
-      buildingId: building.id,
-      displayName: building.displayName,
-      demo: false,
-      contextVerified: false,
-      routingEligibleFields: [],
-    };
-  }
-  return presentBuildingPassport(building);
+): BuildingPassportDto | OrgBuildingDto {
+  if (building.demo) return presentBuildingPassport(building);
+  const eligible = routingEligibleContextKeys(building);
+  const fields = (["managementMode", "heatingType"] as const).filter((key) => eligible.includes(key));
+  const verified = Object.fromEntries(fields.map((key) => [key, getBuildingContext(building, key)?.value]));
+  return OrgBuildingDtoSchema.parse({
+    buildingId: building.id,
+    displayName: building.displayName,
+    demo: false,
+    ...verified,
+    contextVerified: fields.length === 2,
+    routingEligibleFields: fields,
+  });
 }
 
 function answerValues(ticket: Ticket): RuleValues {
