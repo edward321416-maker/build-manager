@@ -286,7 +286,7 @@ export * from "./ai-draft/rules";
 (a) 위쪽 주석 둘째 줄 `// Pure parts here are reused by PR 2; …`를 아래로 바꾼다.
 
 ```js
-// The prompt, request shape and checks live in packages/application/src/ai-draft/rules.ts (the product uses the same file);
+// The prompt, request shape and checks live in packages/application/src/ai-draft/rules.ts (exported by the application package for the product);
 // this script re-exports them under the names its tests use and adds the scoring and the command-line runner.
 ```
 
@@ -401,5 +401,18 @@ git commit -m "refactor(tooling): move the evaluated AI draft rules into the app
   - **HTTP:** `GET`·`POST /api/v2/core/manager/tickets/{id}/ai-draft`(관리자만, 세입자 403, 다른 조직 404)
     - 꺼져 있으면 GET은 `enabled:false`, POST는 404
     - 로그에는 요청 ID, 모델, 걸린 시간, 상태만 남긴다(DEV-09 A09).
+- **PR 2a 최종 리뷰 뒤 정한 점(2026-10-16).** 2b·2c 계획에 그대로 넣는다.
+  1. **초안 검사는 `checkAiDraft`가 맡는다.** 평가한 검사는 코드 포인트를 세고 공백만 있는 글을 빈 글로 본다. zod는 UTF-16 단위를 세고 공백을 세므로 판단이 어긋날 수 있다. zod는 Ollama 응답의 겉봉 정도만 읽는다. 설계서 5.3절의 "zod로 검사"는 2b에서 이렇게 고친다. `parseAiDraft`(성공이면 `AiDraft` 형식) 감싸기는 2c에서 더한다.
+  2. **2c는 2b가 병합된 뒤에만 시작한다.** 금지 문구를 넓힌 뒤에 제품이 쓰게 한다(설계서 5.3절).
+  3. **`redirect: "error"`를 2c 연결부에도 넣는다.** 루프백 주소가 307·308로 세입자 글을 다른 곳에 다시 보내지 못하게 한다. 2b에서 fetch 설정을 `rules.ts`로 옮기는 것도 검토한다.
+  4. **`SETUP_ID`는 `rules.ts`에 글자 그대로 둔다.** `rules.ts`는 import가 없어야 하므로 해시를 직접 계산하지 않는다. 대신 해시를 계산해 비교하는 시험으로 고정한다. 출력에 영향이 없는 `keep_alive`는 빼고 계산한다.
+  5. **상태 우선순위를 정한다.**
+     - `safetyConcern`이 참이면 `repairRequest`와 상관없이 SAFETY_HOLD다.
+     - 검사나 금지 문구에 걸리면 FAILED와 이유 코드만 남기고, 글은 저장하지 않는다.
+     - 같은 요청에서 PENDING·SUCCEEDED가 동시에 둘 생기지 않게 고유 색인을 둔다.
+  6. **다른 조직 요청은 403과 404 중 하나로 정한다.** 설계서 8절은 403이고 이 계획의 초안은 404였다. 저장소에는 둘 다 있다. 2c 계획에서 하나로 정하고 설계서를 맞춘다.
+  7. **`num_ctx`는 측정해서 정한다.** 2b 다시 시험에서 Ollama의 `prompt_eval_count`를 기록한다. 2000자 글에서도 지시문이 잘리지 않고 답할 자리가 남는지 확인한다.
+  8. **정규식과 NFKC를 조심한다.** 모듈 수준 정규식에 `g`·`y` 플래그를 붙이지 않는다(요청 사이에 위치 상태가 남는다). NFKC는 검사용 사본에만 쓰고, 저장하거나 보내는 글은 바꾸지 않는다.
+  - 이 밖에: `.d.mts`가 `AiDraftBannedRule` 같은 형식을 가져다 쓰게 하기(2b), 요청 본문을 바이트 단위로 비교하는 시험(2b), 설계서 5.2·12절의 낡은 줄 고치기(2b 계획 때).
 - 그다음은 PR 3(한 번 보내기)과 PR 4(화면 A, 상태 다섯 가지)다.
 - 각 계획은 쓰기 전에 그때의 `main`과 규칙을 다시 읽는다.
