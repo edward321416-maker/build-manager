@@ -14,7 +14,6 @@ export function MenuList({ label, rows, organization, onOpen, onLogout }: {
 }) {
   return <section className={styles.menuList} aria-label={label}><ul>{rows.map(row => <li key={row.label}>{
     row.kind === "view" ? <a className={styles.row} data-menu-row href={navHref(row.to)} onClick={event => { if (plainClick(event)) { event.preventDefault(); onOpen(row.to); } }}>{row.label}</a>
-    : row.kind === "href" ? <a className={styles.row} data-menu-row href={row.href}>{row.label}</a>
     : row.kind === "organization" ? <div className={styles.rowBlock}>{organization}</div>
     : <button type="button" className={styles.row} data-menu-row onClick={onLogout}>{row.label}</button>
   }</li>)}</ul></section>;

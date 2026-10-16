@@ -36,10 +36,17 @@ describe("main menu (rules 8.10, 8.14, 8.15, 12)", () => {
   it("spreads a manager's 더 보기 rows into the left menu with their icons", () => {
     const html = nav("ORG_ADMIN", { tab: "more", view: "maintenance" });
     expect(html).toMatch(/<li data-device="phone"><a href="\/core\?tab=more"/);
-    for (const [href, icon] of [["/core?tab=more&amp;view=maintenance", "file-text"], ["/core?tab=more&amp;view=invitations", "key"], ["/workspace", "layout-grid"]]) {
+    for (const [href, icon] of [["/core?tab=more&amp;view=maintenance", "file-text"], ["/core?tab=more&amp;view=invitations", "key"], ["/core?tab=more&amp;view=buildings", "layout-grid"]]) {
       expect(html).toMatch(new RegExp(`<li data-device="wide"><a href="${href.replace(/[?]/g, "\\?")}"[^>]*><svg[^>]*data-icon="${icon}"`));
     }
     expect(html).toMatch(/aria-current="page"[^>]*><svg[^>]*data-icon="file-text"/);
+    expect(html).not.toContain("/workspace");
+  });
+
+  it("marks 건물·호실 관리 as the current place on its own screen (P6 PR 2)", () => {
+    const html = renderToStaticMarkup(<CoreNav ctx={{ role: "ORG_ADMIN", b1: true }} location={{ tab: "more", view: "buildings" }} badge={0} caption="합성 조직 · 조직 관리자" onNavigate={noop} />);
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(html).toMatch(/href="\/core\?tab=more&amp;view=buildings" aria-current="page"[^>]*><svg[^>]*data-icon="layout-grid"[^>]*data-filled="true"/);
   });
 
   it("names the badge with its count and caps it at 99+", () => {
@@ -73,9 +80,10 @@ describe("menu screens (rules 8.5, 8.11, 8.16)", () => {
     expect(html).toContain('href="/core?tab=me&amp;view=licenses"');
   });
 
-  it("links 더 보기 rows, including the building setup page", () => {
+  it("links 더 보기 rows, including the building setup screen", () => {
     const html = renderToStaticMarkup(<MenuList label="더 보기" rows={moreRows({ role: "ORG_ADMIN", b1: true })} onOpen={noop} onLogout={noop} />);
-    expect(html).toContain('href="/workspace"');
+    expect(html).toContain('href="/core?tab=more&amp;view=buildings"');
+    expect(html).not.toContain("/workspace");
     expect(html).toContain('href="/core?tab=more&amp;view=me"');
   });
 

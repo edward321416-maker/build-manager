@@ -37,6 +37,12 @@ describe("menu definition (P5 spec §1)", () => {
     expect(moreRows(ctx("ORG_ADMIN")).flatMap(row => "icon" in row && row.icon ? [row.icon] : [])).toEqual(["file-text", "key", "layout-grid"]);
   });
 
+  it("opens building setup inside /core, not the old /workspace pages (P6 PR 2, decision D5)", () => {
+    expect(moreRows(ctx("ORG_ADMIN"))[2]).toEqual({ kind: "view", label: "건물·호실 관리", to: { tab: "more", view: "buildings" }, icon: "layout-grid" });
+    expect(navTitle("ORG_ADMIN", { tab: "more", view: "buildings" })).toBe("건물·호실 관리");
+    expect(parentOf(ctx("ORG_ADMIN"), { tab: "more", view: "buildings" })).toEqual({ tab: "more", view: null });
+  });
+
   it("lists MY with the licence notice for every role and logout last (rules 8.13, 8.16)", () => {
     expect(meRows(ctx("TENANT")).map(row => row.label)).toEqual(["내 호실", "내 소속", "호실 연결", "오픈소스 라이선스", "로그아웃"]);
     expect(meRows(ctx("ORG_ADMIN")).map(row => row.label)).toEqual(["내 소속", "오픈소스 라이선스", "로그아웃"]);
@@ -46,13 +52,15 @@ describe("menu definition (P5 spec §1)", () => {
 
   it("knows which row screens a role may open", () => {
     expect(allowedViews(ctx("TENANT"))).toEqual(["units", "link", "licenses"]);
-    expect(allowedViews(ctx("ORG_ADMIN"))).toEqual(["maintenance", "invitations", "me", "licenses"]);
+    expect(allowedViews(ctx("ORG_ADMIN"))).toEqual(["maintenance", "invitations", "buildings", "me", "licenses"]);
+    expect(allowedViews(ctx("ORG_ADMIN", false))).toEqual(["maintenance", "me", "licenses"]);
     expect(allowedViews(ctx("PROPERTY_STAFF"))).toEqual(["maintenance", "me", "licenses"]);
   });
 
   it("treats left-menu rows as first screens on wide screens and the rest as sub-screens (rules 8.10)", () => {
     expect(inLeftMenu(ctx("ORG_ADMIN"), "maintenance")).toBe(true);
     expect(inLeftMenu(ctx("ORG_ADMIN"), "invitations")).toBe(true);
+    expect(inLeftMenu(ctx("ORG_ADMIN"), "buildings")).toBe(true);
     expect(inLeftMenu(ctx("ORG_ADMIN"), "me")).toBe(true);
     expect(inLeftMenu(ctx("ORG_ADMIN"), "licenses")).toBe(false);
     expect(inLeftMenu(ctx("TENANT"), "units")).toBe(false);

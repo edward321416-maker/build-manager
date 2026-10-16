@@ -4,7 +4,7 @@ import type { CoreSessionDto } from "@build-manager/api-contracts";
 // tab bar, the wide-screen left menu, the 더 보기 and MY lists and the address check (design rules 8.10, 8.14, 8.16).
 export type CoreRole = CoreSessionDto["role"];
 export type TabId = "home" | "requests" | "alerts" | "me" | "work" | "more";
-export type ViewId = "units" | "link" | "licenses" | "maintenance" | "invitations" | "me";
+export type ViewId = "units" | "link" | "licenses" | "maintenance" | "invitations" | "buildings" | "me";
 export type NavIconName = "home" | "clipboard-list" | "bell" | "user" | "dots" | "file-text" | "key" | "layout-grid";
 export type NavLocation = { tab: TabId; view: ViewId | null };
 /** `b1`: signed in through the login flow, which alone has organisations and move-in links. */
@@ -12,14 +12,13 @@ export type NavContext = { role: CoreRole; b1: boolean };
 export type NavTab = { id: TabId; label: string; icon: NavIconName };
 export type MenuRow =
   | { kind: "view"; label: string; to: NavLocation; icon?: NavIconName }
-  | { kind: "href"; label: string; href: string; icon: NavIconName }
   | { kind: "organization"; label: string }
   | { kind: "logout"; label: string };
 
 // The account entry is MY everywhere: the tenant's last tab, the manager's last 더 보기 row, the left menu's account item
 // and its list (operator decision 2026-10-14, rules 8.10, 8.14). Written as text, never by text-transform (rules 3.2).
 export const VIEW_LABELS: Record<ViewId, string> = {
-  units: "내 호실", link: "호실 연결", licenses: "오픈소스 라이선스", maintenance: "호실 정비 이력", invitations: "입주 연결", me: "MY",
+  units: "내 호실", link: "호실 연결", licenses: "오픈소스 라이선스", maintenance: "호실 정비 이력", invitations: "입주 연결", buildings: "건물·호실 관리", me: "MY",
 };
 // Short tenant names (operator decision 2026-10-14): at 320px with text at 200%, 우리 집 overflowed its 80px cell.
 const TENANT_TABS: readonly NavTab[] = [
@@ -48,9 +47,10 @@ export function moreRows(ctx: NavContext): MenuRow[] {
   if (isTenant(ctx.role)) return [];
   const rows: MenuRow[] = [{ kind: "view", label: VIEW_LABELS.maintenance, to: { tab: "more", view: "maintenance" }, icon: "file-text" }];
   // Move-in links and building setup exist only behind the login flow, and only an organisation admin manages them.
+  // Building setup is a /core screen since P6 PR 2; the old /workspace pages stay reachable by address (decision D5).
   if (ctx.role === "ORG_ADMIN" && ctx.b1) {
     rows.push({ kind: "view", label: VIEW_LABELS.invitations, to: { tab: "more", view: "invitations" }, icon: "key" });
-    rows.push({ kind: "href", label: "건물·호실 관리", href: "/workspace", icon: "layout-grid" });
+    rows.push({ kind: "view", label: VIEW_LABELS.buildings, to: { tab: "more", view: "buildings" }, icon: "layout-grid" });
   }
   rows.push({ kind: "view", label: VIEW_LABELS.me, to: { tab: "more", view: "me" } });
   return rows;
