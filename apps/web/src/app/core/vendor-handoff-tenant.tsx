@@ -10,7 +10,10 @@ import styles from "./vendor-handoff.module.css";
 
 type Props={client:CoreFlowClient;ticketId:string;revision:number;now?:()=>Date;
   /** C1: what the tenant's calendar entry names; the place is `{건물} {호실}` from the screen's unit list, or null. */
-  issueType?:"HEATING"|"LEAK";place?:string|null};
+  issueType?:"HEATING"|"LEAK";place?:string|null;
+  /** Runs after a scheduling step is saved, or a conflict or a result check re-read a changed schedule, so 방문 시간 확정
+   * 필요 on 알림 is read again. */
+  onChanged?():void};
 type Kind="AVAILABILITY"|"AUTHORIZE"|"CONFIRM"|"RESCHEDULE";
 /** A sent command keeps its exact input so an unknown outcome is reconciled with the same clientRequestId. */
 type Pending={kind:Kind;context:string;run:()=>Promise<TenantVendorSchedulingDto>};
@@ -23,7 +26,7 @@ const SUCCESS:Record<Kind,string>={
 const systemNow=()=>new Date();
 
 export function VendorHandoffTenant(props:Props){return <LoadedVendorHandoffTenant key={`${props.ticketId}-${props.revision}`} {...props}/>;}
-function LoadedVendorHandoffTenant({client,ticketId,now=systemNow,issueType,place=null}:Props){
+function LoadedVendorHandoffTenant({client,ticketId,now=systemNow,issueType,place=null,onChanged}:Props){
   const [scheduling,setScheduling]=useState<TenantVendorSchedulingDto|null>(null),[absent,setAbsent]=useState(false),[loadError,setLoadError]=useState("");
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[pending,setPending]=useState<Pending|null>(null);
   const [drafts,setDrafts]=useState<IntervalDraft[]>(()=>[emptyIntervalDraft()]),[editingAvailability,setEditingAvailability]=useState(false);
@@ -51,7 +54,7 @@ function LoadedVendorHandoffTenant({client,ticketId,now=systemNow,issueType,plac
         setScheduling(fresh);
         if(JSON.stringify(fresh)!==request.context){
           setPending(null);setConsentIds([]);setConsentReview(false);setSlotId(null);setRescheduleFor(null);
-          setNotice("방문 일정이 바뀌었어요. 최신 일정을 확인해 주세요. 이전 요청의 성공 여부는 확정하지 않아요.");return;
+          setNotice("방문 일정이 바뀌었어요. 최신 일정을 확인해 주세요. 이전 요청의 성공 여부는 확정하지 않아요.");onChanged?.();return;
         }
       }
       const receipt=await request.run();
@@ -61,14 +64,14 @@ function LoadedVendorHandoffTenant({client,ticketId,now=systemNow,issueType,plac
       if(current!==generation.current)return;
       setScheduling(value);setPending(null);setNotice(SUCCESS[request.kind]);
       if(request.kind==="AVAILABILITY"){setDrafts([emptyIntervalDraft()]);setEditingAvailability(false);}
-      setConsentIds([]);setConsentReview(false);setSlotId(null);setRescheduleFor(null);
+      setConsentIds([]);setConsentReview(false);setSlotId(null);setRescheduleFor(null);onChanged?.();
     }catch(cause){
       if(current!==generation.current)return;
       const status=cause instanceof ApiClientError?cause.status:undefined;
       if(status===409){
         // Stale guards: reload authoritative state and keep the Tenant's typed draft for an explicit retry.
         setPending(null);setConsentIds([]);setConsentReview(false);setSlotId(null);setRescheduleFor(null);setNotice("방문 일정이 바뀌었어요. 최신 일정을 확인해 주세요.");
-        await load(current);
+        await load(current);onChanged?.();
       }else if(status===404){
         setPending(null);setError("요청을 처리하지 못했어요. 최신 일정을 확인해 주세요.");
         await load(current);

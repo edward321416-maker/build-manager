@@ -56,7 +56,8 @@ export function OutcomeView({completed,tenant,outcome,source,loading,error,busy,
  {outcome.kind==="UNCONFIRMED"||outcome.kind==="RESOLVED"?<button disabled={busy} onClick={()=>onFollowUp("RECURRENCE_CLAIM")}>다시 문제가 생겼어요</button>:null}</div>:null}</>:null}
  </section>;
 }
-export function TicketOutcome({client,ticket,tenant,revision,onFollowUp,onOpen}:{client:CoreFlowClient;ticket:CoreTicketDto;tenant:boolean;revision:number;onFollowUp(kind:FollowUpKind):void;onOpen(id:string):void}){
+/** `onChanged` runs once the result answer is saved, or a conflict re-read the result, so 결과 확인 필요 on 알림 is read again. */
+export function TicketOutcome({client,ticket,tenant,revision,onFollowUp,onOpen,onChanged}:{client:CoreFlowClient;ticket:CoreTicketDto;tenant:boolean;revision:number;onFollowUp(kind:FollowUpKind):void;onOpen(id:string):void;onChanged?():void}){
  const [outcome,setOutcome]=useState<CoreTicketOutcome|null>(null),[source,setSource]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const current=useRef(0),alive=useRef(false),sending=useRef(false),requests=useOutcomeRecoveries(),uncertain=requests.some(r=>r.sourceTicketId===ticket.ticketId);
  const completed=ticket.workStatus==="COMPLETED";
@@ -66,8 +67,8 @@ export function TicketOutcome({client,ticket,tenant,revision,onFollowUp,onOpen}:
  const confirm=async()=>{
   if(sending.current||uncertain)return;sending.current=true;
   const r:OutcomeRecovery={sourceTicketId:ticket.ticketId,clientRequestId:crypto.randomUUID(),claimKind:"RESOLVED"};setBusy(true);setError("");saveOutcomeRecovery(r);
-  try{await client.outcome.confirmResolved(ticket.ticketId,{clientRequestId:r.clientRequestId});if(alive.current){clearOutcomeRecovery(ticket.ticketId);await load();}}
-  catch(e){if(!alive.current)return;if(e instanceof ApiClientError&&[400,401,403,404,409].includes(e.status??0)){clearOutcomeRecovery(ticket.ticketId);setOutcome(null);setSource(null);if(e.status===409)await load();else setError("저장할 수 없어요. 현재 권한과 처리 결과를 확인해 주세요.");}else setError("저장 응답을 받지 못했어요. 위의 저장 여부 확인을 눌러 주세요.");}finally{sending.current=false;if(alive.current)setBusy(false);}
+  try{await client.outcome.confirmResolved(ticket.ticketId,{clientRequestId:r.clientRequestId});if(alive.current){clearOutcomeRecovery(ticket.ticketId);await load();onChanged?.();}}
+  catch(e){if(!alive.current)return;if(e instanceof ApiClientError&&[400,401,403,404,409].includes(e.status??0)){clearOutcomeRecovery(ticket.ticketId);setOutcome(null);setSource(null);if(e.status===409){await load();onChanged?.();}else setError("저장할 수 없어요. 현재 권한과 처리 결과를 확인해 주세요.");}else setError("저장 응답을 받지 못했어요. 위의 저장 여부 확인을 눌러 주세요.");}finally{sending.current=false;if(alive.current)setBusy(false);}
  };
  return <OutcomeView {...{completed,tenant,outcome,source,loading,error,busy,uncertain,onFollowUp,onOpen}} onRefresh={()=>void load()} onConfirm={()=>void confirm()}/>;
 }

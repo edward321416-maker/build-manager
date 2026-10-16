@@ -124,11 +124,13 @@ it("re-reads the same requests on a new revision and stays ready while it does",
   const reads: TodoReads = { outcome: async () => call++ === 0 ? { kind: "UNCONFIRMED" } as CoreTicketOutcome : later.promise };
   const tickets = [done("a")];
   await render({ role: "TENANT", tickets, reads, revision: 0 });
+  expect(seen.current).toMatchObject({ ready: true, refreshing: false });
   await render({ role: "TENANT", tickets, reads, revision: 1 });
   expect(call).toBe(2);
-  expect(seen.current).toMatchObject({ ready: true, reasons: { a: ["RESULT"] } });
+  // The rows stay, and the screen can say the rest is being checked again (review of PR #150: no sign of a re-read).
+  expect(seen.current).toMatchObject({ ready: true, refreshing: true, reasons: { a: ["RESULT"] } });
   await act(async () => later.resolve("RESOLVED"));
-  expect(seen.current).toMatchObject({ ready: true, reasons: {} });
+  expect(seen.current).toMatchObject({ ready: true, refreshing: false, reasons: {} });
   expect(seen.current?.reasons).toEqual({});
 });
 
