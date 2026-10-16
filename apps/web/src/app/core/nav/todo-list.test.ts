@@ -100,6 +100,8 @@ describe("to-do list (P5 spec §5)", () => {
     const base = { role: "TENANT" as const, summariesFailed: false, summaries: {}, tickets: [] };
     expect(buildTodoList({ ...base, extras: extras({ failed: true }) }).partial).toBe(true);
     expect(buildTodoList({ ...base, extras: extras({ ready: false }) }).checking).toBe(true);
+    // A re-read of the same requests keeps the rows and still says the rest is being checked.
+    expect(buildTodoList({ ...base, extras: extras({ refreshing: true }) }).checking).toBe(true);
     expect(buildTodoList({ ...base, extras: extras({ resultLimited: true, linksLimited: true }) })).toMatchObject({ resultLimited: true, linksLimited: true, checking: false, partial: false });
     expect(buildTodoList(base)).toEqual({ items: [], partial: false, checking: false, resultLimited: false, linksLimited: false });
   });

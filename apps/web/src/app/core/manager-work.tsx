@@ -46,14 +46,16 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selected
         <span className={styles.subject}><strong>{item.issueType==="HEATING"?"난방":"누수"}</strong><span>{item.buildingName} · {item.unitLabel}</span></span>
         <span className={styles.workState}>{(hint=><>{hint==="DRAFT"?<DraftBadge/>:<WorkStatusBadge status={item.workStatus}/>}{hint==="NEEDS_MORE_INFO"||hint==="SAFETY_ESCALATED"?<IntakeBadge status={hint}/>:null}<CommunicationBadge summary={conversation.summaries[item.ticketId]}/>{hint==="DECIDE"?<small className={styles.rowHint}>{TODO_REASON_NAMES.DECIDE}</small>:null}</>)(managerRowHint(byId.get(item.ticketId)))}</span>
         <span className={styles.assignee}><small>담당자</small>{item.assigneeLabel??"미지정"}</span>
-        <span className={styles.due}><small>처리 예정</small>{item.dueAt?<DateTime at={item.dueAt} relative={false}/>:"미정"}{isOverdue(item,now)?<strong className={styles.overdue}>기한 지남</strong>:null}</span>
+        <span className={styles.due}><small>처리 예정</small>{item.dueAt?<DateTime at={item.dueAt} relative={false}/>:"미정"}{isOverdue(item,now)?<span className={styles.overdue} data-reason="OVERDUE">{TODO_REASON_NAMES.OVERDUE}</span>:null}</span>
       </button>
     </li>)}</ul>}
     <details className={styles.help}><summary>업무 정보 안내</summary><p>담당자와 예정일은 업무 정리용이에요. 권한 부여·업체 배정·자동 출동을 뜻하지 않아요.</p></details>
   </section>;
 }
 
-export function ManagerWorkDetail({client,ticket,revision}:{client:CoreFlowClient;ticket:CoreTicketDto;revision:number}){
+/** `onChanged` runs after the work information is saved, so the screen reads the work list and the 알림 to-dos again
+ * (a new due date can end or start 기한 지남). */
+export function ManagerWorkDetail({client,ticket,revision,onChanged}:{client:CoreFlowClient;ticket:CoreTicketDto;revision:number;onChanged?():void}){
   const [work,setWork]=useState<CoreManagerWorkItem|null>(null),[notes,setNotes]=useState<CoreManagerInternalNote[]>([]);
   const [priority,setPriority]=useState<CoreManagerWorkItem["priority"]>("NORMAL"),[assignee,setAssignee]=useState(""),[due,setDue]=useState(""),[body,setBody]=useState("");
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[uncertain,setUncertain]=useState(false);
@@ -70,7 +72,7 @@ export function ManagerWorkDetail({client,ticket,revision}:{client:CoreFlowClien
     <div className={styles.title}><div><p>관리자 전용 · 세입자에게 전달되지 않아요.</p></div><button disabled={busy} onClick={()=>void refresh()}>최신 정보</button></div>
     {error?<p role="alert">{error}</p>:null}{notice?<p role="status">{notice}</p>:null}{!work&&!error?<p role="status">업무 정보 불러오는 중…</p>:null}
     {completed?<p>처리 완료된 업무예요. 기존 업무 정보와 내부 메모는 조회만 할 수 있어요.</p>:null}
-    <form onSubmit={e=>{e.preventDefault();if(!work)return;const storedDue=seoulDueInput(work.dueAt),unchangedDue=due===storedDue&&(storedDue!==""||!work.dueAt);const timestamp=due?seoulInputToInstant(due):null;const input=CoreManagerWorkUpdateSchema.safeParse({priority,assigneeLabel:assignee.trim()||null,dueAt:unchangedDue?work.dueAt:timestamp??(due||null),expectedVersion:work.version});if(!input.success){setError("긴급도·담당자(80자 이하)·처리 예정 날짜와 시간을 확인해 주세요.");return;}setBusy(true);setError("");setNotice("");void client.manager.update(ticket.ticketId,input.data).then(value=>{apply(value);setNotice("업무 정보를 저장했어요.");}).catch(fail).finally(()=>setBusy(false));}}>
+    <form onSubmit={e=>{e.preventDefault();if(!work)return;const storedDue=seoulDueInput(work.dueAt),unchangedDue=due===storedDue&&(storedDue!==""||!work.dueAt);const timestamp=due?seoulInputToInstant(due):null;const input=CoreManagerWorkUpdateSchema.safeParse({priority,assigneeLabel:assignee.trim()||null,dueAt:unchangedDue?work.dueAt:timestamp??(due||null),expectedVersion:work.version});if(!input.success){setError("긴급도·담당자(80자 이하)·처리 예정 날짜와 시간을 확인해 주세요.");return;}setBusy(true);setError("");setNotice("");void client.manager.update(ticket.ticketId,input.data).then(value=>{apply(value);setNotice("업무 정보를 저장했어요.");onChanged?.();}).catch(fail).finally(()=>setBusy(false));}}>
       <fieldset disabled={locked} className={styles.fields}>
         <label>긴급도<select value={priority} onChange={e=>setPriority(e.target.value as CoreManagerWorkItem["priority"])}><option value="NORMAL">보통</option><option value="HIGH">높음</option><option value="URGENT">긴급</option></select></label>
         <label>담당자<input value={assignee} maxLength={80} onChange={e=>setAssignee(e.target.value)} placeholder="미지정" /></label>

@@ -57,7 +57,8 @@ function progressMessage(t:CoreTicketDto,tenant:boolean){
 // Photos picked but not sent would become the opened request's photos, so every request stays shut until they are sent
 // or dropped; the lists say why (final review of PR 139).
 const pendingPhotosHint="고른 사진이 있어서 요청을 열 수 없어요. 접수하거나 사진 선택을 취소해 주세요.";
-const summariesFailedMessage="대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.";
+// The 홈 and 요청 box says what failed and carries its own retry (rules 8.11), as the 알림 partial box does.
+const summariesFailedMessage="대화 대기 상태를 확인하지 못했어요.";
 const sessionMessage="접속이 만료되었거나 코드가 유효하지 않아요. 개발 환경에서 새 코드를 발급받아 다시 들어가 주세요.";
 const accessMessage="이 계정의 접근 권한을 확인할 수 없어요. 관리자에게 소속·호실 권한을 확인한 뒤 다시 들어가 주세요.";
 function describeError(error:unknown,saving:boolean){
@@ -87,6 +88,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   // P5 PR 2 (spec §5): counts refreshes only, so the to-do reads run again on 새로고침, 다시 불러오기 and 알림 taps, never
   // on a photo upload or the other reloads `revision` counts. A new request list reads again by itself (use-todo-extras.ts).
   const [todoRevision,setTodoRevision]=useState(0);
+  // A saved due date reloads the manager's work list only: `revision` would also remount the decision form and lose its input.
+  const [workRevision,setWorkRevision]=useState(0);
   const [communicationVersion,setCommunicationVersion]=useState<{ticketId:string;version:number}|null>(null);
   const [managerHandoff,setManagerHandoff]=useState<ManagerVendorHandoffDto|null>(null);
   const onManagerHandoff=useCallback((value:ManagerVendorHandoffDto|null)=>setManagerHandoff(value),[]);
@@ -97,8 +100,9 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   const clearAccess=useCallback(()=>{accessGeneration.invalidate();clearCommunicationRecovery();clearOutcomeRecovery();setFollowUp(null);setFollowAttempt(null);setCommunicationVersion(null);setManagerHandoff(null);setSession(null);setSelected(null);setTickets([]);setUnits([]);setUnit("");setText("");setMessage("");setCode("");setNotice("");setPending([]);setPhotoMessage("");setMaintenanceUnit("");},[accessGeneration]);
   // The embedded intake/review also uses this client: a denied nested request
   // must clear the parent screen, not leave old protected content visible.
-  // P5 PR 2 (spec §5): the to-do reads per request use their own client. Its 403 means nothing is assigned there, as on
-  // the request screens, so it never clears the screen; its 401 still does (endsSession).
+  // P5 PR 2 (spec §5): the to-do reads per request use their own client. Its 403 means nothing is assigned there, so it
+  // never clears the screen; its 401 still does (endsSession). The request screens use the guarded client, which clears
+  // the screen on 403 too.
   const checkedFetch=useCallback((perRequest:boolean):typeof fetch=>async(input,init)=>{
     const headers=new Headers(init?.headers);if(b1){headers.set("x-core-organization",b1.orgId);headers.set("x-b1-csrf",b1.csrf);}
     const response=await fetch(input,{...init,headers});
@@ -157,6 +161,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   // changes and on every refresh; never periodically.
   const todoReads=useMemo(()=>role?todoReadsFor({role,b1:Boolean(b1),perRequest:perRequestClient,list:client,invitations:linkRequests}):null,[role,b1,perRequestClient,client,linkRequests]);
   const todoExtras=useTodoExtras({role,tickets,reads:todoReads,revision:todoRevision});
+  // A saved due date, result answer or visit step changes what those reads find, so they run again (review of PR #150).
+  const readTodosAgain=()=>setTodoRevision(r=>r+1);
   const todo=useMemo(()=>role?buildTodoList({role,tickets,summaries:conversationSummaries.summaries,summariesFailed:conversationSummaries.error,extras:todoExtras}):EMPTY_TODO_LIST,[role,tickets,conversationSummaries.summaries,conversationSummaries.error,todoExtras]);
   const home=useMemo(()=>tenant?homeCards({tickets,todo,unitId:unit}):{cards:[],total:0},[tenant,tickets,todo,unit]);
   /** A menu-like link inside the content: the real address for a new tab, this page's own move for a plain click. */
@@ -230,9 +236,10 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
     catch(e){if(e instanceof ApiClientError&&e.status===401)clearAccess();else throw e;}
   };
   // The new list and the re-read open request land together, so a refresh runs the to-do reads once, not once for each
-  // (spec §5). When the re-read fails, the new list still lands.
+  // (spec §5). When the re-read fails, the new list still lands, unless the session or access is gone (401, 403): the
+  // guarded client has cleared the screen then, and the list must not come back behind the sign-in form.
   const refresh=async()=>{const u=await client.units();setUnits(u);setUnit(current=>u.some(item=>item.id===current)?current:(u[0]?.id??""));const list=await client.tickets();
-    const fresh=selected?await client.read(selected.ticketId).catch((e:unknown)=>{setTickets(list);throw e;}):null;
+    const fresh=selected?await client.read(selected.ticketId).catch((e:unknown)=>{if(!(e instanceof ApiClientError&&(e.status===401||e.status===403)))setTickets(list);throw e;}):null;
     setTickets(list);if(fresh)adopt(fresh);setRevision(r=>r+1);setTodoRevision(r=>r+1);};
   const login=()=>run(async()=>{clearCommunicationRecovery();clearOutcomeRecovery();const s=await client.login(code),u=await client.units(),t=await client.tickets();setSession(s);setCode("");setUnits(u);setUnit(u[0]?.id??"");setTickets(t);});
   const selectedUnit=units.find(u=>u.id===selected?.unitId);
@@ -312,7 +319,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
     </form>):<>
       {tenant?<OutcomeRecoveryPanel client={client} onOpen={openOutcome}/>:null}
       <div className={tenant?styles.tenantWorkspace:styles.managerWorkspace} data-detail={Boolean(selected)} hidden={!workVisible}>
-      {!tenant?<div className={styles.queuePane}><ManagerWorkQueue key={`${selected?.ticketId??"list"}-${selected?.version??0}`} client={client} units={units} tickets={tickets} revision={revision} disabled={busy} selectedId={selected?.ticketId} onOpen={openFromList}/></div>:null}
+      {!tenant?<div className={styles.queuePane}><ManagerWorkQueue key={`${selected?.ticketId??"list"}-${selected?.version??0}`} client={client} units={units} tickets={tickets} revision={revision+workRevision} disabled={busy} selectedId={selected?.ticketId} onOpen={openFromList}/></div>:null}
       {selected?<section className={styles.selectedPane} aria-label="선택한 접수">
 
         {pending.length?<p>목록으로 돌아가기 전에 미전송 사진을 저장하거나 선택 취소해 주세요.</p>:null}
@@ -328,8 +335,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
         </section>
         {/* Menu audit F-04: the manager's next action, by state, at the top; its button opens the folded section that holds it. */}
         {managerStep?<TaskZone tenant={false} label="다음 할 일" heading="다음 할 일" message={managerStep.title}><p>{managerStep.detail}</p>{managerStep.action?<button type="button" onClick={()=>goToStep(managerStep.action!.target)}>{managerStep.action.label}</button>:null}</TaskZone>:null}
-        {b1&&session.role==="TENANT"?<VendorHandoffTenant key={`vendor-tenant-${b1.orgId}-${selected.ticketId}`} client={client} ticketId={selected.ticketId} revision={revision} issueType={selected.detail.issueType} place={selectedUnit?visitPlace(selectedUnit.buildingName,selectedUnit.label):null}/>:null}
-        <TicketOutcome key={`outcome-${selected.ticketId}`} client={client} ticket={selected} tenant={session.role==="TENANT"} revision={revision} onFollowUp={beginFollowUp} onOpen={openOutcome}/>
+        {b1&&session.role==="TENANT"?<VendorHandoffTenant key={`vendor-tenant-${b1.orgId}-${selected.ticketId}`} client={client} ticketId={selected.ticketId} revision={revision} issueType={selected.detail.issueType} place={selectedUnit?visitPlace(selectedUnit.buildingName,selectedUnit.label):null} onChanged={readTodosAgain}/>:null}
+        <TicketOutcome key={`outcome-${selected.ticketId}`} client={client} ticket={selected} tenant={session.role==="TENANT"} revision={revision} onFollowUp={beginFollowUp} onOpen={openOutcome} onChanged={readTodosAgain}/>
         <TicketCommunication key={selected.ticketId} client={client} ticketId={selected.ticketId} tenant={session.role==="TENANT"} revision={revision} completed={selected.workStatus==="COMPLETED"} onVersion={setCommunicationVersion}>
         {/* Tenant-only children render right after the conversation's own to-do, so a pending reply stays first. */}
         {/* Keyed on the shown state, not on photo revisions, so uploads right after 접수하기 do not remount the questions. */}
@@ -349,7 +356,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
         {selected.workStatus==="COMPLETED"?<p>관리자의 완료 기록을 확인했어요. 목록에서 이력을 다시 볼 수 있어요.</p>:session.role==="TENANT"&&tenantIntakeOpen(selected)?null:<details id={session.role==="TENANT"?undefined:"ticket-decision"} className={styles.protocolDetails}><summary>{session.role==="TENANT"?"추가 확인":"추가 확인·결정 기록"}</summary>{session.role==="TENANT"?<TicketIntake key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} evidenceStep={evidenceStep}/>:<TicketReview key={`${selected.ticketId}-${revision}`} ticketId={selected.ticketId} client={client.protocol} coreFlow onStatusChange={onIntakeStatus} onDecided={onDecided}/>}</details>}
         </div>
         {session.role!=="TENANT"?<ManagerInspector expanded={inspectorExpanded} onExpandedChange={setInspectorExpanded}><div className={styles.actionRail}>
-        <ManagerWorkDetail key={selected.ticketId} client={client} ticket={selected} revision={revision}/>
+        <ManagerWorkDetail key={selected.ticketId} client={client} ticket={selected} revision={revision} onChanged={()=>{setWorkRevision(r=>r+1);readTodosAgain();}}/>
         {b1?<VendorHandoffManager communicationVersion={communicationVersion?.ticketId===selected.ticketId?communicationVersion.version:undefined} key={`vendor-${b1.orgId}-${selected.ticketId}`} client={client} ticket={selected} revision={revision} onHandoff={onManagerHandoff} onChanged={()=>void run(async()=>adopt(await client.read(selected.ticketId)))}/>:null}
         <ManagerMaintenanceFactEditor key={`maintenance-${selected.ticketId}`} client={client} ticket={selected} revision={revision} onOpenTicket={openMaintenanceTicket} onRecorded={recorded=>setFactRecorded(current=>current?.ticketId===selected.ticketId&&current.recorded===recorded?current:{ticketId:selected.ticketId,recorded})} onChanged={()=>setRevision(r=>r+1)} onViewUnit={id=>{setMaintenanceUnit(id);navigate({tab:"more",view:"maintenance"});}}/>
         <ManagerDirectCompletionGate enabled={Boolean(b1)} handoff={managerHandoff?.ticketId===selected.ticketId?managerHandoff:null} loading={Boolean(b1&&managerHandoff?.ticketId!==selected.ticketId)}>{selected.workStatus!=="COMPLETED"?<form id="ticket-handling" className={styles.handling} onSubmit={e=>{e.preventDefault();void run(async()=>{const starting=selected.workStatus==="OPEN";adopt(await client.handling(selected.ticketId,{status:starting?"IN_PROGRESS":"COMPLETED",message,...(!starting&&communicationVersion?.ticketId===selected.ticketId?{expectedCommunicationVersion:communicationVersion.version}:{})}));setMessage("");setNotice(starting?"처리 시작 기록을 저장했어요. 세입자도 새로고침하면 확인할 수 있어요.":"처리 완료 기록을 저장했어요. 세입자도 새로고침하면 확인할 수 있어요.");detailHeading.current?.focus();},true);}}>
@@ -372,7 +379,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
             * form (spec §4). */}
           {home.cards.length?<section className={styles.homeCards} aria-label="진행 중인 요청" aria-busy={conversationSummaries.ready&&todoExtras.ready?undefined:"true"}>
             <h2>진행 중인 요청 <small>{home.total}건</small></h2>
-            {conversationSummaries.error?<p role="alert">{summariesFailedMessage}</p>:null}
+            {conversationSummaries.error?<div className={styles.retry} role="alert"><p>{summariesFailedMessage}</p><button disabled={busy} onClick={()=>void run(refresh)}>다시 불러오기</button></div>:null}
             {pending.length?<p>{pendingPhotosHint}</p>:null}
             <ul>{home.cards.map(({ticket:t,next})=><li key={t.ticketId}><button type="button" className={styles.homeRow} data-home-card={t.ticketId} disabled={busy||pending.length>0} onClick={()=>openTenantTicket(t.ticketId)}>
               <span className={styles.cardTitle}><span className={styles.ticketTitle}>{ticketName(t)}</span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}</span>
@@ -394,7 +401,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
           </form>:null}
         </div>
         <div className={styles.tenantRequests} hidden={tab!=="requests"}>
-          {conversationSummaries.error?<p role="alert">{summariesFailedMessage}</p>:null}
+          {conversationSummaries.error?<div className={styles.retry} role="alert"><p>{summariesFailedMessage}</p><button disabled={busy} onClick={()=>void run(refresh)}>다시 불러오기</button></div>:null}
           {pending.length?<p>{pendingPhotosHint}</p>:null}
           {!unit?<p>호실 배정 후 접수 이력을 볼 수 있어요.</p>:requestGroups.map(group=><section key={group.name} aria-label={group.name}>
             <h2>{group.name} <small>{group.list.length}건</small></h2>

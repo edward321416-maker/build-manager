@@ -94,7 +94,10 @@ test("홈 keeps the rows but states no next step when the conversation states ca
   await expect(going).toHaveAttribute("aria-busy", "true");
   const busyHeight = (await cards.first().boundingBox())!.height;
   release();
-  await expect(going.getByRole("alert")).toHaveText("대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.");
+  // The error box says what failed and carries its own retry (rules 8.11).
+  const failed = going.getByRole("alert");
+  await expect(failed.locator("p")).toHaveText("대화 대기 상태를 확인하지 못했어요.");
+  await expect(failed.getByRole("button", { name: "다시 불러오기", exact: true })).toBeVisible();
   await expect(going).not.toHaveAttribute("aria-busy", "true");
   // The reserved next-step line stays reserved on error too, so the row's height does not change between busy and error.
   expect((await cards.first().boundingBox())!.height).toBe(busyHeight);

@@ -15,10 +15,11 @@ export type TodoItem = TodoTicketItem | TodoLinkItem;
 /** `checking`: the PR 2 reads for these requests have not finished; `resultLimited`/`linksLimited`: a read limit was hit. */
 export type TodoList = { items: TodoItem[]; partial: boolean; checking: boolean; resultLimited: boolean; linksLimited: boolean };
 export type TodoLinkRequest = { invitationId: string; unitLabel: string; requestedAt: string | null };
-/** What the PR 2 reads found (todo-extras.ts). `ready` is false until the reads for the current requests finish. */
+/** What the PR 2 reads found (todo-extras.ts). `ready` is false until the reads for the current requests finish;
+ * `refreshing` is true while the same requests are read again, whose earlier result still shows. */
 export type TodoExtras = {
   reasons: Readonly<Record<string, readonly TodoReason[]>>; links: readonly TodoLinkRequest[];
-  failed: boolean; ready: boolean; resultLimited: boolean; linksLimited: boolean;
+  failed: boolean; ready: boolean; resultLimited: boolean; linksLimited: boolean; refreshing?: boolean;
 };
 export const NO_TODO_EXTRAS: TodoExtras = { reasons: {}, links: [], failed: false, ready: true, resultLimited: false, linksLimited: false };
 export const EMPTY_TODO_LIST: TodoList = { items: [], partial: false, checking: false, resultLimited: false, linksLimited: false };
@@ -72,5 +73,5 @@ export function buildTodoList({ role, tickets, summaries, summariesFailed, extra
   const group = (item: TodoItem) => Math.min(...item.reasons.map(reason => GROUP[reason]));
   const time = (item: TodoItem) => item.lastActivity ? Date.parse(item.lastActivity) : 0;
   items.sort((a, b) => group(a) - group(b) || time(b) - time(a) || todoItemId(a).localeCompare(todoItemId(b)));
-  return { items, partial: summariesFailed || extras.failed, checking: !extras.ready, resultLimited: extras.resultLimited, linksLimited: extras.linksLimited };
+  return { items, partial: summariesFailed || extras.failed, checking: !extras.ready || Boolean(extras.refreshing), resultLimited: extras.resultLimited, linksLimited: extras.linksLimited };
 }
