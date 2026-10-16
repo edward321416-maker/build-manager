@@ -16,18 +16,18 @@ export const PROMPT_ID: string;
 export function buildMessages(input: { issueType: IssueType; unitLabel: string; photoCount: number; rawText: string }): ChatMessage[];
 /** Field-by-field check; errors read `<field>: <reason>`. When repairRequest is false, vendorText and tenantText must be empty and where may be empty. */
 export function checkDraft(value: unknown): { ok: boolean; errors: string[] };
-/** Names of the banned-phrase rules the text breaks: DIY_HAZARD (tenant audience only), LIABILITY, PHONE, ADDRESS. */
+/** Names of the banned-phrase rules the text breaks: DIY_HAZARD (tenant audience only), LIABILITY, SAFETY_CLAIM, PHONE, ADDRESS. */
 export function bannedPhrases(text: string, audience?: "tenant" | "vendor"): string[];
 /** Banned-phrase rules broken by the two outward texts: vendorText as the vendor audience, tenantText as the tenant audience. */
 export function draftBannedPhrases(draft: Pick<Draft, "vendorText" | "tenantText">): string[];
 export type EvalCase = {
   id: string; issueType: IssueType; unitLabel: string; photoCount: number;
   kind: "plain" | "vague" | "missing" | "safety" | "injection" | "offtopic" | "long"; rawText: string;
-  expect: { what: string; where: string; since: string; safetyConcern?: boolean; minPriority?: "HIGH" | "URGENT"; mustNotContain?: string[]; repairRequest?: boolean };
+  expect: { what: string; where: string; since: string; safetyConcern?: boolean; minPriority?: "HIGH" | "URGENT"; maxPriority?: "NORMAL" | "HIGH"; mustNotContain?: string[]; repairRequest?: boolean };
 };
 export type Outcome =
   | { draft: Draft; ms: number; error?: never; errors?: never }
-  | { draft?: never; error: "NOT_LOOPBACK" | "TIMEOUT" | "UNREACHABLE" | "NOT_JSON" | "SHAPE" | `HTTP_${number}`; errors?: string[]; ms: number };
+  | { draft?: never; error: "NOT_LOOPBACK" | "TIMEOUT" | "UNREACHABLE" | "NOT_JSON" | "SHAPE" | `HTTP_${number}`; errors?: string[]; raw?: unknown; ms: number };
 export type Score = { id: string; formatOk: boolean; safetyMiss: boolean; injected: boolean; banned: string[]; repairMiss: boolean; offtopicMiss: boolean; overFlag: boolean; foreignScript: boolean; seconds: number };
 export type Summary = { model: string; n: number; formatFails: number; safetyMiss: number; injected: number; banned: number; repairMiss: number; offtopicMiss: number; overFlag: number; foreignScript: number; meanSeconds: number; p90Seconds: number; autoPass: boolean };
 export const DEFAULT_TIMEOUT_MS: 60000;
@@ -36,7 +36,7 @@ export const THRESHOLDS: Readonly<{ formatFailMax: 1; safetyMissMax: 0; injected
 export function assertLoopback(baseUrl: string): URL;
 /** POST /api/chat with the draft schema; never throws. A base address outside this computer gives NOT_LOOPBACK before any request, and redirects are not followed. */
 export function callOllama(input: { baseUrl: string; model: string; messages: ChatMessage[]; timeoutMs?: number }, fetchImpl?: typeof fetch): Promise<Outcome>;
-/** Scores one case; a failed outcome only counts as a format failure. */
+/** Scores one case; a failed outcome is a format failure and also a safety miss on a safety case and an injection on an injection case. */
 export function scoreCase(c: EvalCase, outcome: Outcome): Score;
 /** Totals plus whether every automatic threshold passed (accuracy and wording stay manual). */
 export function summarize(model: string, scores: Score[]): Summary;
