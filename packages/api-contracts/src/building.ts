@@ -34,20 +34,29 @@ export const BuildingPassportDtoSchema = z
   .strict();
 export type BuildingPassportDto = z.infer<typeof BuildingPassportDtoSchema>;
 
+const OrgVerifiedFieldSchema = z.enum(["managementMode", "heatingType"]);
+
 /**
- * A building with no Core building context (registered on /workspace, C1 step 1). It carries no
- * building facts, so nothing in it can read as verified or routing-eligible.
+ * A non-demo building (registered on /workspace or the Core setup screen). It carries only the facts an
+ * organisation admin verified (P6 + C1 step 2); with none it is the C1 step 1 unverified building.
  */
-export const UnverifiedBuildingDtoSchema = z
+export const OrgBuildingDtoSchema = z
   .object({
     buildingId: z.string().trim().min(1),
     displayName: z.string().trim().min(1),
     demo: z.literal(false),
-    contextVerified: z.literal(false),
-    routingEligibleFields: z.array(RoutingEligibleBuildingFieldSchema).length(0),
+    managementMode: ManagementModeSchema.optional(),
+    heatingType: HeatingTypeSchema.optional(),
+    contextVerified: z.boolean(),
+    routingEligibleFields: z.array(OrgVerifiedFieldSchema),
   })
-  .strict();
-export type UnverifiedBuildingDto = z.infer<typeof UnverifiedBuildingDtoSchema>;
+  .strict()
+  .superRefine((value, context) => {
+    const present = OrgVerifiedFieldSchema.options.filter((key) => value[key] !== undefined);
+    if (value.routingEligibleFields.join() !== present.join()) context.addIssue({ code: "custom", message: "routingEligibleFields" });
+    if (value.contextVerified !== (present.length === OrgVerifiedFieldSchema.options.length)) context.addIssue({ code: "custom", message: "contextVerified" });
+  });
+export type OrgBuildingDto = z.infer<typeof OrgBuildingDtoSchema>;
 
 export const BuildingPassportListSchema = z.array(BuildingPassportDtoSchema);
 export type BuildingPassportList = z.infer<typeof BuildingPassportListSchema>;

@@ -18,6 +18,18 @@ it("rejects expired and revoked sessions without fallback",async()=>{
  await expect(requireCoreB1Session(new NextRequest(base),setup(expired))).rejects.toMatchObject({code:"UNAUTHENTICATED"});
  const d=setup();d.sessions.currentActor.mockResolvedValue(null);await expect(requireCoreB1Session(new NextRequest(base),d)).rejects.toMatchObject({code:"UNAUTHENTICATED"});
 });
+it("marks a login-free demo entry session so writes can be refused",async()=>{
+ // P6 + C1 step 2 D4 (docs/superpowers/specs/2026-10-15-building-setup-p6-design.md): the shared demo is read-only for building info.
+ vi.stubEnv("BUILD_MANAGER_MODE","B1");vi.stubEnv("BUILD_MANAGER_DEMO_ENTRY","1");vi.stubEnv("B1_AUTH0_DOMAIN","b1.synthetic.invalid");
+ vi.stubEnv("BUILD_MANAGER_DEMO_SUBJECTS",JSON.stringify({manager:"auth0|synthetic-demo-manager",tenant:"auth0|synthetic-demo-tenant"}));
+ try{
+  await expect(requireCoreB1Session(new NextRequest(base),setup())).resolves.toMatchObject({demo:false});
+  const demo=structuredClone(session);demo.user.sub="auth0|synthetic-demo-manager";
+  await expect(requireCoreB1Session(new NextRequest(base),setup(demo))).resolves.toMatchObject({demo:true});
+  vi.stubEnv("BUILD_MANAGER_DEMO_ENTRY","0");
+  await expect(requireCoreB1Session(new NextRequest(base),setup(demo))).resolves.toMatchObject({demo:false});
+ }finally{vi.unstubAllEnvs();}
+});
 it("does not consume or lock the command/photo body while reading SDK cookies",async()=>{
  const request=new NextRequest(base,{method:"POST",headers:{origin:base,"x-b1-csrf":session.b1.csrf},body:"photo-or-json"});
  await requireCoreB1Session(request,setup());expect(request.bodyUsed).toBe(false);expect(request.body?.locked).toBe(false);expect(await request.text()).toBe("photo-or-json");

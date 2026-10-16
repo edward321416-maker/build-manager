@@ -309,4 +309,32 @@ describe("B3 HTTP boundary", () => {
     expect(f.d.units.listUnits).not.toHaveBeenCalled();
     expect(f.d.units.getUnit).not.toHaveBeenCalled();
   });
+
+  it("P6 D4 refuses creation from a login-free demo session and reports no create capability", async () => {
+    // docs/superpowers/specs/2026-10-15-building-setup-p6-design.md D4: the shared demo can read but not register.
+    const demoSub = "auth0|synthetic-demo-manager";
+    vi.stubEnv("BUILD_MANAGER_MODE", "B1"); vi.stubEnv("BUILD_MANAGER_DEMO_ENTRY", "1"); vi.stubEnv("B1_AUTH0_DOMAIN", "b1.synthetic.invalid");
+    vi.stubEnv("BUILD_MANAGER_DEMO_SUBJECTS", JSON.stringify({ manager: demoSub, tenant: "auth0|synthetic-demo-tenant" }));
+    try {
+      const f = fixture();
+      f.d.readSession.mockResolvedValue({ ...f.session, user: { sub: demoSub } });
+      const created = await call(f, "properties", request("properties", { method: "POST", headers: postHeaders(f.csrf), body: JSON.stringify({ addressReference: "합성 체험 건물" }) }));
+      const unitCreated = await call(f, "units", request("units", { method: "POST", headers: postHeaders(f.csrf), body: JSON.stringify({ label: "합성 체험 101" }) }));
+      for (const response of [created, unitCreated]) {
+        expect(response.status).toBe(403);
+        expect(await response.json()).toEqual({ error: "FORBIDDEN" });
+        expectPrivate(response);
+      }
+      expect(f.d.registration.createProperty).not.toHaveBeenCalled();
+      expect(f.d.registration.createUnit).not.toHaveBeenCalled();
+      expect((await call(f, "properties", request("properties"))).headers.get("X-B3-Can-Create-Property")).toBe("false");
+      expect((await call(f, "property", request("property"))).headers.get("X-B3-Can-Create-Unit")).toBe("false");
+      expect((await call(f, "units", request("units"))).headers.get("X-B3-Can-Create-Unit")).toBe("false");
+
+      vi.stubEnv("BUILD_MANAGER_DEMO_ENTRY", "0");
+      const allowed = await call(f, "properties", request("properties", { method: "POST", headers: postHeaders(f.csrf), body: JSON.stringify({ addressReference: "합성 일반 건물" }) }));
+      expect(allowed.status).toBe(201);
+      expect((await call(f, "properties", request("properties"))).headers.get("X-B3-Can-Create-Property")).toBe("true");
+    } finally { vi.unstubAllEnvs(); }
+  });
 });

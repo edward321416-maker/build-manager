@@ -94,7 +94,7 @@ function task10Request(who: string, path: string, body?: unknown) {
   const dependencies: CoreHTTPDependencies = {
     port: createCoreFlowPort(database), revoke: async () => {}, origins: [task10Origin],
     vendorHandoff: { inOrganization: org => createVendorHandoffManagerPort(database, org), tenantInOrganization: org => createVendorHandoffTenantPort(database, org) },
-    b1: { current: async () => ({ actor: { userId: f.data.accounts[who].userId }, digest: f.data.accounts[who].digest, csrf: "synthetic-proof" }), access: createCoreAccessPort(database) },
+    b1: { current: async () => ({ actor: { userId: f.data.accounts[who].userId }, digest: f.data.accounts[who].digest, csrf: "synthetic-proof", demo: false }), access: createCoreAccessPort(database) },
   };
   return handleCoreFlow(new Request(`${task10Origin}/api/v2/core/${path}`, {
     method: body === undefined ? "GET" : "POST",

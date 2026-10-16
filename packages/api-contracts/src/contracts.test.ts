@@ -303,27 +303,40 @@ describe("role-safe list responses", () => {
     );
   });
 
-  it("accepts an unverified building with no facts in a landlord ticket, and nothing that claims facts", () => {
-    // C1 step 1 (docs/superpowers/specs/2026-10-14-building-context-fallback-c1-design.md, 보완): a building without context.
-    const detailSchema = schema("LandlordTicketDetailDtoSchema");
-    const unverified = {
-      buildingId: "11111111-1111-4111-8111-111111111111",
-      displayName: "건물",
-      demo: false,
-      contextVerified: false,
-      routingEligibleFields: [],
-    };
-
-    expect(detailSchema.safeParse({ ...landlordDetail, building: unverified }).success).toBe(true);
-    for (const claim of [
-      { primaryUse: "MULTI_FAMILY_HOUSE" },
-      { demo: true },
-      { contextVerified: true },
-      { routingEligibleFields: ["heatingType"] },
-    ]) {
-      expect(detailSchema.safeParse({ ...landlordDetail, building: { ...unverified, ...claim } }).success).toBe(false);
+  it("refuses building info text the vendor contract would refuse (control and format characters)", () => {
+    // P6 + C1 step 2 review (MEDIUM): a saved name or address reaches the vendor packet, which rejects \p{Cc}\p{Cf}.
+    const save = schema("CoreBuildingInfoSaveSchema");
+    const ok = { expectedVersion: 0, displayName: "합성 햇살빌라", serviceAddress: "합성 예시로 12", heatingType: null, managementMode: null };
+    expect(save.safeParse(ok).success).toBe(true);
+    for (const bad of [0x200b, 0x202e, 0x85, 0xad, 0xfeff, 0x07, 0x0a].map((point) => String.fromCodePoint(point))) {
+      expect(save.safeParse({ ...ok, displayName: `합성${bad}빌라` }).success, JSON.stringify(bad)).toBe(false);
+      expect(save.safeParse({ ...ok, serviceAddress: `합성${bad}예시로` }).success, JSON.stringify(bad)).toBe(false);
     }
-    expect(schema("BuildingPassportDtoSchema").safeParse(unverified).success).toBe(false);
+  });
+
+  it("accepts a non-demo building with zero, one or two verified fields, and nothing that misstates them", () => {
+    // C1 step 1 (docs/superpowers/specs/2026-10-14-building-context-fallback-c1-design.md): a building without context.
+    // P6 + C1 step 2 (docs/superpowers/specs/2026-10-15-building-setup-p6-design.md): org-admin facts on a non-demo building.
+    const detailSchema = schema("LandlordTicketDetailDtoSchema");
+    const none = { buildingId: "11111111-1111-4111-8111-111111111111", displayName: "건물", demo: false, contextVerified: false, routingEligibleFields: [] };
+    const one = { ...none, displayName: "합성 햇살빌라", heatingType: "INDIVIDUAL", routingEligibleFields: ["heatingType"] };
+    const both = { ...one, managementMode: "OWNER_DIRECT", contextVerified: true, routingEligibleFields: ["managementMode", "heatingType"] };
+
+    for (const building of [none, one, both]) expect(detailSchema.safeParse({ ...landlordDetail, building }).success).toBe(true);
+    for (const building of [
+      { ...none, primaryUse: "MULTI_FAMILY_HOUSE" },
+      { ...none, demo: true },
+      { ...none, contextVerified: true },
+      { ...none, routingEligibleFields: ["heatingType"] },
+      { ...one, routingEligibleFields: [] },
+      { ...one, contextVerified: true },
+      { ...both, contextVerified: false },
+      { ...both, routingEligibleFields: ["heatingType", "managementMode"] },
+      { ...one, heatingType: "DISTRICT" },
+    ]) {
+      expect(detailSchema.safeParse({ ...landlordDetail, building }).success).toBe(false);
+    }
+    expect(schema("BuildingPassportDtoSchema").safeParse(none).success).toBe(false);
   });
 
   it("accepts a tenant ticket list", () => {
