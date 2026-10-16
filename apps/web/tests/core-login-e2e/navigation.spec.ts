@@ -82,7 +82,11 @@ test("left menu from 768px: 248px, 더 보기 rows spread with icons, account ar
     await expect(page.getByRole("button", { name: "뒤로", exact: true })).toBeVisible();
     await expect(link(page, "MY")).toHaveAttribute("aria-current", "page");
     await page.getByRole("button", { name: "뒤로", exact: true }).click(); await expect(page).toHaveURL(/tab=more&view=me$/);
-    await link(page, "건물·호실 관리").click(); await expect(page).toHaveURL(/\/workspace$/);
+    // P6 PR 2: building setup is a /core screen and a first screen of the left menu (no back button at this width).
+    await link(page, "건물·호실 관리").click(); await expect(page).toHaveURL(/\/core\?tab=more&view=buildings$/);
+    await expect(link(page, "건물·호실 관리")).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("heading", { level: 1, name: "건물·호실 관리", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "뒤로", exact: true })).toBeHidden();
   } finally { await manager.close(); }
 });
 

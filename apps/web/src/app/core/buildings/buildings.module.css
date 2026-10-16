@@ -59,9 +59,11 @@
 @media (max-width: 767px) {
   .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; padding: .625rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px)); background: var(--color-surface); box-shadow: inset 0 1px 0 var(--color-border); }
   .bar > * { flex: 1 1 100%; width: 100%; }
-  /* Room for the bar under the last content, a toast 10px above it (8.9) and focus kept clear of it (7). */
-  :global(body):has([data-building-bar]) { padding-bottom: calc(5.625rem + env(safe-area-inset-bottom, 0px)); }
-  :global(html):has([data-building-bar]) { --toast-bottom: calc(6.25rem + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(6.875rem + env(safe-area-inset-bottom, 0px)); }
+  /* Room for the bar (10 + 50 + 20 = 80px, plus the safe area) under the last content, on the page colour the footer above
+   * it uses; a toast 10px above the bar (8.9); focus kept 20px clear of it (7). A read-only note makes the bar 87px, so
+   * the room is 90px. */
+  :global(body):has([data-building-bar]) { padding-bottom: calc(5.625rem + env(safe-area-inset-bottom, 0px)); background: var(--color-page); }
+  :global(html):has([data-building-bar]) { --toast-bottom: calc(5.625rem + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(6.25rem + env(safe-area-inset-bottom, 0px)); }
 }
 /* Side by side from 1120px the list's 건물 추가하기 is the screen's one filled button (7, 8.1): 호실 추가하기 turns secondary. */
 @media (min-width: 1120px) {
