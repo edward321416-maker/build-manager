@@ -509,9 +509,24 @@ describe("single source for the evaluated rules", () => {
   it("is exported from the application package and keeps the evaluated request body", async () => {
     const app = await import("@build-manager/application");
     expect(app.AI_DRAFT_SYSTEM_PROMPT).toBe(rules.AI_DRAFT_SYSTEM_PROMPT);
+    expect(app.AI_DRAFT_SCHEMA).toBe(rules.AI_DRAFT_SCHEMA);
+    expect(app.checkAiDraft).toBe(rules.checkAiDraft);
     const messages = rules.buildAiDraftMessages({ issueType: "LEAK", unitLabel: "302호", photoCount: 0, rawText: "물이 새요" });
     expect(Object.keys(rules.aiDraftRequestBody("m:1", messages))).toEqual(["model", "messages", "stream", "think", "format", "options", "keep_alive"]);
     expect(rules.aiDraftRequestBody("m:1", messages)).toEqual({ model: "m:1", messages, stream: false, think: false, format: DRAFT_SCHEMA, options: { temperature: 0 }, keep_alive: "10m" });
+  });
+  it("types the frozen exports as read-only", () => {
+    // Never called: the frozen objects would throw. `npm run typecheck:tests` fails if a write here type-checks.
+    const writes = () => {
+      // @ts-expect-error the request options are read-only
+      rules.AI_DRAFT_REQUEST_OPTIONS.options.temperature = 1;
+      // @ts-expect-error the schema is read-only
+      rules.AI_DRAFT_SCHEMA.required.push("x");
+      // @ts-expect-error the request body is read-only
+      rules.aiDraftRequestBody("m:1", []).options.temperature = 1;
+    };
+    expect(typeof writes).toBe("function");
+    expect(Object.isFrozen(rules.AI_DRAFT_REQUEST_OPTIONS.options)).toBe(true);
   });
   it("keeps the rules file loadable by plain Node", () => {
     const text = readFileSync(join(ROOT, "packages", "application", "src", "ai-draft", "rules.ts"), "utf8");

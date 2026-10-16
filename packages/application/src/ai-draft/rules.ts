@@ -2,7 +2,9 @@
 // (docs/superpowers/specs/2026-10-15-ai-draft-ollama-design.md §5.2, §5.3; ops/ai_draft_eval_20261015_acceptance.md).
 // No imports and only erasable TypeScript, so scripts/ai-draft-eval.mjs loads this file with plain Node.
 // Any change here changes the evaluated setup: the pins in tests/architecture/ai-draft-eval.test.ts fail until the
-// model is evaluated again.
+// model is evaluated again. The request body, options and loopback check are Ollama transport details kept here so
+// the evaluated setup has one source; in the product only the server adapter (apps/web/src/server/) calls them, and
+// use cases reach the model through a port.
 
 export type AiDraftPriority = "NORMAL" | "HIGH" | "URGENT";
 export type AiDraftIssueType = "LEAK" | "HEATING";
@@ -16,13 +18,15 @@ export type AiDraftCheck = { ok: boolean; errors: string[] };
 export type AiDraftAudience = "tenant" | "vendor";
 export type AiDraftBannedRule = "DIY_HAZARD" | "LIABILITY" | "SAFETY_CLAIM" | "PHONE" | "ADDRESS";
 type AiDraftTextField = "what" | "where" | "since" | "ask" | "vendorText" | "tenantText";
+/** Frozen at run time, so read-only in its type as well. */
+export type AiDraftDeepReadonly<T> = T extends object ? { readonly [K in keyof T]: AiDraftDeepReadonly<T[K]> } : T;
 
-function freezeDeep<T>(value: T): T {
+function freezeDeep<T>(value: T): AiDraftDeepReadonly<T> {
   if (value && typeof value === "object") {
     Object.values(value).forEach(freezeDeep);
     Object.freeze(value);
   }
-  return value;
+  return value as AiDraftDeepReadonly<T>;
 }
 
 export const AI_DRAFT_PRIORITIES: readonly AiDraftPriority[] = Object.freeze(["NORMAL", "HIGH", "URGENT"] as const);
@@ -41,7 +45,7 @@ export const AI_DRAFT_SCHEMA = freezeDeep({
   },
   required: [...FIELDS],
   additionalProperties: false,
-});
+} as const);
 
 export const AI_DRAFT_SYSTEM_PROMPT = [
   "당신은 원룸·다가구 집주인을 돕는 관리 비서예요. 세입자가 남긴 글을 정리하고, 수리 요청이면 업체와 세입자에게 보낼 초안을 해요체로 써요. 보내는 사람은 집주인이에요.",
@@ -79,10 +83,20 @@ export function buildAiDraftMessages({ issueType, unitLabel, photoCount, rawText
 }
 
 // The request settings the evaluation used (Ollama /api/chat, structured output, no thinking, deterministic).
-export const AI_DRAFT_REQUEST_OPTIONS = freezeDeep({ stream: false, think: false, options: { temperature: 0 }, keep_alive: "10m" });
+export const AI_DRAFT_REQUEST_OPTIONS = freezeDeep({ stream: false, think: false, options: { temperature: 0 }, keep_alive: "10m" } as const);
+
+export type AiDraftRequestBody = {
+  readonly model: string;
+  readonly messages: readonly AiDraftChatMessage[];
+  readonly stream: typeof AI_DRAFT_REQUEST_OPTIONS.stream;
+  readonly think: typeof AI_DRAFT_REQUEST_OPTIONS.think;
+  readonly format: typeof AI_DRAFT_SCHEMA;
+  readonly options: typeof AI_DRAFT_REQUEST_OPTIONS.options;
+  readonly keep_alive: typeof AI_DRAFT_REQUEST_OPTIONS.keep_alive;
+};
 
 /** The /api/chat body, keys in the evaluated order. */
-export function aiDraftRequestBody(model: string, messages: AiDraftChatMessage[]) {
+export function aiDraftRequestBody(model: string, messages: readonly AiDraftChatMessage[]): AiDraftRequestBody {
   const o = AI_DRAFT_REQUEST_OPTIONS;
   return { model, messages, stream: o.stream, think: o.think, format: AI_DRAFT_SCHEMA, options: o.options, keep_alive: o.keep_alive };
 }
