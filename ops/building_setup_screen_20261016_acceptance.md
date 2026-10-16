@@ -54,7 +54,9 @@ All local runs on 2026-10-16 KST with Node 24.21.0.
    - `verify_repository.py --history` on a clone of this branch only: PASS (967 files, 969 internal links, 3820 history blobs, 0 findings).
    - `test:postgres`: not run locally, since this PR changes no database code; the PR's CI job `postgres-integration` runs it.
    - No package file differs from the base.
-6. Process notes (DEV-05): the views file was written before its test; it was moved out of the tree, the test was run and failed (module missing), and the same file was moved back. The 13 mutants were applied by a script that checks each pattern is unique and restores every file byte for byte; nothing a script wrote is committed.
+6. After merging main `5972770` (#171, scripts and docs only; the two ops files resolved as main's file plus this PR's own line) at `653d3c1`: `typecheck` exit 0; the merged `tests/architecture/ai-draft-eval.test.ts` with `packages/api-client` 112/112; `build:web` compiled; `test:e2e:core` 65/65; `test:e2e:sdk` 44 of 45.
+   - The one SDK failure is `core-login-e2e/login.spec.ts` at 390px, line 31 (every control in view must be hit-testable). It also fails, at the same line, with main's own app code built in this worktree, so it is not from this PR. A diagnostic sampled right after load (not committed) showed why: for about 50–300 ms the tenant's photo picker input sits at y 766–816, its centre under the fixed tab bar, until the request cards load and push the form down; the local shared fixture holds many old requests, so the timing differs from CI's fresh fixture. Recorded as a pre-existing local issue; this PR's CI runs the suite on a fresh fixture.
+7. Process notes (DEV-05): the views file was written before its test; it was moved out of the tree, the test was run and failed (module missing), and the same file was moved back. The 13 mutants were applied by a script that checks each pattern is unique and restores every file byte for byte; nothing a script wrote is committed.
 
 ## Rollback
 
