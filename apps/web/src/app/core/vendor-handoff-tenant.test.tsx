@@ -341,3 +341,47 @@ it("WC-M02 manual refresh failure retains the uncertain Tenant request and block
   await click("최신 일정 다시 불러오기");expect(button("같은 요청으로 결과 확인")).toBeDefined();expect(button("가능한 시간 보내기")?.disabled).toBe(true);
   await click("같은 요청으로 결과 확인");expect(f.vendorHandoff.submitAvailability).toHaveBeenCalledTimes(1);
 });
+
+// P5 PR 2 review: 방문 시간 확정 필요 and 결과 확인 필요 stayed on 알림 until the next read. The screen hears when they may have changed.
+describe("tells the screen when the tenant's to-dos may have changed",()=>{
+  async function mountWith(client:CoreFlowClient,onChanged:()=>void){
+    host=document.createElement("div");document.body.append(host);root=createRoot(host);
+    await act(async()=>{root!.render(<VendorHandoffTenant client={client} ticketId={ticketId} revision={0} now={now} onChanged={onChanged}/>);});await flush();
+  }
+  const sendTimes=async()=>{await type('input[type="date"]',"2026-10-10");await type('input[type="time"]',"10:00",0);await type('input[type="time"]',"12:00",1);await click("가능한 시간 보내기");};
+  it("after the visit times are saved, and after a conflict re-read the schedule",async()=>{
+    const onChanged=vi.fn();await mountWith(fake(dto()).client,onChanged);
+    expect(onChanged).not.toHaveBeenCalled();
+    await sendTimes();expect(onChanged).toHaveBeenCalledTimes(1);
+    const stale=vi.fn();await act(async()=>root?.unmount());host.remove();
+    await mountWith(fake(dto(),{submitAvailability:async()=>{throw http(409,"STATE_CONFLICT");}}).client,stale);
+    await sendTimes();expect(stale).toHaveBeenCalledTimes(1);
+  });
+  it("not when the result is unknown",async()=>{
+    const onChanged=vi.fn();await mountWith(fake(dto(),{submitAvailability:async()=>{throw network();}}).client,onChanged);
+    await sendTimes();expect(page()).toContain("결과를 확인하지 못했어요");expect(onChanged).not.toHaveBeenCalled();
+  });
+  it("after a result check finds the schedule changed (review of #172)",async()=>{
+    let reads=0;const onChanged=vi.fn();
+    await mountWith(fake(dto(),{readScheduling:async()=>++reads>1?{...dto(),packetRevisionId:w2}:dto(),submitAvailability:async()=>{throw network();}}).client,onChanged);
+    await sendTimes();expect(onChanged).not.toHaveBeenCalled();
+    await click("같은 요청으로 결과 확인");expect(page()).toContain("방문 일정이 바뀌었어요.");expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+  it("after the tenant confirms the result",async()=>{
+    let outcome:CoreTicketOutcome={ticketId,kind:"UNCONFIRMED",assertedAt:null,followUpTicketId:null};
+    const client={outcome:{source:vi.fn(async()=>({sourceTicketId:null})),read:vi.fn(async()=>outcome),
+      confirmResolved:vi.fn(async()=>{outcome={...outcome,kind:"RESOLVED",assertedAt:"2026-10-08T01:00:00Z"};return outcome;})}} as unknown as CoreFlowClient;
+    const onChanged=vi.fn();host=document.createElement("div");document.body.append(host);root=createRoot(host);
+    await act(async()=>root!.render(<TicketOutcome client={client} ticket={{ticketId,workStatus:"COMPLETED"} as CoreTicketDto} tenant revision={0} onFollowUp={()=>{}} onOpen={()=>{}} onChanged={onChanged}/>));await flush();
+    expect(onChanged).not.toHaveBeenCalled();
+    await click("해결됐어요");expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+  it("after a result answer conflicts and the result is read again (review of #172)",async()=>{
+    const outcome:CoreTicketOutcome={ticketId,kind:"UNCONFIRMED",assertedAt:null,followUpTicketId:null};
+    const client={outcome:{source:vi.fn(async()=>({sourceTicketId:null})),read:vi.fn(async()=>outcome),
+      confirmResolved:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})}} as unknown as CoreFlowClient;
+    const onChanged=vi.fn();host=document.createElement("div");document.body.append(host);root=createRoot(host);
+    await act(async()=>root!.render(<TicketOutcome client={client} ticket={{ticketId,workStatus:"COMPLETED"} as CoreTicketDto} tenant revision={0} onFollowUp={()=>{}} onOpen={()=>{}} onChanged={onChanged}/>));await flush();
+    await click("해결됐어요");expect(client.outcome.read).toHaveBeenCalledTimes(2);expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+});

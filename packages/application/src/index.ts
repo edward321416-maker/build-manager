@@ -38,3 +38,4 @@ export * from "./core-ticket-communication";
 export * from "./core-ticket-outcome";
 export * from "./core-maintenance-fact";
 export * from "./vendor-handoff";
+export * from "./ai-draft/rules";

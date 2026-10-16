@@ -42,6 +42,8 @@
 .root :global(.core-actions) button { flex: 0 1 auto; }
 .root :global(.core-result) { padding: 1.25rem 0; border: 0; border-bottom: 1px solid var(--color-border); border-radius: 0; background: var(--color-surface); }
 .root :is([role="alert"],:global(.state-error)) { color: var(--color-text); background: var(--color-danger-soft); border: 1px solid var(--color-danger); border-radius: .625rem; padding: .9375rem; }
+/* An error box with its own retry button (rules 8.11): the sentence, then the button 10px below (space-2). */
+.root .retry > * + * { margin-top: .625rem; }
 .root :is([role="status"],:global(.save-ok)) { color: var(--color-text); background: var(--color-fill-subtle); border-radius: .3125rem; padding: .625rem; }
 .heading { padding-bottom: 1.25rem; border-bottom: 1px solid var(--color-border); }
 .heading p { color: var(--color-text-readable); margin-top: .3125rem; }

@@ -97,3 +97,25 @@ test("a manager's request past its due date is on 알림 as 기한 지남, above
   await page.locator(`[data-todo-ticket="${late}"]`).click();
   await expect(page).toHaveURL(/tab=work$/); await expect(page.getByTestId("ticket-heading")).toBeVisible();
 });
+
+test("a due date saved in the open request shows 기한 지남 on the work list and 알림 at once and keeps the decision form", async ({ page }) => {
+  // From 1440px the work list and the 업무 정보 panel stay beside the open request.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const mine: string[] = []; await onlyMine(page, mine);
+  const id = await create(page, "합성 처리 예정 저장"); mine.push(id);
+  await login(page, manager);
+  await expect(menu(page).getByRole("link", { name: "알림", exact: true })).toBeVisible();
+  await page.locator(`[data-ticket-id="${id}"] [data-open-ticket]`).click();
+  await expect(page.getByTestId("ticket-heading")).toBeVisible();
+  // The decision form is keyed on the screen revision: a remount would drop what the manager typed there (review of #172).
+  await page.locator("#ticket-decision > section").evaluate(form => form.setAttribute("data-e2e-kept", ""));
+  const work = page.getByRole("region", { name: "업무 관리", exact: true });
+  await expect(work.getByText("업무 정보 불러오는 중…", { exact: true })).toHaveCount(0);
+  await work.getByLabel("처리 예정").fill("2026-10-01T09:00");
+  await work.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(work.getByText("업무 정보를 저장했어요.", { exact: true })).toBeVisible();
+  // No refresh and no 알림 tap: only the reads the save started change the menu and the list.
+  await expect(menu(page).getByRole("link", { name: "알림, 처리할 일 1건", exact: true })).toBeVisible();
+  await expect(page.locator(`section[aria-label="관리 업무함"] [data-ticket-id="${id}"] [data-reason="OVERDUE"]`)).toHaveText("기한 지남");
+  await expect(page.locator("#ticket-decision > section[data-e2e-kept]")).toHaveCount(1);
+});

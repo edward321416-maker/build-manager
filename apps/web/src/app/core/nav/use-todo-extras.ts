@@ -12,7 +12,7 @@ const NOT_READY: TodoExtras = { ...NO_TODO_EXTRAS, ready: false };
  * reload counter); never periodically or on focus. Only the latest read lands: a newer read, or leaving the
  * screen, cancels the one before, which starts no more reads, and all reads share four places, so a new read waits for
  * the ones still in flight. While a new set of requests is read, the earlier result stays and `ready` is false; a
- * re-read of the same set stays ready, so rows do not flicker.
+ * re-read of the same set stays ready, so rows do not flicker, and says it is running (`refreshing`).
  * `tickets` and `reads` must be referentially stable between renders (React state and a caller-memoized reads object):
  * a new `tickets` array means the request list was reloaded, so it reads again by design, and a new `reads` object
  * reads again too. */
@@ -20,18 +20,26 @@ export function useTodoExtras({ role, tickets, reads, revision }: { role: CoreRo
   const targets = useMemo(() => role ? todoTargets(role, tickets) : null, [role, tickets]);
   const key = role && reads && targets && hasTodoReads(reads, targets) ? JSON.stringify([role, targets, Object.keys(reads).sort()]) : null;
   const [limiter] = useState(() => createReadLimiter(READ_LIMIT));
-  const [state, setState] = useState<{ key: string; value: TodoExtras } | null>(null);
+  const [state, setState] = useState<{ key: string; value: TodoExtras; refreshing: boolean } | null>(null);
   // Signed out: forget the last result, so the next sign-in on this screen (development sign-in reuses it) never shows it.
   if (!role && state) setState(null);
+  // The effect below starts a read whenever these change. One of the same requests keeps their result and says it is
+  // running until it lands, recorded here while rendering (React's "adjust state when a prop changes").
+  const inputs = [key, role, tickets, reads, revision] as const;
+  const [seenInputs, setSeenInputs] = useState(inputs);
+  if (inputs.some((value, index) => value !== seenInputs[index])) {
+    setSeenInputs(inputs);
+    if (key && state?.key === key && !state.refreshing) setState({ ...state, refreshing: true });
+  }
   useEffect(() => {
     if (!key || !role || !reads) return;
     const run = new AbortController();
-    void collectTodoExtras({ role, tickets, reads, now: Date.now(), signal: run.signal, limiter }).then(value => { if (!run.signal.aborted) setState({ key, value }); });
+    void collectTodoExtras({ role, tickets, reads, now: Date.now(), signal: run.signal, limiter }).then(value => { if (!run.signal.aborted) setState({ key, value, refreshing: false }); });
     return () => run.abort();
   }, [key, role, tickets, reads, revision, limiter]);
   return useMemo(() => {
     if (!role || !reads) return NOT_READY;
     if (!key) return NO_TODO_EXTRAS;
-    return state ? { ...state.value, ready: state.key === key } : NOT_READY;
+    return state ? { ...state.value, ready: state.key === key, refreshing: state.key === key && state.refreshing } : NOT_READY;
   }, [role, reads, key, state]);
 }
