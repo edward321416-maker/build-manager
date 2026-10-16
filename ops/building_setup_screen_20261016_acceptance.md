@@ -13,7 +13,8 @@ Disposition: **ACCEPTED_FOR_DEVELOPMENT_MAIN** once CI passes on the final head.
 | Why D5 was asked | The design said every `/workspace` address would redirect to the new screen. `/workspace` is where B1 sign-in lands (`apps/web/src/server/b1/complete-session.ts`, checked by `core-login-e2e/session.ts` as `B1_FIXED_COMPLETION_REDIRECT_CHANGED`), and the FROZEN B1–B4 browser suites (`apps/web/tests/b1-e2e/b1·b2·b3·b4.spec.ts`, run in CI) drive those pages |
 | Design and plan | [Design](../docs/superpowers/specs/2026-10-15-building-setup-p6-design.md) (D5 and the choices made while building, dated 2026-10-16), [plan](../docs/superpowers/plans/2026-10-16-building-setup-screen.md) (written before the screen code), [visual page](https://claude.ai/artifact/DDeoMxCmVQLK18LUvbfThL) (republished as version 3) |
 | Policy | `POLICY_REF` main `32f8e15`; the rulebooks are unchanged since `446ee50`. Design rules v1 and development rules read in this session before the screen work |
-| Base | main `32f8e15` (#170, PR 1) |
+| Base | main `32f8e15` (#170, PR 1); main `5972770` (#171) merged in at `653d3c1` and `c6c1213` (#173, research only) at `8df1204` |
+| Independent review | Fresh-context review agent, read-only, on `abbbd7f`: **With fixes**, no blocking, high or security findings. MEDIUM M1: a write that ended after the user had moved (top-bar back, browser back, a menu tap) still stepped back or replaced the history entry from the step where it started, so the user could land one step too far or lose the list entry. MEDIUM M2: at 320px with text at 200% the 8rem tile floor (256px) was wider than the 240px content (the review said the page would scroll sideways; measured, the tiles ran 16px into the side margin, within the viewport). LOW: a step's old message came back on a new visit; a failed unit reload after a write was hidden behind the success toast; an unsaved retry after an unknown result said nothing; the missing-building alert had no action (rule 8.11); long fact values wrapped ragged-left (rule 3.3); records named a review not yet done; re-tapping the menu leaves older steps in history; missing tests for late answers and double taps. Nits: a meaningless test line, upper-case ids accepted, the demo note twice side by side, a stale title for one frame. All fixed in `ffe2286` and `3624f8d` except the history leftovers (retained risk below) |
 
 ## Change
 
@@ -58,6 +59,14 @@ All local runs on 2026-10-16 KST with Node 24.21.0.
    - The one SDK failure is `core-login-e2e/login.spec.ts` at 390px, line 31 (every control in view must be hit-testable). It also fails, at the same line, with main's own app code built in this worktree, so it is not from this PR. A diagnostic sampled right after load (not committed) showed why: for about 50–300 ms the tenant's photo picker input sits at y 766–816, its centre under the fixed tab bar, until the request cards load and push the form down; the local shared fixture holds many old requests, so the timing differs from CI's fresh fixture. Recorded as a pre-existing local issue; this PR's CI runs the suite on a fresh fixture.
 7. Process notes (DEV-05): the views file was written before its test; it was moved out of the tree, the test was run and failed (module missing), and the same file was moved back. The 13 mutants were applied by a script that checks each pattern is unique and restores every file byte for byte; nothing a script wrote is committed.
 
+8. Review fixes (`ffe2286`, then `3624f8d` for the browser check), tests first:
+   - First failures: the place hook had no `backFrom`/`replaceFrom` (M1) and accepted an upper-case id; 15 screen tests failed on the new callback shapes and behaviour (step-guarded moves, `{id, name}` titles, the unsaved message, cleared messages on a new visit, the failed unit reload notice, the missing building's 목록으로 가기). The double-tap test passed at once (the existing guard). The upper-case test first used an all-digit id, which proved nothing; it was corrected to an id with letters after the regex change.
+   - After: `src/app/core` 38 files, 341 tests; lint 0 errors on the changed files; `typecheck` exit 0.
+   - Mutation, 7 copies undoing one fix each (M1 guard, unmount guard, unsaved message, per-visit messages, failed reload notice, 목록으로 가기, lower-case ids): 7 killed, files restored byte for byte.
+   - M2 browser check (`buildings.spec.ts`, 320px, `html { font-size: 200% }`): with the old tile rule built, the first version of the check (page width and tile right edge within 320px) still passed, which is how the margin-only overflow was found; the tightened check (each tile within its grid) failed with 16px; with the fix it passes. `test:e2e:sdk` buildings and navigation 7/7.
+   - Design audit on the fixed code (`3624f8d`): 330 screens, **0 findings**, every screen reached in Chromium and WebKit.
+   - Process slip (DEV-05): one batch of assertion updates to `buildings-screen.test.tsx` was first made with a Python replace; it was discarded with `git checkout` and made again with the editing tool before any commit. The temporary diagnostic spec for the login failure was also edited by a script; it was deleted and never committed.
+
 ## Rollback
 
 - Revert the merge commit. The menu row opens `/workspace` again, which D5 left working; no data changes (buildings and units added on the screen stay, as with `/workspace`).
@@ -67,6 +76,7 @@ All local runs on 2026-10-16 KST with Node 24.21.0.
 - D5: the old `/workspace` pages remain, reachable from the sign-in landing page; a building made there has no name and shows as `정보 입력 필요` on the new screen. Their clean-up needs its own design (it moves FROZEN B1–B4 browser tests).
 - Adding a building is two calls; a failed second call leaves a nameless building, which the screen reports and lets the admin name.
 - A building's units are all shown at once (no paging); the building list is not paged either.
+- Re-tapping 건물·호실 관리 shows the list by replacing only the current history entry, so older steps of that visit stay behind it and browser back from the list can show a building again (review LOW 4, accepted: the screen is right and each entry is a real earlier step).
 - No rename or delete for buildings and units; no unit detail screen.
 - Not verified: the hosted demo (not deployed), the mobile app (out of scope), a real phone.
 - AI-written (Claude Opus 5.5, Claude Code). Human review: NOT_RUN.
