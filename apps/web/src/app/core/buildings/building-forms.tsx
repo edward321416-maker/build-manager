@@ -53,7 +53,8 @@ function TileGroup<T extends string>({ legend, tiles, value, onChange }: { legen
   const name = useId();
   return <fieldset className={styles.tiles}><legend>{legend}</legend><div className={styles.tileGrid}>{tiles.map(tile =>
     <label key={tile.value || "unknown"} className={styles.tile} data-tile>
-      <span className={styles.tileName}><input type="radio" name={name} value={tile.value} checked={value === tile.value} onChange={() => onChange(tile.value)} />{tile.name}</span>
+      <input type="radio" name={name} value={tile.value} checked={value === tile.value} onChange={() => onChange(tile.value)} />
+      <span className={styles.tileName}>{tile.name}</span>
       <span className={styles.tileCaption}>{tile.caption}</span>
     </label>)}</div></fieldset>;
 }
