@@ -94,12 +94,20 @@ test("홈 keeps the rows but states no next step when the conversation states ca
   await expect(going).toHaveAttribute("aria-busy", "true");
   const busyHeight = (await cards.first().boundingBox())!.height;
   release();
-  await expect(going.getByRole("alert")).toHaveText("대화 대기 상태를 확인하지 못했어요. 새로고침을 눌러 주세요.");
+  // The error box says what failed and carries its own retry (rules 8.11).
+  const failed = going.getByRole("alert");
+  await expect(failed.locator("p")).toHaveText("대화 대기 상태를 확인하지 못했어요.");
+  await expect(failed.getByRole("button", { name: "다시 불러오기", exact: true })).toBeVisible();
   await expect(going).not.toHaveAttribute("aria-busy", "true");
   // The reserved next-step line stays reserved on error too, so the row's height does not change between busy and error.
   expect((await cards.first().boundingBox())!.height).toBe(busyHeight);
   // Without the conversation states no next step is confirmed (rules 10), so the row names the request and its status only.
   await expect(cards.first()).not.toContainText(/아직 보내지 않았어요|기다리고 있어요|처리하고 있어요/);
+  // The box's own retry reads them again; once they load the box goes and the row names its next step (review of #172).
+  await page.unroute(/\/api\/v2\/core\/communication-summaries(\?|$)/);
+  await failed.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+  await expect(going.getByRole("alert")).toHaveCount(0);
+  await expect(cards.first()).toContainText("아직 보내지 않았어요. 열어서 제출해 주세요.");
   await cards.first().click(); await expect(page.getByTestId("ticket-heading")).toBeVisible();
 });
 

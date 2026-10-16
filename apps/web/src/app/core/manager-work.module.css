@@ -32,8 +32,8 @@
 .due, .count, .noteList time { color: var(--color-text-secondary); font-size: .8125rem; line-height: 1.125rem; letter-spacing: 0; }
 .due { grid-column: 1 / -1; grid-row: 4; }
 .due time { display: inline; }
-.overdue { font-weight: 600; color: var(--color-text); font-size: .9375rem; line-height: 1.25rem; letter-spacing: -.01em; margin-left: .625rem; }
-.overdue::before { content: "● "; color: var(--color-danger); }
+/* 기한 지남 reads as the same status label as on 알림 (nav/core-nav.module.css .reasonBadge; rules 2.3, 8.7). */
+.overdue { display: inline-flex; align-items: center; justify-content: center; margin-left: .625rem; padding: .3125rem .625rem; border-radius: .3125rem; color: var(--status-wait-text); background: var(--status-wait-bg); font-size: .9375rem; line-height: 1.25rem; font-weight: 600; letter-spacing: -.01em; }
 .row small,.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .detail { padding: 0; border: 0; }
 .detail .title { padding: 0; border: 0; }
@@ -48,7 +48,7 @@
 .noteList { list-style: none; margin-top: 1.25rem; padding: 0; }
 .noteList li { border-top: 1px solid var(--color-border); padding-block: .9375rem; overflow-wrap: anywhere; }
 .noteList p { white-space: pre-wrap; }
-@container (min-width: 300px) { .assignee { grid-column: 1 / 3; } .due { grid-column: 3; grid-row: 3; text-align: right; } .overdue { display: block; } }
+@container (min-width: 300px) { .assignee { grid-column: 1 / 3; } .due { grid-column: 3; grid-row: 3; text-align: right; } .overdue { display: flex; width: fit-content; margin: .3125rem 0 0 auto; } }
 @container (min-width: 560px) { .filters { grid-template-columns: repeat(3,minmax(0,1fr)); } .filters label:first-child { grid-column: auto; } }
 @container (min-width: 700px) {
   .filters { grid-template-columns: minmax(0,2fr) repeat(2,minmax(0,1fr)) auto; }
@@ -58,6 +58,6 @@
   .subject { display: grid; gap: .3125rem; }
   .subject strong,.subject > span { grid-column: auto; grid-row: auto; }
   .workState { grid-column: 5; grid-row: 1; text-align: left; }
-  .assignee { grid-column: 3; grid-row: 1; } .due { grid-column: 4; grid-row: 1; text-align: left; }
+  .assignee { grid-column: 3; grid-row: 1; } .due { grid-column: 4; grid-row: 1; text-align: left; } .overdue { margin-left: 0; }
 
 }

@@ -35,8 +35,10 @@ export function todoTargets(role: CoreRole, tickets: readonly CoreTicketDto[]): 
 export const hasTodoReads = (reads: TodoReads, targets: TodoTargets) => Boolean(reads.workItems || reads.invitations
   || (reads.scheduling && targets.visit.length) || (reads.outcome && targets.result.length) || (reads.handoff && targets.vendor.length));
 
-/** Which statuses end the session. A per-request read's 403 means nothing is assigned there, as on the request screens
- * (vendor-handoff-tenant.tsx, vendor-handoff-manager.tsx), so only its 401 signs out; a list read's 401 and 403 both do. */
+/** Which statuses end the session. A per-request read's 403 (or 404) means nothing is assigned to this account there, so
+ * it is no failure and only its 401 signs out: these reads use the client that does not sign out on 403 (core-screen.tsx
+ * `perRequestClient`). The request screens read the same data with the guarded client, which clears the screen on 403
+ * instead. A list read's 401 and 403 both sign out. */
 export const endsSession = (status: number, perRequest: boolean) => status === 401 || (status === 403 && !perRequest);
 
 /** "none": nothing to do there; "signedOut": the guarded client has already cleared the screen; "failed": say partial. */
