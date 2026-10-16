@@ -77,6 +77,20 @@ export async function readVendorHandoffState(file) {
   return state;
 }
 
+/** A new B1 session cookie for a seeded account (P6 PR 2 design audit). Session completion accepts only a transport issued in
+ * the last 60 seconds, so a caller makes one right before completing it instead of reusing the cookie made at prepare time. */
+export async function freshAccountCookie(state, who) {
+  const account = state.fixture.accounts[who];
+  assert.ok(account, "FIXTURE_ACCOUNT_REQUIRED");
+  const admin = new Client(state.admin); await admin.connect();
+  try {
+    const { subject } = (await admin.query("SELECT subject FROM authn.external_identity WHERE user_id=$1 AND status='ACTIVE'", [account.userId])).rows[0];
+    const issuedAt = Math.floor(Date.now() / 1000);
+    return await generateSessionCookie({ user: { sub: subject }, tokenSet: { accessToken: randomBytes(32).toString("hex"), expiresAt: issuedAt + 3600 }, internal: { sid: randomUUID(), createdAt: issuedAt },
+      b1: { handle: randomBytes(32).toString("hex"), csrf: randomBytes(32).toString("hex"), issuedAt, expiresAt: issuedAt + 3600 } }, { secret: state.secret });
+  } finally { await admin.end(); }
+}
+
 /** Actual Next + SDK + B1 authority. Never injects a legacy Core authentication resolver. */
 export async function startVendorHandoffServer(state) {
   const url = new URL(state.origin), probe = createServer();

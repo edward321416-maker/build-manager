@@ -31,7 +31,7 @@ export function CoreNav({ ctx, location, badge, caption, onNavigate }: {
         tab.id === "me" || tab.id === "more" ? "phone" : undefined, tab.id === "alerts" ? badge : 0))}
       {moreRows(ctx).map(row => row.kind === "view" && row.icon && row.to.view
         ? item(row.to.view, row.to, row.label, row.icon, location.tab === "more" && location.view === row.to.view, "wide")
-        : row.kind === "href" ? <li key={row.href} data-device="wide"><a href={row.href}><NavIcon name={row.icon} /><span className={styles.label}>{row.label}</span></a></li> : null)}
+        : null)}
     </ul>
     <div className={styles.account} data-device="wide">
       <p className={styles.caption}>{caption}</p>

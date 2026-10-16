@@ -17,7 +17,7 @@
 //              and below differs by 2px or more, or, in a box with a visible fill or border, the space left and right of
 //              any line does (rules §4). Rows read from the left only (summary rows, request-opening rows
 //              ([data-open-ticket]), 홈 request rows ([data-home-card]), to-do rows ([data-todo-ticket], [data-todo-link]), menu rows
-//              ([data-menu-row]), checkbox and radio rows, the sign-in column's sticky logout, and the sticky P5 left
+//              ([data-menu-row]), building rows ([data-building-row]), checkbox and radio rows, the sign-in column's sticky logout, and the sticky P5 left
 //              menu) are compared only top and bottom.
 //   coverage   a requested engine did not start, or a screen that should exist could not be reached
 // Exit code 1 when any finding remains, so it can gate a design change.
@@ -156,7 +156,7 @@ function inspect() {
   // the P5 left menu (sticky from 768px; the phone tab bar is fixed and stays centred). A selection tile (§8.3) is
   // marked data-tile and is centred both ways like a button.
   const mainMenu = el => el.closest('nav[aria-label="주 메뉴"]');
-  const leftStart = el => el.matches("summary, [data-open-ticket], [data-home-card], [data-todo-ticket], [data-todo-link], [data-menu-row], .field-check label, label:has(input[type=checkbox], input[type=radio]):not([data-tile])")
+  const leftStart = el => el.matches("summary, [data-open-ticket], [data-home-card], [data-todo-ticket], [data-todo-link], [data-menu-row], [data-building-row], .field-check label, label:has(input[type=checkbox], input[type=radio]):not([data-tile])")
     || (el.matches(".core-account .core-logout") && getComputedStyle(el.closest(".core-account")).position === "sticky")
     || (mainMenu(el) !== null && getComputedStyle(mainMenu(el)).position === "sticky");
   for (const el of new Set([...taps, ...[...document.querySelectorAll("body *")].filter(badge)])) {
@@ -199,14 +199,38 @@ try {
   if (interrupted) { await cleanup(); process.exit(130); }
   server = await dev.startVendorHandoffServer(prepared.state);
   const origin = prepared.state.origin, phones = [320, 375, 390, 430], wide = [768, 1280, 1440];
-  let ticketCreated = false, baseTicket = null, evidenceTicket = null;
+  let ticketCreated = false, baseTicket = null, evidenceTicket = null, adminBuilding = null;
+  // P6 PR 2: one named building with two units in organisation B, made once through the same APIs the screen uses, so the
+  // admin's building and info screens have content. The demo buildings themselves cannot be edited by anyone.
+  const makeAdminBuilding = async p => {
+    const request = p.context().request, orgId = prepared.state.fixture.orgB;
+    const { csrf } = await (await request.get(origin + "/api/v2/session")).json(), headers = { "x-b1-csrf": csrf, "x-core-organization": orgId, origin };
+    const made = await request.post(`${origin}/api/v2/organizations/${orgId}/properties`, { headers, data: { addressReference: "합성 점검 건물" } });
+    if (made.status() !== 201) throw new Error("AUDIT_BUILDING_NOT_CREATED " + made.status());
+    const id = (await made.json()).id;
+    const saved = await request.post(`${origin}/api/v2/core/buildings/${id}`, { headers, data: { expectedVersion: 0, displayName: "합성 점검 건물", serviceAddress: "합성 점검 주소 1", heatingType: "INDIVIDUAL", managementMode: null } });
+    if (saved.status() !== 200) throw new Error("AUDIT_BUILDING_NOT_SAVED " + saved.status());
+    for (const label of ["101호", "102호"]) {
+      const unit = await request.post(`${origin}/api/v2/organizations/${orgId}/properties/${id}/units`, { headers, data: { label } });
+      if (unit.status() !== 201) throw new Error("AUDIT_UNIT_NOT_CREATED " + unit.status());
+    }
+    return id;
+  };
   for (const engine of engines) {
     let browser;
     try { browser = await playwright[engine].launch(); } catch { missing(engine, `${engine} did not start: npx playwright install ${engine}`); continue; }
     const page = async (width, role) => {
-      const p = await (await browser.newContext({ viewport: { width, height: width < 768 ? 844 : 900 } })).newPage();
+      const context = await browser.newContext({ viewport: { width, height: width < 768 ? 844 : 900 } });
+      // "admin": an organisation admin outside the read-only demo (otherManager, organisation B), signed in as B1 does.
+      if (role === "admin") {
+        await context.addCookies([{ name: "__session", value: await dev.freshAccountCookie(prepared.state, "otherManager"), url: origin, httpOnly: true, sameSite: "Lax" }]);
+        const done = await context.request.get(origin + "/api/v2/session/complete", { maxRedirects: 0 });
+        if (done.status() !== 303) throw new Error("AUDIT_ADMIN_SESSION_NOT_COMPLETED");
+      }
+      const p = await context.newPage();
       await p.goto(origin + "/core");
-      if (role) { await p.getByRole("button", { name: role === "manager" ? "관리자로 체험하기" : "세입자로 체험하기", exact: true }).click(); await p.getByRole("heading", { name: role === "manager" ? "업무함" : "어떤 문제가 있나요?", exact: true }).first().waitFor({ timeout: 20000 }); }
+      if (role === "manager" || role === "tenant") { await p.getByRole("button", { name: role === "manager" ? "관리자로 체험하기" : "세입자로 체험하기", exact: true }).click(); await p.getByRole("heading", { name: role === "manager" ? "업무함" : "어떤 문제가 있나요?", exact: true }).first().waitFor({ timeout: 20000 }); }
+      if (role === "admin") await p.getByRole("heading", { name: "업무함", exact: true }).first().waitFor({ timeout: 20000 });
       return p;
     };
     const widths = engine === "webkit" ? phones : [...phones, ...wide];
@@ -292,7 +316,33 @@ try {
           else throw error;
         }
       }
+      // P6 PR 2: 건물·호실 관리 for the demo manager is read-only (the reason sits where the buttons would be).
+      try {
+        await m.goto(origin + "/core?tab=more&view=buildings"); await m.getByRole("heading", { level: 2, name: /^건물 \d+곳$/ }).waitFor({ timeout: 20000 });
+        await audit(m, `${engine}-${width}-manager-buildings`);
+        await m.locator("[data-building-row]").first().click(); await m.getByRole("region", { name: "건물 정보", exact: true }).waitFor({ timeout: 20000 });
+        await audit(m, `${engine}-${width}-manager-building`);
+      } catch { missing(`${engine}-${width}-manager-buildings`, "the read-only building screens could not be reached"); }
       await m.context().close();
+      // P6 PR 2: an organisation admin's list, building and input steps, including a field error.
+      const ad = await page(width, "admin");
+      try {
+        adminBuilding ??= await makeAdminBuilding(ad);
+        const row = ad.locator(`[data-building-row="${adminBuilding}"]`);
+        await ad.goto(origin + "/core?tab=more&view=buildings"); await row.waitFor({ timeout: 20000 });
+        await audit(ad, `${engine}-${width}-admin-buildings`);
+        await ad.getByRole("button", { name: "건물 추가하기", exact: true }).click(); await ad.getByRole("heading", { level: 2, name: "어떤 건물인가요?", exact: true }).waitFor({ timeout: 20000 });
+        await audit(ad, `${engine}-${width}-admin-building-add`);
+        await ad.getByRole("button", { name: "건물 추가하기", exact: true }).click(); await ad.getByText("건물 이름을 1~50자로 적어 주세요.", { exact: false }).waitFor({ timeout: 10000 });
+        await audit(ad, `${engine}-${width}-admin-building-add-error`);
+        await ad.goBack(); await row.click(); await ad.getByRole("region", { name: "건물 정보", exact: true }).waitFor({ timeout: 20000 });
+        await audit(ad, `${engine}-${width}-admin-building`);
+        await ad.getByRole("button", { name: "고치기", exact: true }).click(); await ad.getByLabel("업체에 알려 줄 주소", { exact: true }).waitFor({ timeout: 20000 });
+        await audit(ad, `${engine}-${width}-admin-building-edit`);
+        await ad.goBack(); await ad.getByRole("button", { name: "호실 추가하기", exact: true }).click(); await ad.getByLabel("호실 이름", { exact: true }).waitFor({ timeout: 20000 });
+        await audit(ad, `${engine}-${width}-admin-unit-add`);
+      } catch (error) { missing(`${engine}-${width}-admin-buildings`, "the building input screens could not be reached: " + String(error?.message ?? error).slice(0, 160)); }
+      await ad.context().close();
     }
     await browser.close();
   }
