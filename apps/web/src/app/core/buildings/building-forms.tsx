@@ -91,8 +91,8 @@ export function BuildingInfoForm({ info, busy, problem, onSave, onReload }: {
       <TextField label="건물 이름" value={name} onChange={setName} inputRef={nameRef} help="세입자와 업체에게 보이는 이름이에요." error={errors.name ? NAME_ERROR : null} />
       <TextField label="업체에 알려 줄 주소" value={address} onChange={setAddress} inputRef={addressRef} placeholder="예: 서울시 예시구 예시로 12"
         help="업체에 수리를 맡길 때만 보내요. 호수는 적지 않아요." error={errors.address ? ADDRESS_ERROR : null} />
-      <TileGroup legend="난방 방식" tiles={HEATING_TILES} value={heating} onChange={setHeating} />
-      <TileGroup legend="관리 방식" tiles={MANAGEMENT_TILES} value={management} onChange={setManagement} />
+      <TileGroup<HeatingType> legend="난방 방식" tiles={HEATING_TILES} value={heating} onChange={setHeating} />
+      <TileGroup<ManagementMode> legend="관리 방식" tiles={MANAGEMENT_TILES} value={management} onChange={setManagement} />
       <p className={styles.note}>고른 값은 세입자 질문과 처리 경로 추천에 쓰여요. 추천은 늘 관리자가 확인해요.</p>
       <ActionBar><button type="submit" className={core.primary}>저장하기</button></ActionBar>
     </fieldset>

@@ -35,6 +35,8 @@ import { buildTodoList,EMPTY_TODO_LIST } from "./nav/todo-list";
 import { endsSession,todoReadsFor } from "./nav/todo-extras";
 import { useTodoExtras } from "./nav/use-todo-extras";
 import navStyles from "./nav/core-nav.module.css";
+import { placeKey,placeTitle,useBuildingPlace } from "./buildings/building-place";
+import { BuildingsScreen } from "./buildings/buildings-screen";
 
 type IntakeState=CoreTicketDto["detail"]["status"];
 // Intake steps that still wait on the tenant stay open above the record instead of collapsed at the bottom.
@@ -145,11 +147,18 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   });
   const detailId=selected?.ticketId??null;
   useEffect(()=>{if(!role)return;if(detailId)showDetailEntry(role==="TENANT"?undefined:"work");else hideDetailEntry();},[detailId,role]);
+  // P6 PR 2: 건물·호실 관리 keeps its own steps (list, building, info, add) in the history entry; the top bar names the step.
+  const buildingNav=useBuildingPlace(nav.location.view==="buildings");
+  const [buildingName,setBuildingName]=useState<string|null>(null);
+  const buildingTitle=nav.location.view==="buildings"?placeTitle(buildingNav.place,buildingName):null;
+  const reloadUnits=useCallback(async()=>{const u=await client.units();setUnits(u);},[client]);
   const closeDetail=()=>{if(detailEntryOnTop())window.history.back();else leaveDetail();};
   /** A menu link. An open request closes first; unsent photos keep it open, and the request says why. Opening 알림
    * (and tapping it again) reads the requests and their conversation summaries again, so the to-dos are current (spec §5). */
   const navigate=(next:NavLocation)=>{
     if(selected){if(pending.length)return;setSelected(null);setPhotoMessage("");}
+    // Tapping 건물·호실 관리 again while on it returns to its list, at the top (rules 8.14).
+    if(next.view==="buildings"&&nav.location.view==="buildings")buildingNav.reset();
     nav.go(next);
     if(next.tab==="alerts"&&session)void run(refresh);
   };
@@ -273,14 +282,14 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   // focus is gone. Focus the new screen's title instead of leaving it on the page body (final review of PR 139). A
   // control in a tab that is now hidden (홈's "요청에서 모두 보기") still holds focus here and loses it later,
   // so it counts as gone too (final review of PR 1b).
-  const place=`${tab}|${view??""}|${selected?"detail":""}`,lastPlace=useRef<string|null>(null);
+  const place=`${tab}|${view??""}|${selected?"detail":""}|${view==="buildings"?placeKey(buildingNav.place):""}`,lastPlace=useRef<string|null>(null);
   useEffect(()=>{if(!navContext)return;const before=lastPlace.current;lastPlace.current=place;if(before===null||before===place||selected)return;
     const active=document.activeElement;if(!active||active===document.body||active.closest("[hidden]"))titleRef.current?.focus({preventScroll:true});},[navContext,place,selected]);
   // After an organisation is chosen the whole page is new: start keyboard and screen reader at its title, once.
   const titleFocused=useRef(false);
   useEffect(()=>{if(focusTitle&&session&&!titleFocused.current){titleFocused.current=true;titleRef.current?.focus({preventScroll:true});}},[focusTitle,session]);
   const sub=Boolean(selected)||Boolean(view);
-  const title=!session?"수리 접수":selected?(tenant?"접수 내용":"업무함"):tenant&&tab==="home"&&!view?(units.find(u=>u.id===unit)?.label??"수리 접수"):navTitle(session.role,location);
+  const title=!session?"수리 접수":selected?(tenant?"접수 내용":"업무함"):tenant&&tab==="home"&&!view?(units.find(u=>u.id===unit)?.label??"수리 접수"):buildingTitle??navTitle(session.role,location);
   const openFromList=(id:string)=>void run(async()=>{await openWithList(id);setMessage("");});
   const openTenantTicket=(id:string)=>void run(async()=>{setSelected(await client.read(id));setMessage("");});
   const ticketName=(t:CoreTicketDto)=>{const label=units.find(u=>u.id===t.unitId)?.label;return (t.detail.issueType==="HEATING"?"난방":"누수")+(label?` · ${label}`:"");};
@@ -295,7 +304,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
     {navContext&&session?<CoreNav ctx={navContext} location={location} badge={conversationSummaries.ready?todo.items.length:0} caption={account?.caption??roleName(session.role)} onNavigate={navigate}/>:null}
     <div className={navStyles.content}>
     <Workspace id="core-tickets" className="page-shell core-flow" aria-label="수리 접수 작업" data-role={session?.role}>
-    <header className={styles.heading} data-testid="unit-context" data-sub={sub?"true":undefined} data-menu-screen={view&&navContext&&inLeftMenu(navContext,view)?"true":undefined}><div className={styles.toolbarLeading}>{selected?<BackButton wide disabled={busy||pending.length>0} onClick={closeDetail}/>:view&&navContext?<BackButton wide={!inLeftMenu(navContext,view)} onClick={nav.back}/>:null}<div><h1 ref={titleRef} tabIndex={-1}>{title}</h1>
+    <header className={styles.heading} data-testid="unit-context" data-sub={sub?"true":undefined} data-menu-screen={view&&navContext&&inLeftMenu(navContext,view)&&!buildingTitle?"true":undefined}><div className={styles.toolbarLeading}>{selected?<BackButton wide disabled={busy||pending.length>0} onClick={closeDetail}/>:buildingTitle?<BackButton wide onClick={buildingNav.back}/>:view&&navContext?<BackButton wide={!inLeftMenu(navContext,view)} onClick={nav.back}/>:null}<div><h1 ref={titleRef} tabIndex={-1}>{title}</h1>
     {tenant&&!selected&&tab==="home"&&!view?<p className={styles.headingCaption}>{units.find(u=>u.id===unit)?.buildingName}</p>:null}
     </div></div>
     {!b1?<EnvironmentNote>검증용 환경으로 실제 업체 배정이나 알림은 전송되지 않아요.</EnvironmentNote>:null}
@@ -406,6 +415,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
       {navContext&&!selected&&!view&&tab==="alerts"?<div className={navStyles.pane}><TodoScreen role={session.role} list={todo} ready={conversationSummaries.ready} units={units} disabled={busy||pending.length>0} notice={pending.length?pendingPhotosHint:undefined} onOpen={openFromList} onOpenPlace={navigate} onRetry={()=>void run(refresh)}/></div>:null}
       {navContext&&!selected&&(tenant?tab==="me"&&!view:view==="me")?<div className={navStyles.pane}><MenuList label={VIEW_LABELS.me} rows={meRows(navContext)} organization={account?.organization} onOpen={navigate} onLogout={logout}/></div>:null}
       {navContext&&!selected&&!tenant&&tab==="more"&&!view?<div className={navStyles.pane}><MenuList label="더 보기" rows={moreRows(navContext)} onOpen={navigate} onLogout={logout}/></div>:null}
+      {b1&&!tenant&&!selected&&view==="buildings"?<BuildingsScreen client={client} orgId={b1.orgId} units={units} place={buildingNav.place} revision={revision} disabled={busy}
+        onOpen={buildingNav.open} onReplace={buildingNav.replace} onBack={buildingNav.back} onName={setBuildingName} onUnitsChanged={reloadUnits}/>:null}
       {!tenant&&!selected&&view==="maintenance"?<ManagerMaintenanceTimeline key={maintenanceUnit} client={client} units={units} revision={revision} disabled={busy} initialUnit={maintenanceUnit} onOpenTicket={openMaintenanceTicket}/>:null}
       {!selected&&view==="units"?<div className={navStyles.pane}><UnitsScreen units={units}/></div>:null}
       {!selected&&view==="licenses"?<div className={navStyles.pane}><OpenSourceNotice/></div>:null}
