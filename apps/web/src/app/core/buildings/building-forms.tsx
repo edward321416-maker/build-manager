@@ -59,10 +59,12 @@ function TileGroup<T extends string>({ legend, tiles, value, onChange }: { legen
     </label>)}</div></fieldset>;
 }
 
-export type InfoProblem = "conflict" | "uncertain" | "missing" | "invalid" | null;
+export type InfoProblem = "conflict" | "uncertain" | "unsaved" | "missing" | "invalid" | null;
 const INFO_PROBLEMS: Record<Exclude<InfoProblem, null>, { text: string; reload: boolean }> = {
   conflict: { text: "다른 관리자가 먼저 고쳤어요. 새로 불러온 내용을 확인하고 다시 저장해 주세요.", reload: true },
   uncertain: { text: "저장 결과를 확인하지 못했어요. 새로 불러와 저장됐는지 확인해 주세요.", reload: true },
+  // The reload after an unknown result showed the same version: nothing was saved, and the typed values are still here.
+  unsaved: { text: "저장되지 않았어요. 입력한 내용을 확인하고 다시 저장해 주세요.", reload: false },
   missing: { text: "이 건물을 열 수 없어요. 목록을 새로고침하고 다시 골라 주세요.", reload: false },
   invalid: { text: "입력한 내용을 저장하지 못했어요. 건물 이름과 주소를 확인해 주세요.", reload: false },
 };

@@ -11,7 +11,7 @@ describe("building places (P6 PR 2)", () => {
   it("reads only the five known shapes and falls back to the list", () => {
     for (const place of [{ kind: "list" }, { kind: "building", id }, { kind: "edit", id }, { kind: "add" }, { kind: "addUnit", id }] as BuildingPlace[])
       expect(parseBuildingPlace(place)).toEqual(place);
-    for (const value of [null, undefined, 3, "building", { kind: "other", id }, { kind: "building", id: "x" }, { kind: "edit" }, { kind: "building", id: 7 }])
+    for (const value of [null, undefined, 3, "building", { kind: "other", id }, { kind: "building", id: "x" }, { kind: "edit" }, { kind: "building", id: 7 }, { kind: "building", id: "AAAAAAAA-1111-4111-8111-111111111111" }])
       expect(parseBuildingPlace(value)).toEqual(LIST_PLACE);
     // Foreign fields never travel with the place.
     expect(parseBuildingPlace({ kind: "add", id, extra: true })).toEqual({ kind: "add" });
@@ -88,6 +88,33 @@ describe("history steps", () => {
     await act(async () => nav!.reset());
     expect(window.history.state).toEqual({ coreNav: true, other: "kept" });
     expect(shown()).toBe("list");
+  });
+
+  it("moves after a write only while the step the write started on is still shown (review M1)", async () => {
+    await mount();
+    await act(async () => nav!.open({ kind: "building", id }));
+    await act(async () => nav!.open({ kind: "edit", id }));
+    // The user already went back while the save ran: the late "step back" must not take them past the building.
+    const back = popped();
+    await act(async () => { nav!.back(); await back; });
+    const length = window.history.length;
+    await act(async () => nav!.backFrom({ kind: "edit", id }));
+    expect(shown()).toBe("building:" + id);
+    // The user tapped the menu (reset to the list) while adding a building: the late replace must not rewrite the list.
+    await act(async () => nav!.open({ kind: "add" }));
+    await act(async () => nav!.reset());
+    await act(async () => nav!.replaceFrom({ kind: "add" }, { kind: "building", id }));
+    expect(shown()).toBe("list");
+    expect(window.history.state).toEqual({ coreNav: true, other: "kept" });
+    // Still on the step: both act.
+    await act(async () => nav!.open({ kind: "add" }));
+    await act(async () => nav!.replaceFrom({ kind: "add" }, { kind: "building", id }));
+    expect(shown()).toBe("building:" + id);
+    await act(async () => nav!.open({ kind: "addUnit", id }));
+    const up = popped();
+    await act(async () => { nav!.backFrom({ kind: "addUnit", id }); await up; });
+    expect(shown()).toBe("building:" + id);
+    expect(window.history.length).toBeGreaterThanOrEqual(length);
   });
 
   it("is always the list outside 건물·호실 관리", async () => {

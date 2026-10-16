@@ -43,6 +43,14 @@ test("an organisation admin adds a building, saves its info and adds a unit (390
     await page.getByRole("button", { name: "고치기", exact: true }).click();
     await title(page, "건물 정보");
     await expect(page.getByLabel("건물 이름", { exact: true })).toHaveValue(name);
+    // Text at 200% on a 320px phone: the tiles take one column each and nothing pushes the page sideways (rules 7, 12;
+    // review M2: the 8rem tile floor was wider than the content).
+    await page.setViewportSize({ width: 320, height: 800 });
+    const zoom = await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+    expect(await noSideScroll(page)).toBe(true);
+    const tiles = await page.locator("label[data-tile]").evaluateAll(labels => labels.map(label => label.getBoundingClientRect().right));
+    expect(Math.max(...tiles)).toBeLessThanOrEqual(320);
+    await zoom.evaluate(node => node.remove()); await page.setViewportSize({ width: 390, height: 844 });
     await page.getByLabel("업체에 알려 줄 주소", { exact: true }).fill("합성 주소 1");
     await page.getByRole("radio", { name: /^개별난방/ }).check();
     await page.getByRole("button", { name: "저장하기", exact: true }).click();

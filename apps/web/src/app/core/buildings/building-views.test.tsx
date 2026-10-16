@@ -42,7 +42,7 @@ describe("building list (approved mockup A)", () => {
   it("is read-only for the public demo and says why where the button was", () => {
     const html = renderToStaticMarkup(<BuildingList list={{ ...list, editable: false }} selectedId={null} disabled={false} onOpen={noop} onAdd={noop} />);
     expect(html).not.toContain("건물 추가하기");
-    expect(html).toMatch(/data-building-bar[^>]*><p[^>]*>체험에서는 바꿀 수 없어요\.<\/p>/);
+    expect(html).toMatch(/data-building-bar="true" data-read-only="true"><p[^>]*>체험에서는 바꿀 수 없어요\.<\/p>/);
   });
 
   it("says what to do when there are no buildings", () => {
@@ -81,7 +81,7 @@ describe("building screen", () => {
     const html = renderToStaticMarkup(<BuildingDetail info={info} units={units} notice={null} disabled={false} onEdit={noop} onAddUnit={noop} />);
     expect(html).toContain("<h2>호실 2개</h2>");
     expect([...html.matchAll(/<li>([^<]+)<\/li>/g)].map(m => m[1])).toEqual(["101호", "102호"]);
-    expect(html).toMatch(/data-building-bar[^>]*><button[^>]*>호실 추가하기<\/button>/);
+    expect(html).toMatch(/data-building-bar="true"><button[^>]*>호실 추가하기<\/button>/);
   });
 
   it("is read-only for the demo: no 고치기, no 호실 추가하기, and the reason in the bar", () => {
@@ -90,7 +90,7 @@ describe("building screen", () => {
     expect(html).not.toContain("호실 추가하기");
     expect(html).toContain("아직 호실이 없어요.");
     expect(html).not.toContain("호실을 추가해 주세요");
-    expect(html).toMatch(/data-building-bar[^>]*><p[^>]*>체험에서는 바꿀 수 없어요\.<\/p>/);
+    expect(html).toMatch(/data-building-bar="true" data-read-only="true"><p[^>]*>체험에서는 바꿀 수 없어요\.<\/p>/);
   });
 
   it("puts a notice first as an alert", () => {

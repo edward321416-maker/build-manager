@@ -52,7 +52,7 @@ describe("building screen flows (P6 PR 2)", () => {
     expect(host!.textContent).toContain("건물 2곳");
     await press(host!.querySelector<HTMLButtonElement>(`[data-building-row="${b}"]`)!);
     expect(p.onOpen).toHaveBeenCalledWith({ kind: "building", id: b });
-    expect(p.onName).toHaveBeenLastCalledWith(null);
+    expect(p.onName).toHaveBeenLastCalledWith({ id: null, name: null });
   });
 
   it("reads the open building and names it for the top bar", async () => {
@@ -60,7 +60,7 @@ describe("building screen flows (P6 PR 2)", () => {
     expect(client.buildings.read).toHaveBeenCalledWith(a);
     expect(host!.textContent).toContain("합성 주소 1");
     expect(host!.textContent).toContain("101호");
-    expect(p.onName).toHaveBeenLastCalledWith("합성 햇살빌라");
+    expect(p.onName).toHaveBeenLastCalledWith({ id: a, name: "합성 햇살빌라" });
     await press(button("고치기"));
     expect(p.onOpen).toHaveBeenCalledWith({ kind: "edit", id: a });
     await press(button("호실 추가하기"));
@@ -74,8 +74,44 @@ describe("building screen flows (P6 PR 2)", () => {
     expect(client.buildings.save).toHaveBeenCalledWith(a, { expectedVersion: 2, displayName: "합성 햇살빌라", serviceAddress: "합성 주소 2", heatingType: "INDIVIDUAL", managementMode: null });
     expect(p.onUnitsChanged).toHaveBeenCalledTimes(1);
     expect(client.buildings.list).toHaveBeenCalledTimes(2);
-    expect(p.onBack).toHaveBeenCalledTimes(1);
+    // The step the save started on travels with the move, so a user who already left is not moved again (review M1).
+    expect(p.onBack).toHaveBeenCalledWith({ kind: "edit", id: a });
     expect(toast()).toBe("저장했어요");
+  });
+
+  it("sends one save for a double tap", async () => {
+    const client = fakeClient();
+    let finish!: (value: never) => void;
+    client.buildings.save.mockImplementationOnce(() => new Promise<never>(resolve => { finish = resolve; }));
+    await mount(props(client, { kind: "edit", id: a }));
+    const save = button("저장하기");
+    await act(async () => { save.click(); save.click(); });
+    await act(async () => { button("저장하기").closest("form")!.requestSubmit(); });
+    expect(client.buildings.save).toHaveBeenCalledTimes(1);
+    await act(async () => finish({ ...infoA, version: 3 } as never)); await settle();
+  });
+
+  it("never shows a late answer for a building the user has left", async () => {
+    const client = fakeClient();
+    let late!: (value: CoreBuildingInfoDto) => void;
+    client.buildings.read.mockImplementationOnce(() => new Promise(resolve => { late = resolve; }));
+    const p = await mount(props(client, { kind: "building", id: a }));
+    await rerender({ ...p, place: { kind: "building", id: b } });
+    await act(async () => late({ ...infoA, displayName: "합성 늦은 답" })); await settle();
+    expect(host!.textContent).not.toContain("합성 늦은 답");
+    expect(host!.textContent).not.toContain("합성 주소 1");
+    expect(p.onName).toHaveBeenLastCalledWith({ id: b, name: null });
+  });
+
+  it("does not move anywhere when a write ends after the screen closed", async () => {
+    const client = fakeClient();
+    let finish!: (value: never) => void;
+    client.buildings.save.mockImplementationOnce(() => new Promise<never>(resolve => { finish = resolve; }));
+    const p = await mount(props(client, { kind: "edit", id: a }));
+    await press(button("저장하기"));
+    await act(async () => root!.unmount()); root = undefined;
+    await act(async () => finish({ ...infoA, version: 3 } as never)); await settle();
+    expect(p.onBack).not.toHaveBeenCalled();
   });
 
   it("keeps the input on a version conflict and refills the form from the reload", async () => {
@@ -103,8 +139,32 @@ describe("building screen flows (P6 PR 2)", () => {
     expect(alertText()).toContain("저장 결과를 확인하지 못했어요.");
     client.buildings.read.mockResolvedValueOnce({ ...infoA, serviceAddress: "합성 주소 2", version: 3 });
     await press(button("새로 불러오기"));
-    expect(p.onBack).toHaveBeenCalledTimes(1);
+    expect(p.onBack).toHaveBeenCalledWith({ kind: "edit", id: a });
     expect(toast()).toBe("저장했어요");
+  });
+
+  it("says a save did not land when the reload shows the same version, keeping the input (review LOW 6)", async () => {
+    const client = fakeClient();
+    client.buildings.save.mockRejectedValueOnce(network());
+    const p = await mount(props(client, { kind: "edit", id: a }));
+    await type(field("업체에 알려 줄 주소"), "합성 주소 2");
+    await press(button("저장하기"));
+    await press(button("새로 불러오기"));
+    expect(alertText()).toBe("저장되지 않았어요. 입력한 내용을 확인하고 다시 저장해 주세요.");
+    expect(field("업체에 알려 줄 주소").value).toBe("합성 주소 2");
+    expect(p.onBack).not.toHaveBeenCalled();
+  });
+
+  it("says another admin saved first when the reload after an unknown result shows their change", async () => {
+    const client = fakeClient();
+    client.buildings.save.mockRejectedValueOnce(network());
+    await mount(props(client, { kind: "edit", id: a }));
+    await type(field("업체에 알려 줄 주소"), "합성 주소 2");
+    await press(button("저장하기"));
+    client.buildings.read.mockResolvedValueOnce({ ...infoA, serviceAddress: "합성 다른 주소", version: 3 });
+    await press(button("새로 불러오기"));
+    expect(alertText()).toContain("다른 관리자가 먼저 고쳤어요.");
+    expect(field("업체에 알려 줄 주소").value).toBe("합성 다른 주소");
   });
 
   it("adds a building: B3 creates it, the name is saved as building info, and the building opens", async () => {
@@ -113,7 +173,7 @@ describe("building screen flows (P6 PR 2)", () => {
     await press(button("건물 추가하기"));
     expect(client.buildings.create).toHaveBeenCalledWith(org, "합성 새 건물");
     expect(client.buildings.save).toHaveBeenCalledWith(b, { expectedVersion: 0, displayName: "합성 새 건물", serviceAddress: null, heatingType: null, managementMode: null });
-    expect(p.onReplace).toHaveBeenCalledWith({ kind: "building", id: b });
+    expect(p.onReplace).toHaveBeenCalledWith({ kind: "add" }, { kind: "building", id: b });
     expect(toast()).toBe("건물을 추가했어요");
     expect(client.buildings.list).toHaveBeenCalledTimes(2);
   });
@@ -124,7 +184,7 @@ describe("building screen flows (P6 PR 2)", () => {
     const p = await mount(props(client, { kind: "add" }));
     await type(field("건물 이름"), "합성 새 건물");
     await press(button("건물 추가하기"));
-    expect(p.onReplace).toHaveBeenCalledWith({ kind: "building", id: b });
+    expect(p.onReplace).toHaveBeenCalledWith({ kind: "add" }, { kind: "building", id: b });
     expect(toast()).toBeNull();
     await rerender({ ...p, place: { kind: "building", id: b } });
     expect(alertText()).toBe("건물은 추가했어요. 이름을 저장하지 못했어요. 건물 정보에서 다시 저장해 주세요.");
@@ -140,7 +200,28 @@ describe("building screen flows (P6 PR 2)", () => {
     expect(alertText()).toContain("건물을 추가했는지 확인하지 못했어요.");
     await press(button("목록 새로 불러오기"));
     expect(client.buildings.list).toHaveBeenCalledTimes(2);
-    expect(p.onBack).toHaveBeenCalledTimes(1);
+    expect(p.onBack).toHaveBeenCalledWith({ kind: "add" });
+  });
+
+  it("clears a step's message when the step is opened again (review LOW 3)", async () => {
+    const client = fakeClient();
+    client.buildings.addUnit.mockRejectedValueOnce(network());
+    const p = await mount(props(client, { kind: "addUnit", id: a }));
+    await type(field("호실 이름"), "103호");
+    await press(button("호실 추가하기"));
+    expect(alertText()).toContain("호실을 추가했는지 확인하지 못했어요.");
+    await rerender({ ...p, place: { kind: "building", id: a } });
+    await rerender({ ...p, place: { kind: "addUnit", id: a } });
+    expect(alertText()).toBeNull();
+  });
+
+  it("says so on the building when the unit list could not be read again after adding a unit (review LOW 5)", async () => {
+    const client = fakeClient(), p = await mount(props(client, { kind: "addUnit", id: a }, { onUnitsChanged: vi.fn(async () => { throw network(); }) }));
+    await type(field("호실 이름"), "103호");
+    await press(button("호실 추가하기"));
+    expect(toast()).toBe("호실을 추가했어요");
+    await rerender({ ...p, place: { kind: "building", id: a } });
+    expect(alertText()).toBe("호실 목록을 새로 불러오지 못했어요. 위의 새로고침을 눌러 주세요.");
   });
 
   it("adds a unit, refreshes and goes back; a duplicate name stays on the form", async () => {
@@ -155,7 +236,7 @@ describe("building screen flows (P6 PR 2)", () => {
     await press(button("호실 추가하기"));
     expect(client.buildings.addUnit).toHaveBeenLastCalledWith(org, a, "102호");
     expect(p.onUnitsChanged).toHaveBeenCalledTimes(1);
-    expect(p.onBack).toHaveBeenCalledTimes(1);
+    expect(p.onBack).toHaveBeenCalledWith({ kind: "addUnit", id: a });
     expect(toast()).toBe("호실을 추가했어요");
   });
 
@@ -171,8 +252,11 @@ describe("building screen flows (P6 PR 2)", () => {
   it("says a missing building cannot be opened", async () => {
     const client = fakeClient();
     client.buildings.read.mockRejectedValueOnce(failure(404));
-    await mount(props(client, { kind: "building", id: a }));
-    expect(alertText()).toBe("이 건물을 열 수 없어요. 목록을 새로고침하고 다시 골라 주세요.");
+    const p = await mount(props(client, { kind: "building", id: a }));
+    expect(alertText()).toBe("이 건물을 열 수 없어요. 목록을 새로고침하고 다시 골라 주세요.목록으로 가기");
+    // The list is hidden below 1120px, so the alert offers the way back (rules 8.11, review LOW 7).
+    await press(button("목록으로 가기"));
+    expect(p.onReplace).toHaveBeenCalledWith({ kind: "building", id: a }, { kind: "list" });
   });
 
   it("shows no input at all for the public demo, even on an input step", async () => {

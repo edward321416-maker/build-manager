@@ -39,7 +39,9 @@
 .facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .3125rem .9375rem; padding: .9375rem 0; border-bottom: 1px solid var(--color-border); }
 .facts > div:last-child { border-bottom: 0; }
 .facts dt { color: var(--color-text-secondary); }
-.facts dd { margin: 0 0 0 auto; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+/* A short value sits at the right like the mockup; one too long for the row wraps onto its own line (flex-wrap) and reads
+ * left-aligned like all text (rules 3.3; review LOW 8), never ragged on the left. */
+.facts dd { max-width: 100%; margin: 0 0 0 auto; font-weight: 600; text-align: left; overflow-wrap: anywhere; }
 .facts dd[data-missing="true"] { color: var(--status-wait-text); }
 
 /* 고치기: a text button on phones (3.4, the mockup), a secondary button from 768px (8.1). */
@@ -69,6 +71,8 @@
 @media (min-width: 1120px) {
   .workspace[data-detail="true"] .bar button.addUnit { color: var(--color-text); background: var(--color-surface); border-color: var(--color-border-strong); }
   .workspace[data-detail="true"] .bar button.addUnit:hover:not(:disabled) { background: var(--color-fill-hover); }
+  /* Side by side, the demo's read-only note shows once, under the building (review nit). */
+  .workspace[data-detail="true"] > .listPane [data-read-only] { display: none; }
 }
 
 /* Forms (8.2): label above, 5px to the field, help or error 5px below, 20px between items, at most 40rem wide. */
@@ -89,7 +93,9 @@
  * floor grows with the text size, so at 200% the tiles stack instead of squeezing their names (12). */
 .tiles { margin: 0; padding: 0; border: 0; min-width: 0; }
 .tiles legend { margin-bottom: .3125rem; padding: 0; font-size: .9375rem; line-height: 1.25rem; font-weight: 600; }
-.tileGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(8rem, calc((100% - 1.25rem) / 3)), 1fr)); gap: .625rem; }
+/* min(100%, …): at 320px with text at 200% the 8rem floor (256px) is wider than the 240px content, so one tile takes the
+ * whole row instead of pushing the page sideways (rules 7, 12; review M2). */
+.tileGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, max(8rem, calc((100% - 1.25rem) / 3))), 1fr)); gap: .625rem; }
 .tileGrid label.tile input { margin: 0 0 .3125rem; }
 /* Beats `.core-flow label` (0,1,1) in globals.css and `.root label` (0,1,1) in core-design.module.css. */
 .tileGrid label.tile { display: grid; justify-items: center; align-content: center; gap: 0; min-width: 0; min-height: 3.125rem; padding: .9375rem; border: 1px solid var(--color-border-control); border-radius: .625rem; background: var(--color-surface); text-align: center; cursor: pointer; transition: background-color var(--motion-fast) var(--ease); }

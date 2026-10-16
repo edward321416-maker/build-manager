@@ -10,9 +10,10 @@ import styles from "./buildings.module.css";
 // colour, with the words carrying the meaning (rules 2.3).
 export const READ_ONLY_NOTE = "체험에서는 바꿀 수 없어요.";
 
-/** The bottom bar (rules 1, 5, 7): fixed under the content on phones, in place from 768px. */
-export function ActionBar({ children }: { children: ReactNode }) {
-  return <div className={styles.bar} data-building-bar>{children}</div>;
+/** The bottom bar (rules 1, 5, 7): fixed under the content on phones, in place from 768px. `readOnly` marks the demo's
+ * note, which shows once when the list and the building sit side by side (review nit). */
+export function ActionBar({ children, readOnly = false }: { children: ReactNode; readOnly?: boolean }) {
+  return <div className={styles.bar} data-building-bar data-read-only={readOnly ? "true" : undefined}>{children}</div>;
 }
 
 export function BuildingList({ list, selectedId, disabled, onOpen, onAdd }: {
@@ -22,7 +23,7 @@ export function BuildingList({ list, selectedId, disabled, onOpen, onAdd }: {
   return <section className={styles.list} aria-label="건물 목록">
     <div className={styles.listHead}>
       <h2>건물 {count}곳</h2>
-      <ActionBar>{list.editable
+      <ActionBar readOnly={!list.editable}>{list.editable
         ? <button type="button" className={core.primary} disabled={disabled} onClick={onAdd}>건물 추가하기</button>
         : <p className={styles.readOnly}>{READ_ONLY_NOTE}</p>}</ActionBar>
     </div>
@@ -74,6 +75,6 @@ export function BuildingDetail({ info, units, notice, disabled, onEdit, onAddUni
       {own.length ? <ul className={styles.units}>{own.map(unit => <li key={unit.id}>{unit.label}</li>)}</ul>
         : <p className={styles.empty}>{info.editable ? "아직 호실이 없어요. 호실을 추가해 주세요." : "아직 호실이 없어요."}</p>}
     </section>
-    {info.editable ? null : <ActionBar><p className={styles.readOnly}>{READ_ONLY_NOTE}</p></ActionBar>}
+    {info.editable ? null : <ActionBar readOnly><p className={styles.readOnly}>{READ_ONLY_NOTE}</p></ActionBar>}
   </div>;
 }

@@ -149,8 +149,10 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   useEffect(()=>{if(!role)return;if(detailId)showDetailEntry(role==="TENANT"?undefined:"work");else hideDetailEntry();},[detailId,role]);
   // P6 PR 2: 건물·호실 관리 keeps its own steps (list, building, info, add) in the history entry; the top bar names the step.
   const buildingNav=useBuildingPlace(nav.location.view==="buildings");
-  const [buildingName,setBuildingName]=useState<string|null>(null);
-  const buildingTitle=nav.location.view==="buildings"?placeTitle(buildingNav.place,buildingName):null;
+  // The name comes with its building id, so a name from an earlier visit never shows for another building (review nit).
+  const [buildingName,setBuildingName]=useState<{id:string|null;name:string|null}>({id:null,name:null});
+  const buildingPlaceId="id" in buildingNav.place?buildingNav.place.id:null;
+  const buildingTitle=nav.location.view==="buildings"?placeTitle(buildingNav.place,buildingName.id===buildingPlaceId?buildingName.name:null):null;
   const reloadUnits=useCallback(async()=>{const u=await client.units();setUnits(u);},[client]);
   const closeDetail=()=>{if(detailEntryOnTop())window.history.back();else leaveDetail();};
   /** A menu link. An open request closes first; unsent photos keep it open, and the request says why. Opening 알림
@@ -284,7 +286,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   // so it counts as gone too (final review of PR 1b).
   const place=`${tab}|${view??""}|${selected?"detail":""}|${view==="buildings"?placeKey(buildingNav.place):""}`,lastPlace=useRef<string|null>(null);
   useEffect(()=>{if(!navContext)return;const before=lastPlace.current;lastPlace.current=place;if(before===null||before===place||selected)return;
-    const active=document.activeElement;if(!active||active===document.body||active.closest("[hidden]"))titleRef.current?.focus({preventScroll:true});},[navContext,place,selected]);
+    // A control hidden by CSS (display:none, e.g. the building list below 1120px) has no boxes and counts as gone too.
+    const active=document.activeElement;if(!active||active===document.body||active.closest("[hidden]")||!active.getClientRects().length)titleRef.current?.focus({preventScroll:true});},[navContext,place,selected]);
   // After an organisation is chosen the whole page is new: start keyboard and screen reader at its title, once.
   const titleFocused=useRef(false);
   useEffect(()=>{if(focusTitle&&session&&!titleFocused.current){titleFocused.current=true;titleRef.current?.focus({preventScroll:true});}},[focusTitle,session]);
@@ -416,7 +419,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
       {navContext&&!selected&&(tenant?tab==="me"&&!view:view==="me")?<div className={navStyles.pane}><MenuList label={VIEW_LABELS.me} rows={meRows(navContext)} organization={account?.organization} onOpen={navigate} onLogout={logout}/></div>:null}
       {navContext&&!selected&&!tenant&&tab==="more"&&!view?<div className={navStyles.pane}><MenuList label="더 보기" rows={moreRows(navContext)} onOpen={navigate} onLogout={logout}/></div>:null}
       {b1&&!tenant&&!selected&&view==="buildings"?<BuildingsScreen client={client} orgId={b1.orgId} units={units} place={buildingNav.place} revision={revision} disabled={busy}
-        onOpen={buildingNav.open} onReplace={buildingNav.replace} onBack={buildingNav.back} onName={setBuildingName} onUnitsChanged={reloadUnits}/>:null}
+        onOpen={buildingNav.open} onReplace={buildingNav.replaceFrom} onBack={buildingNav.backFrom} onName={setBuildingName} onUnitsChanged={reloadUnits}/>:null}
       {!tenant&&!selected&&view==="maintenance"?<ManagerMaintenanceTimeline key={maintenanceUnit} client={client} units={units} revision={revision} disabled={busy} initialUnit={maintenanceUnit} onOpenTicket={openMaintenanceTicket}/>:null}
       {!selected&&view==="units"?<div className={navStyles.pane}><UnitsScreen units={units}/></div>:null}
       {!selected&&view==="licenses"?<div className={navStyles.pane}><OpenSourceNotice/></div>:null}

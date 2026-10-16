@@ -6,7 +6,8 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 // browser back walks up one step and a reload keeps the step. Other layers' marks on the entry are kept as they are.
 export type BuildingPlace = { kind: "list" } | { kind: "building"; id: string } | { kind: "edit"; id: string } | { kind: "add" } | { kind: "addUnit"; id: string };
 export const LIST_PLACE: BuildingPlace = { kind: "list" };
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Lower case only, as the server writes every id (review nit).
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** History state is untrusted: anything but the five known shapes is the list. */
 export function parseBuildingPlace(value: unknown): BuildingPlace {
@@ -59,5 +60,13 @@ export function useBuildingPlace(active: boolean) {
     if (parseBuildingPlace(stateOf().building).kind !== "list") window.history.back(); else write("replace", parentPlace(place));
   }, [place]);
   const reset = useCallback(() => write("replace", LIST_PLACE), []);
-  return useMemo(() => ({ place, open, replace, back, reset }), [place, open, replace, back, reset]);
+  // A write ends after the user may already have moved (top-bar back, browser back, a menu tap). Its own move happens only
+  // while this entry still shows the step the write started on (review M1); otherwise the user's move stands.
+  const still = (from: BuildingPlace) => snapshot() === placeKey(from);
+  const backFrom = useCallback((from: BuildingPlace) => {
+    if (!still(from)) return;
+    if (from.kind !== "list" && parseBuildingPlace(stateOf().building).kind !== "list") window.history.back(); else write("replace", parentPlace(from));
+  }, []);
+  const replaceFrom = useCallback((from: BuildingPlace, next: BuildingPlace) => { if (still(from)) write("replace", next); }, []);
+  return useMemo(() => ({ place, open, replace, back, reset, backFrom, replaceFrom }), [place, open, replace, back, reset, backFrom, replaceFrom]);
 }

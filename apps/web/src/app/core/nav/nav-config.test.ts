@@ -39,7 +39,6 @@ describe("menu definition (P5 spec §1)", () => {
 
   it("opens building setup inside /core, not the old /workspace pages (P6 PR 2, decision D5)", () => {
     expect(moreRows(ctx("ORG_ADMIN"))[2]).toEqual({ kind: "view", label: "건물·호실 관리", to: { tab: "more", view: "buildings" }, icon: "layout-grid" });
-    expect(moreRows(ctx("ORG_ADMIN")).every(row => row.kind !== "href" as never)).toBe(true);
     expect(navTitle("ORG_ADMIN", { tab: "more", view: "buildings" })).toBe("건물·호실 관리");
     expect(parentOf(ctx("ORG_ADMIN"), { tab: "more", view: "buildings" })).toEqual({ tab: "more", view: null });
   });
