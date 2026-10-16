@@ -2,7 +2,7 @@
 
 Snapshot: **2026-10-16 KST**. Repository: `edward321416-maker/build-manager`.
 
-Disposition: **ACCEPTED_FOR_DEVELOPMENT_MAIN** once CI passes on the final head. Nothing is deployed; the hosted demo runs main `7969f4c`, which has neither PR 1 nor this screen.
+Disposition: **ACCEPTED_FOR_DEVELOPMENT_MAIN** once CI passes on the final head. This screen is not deployed. When the PR was opened the hosted demo ran main `7969f4c`; another session redeployed it to main `57518be` on 2026-10-17 (with operator approval), which brings PR 1's save path and migration 0028 to the demo but not this screen.
 
 ## Authority and refs
 
@@ -68,6 +68,7 @@ All local runs on 2026-10-16 KST with Node 24.21.0.
    - Process slip (DEV-05): one batch of assertion updates to `buildings-screen.test.tsx` was first made with a Python replace; it was discarded with `git checkout` and made again with the editing tool before any commit. The temporary diagnostic spec for the login failure was also edited by a script; it was deleted and never committed.
 
 9. Delta review follow-ups (`bd7b901`), tests first: 3 screen tests failed first (the unit-list notice going once new units arrive, the list read again at once after an unknown create, the "아직" wording), then `src/app/core` 38 files / 341 tests, lint clean on the changed files, `typecheck` exit 0, `test:e2e:sdk` buildings and navigation 7/7. CI on `d663b4f` (before these follow-ups) passed 10/10. The design audit and CI on the final head are recorded in the PR body.
+10. Main `c487402` (#172 P5 to-do follow-ups, which also changed `core-screen.tsx` and `nav-screens.tsx`, and #175) merged in at `2cc00e0`; the code merged without conflict, `STATUS.md` was resolved as main's file with this PR's C1 row (each side had changed only its own row), the ops files as main's plus this PR's own lines. On the merged tree: `typecheck` exit 0, `test:web` 108 files / 1190 tests, `lint` 0 errors (the same 8 warnings as main), `build:web` compiled, `test:e2e:sdk` buildings and navigation 7/7, `test:e2e:core` 66/66. One design audit run before the merge (`bd7b901`) stopped with a 20 s timeout on the tenant's 요청 screen, which this PR does not change, while another session's docker build loaded the PC; rerun on the merged code (`2cc00e0`): 330 screens, **0 findings**, every screen reached in Chromium and WebKit.
 
 ## Rollback
 
