@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_TIMEOUT_MS, DRAFT_SCHEMA, FIELD_LIMITS, PRIORITIES, PROMPT_ID, SYSTEM_PROMPT, THRESHOLDS, assertLoopback, bannedPhrases, buildMessages, callOllama, checkDraft, draftBannedPhrases, reviewMarkdown, scoreCase, summarize } from "../../scripts/ai-draft-eval.mjs";
+import * as rules from "../../packages/application/src/ai-draft/rules";
 
 // Spec: docs/superpowers/specs/2026-10-15-ai-draft-ollama-design.md §7 (model evaluation, PR 1).
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -490,5 +491,31 @@ describe("command line", () => {
     expect(text).toContain("모델: 수리 요청 아님 / 무엇이 월세 납부일 문의 / 어디서 (빈칸)");
     expect(text).toContain("업체에 보낼 내용: (빈칸)");
     expect(text).toContain("세입자 안내: (빈칸)");
+  });
+});
+
+describe("single source for the evaluated rules", () => {
+  it("takes its prompt, request and checks from the application package", () => {
+    expect(SYSTEM_PROMPT).toBe(rules.AI_DRAFT_SYSTEM_PROMPT);
+    expect(DRAFT_SCHEMA).toBe(rules.AI_DRAFT_SCHEMA);
+    expect(FIELD_LIMITS).toBe(rules.AI_DRAFT_FIELD_LIMITS);
+    expect(PRIORITIES).toBe(rules.AI_DRAFT_PRIORITIES);
+    expect(buildMessages).toBe(rules.buildAiDraftMessages);
+    expect(checkDraft).toBe(rules.checkAiDraft);
+    expect(bannedPhrases).toBe(rules.aiDraftBannedPhrases);
+    expect(draftBannedPhrases).toBe(rules.aiDraftOutwardBannedPhrases);
+    expect(assertLoopback).toBe(rules.assertAiDraftLoopback);
+  });
+  it("is exported from the application package and keeps the evaluated request body", async () => {
+    const app = await import("@build-manager/application");
+    expect(app.AI_DRAFT_SYSTEM_PROMPT).toBe(rules.AI_DRAFT_SYSTEM_PROMPT);
+    const messages = rules.buildAiDraftMessages({ issueType: "LEAK", unitLabel: "302호", photoCount: 0, rawText: "물이 새요" });
+    expect(Object.keys(rules.aiDraftRequestBody("m:1", messages))).toEqual(["model", "messages", "stream", "think", "format", "options", "keep_alive"]);
+    expect(rules.aiDraftRequestBody("m:1", messages)).toEqual({ model: "m:1", messages, stream: false, think: false, format: DRAFT_SCHEMA, options: { temperature: 0 }, keep_alive: "10m" });
+  });
+  it("keeps the rules file loadable by plain Node", () => {
+    const text = readFileSync(join(ROOT, "packages", "application", "src", "ai-draft", "rules.ts"), "utf8");
+    expect(text).not.toMatch(/^\s*import\s/m);
+    expect(text).not.toMatch(/^\s*(?:export\s+)?(?:const\s+)?enum\s|^\s*(?:export\s+)?namespace\s/m);
   });
 });
