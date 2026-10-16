@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // AI draft model evaluation (spec: docs/superpowers/specs/2026-10-15-ai-draft-ollama-design.md §5.2, §5.3, §7).
-// The prompt, request shape and checks live in packages/application/src/ai-draft/rules.ts (the product uses the same file);
+// The prompt, request shape and checks live in packages/application/src/ai-draft/rules.ts (exported by the application package for the product);
 // this script re-exports them under the names its tests use and adds the scoring and the command-line runner.
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
