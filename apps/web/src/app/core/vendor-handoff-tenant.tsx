@@ -11,7 +11,8 @@ import styles from "./vendor-handoff.module.css";
 type Props={client:CoreFlowClient;ticketId:string;revision:number;now?:()=>Date;
   /** C1: what the tenant's calendar entry names; the place is `{건물} {호실}` from the screen's unit list, or null. */
   issueType?:"HEATING"|"LEAK";place?:string|null;
-  /** Runs after a scheduling step is saved, or a conflict re-read the schedule, so 방문 시간 확정 필요 on 알림 is read again. */
+  /** Runs after a scheduling step is saved, or a conflict or a result check re-read a changed schedule, so 방문 시간 확정
+   * 필요 on 알림 is read again. */
   onChanged?():void};
 type Kind="AVAILABILITY"|"AUTHORIZE"|"CONFIRM"|"RESCHEDULE";
 /** A sent command keeps its exact input so an unknown outcome is reconciled with the same clientRequestId. */
@@ -53,7 +54,7 @@ function LoadedVendorHandoffTenant({client,ticketId,now=systemNow,issueType,plac
         setScheduling(fresh);
         if(JSON.stringify(fresh)!==request.context){
           setPending(null);setConsentIds([]);setConsentReview(false);setSlotId(null);setRescheduleFor(null);
-          setNotice("방문 일정이 바뀌었어요. 최신 일정을 확인해 주세요. 이전 요청의 성공 여부는 확정하지 않아요.");return;
+          setNotice("방문 일정이 바뀌었어요. 최신 일정을 확인해 주세요. 이전 요청의 성공 여부는 확정하지 않아요.");onChanged?.();return;
         }
       }
       const receipt=await request.run();

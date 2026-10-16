@@ -31,9 +31,22 @@ it("tells the screen after the work information is saved, so the work list and �
   expect(onChanged).toHaveBeenCalledTimes(1);
 });
 
-it("does not when the save is refused or its result is unknown",async()=>{
-  for(const failure of [new ApiClientError("CONFLICT","충돌",{status:409}),new ApiClientError("NETWORK_ERROR","요청을 보내지 못했어요.")]){
-    const client={manager:{read:vi.fn(async()=>work),notes:vi.fn(async()=>[]),update:vi.fn(async()=>{throw failure;})}} as unknown as CoreFlowClient;
+it("tells the screen after a conflict re-read the newer work information, which may carry another due date (review of #172)",async()=>{
+  const newer={...work,dueAt:"2026-10-01T00:00:00Z",version:2};
+  const read=vi.fn(async()=>work).mockResolvedValueOnce(work).mockResolvedValueOnce(newer);
+  const client={manager:{read,notes:vi.fn(async()=>[]),update:vi.fn(async()=>{throw new ApiClientError("CONFLICT","충돌",{status:409});})}} as unknown as CoreFlowClient;
+  const onChanged=vi.fn();
+  await render(<ManagerWorkDetail client={client} ticket={ticket} revision={0} onChanged={onChanged}/>);
+  await save();
+  expect(host!.textContent).toContain("최신 업무 정보를 불러왔어요.");
+  expect(onChanged).toHaveBeenCalledTimes(1);
+});
+
+it("does not when the result is unknown or the conflict re-read fails",async()=>{
+  const conflict=new ApiClientError("CONFLICT","충돌",{status:409}),network=new ApiClientError("NETWORK_ERROR","요청을 보내지 못했어요.");
+  for(const [failure,rereadFails] of [[network,false],[conflict,true]] as const){
+    const read=vi.fn(async()=>work);if(rereadFails)read.mockResolvedValueOnce(work).mockRejectedValueOnce(network);
+    const client={manager:{read,notes:vi.fn(async()=>[]),update:vi.fn(async()=>{throw failure;})}} as unknown as CoreFlowClient;
     const onChanged=vi.fn();
     await render(<ManagerWorkDetail client={client} ticket={ticket} revision={0} onChanged={onChanged}/>);
     await save();
@@ -42,7 +55,7 @@ it("does not when the save is refused or its result is unknown",async()=>{
   }
 });
 
-it("shows 기한 지남 on the work list with the 알림 name and colours",async()=>{
+it("shows 기한 지남 on the work list with the 알림 name, in its own label element",async()=>{
   const late={...work,dueAt:"2026-10-01T00:00:00Z"};
   const client={manager:{list:vi.fn(async()=>[late])},communication:{summaries:vi.fn(async()=>[])}} as unknown as CoreFlowClient;
   await render(<ManagerWorkQueue client={client} units={[]} revision={0} onOpen={()=>{}} disabled={false}/>);

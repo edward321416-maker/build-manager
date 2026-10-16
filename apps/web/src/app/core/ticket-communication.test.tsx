@@ -49,3 +49,18 @@ it("stays not ready while the id set is unknown, then while the real read for it
   expect(api.current!.ready).toBe(true);
   expect(api.current!.summaries.t1?.waitingFor).toBe("TENANT");
 });
+
+it("counts every finished read, failed or not, so a retry can tell its own failed read from the one before (review of #172)",async()=>{
+  const summaries=vi.fn().mockRejectedValueOnce(new Error("down")).mockRejectedValueOnce(new Error("down")).mockResolvedValue([]);
+  const client={communication:{summaries}} as unknown as CoreFlowClient;
+  const api:RefObject<Api|null>={current:null};
+  const settle=()=>act(async()=>{for(let i=0;i<8;i++)await Promise.resolve();});
+  host=document.createElement("div");document.body.append(host);root=createRoot(host);
+  await act(async()=>{root!.render(<Probe client={client} ids={["t1"]} api={api}/>);});await settle();
+  expect(api.current).toMatchObject({error:true,landed:1});
+  // Coming back to the window reads again: a second failure looks the same except for the count.
+  await act(async()=>{window.dispatchEvent(new Event("focus"));});await settle();
+  expect(api.current).toMatchObject({error:true,landed:2});
+  await act(async()=>{window.dispatchEvent(new Event("focus"));});await settle();
+  expect(api.current).toMatchObject({error:false,landed:3});
+});

@@ -53,8 +53,8 @@ export function ManagerWorkQueue({client,units,revision,onOpen,disabled,selected
   </section>;
 }
 
-/** `onChanged` runs after the work information is saved, so the screen reads the work list and the 알림 to-dos again
- * (a new due date can end or start 기한 지남). */
+/** `onChanged` runs after the work information is saved, or a conflict re-read the newer one, so the screen reads the work
+ * list and the 알림 to-dos again (a new due date can end or start 기한 지남). */
 export function ManagerWorkDetail({client,ticket,revision,onChanged}:{client:CoreFlowClient;ticket:CoreTicketDto;revision:number;onChanged?():void}){
   const [work,setWork]=useState<CoreManagerWorkItem|null>(null),[notes,setNotes]=useState<CoreManagerInternalNote[]>([]);
   const [priority,setPriority]=useState<CoreManagerWorkItem["priority"]>("NORMAL"),[assignee,setAssignee]=useState(""),[due,setDue]=useState(""),[body,setBody]=useState("");
@@ -65,7 +65,7 @@ export function ManagerWorkDetail({client,ticket,revision,onChanged}:{client:Cor
   const completed=ticket.workStatus==="COMPLETED"||work?.workStatus==="COMPLETED",locked=busy||completed||!work||uncertain;
   const fail=async(e:unknown)=>{
     if(e instanceof ApiClientError&&e.status===409){
-      try{apply(await client.manager.read(ticket.ticketId));setError("다른 변경이 먼저 저장되었거나 처리가 완료됐어요. 최신 업무 정보를 불러왔어요. 확인한 뒤 다시 입력해 주세요.");}catch{setError("최신 상태를 확인하지 못했어요. 최신 정보를 눌러 주세요.");setUncertain(true);}
+      try{apply(await client.manager.read(ticket.ticketId));setError("다른 변경이 먼저 저장되었거나 처리가 완료됐어요. 최신 업무 정보를 불러왔어요. 확인한 뒤 다시 입력해 주세요.");onChanged?.();}catch{setError("최신 상태를 확인하지 못했어요. 최신 정보를 눌러 주세요.");setUncertain(true);}
     }else{setError("저장 결과를 확인하지 못했어요. 중복 저장하지 말고 최신 정보로 저장된 내용을 먼저 확인해 주세요.");setUncertain(true);}
   };
   return <section aria-label="업무 관리" className={styles.detail}>

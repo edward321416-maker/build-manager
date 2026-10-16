@@ -103,6 +103,11 @@ test("홈 keeps the rows but states no next step when the conversation states ca
   expect((await cards.first().boundingBox())!.height).toBe(busyHeight);
   // Without the conversation states no next step is confirmed (rules 10), so the row names the request and its status only.
   await expect(cards.first()).not.toContainText(/아직 보내지 않았어요|기다리고 있어요|처리하고 있어요/);
+  // The box's own retry reads them again; once they load the box goes and the row names its next step (review of #172).
+  await page.unroute(/\/api\/v2\/core\/communication-summaries(\?|$)/);
+  await failed.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+  await expect(going.getByRole("alert")).toHaveCount(0);
+  await expect(cards.first()).toContainText("아직 보내지 않았어요. 열어서 제출해 주세요.");
   await cards.first().click(); await expect(page.getByTestId("ticket-heading")).toBeVisible();
 });
 

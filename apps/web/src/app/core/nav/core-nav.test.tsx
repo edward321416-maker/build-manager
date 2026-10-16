@@ -117,6 +117,12 @@ describe("menu screens (rules 8.5, 8.11, 8.16)", () => {
     // aria-busy holds back announcements inside the list, so the line sits after it.
     expect(at(checking).region).toBeGreaterThan(at(checking).sectionEnd);
     expect(checking.slice(at(checking).region)).toContain("처리할 일을 더 확인하고 있어요.");
+    // A re-read keeps the earlier result as it is: no busy list, the empty line stays, the live line says it is checking
+    // (review of #172: the busy list held back the partial alert, and the empty line blinked on every 알림 tap).
+    const again = renderToStaticMarkup(<TodoScreen role="TENANT" list={{ ...EMPTY_TODO_LIST, refreshing: true }} ready units={[]} onOpen={noop} onOpenPlace={noop} onRetry={noop} />);
+    expect(again).not.toContain("aria-busy");
+    expect(again).toContain("지금 처리할 일이 없어요.");
+    expect(again.slice(at(again).region)).toContain("처리할 일을 더 확인하고 있어요.");
   });
 
   it("links a link request to 입주 연결 and names the unit", () => {

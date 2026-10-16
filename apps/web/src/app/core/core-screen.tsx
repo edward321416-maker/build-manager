@@ -90,6 +90,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   const [todoRevision,setTodoRevision]=useState(0);
   // A saved due date reloads the manager's work list only: `revision` would also remount the decision form and lose its input.
   const [workRevision,setWorkRevision]=useState(0);
+  // Which finished conversation read a 다시 불러오기 press waits for (see `summariesFailed` below).
+  const [summaryRetryFrom,setSummaryRetryFrom]=useState<number|null>(null);
   const [communicationVersion,setCommunicationVersion]=useState<{ticketId:string;version:number}|null>(null);
   const [managerHandoff,setManagerHandoff]=useState<ManagerVendorHandoffDto|null>(null);
   const onManagerHandoff=useCallback((value:ManagerVendorHandoffDto|null)=>setManagerHandoff(value),[]);
@@ -237,7 +239,8 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
   };
   // The new list and the re-read open request land together, so a refresh runs the to-do reads once, not once for each
   // (spec §5). When the re-read fails, the new list still lands, unless the session or access is gone (401, 403): the
-  // guarded client has cleared the screen then, and the list must not come back behind the sign-in form.
+  // guarded client has cleared the screen then. `run` clears it again in the same batch, so this only keeps the list
+  // from being set at all (defensive; review of #150).
   const refresh=async()=>{const u=await client.units();setUnits(u);setUnit(current=>u.some(item=>item.id===current)?current:(u[0]?.id??""));const list=await client.tickets();
     const fresh=selected?await client.read(selected.ticketId).catch((e:unknown)=>{if(!(e instanceof ApiClientError&&(e.status===401||e.status===403)))setTickets(list);throw e;}):null;
     setTickets(list);if(fresh)adopt(fresh);setRevision(r=>r+1);setTodoRevision(r=>r+1);};
@@ -296,6 +299,12 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
     {name:"진행 중",list:unitTickets.filter(t=>t.workStatus!=="COMPLETED"),empty:"진행 중인 요청이 없어요. 문제가 생기면 홈에서 접수해 주세요."},
     {name:"끝난 요청",list:unitTickets.filter(t=>t.workStatus==="COMPLETED"),empty:"끝난 요청이 없어요."},
   ];
+  // 홈 and 요청 when the conversation states cannot be read (rules 8.11). The read follows `revision`, so it starts after
+  // `refresh` and `busy` ends; the button stays locked until that read lands. Each failed read remounts the box, so the
+  // failure is announced again (review of #172).
+  const summaryRetrying=summaryRetryFrom!==null&&summaryRetryFrom===conversationSummaries.landed;
+  const retrySummaries=()=>{setSummaryRetryFrom(conversationSummaries.landed);void run(async()=>{try{await refresh();}catch(e){setSummaryRetryFrom(null);throw e;}});};
+  const summariesFailed=conversationSummaries.error?<div key={conversationSummaries.landed} className={styles.retry} role="alert"><p>{summariesFailedMessage}</p><button type="button" disabled={busy||summaryRetrying} onClick={retrySummaries}>다시 불러오기</button></div>:null;
   // The request list area: the tenant's 홈 and 요청, the manager's 업무함, or any open request.
   const workVisible=Boolean(selected)||(!view&&(tenant?tab==="home"||tab==="requests":tab==="work"));
   return <div className={navStyles.shell} data-nav={navContext?"on":undefined} data-sub={sub?"true":undefined}>
@@ -379,7 +388,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
             * form (spec §4). */}
           {home.cards.length?<section className={styles.homeCards} aria-label="진행 중인 요청" aria-busy={conversationSummaries.ready&&todoExtras.ready?undefined:"true"}>
             <h2>진행 중인 요청 <small>{home.total}건</small></h2>
-            {conversationSummaries.error?<div className={styles.retry} role="alert"><p>{summariesFailedMessage}</p><button disabled={busy} onClick={()=>void run(refresh)}>다시 불러오기</button></div>:null}
+            {summariesFailed}
             {pending.length?<p>{pendingPhotosHint}</p>:null}
             <ul>{home.cards.map(({ticket:t,next})=><li key={t.ticketId}><button type="button" className={styles.homeRow} data-home-card={t.ticketId} disabled={busy||pending.length>0} onClick={()=>openTenantTicket(t.ticketId)}>
               <span className={styles.cardTitle}><span className={styles.ticketTitle}>{ticketName(t)}</span>{isIntakeDraft(t)?<DraftBadge/>:<WorkStatusBadge status={t.workStatus}/>}</span>
@@ -401,7 +410,7 @@ export default function CoreFlowPage({b1,onDenied,onLogout,account,focusTitle}:{
           </form>:null}
         </div>
         <div className={styles.tenantRequests} hidden={tab!=="requests"}>
-          {conversationSummaries.error?<div className={styles.retry} role="alert"><p>{summariesFailedMessage}</p><button disabled={busy} onClick={()=>void run(refresh)}>다시 불러오기</button></div>:null}
+          {summariesFailed}
           {pending.length?<p>{pendingPhotosHint}</p>:null}
           {!unit?<p>호실 배정 후 접수 이력을 볼 수 있어요.</p>:requestGroups.map(group=><section key={group.name} aria-label={group.name}>
             <h2>{group.name} <small>{group.list.length}건</small></h2>

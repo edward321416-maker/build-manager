@@ -361,6 +361,12 @@ describe("tells the screen when the tenant's to-dos may have changed",()=>{
     const onChanged=vi.fn();await mountWith(fake(dto(),{submitAvailability:async()=>{throw network();}}).client,onChanged);
     await sendTimes();expect(page()).toContain("결과를 확인하지 못했어요");expect(onChanged).not.toHaveBeenCalled();
   });
+  it("after a result check finds the schedule changed (review of #172)",async()=>{
+    let reads=0;const onChanged=vi.fn();
+    await mountWith(fake(dto(),{readScheduling:async()=>++reads>1?{...dto(),packetRevisionId:w2}:dto(),submitAvailability:async()=>{throw network();}}).client,onChanged);
+    await sendTimes();expect(onChanged).not.toHaveBeenCalled();
+    await click("같은 요청으로 결과 확인");expect(page()).toContain("방문 일정이 바뀌었어요.");expect(onChanged).toHaveBeenCalledTimes(1);
+  });
   it("after the tenant confirms the result",async()=>{
     let outcome:CoreTicketOutcome={ticketId,kind:"UNCONFIRMED",assertedAt:null,followUpTicketId:null};
     const client={outcome:{source:vi.fn(async()=>({sourceTicketId:null})),read:vi.fn(async()=>outcome),
@@ -369,5 +375,13 @@ describe("tells the screen when the tenant's to-dos may have changed",()=>{
     await act(async()=>root!.render(<TicketOutcome client={client} ticket={{ticketId,workStatus:"COMPLETED"} as CoreTicketDto} tenant revision={0} onFollowUp={()=>{}} onOpen={()=>{}} onChanged={onChanged}/>));await flush();
     expect(onChanged).not.toHaveBeenCalled();
     await click("해결됐어요");expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+  it("after a result answer conflicts and the result is read again (review of #172)",async()=>{
+    const outcome:CoreTicketOutcome={ticketId,kind:"UNCONFIRMED",assertedAt:null,followUpTicketId:null};
+    const client={outcome:{source:vi.fn(async()=>({sourceTicketId:null})),read:vi.fn(async()=>outcome),
+      confirmResolved:vi.fn(async()=>{throw http(409,"STATE_CONFLICT");})}} as unknown as CoreFlowClient;
+    const onChanged=vi.fn();host=document.createElement("div");document.body.append(host);root=createRoot(host);
+    await act(async()=>root!.render(<TicketOutcome client={client} ticket={{ticketId,workStatus:"COMPLETED"} as CoreTicketDto} tenant revision={0} onFollowUp={()=>{}} onOpen={()=>{}} onChanged={onChanged}/>));await flush();
+    await click("해결됐어요");expect(client.outcome.read).toHaveBeenCalledTimes(2);expect(onChanged).toHaveBeenCalledTimes(1);
   });
 });
